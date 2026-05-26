@@ -1018,11 +1018,12 @@ bool LoadFile(const wchar_t* path) {
     // Start playback on output stream
     BASS_ChannelPlay(g_fxStream, FALSE);
 
-    // Parse chapters from file (if any)
-    // For SoundTouch, use g_fxStream since it owns g_stream
-    // For push-based processors, use g_stream (original source)
-    HSTREAM chapterStream = g_stream ? g_stream : g_fxStream;
-    ParseChapters(chapterStream);
+    // Parse chapters from the ORIGINAL decoder stream. BASS_FX tempo
+    // wrappers (used by the SoundTouch algorithm) don't expose ID3v2 /
+    // Vorbis tag blocks, so calling ParseChapters on g_fxStream returns
+    // nothing. g_sourceStream always holds the original decoder handle
+    // regardless of which tempo algorithm wrapped it.
+    ParseChapters(g_sourceStream);
 
     // Engine state: BASS active, hide video window if it was visible
     g_activeEngine = PlaybackEngine::BASS;

@@ -436,9 +436,12 @@ bool YouTubeDownloadAudio(const std::wstring& videoId, std::wstring& outFilePath
     // accidental queue expansion. --quiet/--no-progress/--no-warnings keep
     // stdout clean. We DON'T pass --no-overwrites because the cache hit
     // check above already covers that.
+    // --embed-chapters writes YouTube chapter markers into the M4A file so
+    // BASS sees them via ID3v2/Vorbis tags after our chapter-detection fix.
     std::wstring url = L"https://www.youtube.com/watch?v=" + safeId;
     std::wstring args = L"-f \"bestaudio[ext=m4a]/bestaudio[acodec=aac]/140\" "
                         L"--no-playlist --no-progress --no-warnings --quiet "
+                        L"--embed-chapters "
                         L"-o \"" + outArg + L"\" \"" + url + L"\"";
     RunYtdlp(args);
 
@@ -518,7 +521,7 @@ bool YouTubeDownloadPermanent(const std::wstring& videoId,
     std::wstring url = L"https://www.youtube.com/watch?v=" + safeId;
     std::wstring args = L"-f \"bestaudio[ext=m4a]/bestaudio[acodec=aac]/140\" "
                         L"--no-playlist --no-progress --no-warnings --quiet "
-                        L"--no-overwrites "
+                        L"--no-overwrites --embed-chapters "
                         L"-o \"" + outArg + L"\" \"" + url + L"\"";
     RunYtdlp(args);
 
