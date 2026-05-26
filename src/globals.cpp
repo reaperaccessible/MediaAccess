@@ -28,6 +28,7 @@ HSTREAM g_fxStream = 0;    // Tempo stream (wraps g_stream for pitch/tempo)
 HSTREAM g_sourceStream = 0; // Original decode stream (for bitrate queries)
 HSYNC g_endSync = 0;
 HSYNC g_metaSync = 0;      // Sync for stream metadata changes
+HSYNC g_dlSync = 0;        // Sync for URL download complete (re-parse chapters)
 float g_volume = 1.0f;
 bool g_muted = false;      // Muted state (recording still works)
 bool g_legacyVolume = false;  // Use legacy volume (faster, but affects recordings)

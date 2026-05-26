@@ -4,7 +4,10 @@
 
 #include <windows.h>
 #include <string>
+#include <vector>
 #include "bass.h"
+
+struct Chapter;  // forward decl, full struct in types.h
 
 // BASS initialization
 bool InitBass(HWND hwnd);
@@ -97,6 +100,12 @@ void StopRecording();
 
 // Expand friendly date tokens ({année}/{year}/etc.) to strftime codes (%Y/%m/etc.)
 std::wstring ExpandFilenameTokens(const std::wstring& tmpl);
+
+// Externally provided chapter list (e.g. Podcast 2.0 RSS chapter JSON).
+// Call BEFORE PlayTrack/LoadFile/LoadURL so the URL parser preserves them
+// instead of overwriting with whatever it finds in the audio file.
+// Pass an empty vector to clear.
+void SetExternalChapters(const std::vector<Chapter>& chapters);
 
 double GetTrackLength();
 bool IsCurrentlyPlaying();

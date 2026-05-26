@@ -48,6 +48,7 @@ struct PodcastEpisode {
     std::wstring pubDate;
     int durationSeconds;
     std::wstring guid;
+    std::wstring chaptersUrl;   // Podcast 2.0 <podcast:chapters url="..."/> if present
 };
 
 // Schedule action type

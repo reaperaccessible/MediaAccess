@@ -50,6 +50,7 @@ extern HSTREAM g_fxStream;    // Tempo stream (wraps g_stream for pitch/tempo)
 extern HSTREAM g_sourceStream; // Original decode stream (for bitrate queries, not freed separately)
 extern HSYNC g_endSync;
 extern HSYNC g_metaSync;      // Sync for stream metadata changes
+extern HSYNC g_dlSync;        // Sync for URL download complete (re-parse chapters)
 extern float g_volume;
 extern bool g_muted;          // Muted state (recording still works)
 extern bool g_legacyVolume;   // Use legacy volume (faster, but affects recordings)

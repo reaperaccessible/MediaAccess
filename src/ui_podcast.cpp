@@ -479,6 +479,74 @@ static std::vector<OpmlFeed> ParseOpmlFile(const std::wstring& filePath) {
     return feeds;
 }
 
+// Fetch a Podcast 2.0 chapters JSON file (linked from <podcast:chapters url="..."/>)
+// and convert it to a Chapter vector. The JSON shape is documented at
+// https://podcastindex.org/namespace/1.0#chapters :
+//   { "version": "1.2.0",
+//     "chapters": [ { "startTime": 0, "title": "Intro" }, ... ] }
+// We do a tiny hand-rolled scan rather than pulling in a JSON dependency.
+static bool FetchPodcast20Chapters(const std::wstring& chaptersUrl,
+                                   std::vector<Chapter>& outChapters) {
+    outChapters.clear();
+    if (chaptersUrl.empty()) return false;
+
+    std::wstring json = PodcastHttpGet(chaptersUrl);
+    if (json.empty()) return false;
+
+    // Locate the "chapters" array.
+    size_t pos = json.find(L"\"chapters\"");
+    if (pos == std::wstring::npos) return false;
+    pos = json.find(L'[', pos);
+    if (pos == std::wstring::npos) return false;
+
+    // Iterate { ... } objects inside the array. We don't need a full parser
+    // — startTime appears as a number, title as a quoted string. The order
+    // inside an object isn't guaranteed by JSON, so we search both fields
+    // within each object.
+    int depth = 0;
+    size_t objStart = std::wstring::npos;
+    for (size_t i = pos; i < json.size(); i++) {
+        wchar_t c = json[i];
+        if (c == L'{') {
+            if (depth == 0) objStart = i;
+            depth++;
+        } else if (c == L'}') {
+            depth--;
+            if (depth == 0 && objStart != std::wstring::npos) {
+                std::wstring obj = json.substr(objStart, i - objStart + 1);
+                // startTime: <number>
+                Chapter ch;
+                ch.position = 0.0;
+                size_t st = obj.find(L"\"startTime\"");
+                if (st != std::wstring::npos) {
+                    size_t colon = obj.find(L':', st);
+                    if (colon != std::wstring::npos) {
+                        ch.position = _wtof(obj.c_str() + colon + 1);
+                    }
+                }
+                // title: "<text>"
+                size_t tt = obj.find(L"\"title\"");
+                if (tt != std::wstring::npos) {
+                    size_t q1 = obj.find(L'"', obj.find(L':', tt) + 1);
+                    if (q1 != std::wstring::npos) {
+                        size_t q2 = q1 + 1;
+                        while (q2 < obj.size()) {
+                            if (obj[q2] == L'"' && obj[q2 - 1] != L'\\') break;
+                            q2++;
+                        }
+                        if (q2 < obj.size()) ch.name = obj.substr(q1 + 1, q2 - q1 - 1);
+                    }
+                }
+                outChapters.push_back(ch);
+                objStart = std::wstring::npos;
+            }
+        } else if (c == L']' && depth == 0) {
+            break;
+        }
+    }
+    return !outChapters.empty();
+}
+
 // Parse RSS feed and extract episodes (with optional authentication)
 static bool ParsePodcastFeed(const std::wstring& feedUrl, std::wstring& outTitle,
                              std::vector<PodcastEpisode>& episodes,
@@ -524,6 +592,20 @@ static bool ParsePodcastFeed(const std::wstring& feedUrl, std::wstring& outTitle
         // Try to get duration from itunes:duration
         std::wstring durationStr = ExtractXmlContent(item, L"itunes:duration");
         ep.durationSeconds = ParseDuration(durationStr);
+
+        // Podcast 2.0 <podcast:chapters url="..." type="..." /> — self-closing.
+        // Pull out the url= attribute so we can fetch JSON chapters before playback.
+        size_t chPos = item.find(L"<podcast:chapters");
+        if (chPos != std::wstring::npos) {
+            size_t urlAttr = item.find(L"url=\"", chPos);
+            if (urlAttr != std::wstring::npos) {
+                urlAttr += 5;
+                size_t urlEnd = item.find(L'"', urlAttr);
+                if (urlEnd != std::wstring::npos) {
+                    ep.chaptersUrl = item.substr(urlAttr, urlEnd - urlAttr);
+                }
+            }
+        }
 
         if (!ep.audioUrl.empty() && !ep.title.empty()) {
             episodes.push_back(ep);
@@ -1072,6 +1154,20 @@ static INT_PTR CALLBACK PodcastDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARA
                                 }
                             }
                             if (!g_playlist.empty()) {
+                                // If the first episode advertises Podcast 2.0 chapters via
+                                // <podcast:chapters>, fetch the JSON now and pre-load g_chapters
+                                // so the chapter UI works regardless of streaming vs download.
+                                if (!selItems.empty() && selItems[0] >= 0 &&
+                                    selItems[0] < static_cast<int>(g_podcastEpisodes.size()))
+                                {
+                                    const std::wstring& chUrl = g_podcastEpisodes[selItems[0]].chaptersUrl;
+                                    if (!chUrl.empty()) {
+                                        std::vector<Chapter> ch;
+                                        if (FetchPodcast20Chapters(chUrl, ch)) {
+                                            SetExternalChapters(ch);
+                                        }
+                                    }
+                                }
                                 PlayTrack(0, true);
                                 if (g_playlist.size() == 1) {
                                     Speak(Ts("Playing"));

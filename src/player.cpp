@@ -367,6 +367,10 @@ bool LoadURL(const wchar_t* url, bool silentOnFail) {
             BASS_ChannelRemoveSync(g_stream, g_metaSync);
             g_metaSync = 0;
         }
+        if (g_dlSync) {
+            BASS_ChannelRemoveSync(g_stream, g_dlSync);
+            g_dlSync = 0;
+        }
         BASS_StreamFree(g_stream);
         g_stream = 0;
     }
@@ -501,6 +505,32 @@ bool LoadURL(const wchar_t* url, bool silentOnFail) {
 
     // Set up end sync for auto-advance
     g_endSync = BASS_ChannelSetSync(g_fxStream, BASS_SYNC_END, 0, OnTrackEnd, nullptr);
+
+    // Chapter detection for URL streams (podcasts in particular). Two-step
+    // strategy:
+    //
+    //   1. Immediate parse: for non-BLOCK URL streams BASS reads the file
+    //      header during the initial probe, so BASS_TAG_ID3V2 is usually
+    //      available right now. Covers the common podcast case.
+    //
+    //   2. BASS_SYNC_DOWNLOAD fallback: fires once the full file has been
+    //      downloaded. If the immediate parse left g_chapters empty (e.g.
+    //      ID3v2 block sat at the end of the file, or an ID3v2_2 refresh
+    //      arrives mid-stream), we re-parse from the now-complete handle.
+    //      Skipped for live streams where the sync would never fire.
+    if (!g_isLiveStream && g_sourceStream) {
+        ParseChapters(g_sourceStream);
+        g_dlSync = BASS_ChannelSetSync(
+            g_sourceStream,
+            BASS_SYNC_DOWNLOAD | BASS_SYNC_ONETIME,
+            0,
+            [](HSYNC, DWORD, DWORD, void*) {
+                if (g_chapters.empty() && g_sourceStream) {
+                    ParseChapters(g_sourceStream);
+                }
+            },
+            nullptr);
+    }
 
     // Start playback
     BASS_ChannelPlay(g_fxStream, FALSE);
@@ -745,7 +775,24 @@ static void ParseID3v2Chapters(HSTREAM stream) {
 }
 
 // Parse chapters from the current stream
+// External chapters: populated by callers (e.g. Podcast 2.0 RSS chapter JSON)
+// BEFORE ParseChapters runs. ParseChapters then no-ops to preserve them.
+// Cleared automatically when a new file is loaded (LoadFile/LoadURL flow).
+static bool g_chaptersExternal = false;
+
+void SetExternalChapters(const std::vector<Chapter>& chapters) {
+    g_chapters = chapters;
+    g_chaptersExternal = !chapters.empty();
+}
+
 void ParseChapters(HSTREAM stream) {
+    // If the caller pre-loaded chapters (Podcast 2.0 RSS, etc.), preserve
+    // them. Consume the flag so the NEXT LoadFile/LoadURL parses normally.
+    if (g_chaptersExternal) {
+        g_chaptersExternal = false;
+        return;
+    }
+
     g_chapters.clear();
 
     if (!stream) return;
@@ -1120,6 +1167,10 @@ void FreeCurrentStream() {
         if (g_metaSync) {
             BASS_ChannelRemoveSync(g_stream, g_metaSync);
             g_metaSync = 0;
+        }
+        if (g_dlSync) {
+            BASS_ChannelRemoveSync(g_stream, g_dlSync);
+            g_dlSync = 0;
         }
         BASS_StreamFree(g_stream);
         g_stream = 0;
