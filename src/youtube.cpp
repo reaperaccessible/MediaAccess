@@ -50,7 +50,7 @@ static std::wstring g_ytCurrentPlaylistId;
 // Forward declarations
 static bool SearchWithAPI(const std::wstring& query, std::vector<YouTubeResult>& results,
                           std::wstring& nextPageToken, const std::wstring& pageToken);
-static bool SearchWithYtdlp(const std::wstring& query, std::vector<YouTubeResult>& results);
+static bool SearchWithYtdlp(const std::wstring& query, std::vector<YouTubeResult>& results, int count = 50);
 static std::wstring RunYtdlp(const std::wstring& args);
 static std::wstring UrlEncode(const std::wstring& str);
 static std::wstring HttpGet(const std::wstring& url);
@@ -248,11 +248,23 @@ static std::wstring ParseJsonStringMulti(const std::wstring& json, std::initiali
     return L"";
 }
 
-// Search using yt-dlp
-static bool SearchWithYtdlp(const std::wstring& query, std::vector<YouTubeResult>& results) {
+// Tracks how many results yt-dlp's incremental pagination has emitted so
+// far for the current query. yt-dlp doesn't expose a real page token, so
+// we ask for ytsearch(N): each time, growing N, and only surface the items
+// that weren't in the previous batch.
+static int g_ytYtdlpLoaded = 0;
+
+// Search using yt-dlp. Pass count = how many YouTube results to ASK FOR.
+// The function returns whatever yt-dlp produced; the caller is responsible
+// for skipping any items already shown to the user (see DoLoadMore path).
+static bool SearchWithYtdlp(const std::wstring& query,
+                            std::vector<YouTubeResult>& results,
+                            int count) {
     // Use yt-dlp to search YouTube
     std::wstring safeQuery = SanitizeForCommandLine(query);
-    std::wstring args = L"--flat-playlist --dump-json \"ytsearch25:" + safeQuery + L"\"";
+    wchar_t prefix[32];
+    swprintf(prefix, 32, L"ytsearch%d:", count);
+    std::wstring args = L"--flat-playlist --dump-json \"" + std::wstring(prefix) + safeQuery + L"\"";
     OutputDebugStringW((L"[YT] Running: " + g_ytdlpPath + L" " + args + L"\n").c_str());
     std::wstring output = RunYtdlp(args);
     OutputDebugStringW((L"[YT] Output length: " + std::to_wstring(output.length()) + L"\n").c_str());
@@ -302,10 +314,49 @@ bool YouTubeSearch(const std::wstring& query, std::vector<YouTubeResult>& result
         return true;
     }
 
-    // Fall back to yt-dlp (only for first page, no pagination support)
-    if (pageToken.empty() && IsYtdlpAvailable()) {
+    // yt-dlp fallback. yt-dlp doesn't have native pagination — we simulate
+    // it by asking for a growing count each time and only surfacing the
+    // items the user hasn't seen yet (deduplicated by video id below).
+    if (IsYtdlpAvailable()) {
         OutputDebugStringW(L"[YT] Trying yt-dlp search\n");
-        return SearchWithYtdlp(query, results);
+        const int batchSize = 50;
+        if (pageToken.empty()) {
+            // First page.
+            g_ytYtdlpLoaded = 0;
+            if (!SearchWithYtdlp(query, results, batchSize)) return false;
+            g_ytYtdlpLoaded = static_cast<int>(results.size());
+            // Use a sentinel non-empty token so the auto-load path keeps
+            // firing — we don't have a real "no more results" signal until
+            // a re-query returns the same set, which we detect below.
+            nextPageToken = (g_ytYtdlpLoaded >= batchSize) ? L"ytdlp" : L"";
+            return !results.empty();
+        }
+        if (pageToken == L"ytdlp") {
+            // Subsequent page: re-fetch a bigger batch, return only the new ids.
+            int newTotal = g_ytYtdlpLoaded + batchSize;
+            std::vector<YouTubeResult> all;
+            if (!SearchWithYtdlp(query, all, newTotal)) return false;
+            // Build the set of ids already known to the caller (g_ytResults
+            // is static in this translation unit) so we don't re-emit them.
+            // Dedup against the new batch too in case yt-dlp returns dups.
+            std::vector<std::wstring> seen;
+            seen.reserve(g_ytResults.size());
+            for (const auto& r : g_ytResults) seen.push_back(r.videoId);
+            for (const auto& r : all) {
+                bool dup = false;
+                for (const auto& id : seen) {
+                    if (id == r.videoId) { dup = true; break; }
+                }
+                if (!dup) {
+                    results.push_back(r);
+                    seen.push_back(r.videoId);
+                }
+            }
+            g_ytYtdlpLoaded = newTotal;
+            // No new items → we've hit the search ceiling; stop offering more.
+            nextPageToken = results.empty() ? L"" : L"ytdlp";
+            return true;
+        }
     }
 
     OutputDebugStringW(L"[YT] No search method available\n");
