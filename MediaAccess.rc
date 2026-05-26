@@ -91,55 +91,55 @@ BEGIN
     // Playback tab controls (shown when tab 0 selected)
     LTEXT           "&Output device:", IDC_LABEL_PLAYBACK_OUTPUT_DEVICE, 17, 30, 55, 10
     COMBOBOX        IDC_SOUNDCARD, 75, 28, 188, 120, CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
-    AUTOCHECKBOX    "&Allow volume above 100%", IDC_ALLOW_AMPLIFY, 17, 48, 120, 10
-    AUTOCHECKBOX    "&Remember playback state on exit", IDC_REMEMBER_STATE, 17, 61, 150, 10
+    AUTOCHECKBOX    "&Allow volume above 100%", IDC_ALLOW_AMPLIFY, 17, 48, 160, 10
+    AUTOCHECKBOX    "&Remember playback state on exit", IDC_REMEMBER_STATE, 17, 61, 180, 10
     LTEXT           "Remember p&osition if longer than:", IDC_LABEL_PLAYBACK_REMEMBER_POS, 17, 76, 125, 10
     COMBOBOX        IDC_REMEMBER_POS, 145, 74, 118, 120, CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
-    AUTOCHECKBOX    "&Bring window to front when opening files", IDC_BRING_TO_FRONT, 17, 92, 180, 10
-    AUTOCHECKBOX    "&Load all files in folder when opening single file", IDC_LOAD_FOLDER, 17, 105, 200, 10
-    AUTOCHECKBOX    "&Minimize to system tray", IDC_MINIMIZE_TO_TRAY, 17, 118, 120, 10
-    AUTOCHECKBOX    "Show &track name in window title", IDC_SHOW_TITLE, 17, 131, 150, 10
+    AUTOCHECKBOX    "&Bring window to front when opening files", IDC_BRING_TO_FRONT, 17, 92, 230, 10
+    AUTOCHECKBOX    "&Load all files in folder when opening single file", IDC_LOAD_FOLDER, 17, 105, 260, 10
+    AUTOCHECKBOX    "&Minimize to system tray", IDC_MINIMIZE_TO_TRAY, 17, 118, 155, 10
+    AUTOCHECKBOX    "Show &track name in window title", IDC_SHOW_TITLE, 17, 131, 220, 10
     AUTOCHECKBOX    "Auto-ad&vance to next playlist item", IDC_AUTO_ADVANCE, 17, 144, 150, 10
-    AUTOCHECKBOX    "&Follow playback in playlist dialog", IDC_PLAYLIST_FOLLOW, 17, 157, 150, 10
-    AUTOCHECKBOX    "Check for &updates on startup", IDC_CHECK_UPDATES, 17, 170, 150, 10
+    AUTOCHECKBOX    "&Follow playback in playlist dialog", IDC_PLAYLIST_FOLLOW, 17, 157, 180, 10
+    AUTOCHECKBOX    "Check for &updates on startup", IDC_CHECK_UPDATES, 17, 170, 170, 10
     AUTOCHECKBOX    "Allow &multiple instances", IDC_MULTI_INSTANCE, 17, 183, 150, 10
-    AUTOCHECKBOX    "Register all supported &file types", IDC_REGISTER_FILE_TYPES, 155, 183, 140, 10
-    LTEXT           "Re&wind on pause (ms):", IDC_REWIND_LABEL, 170, 145, 80, 10
+    AUTOCHECKBOX    "Register all supported &file types", IDC_REGISTER_FILE_TYPES, 155, 183, 180, 10
+    LTEXT           "Re&wind on pause (ms):", IDC_REWIND_LABEL, 170, 145, 95, 10
     EDITTEXT        IDC_REWIND_ON_PAUSE, 250, 143, 30, 14, ES_AUTOHSCROLL | ES_NUMBER
-    LTEXT           "Volu&me step:", IDC_LABEL_PLAYBACK_VOLUME_STEP, 160, 118, 50, 10
-    COMBOBOX        IDC_VOLUME_STEP, 215, 116, 55, 120, CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    LTEXT           "Volu&me step:", IDC_LABEL_PLAYBACK_VOLUME_STEP, 160, 118, 65, 10
+    COMBOBOX        IDC_VOLUME_STEP, 230, 116, 55, 120, CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
     LTEXT           "Lan&guage:", IDC_LABEL_LANGUAGE, 17, 200, 40, 10
     COMBOBOX        IDC_LANGUAGE_COMBO, 60, 198, 90, 80, CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
 
     // Recording tab controls (shown when tab 1 selected)
-    LTEXT           "Record audio output to file. Press R to toggle recording.", IDC_LABEL_RECORDING_DESCRIPTION, 17, 30, 230, 10
-    LTEXT           "&Output folder:", IDC_LABEL_RECORDING_OUTPUT_FOLDER, 17, 50, 50, 10
-    EDITTEXT        IDC_REC_PATH, 70, 48, 155, 14, ES_AUTOHSCROLL
-    PUSHBUTTON      "&Browse...", IDC_REC_BROWSE, 228, 47, 40, 14
-    LTEXT           "Filename &template:", IDC_LABEL_RECORDING_TEMPLATE, 17, 72, 65, 10
-    EDITTEXT        IDC_REC_TEMPLATE, 85, 70, 140, 14, ES_AUTOHSCROLL
-    LTEXT           "(Uses strftime format: %Y=year, %m=month, %d=day, %H=hour, %M=min, %S=sec)", IDC_LABEL_RECORDING_TEMPLATE_HELP, 17, 88, 250, 10
-    LTEXT           "&Format:", IDC_LABEL_RECORDING_FORMAT, 17, 108, 30, 10
+    LTEXT           "Record audio output to file. Press R to toggle recording.", IDC_LABEL_RECORDING_DESCRIPTION, 17, 30, 320, 10
+    LTEXT           "&Output folder:", IDC_LABEL_RECORDING_OUTPUT_FOLDER, 17, 50, 65, 10
+    EDITTEXT        IDC_REC_PATH, 85, 48, 140, 14, ES_AUTOHSCROLL
+    PUSHBUTTON      "&Browse...", IDC_REC_BROWSE, 228, 47, 50, 14
+    LTEXT           "Filename &template:", IDC_LABEL_RECORDING_TEMPLATE, 17, 72, 85, 10
+    EDITTEXT        IDC_REC_TEMPLATE, 105, 70, 120, 14, ES_AUTOHSCROLL
+    LTEXT           "(Uses strftime format: %Y=year, %m=month, %d=day, %H=hour, %M=min, %S=sec)", IDC_LABEL_RECORDING_TEMPLATE_HELP, 17, 88, 290, 10
+    LTEXT           "&Format:", IDC_LABEL_RECORDING_FORMAT, 17, 108, 35, 10
     COMBOBOX        IDC_REC_FORMAT, 50, 106, 70, 80, CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
     LTEXT           "&Bitrate:", IDC_LABEL_RECORDING_BITRATE, 130, 108, 30, 10
     COMBOBOX        IDC_REC_BITRATE, 163, 106, 70, 80, CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
     LTEXT           "(Bitrate only applies to MP3 and OGG formats)", IDC_LABEL_RECORDING_BITRATE_NOTE, 17, 125, 200, 10
 
     // Downloads tab controls (shown when tab 2 selected)
-    LTEXT           "Configure podcast episode download settings.", IDC_LABEL_DOWNLOADS_DESCRIPTION, 17, 30, 230, 10
-    LTEXT           "&Downloads folder:", IDC_LABEL_DOWNLOADS_FOLDER, 17, 50, 65, 10
+    LTEXT           "Configure podcast episode download settings.", IDC_LABEL_DOWNLOADS_DESCRIPTION, 17, 30, 290, 10
+    LTEXT           "&Downloads folder:", IDC_LABEL_DOWNLOADS_FOLDER, 17, 50, 115, 10
     EDITTEXT        IDC_DOWNLOAD_PATH, 17, 62, 205, 14, ES_AUTOHSCROLL | ES_READONLY
-    PUSHBUTTON      "&Browse...", IDC_DOWNLOAD_BROWSE, 225, 61, 45, 14
-    AUTOCHECKBOX    "&Organize downloads into folders by feed title", IDC_DOWNLOAD_ORGANIZE, 17, 82, 200, 10
+    PUSHBUTTON      "&Browse...", IDC_DOWNLOAD_BROWSE, 225, 61, 50, 14
+    AUTOCHECKBOX    "&Organize downloads into folders by feed title", IDC_DOWNLOAD_ORGANIZE, 17, 82, 260, 10
 
     // Speech tab controls (shown when tab 3 selected)
     LTEXT           "Configure speech feedback for various events.", IDC_LABEL_SPEECH_DESCRIPTION, 17, 30, 230, 10
     AUTOCHECKBOX    "&Announce track changes", IDC_SPEECH_TRACKCHANGE, 17, 50, 150, 10
-    AUTOCHECKBOX    "Speak &volume when adjusted", IDC_SPEECH_VOLUME, 17, 70, 150, 10
-    AUTOCHECKBOX    "Speak &effect value when adjusted", IDC_SPEECH_EFFECT, 17, 90, 150, 10
+    AUTOCHECKBOX    "Speak &volume when adjusted", IDC_SPEECH_VOLUME, 17, 70, 170, 10
+    AUTOCHECKBOX    "Speak &effect value when adjusted", IDC_SPEECH_EFFECT, 17, 90, 210, 10
 
     // Movement tab controls (shown when tab 4 selected)
-    LTEXT           "Seek amounts (use , and . to cycle):", IDC_LABEL_MOVEMENT_DESCRIPTION, 17, 30, 150, 10
+    LTEXT           "Seek amounts (use , and . to cycle):", IDC_LABEL_MOVEMENT_DESCRIPTION, 17, 30, 260, 10
     AUTOCHECKBOX    "&1 second", IDC_SEEK_1S, 17, 45, 60, 10
     AUTOCHECKBOX    "&5 seconds", IDC_SEEK_5S, 17, 60, 60, 10
     AUTOCHECKBOX    "1&0 seconds", IDC_SEEK_10S, 17, 75, 60, 10
@@ -155,70 +155,70 @@ BEGIN
     AUTOCHECKBOX    "1 c&hapter (if available)", IDC_CHAPTER_SEEK, 150, 165, 110, 10
 
     // Global Hotkeys tab controls (shown when tab 5 selected)
-    AUTOCHECKBOX    "&Enable global hotkeys", IDC_HOTKEY_ENABLED, 17, 30, 100, 10
+    AUTOCHECKBOX    "&Enable global hotkeys", IDC_HOTKEY_ENABLED, 17, 30, 140, 10
     LISTBOX         IDC_HOTKEY_LIST, 17, 45, 246, 105, LBS_NOTIFY | WS_VSCROLL | WS_TABSTOP
     PUSHBUTTON      "&Add...", IDC_HOTKEY_ADD, 17, 158, 50, 14
     PUSHBUTTON      "&Edit...", IDC_HOTKEY_EDIT, 72, 158, 50, 14
     PUSHBUTTON      "&Remove", IDC_HOTKEY_REMOVE, 127, 158, 50, 14
 
     // Effects tab controls (shown when tab 6 selected)
-    LTEXT           "Stream effects ([ ] to cycle, Up/Down to adjust):", IDC_LABEL_EFFECTS_DESCRIPTION, 17, 30, 200, 10
+    LTEXT           "Stream effects ([ ] to cycle, Up/Down to adjust):", IDC_LABEL_EFFECTS_DESCRIPTION, 17, 30, 280, 10
     AUTOCHECKBOX    "&Volume (0-400%)", IDC_EFFECT_VOLUME, 17, 45, 100, 10
     AUTOCHECKBOX    "&Pitch (-12 to +12 semitones)", IDC_EFFECT_PITCH, 17, 60, 140, 10
     AUTOCHECKBOX    "&Tempo (-50% to +100%)", IDC_EFFECT_TEMPO, 17, 75, 120, 10
     AUTOCHECKBOX    "Playback &Rate (0.5x - 2x)", IDC_EFFECT_RATE, 17, 90, 120, 10
-    LTEXT           "Step:", IDC_LABEL_EFFECTS_STEP, 140, 91, 20, 10
+    LTEXT           "Step:", IDC_LABEL_EFFECTS_STEP, 140, 91, 25, 10
     COMBOBOX        IDC_RATE_STEP_MODE, 162, 89, 70, 60, CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
-    LTEXT           "DSP effects (enable to add their parameters to cycle list):", IDC_LABEL_EFFECTS_DSP_DESCRIPTION, 17, 110, 230, 10
-    LTEXT           "Re&verb:", IDC_LABEL_EFFECTS_REVERB, 17, 127, 30, 10
-    COMBOBOX        IDC_DSP_REVERB, 50, 125, 140, 80, CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    LTEXT           "DSP effects (enable to add their parameters to cycle list):", IDC_LABEL_EFFECTS_DSP_DESCRIPTION, 17, 110, 260, 10
+    LTEXT           "Re&verb:", IDC_LABEL_EFFECTS_REVERB, 17, 127, 60, 10
+    COMBOBOX        IDC_DSP_REVERB, 80, 125, 140, 80, CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
     AUTOCHECKBOX    "&Echo", IDC_DSP_ECHO, 17, 145, 60, 10
     AUTOCHECKBOX    "E&Q (Bass/Mid/Treble)", IDC_DSP_EQ, 17, 160, 110, 10
     AUTOCHECKBOX    "&Compressor", IDC_DSP_COMPRESSOR, 17, 175, 70, 10
     AUTOCHECKBOX    "&Stereo Width (0-200%)", IDC_DSP_STEREOWIDTH, 100, 145, 110, 10
-    AUTOCHECKBOX    "Ce&nter Cancel (-100 to +100%)", IDC_DSP_CENTERCANCEL, 100, 160, 130, 10
+    AUTOCHECKBOX    "Ce&nter Cancel (-100 to +100%)", IDC_DSP_CENTERCANCEL, 100, 160, 160, 10
     AUTOCHECKBOX    "&3D Audio (HRTF/Binaural)", IDC_DSP_SPATIAL, 100, 175, 120, 10
     AUTOCHECKBOX    "Co&nvolution Reverb", IDC_DSP_CONVOLUTION, 17, 190, 90, 10
-    LTEXT           "IR File:", IDC_LABEL_EFFECTS_IR_FILE, 110, 191, 25, 10
-    EDITTEXT        IDC_CONV_IR, 135, 189, 90, 14, ES_AUTOHSCROLL | ES_READONLY
+    LTEXT           "IR File:", IDC_LABEL_EFFECTS_IR_FILE, 110, 191, 35, 10
+    EDITTEXT        IDC_CONV_IR, 150, 189, 75, 14, ES_AUTOHSCROLL | ES_READONLY
     PUSHBUTTON      "...", IDC_CONV_BROWSE, 228, 189, 18, 14
 
     // Advanced tab controls (shown when tab 7 selected)
-    LTEXT           "Audio buffer settings (changes apply on next file load):", IDC_LABEL_ADVANCED_BUFFER_DESC, 17, 30, 220, 10
-    LTEXT           "&Buffer size:", IDC_LABEL_ADVANCED_BUFFER_SIZE, 17, 50, 50, 10
-    COMBOBOX        IDC_BUFFER_SIZE, 75, 48, 100, 120, CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
-    LTEXT           "&Update period:", IDC_LABEL_ADVANCED_UPDATE_PERIOD, 17, 72, 55, 10
-    COMBOBOX        IDC_UPDATE_PERIOD, 75, 70, 100, 120, CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
-    LTEXT           "Lower values reduce latency but may cause audio glitches.", IDC_LABEL_ADVANCED_LATENCY_NOTE, 17, 95, 230, 10
-    LTEXT           "Tempo/pitch &algorithm (changes apply on next file load):", IDC_LABEL_ADVANCED_TEMPO_ALGO, 17, 118, 220, 10
+    LTEXT           "Audio buffer settings (changes apply on next file load):", IDC_LABEL_ADVANCED_BUFFER_DESC, 17, 30, 290, 10
+    LTEXT           "&Buffer size:", IDC_LABEL_ADVANCED_BUFFER_SIZE, 17, 50, 80, 10
+    COMBOBOX        IDC_BUFFER_SIZE, 100, 48, 100, 120, CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    LTEXT           "&Update period:", IDC_LABEL_ADVANCED_UPDATE_PERIOD, 125, 50, 95, 10
+    COMBOBOX        IDC_UPDATE_PERIOD, 225, 48, 100, 120, CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    LTEXT           "Lower values reduce latency but may cause audio glitches.", IDC_LABEL_ADVANCED_LATENCY_NOTE, 17, 95, 300, 10
+    LTEXT           "Tempo/pitch &algorithm (changes apply on next file load):", IDC_LABEL_ADVANCED_TEMPO_ALGO, 17, 118, 260, 10
     COMBOBOX        IDC_TEMPO_ALGORITHM, 17, 133, 200, 120, CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
-    LTEXT           "EQ frequencies (Hz) - changes apply on next EQ enable:", IDC_LABEL_ADVANCED_EQ_FREQ, 17, 158, 220, 10
-    LTEXT           "Bass (20-500):", IDC_LABEL_ADVANCED_EQ_BASS, 17, 175, 55, 10
-    EDITTEXT        IDC_EQ_BASS_FREQ, 75, 173, 40, 14, ES_AUTOHSCROLL | ES_NUMBER
-    LTEXT           "Mid (200-5k):", IDC_LABEL_ADVANCED_EQ_MID, 125, 175, 50, 10
-    EDITTEXT        IDC_EQ_MID_FREQ, 175, 173, 40, 14, ES_AUTOHSCROLL | ES_NUMBER
-    LTEXT           "Treble (2k-20k):", IDC_LABEL_ADVANCED_EQ_TREBLE, 225, 175, 55, 10
+    LTEXT           "EQ frequencies (Hz) - changes apply on next EQ enable:", IDC_LABEL_ADVANCED_EQ_FREQ, 17, 158, 290, 10
+    LTEXT           "Bass (20-500):", IDC_LABEL_ADVANCED_EQ_BASS, 17, 175, 65, 10
+    EDITTEXT        IDC_EQ_BASS_FREQ, 85, 173, 35, 14, ES_AUTOHSCROLL | ES_NUMBER
+    LTEXT           "Mid (200-5k):", IDC_LABEL_ADVANCED_EQ_MID, 125, 175, 70, 10
+    EDITTEXT        IDC_EQ_MID_FREQ, 200, 173, 25, 14, ES_AUTOHSCROLL | ES_NUMBER
+    LTEXT           "Treble (2k-20k):", IDC_LABEL_ADVANCED_EQ_TREBLE, 225, 175, 65, 10
     EDITTEXT        IDC_EQ_TREBLE_FREQ, 280, 173, 45, 14, ES_AUTOHSCROLL | ES_NUMBER
-    AUTOCHECKBOX    "&Legacy volume (faster, but affects recordings)", IDC_LEGACY_VOLUME, 17, 195, 200, 10
+    AUTOCHECKBOX    "&Legacy volume (faster, but affects recordings)", IDC_LEGACY_VOLUME, 17, 195, 260, 10
     AUTOCHECKBOX    "Disable &batch delay (only catches one file at a time)", IDC_DISABLE_BATCH, 17, 209, 220, 10
-    PUSHBUTTON      "Reset station/podcast &order to alphabetical", IDC_RESET_LIST_ORDER, 17, 228, 200, 14
+    PUSHBUTTON      "Reset station/podcast &order to alphabetical", IDC_RESET_LIST_ORDER, 17, 228, 260, 14
 
     // YouTube tab controls (shown when tab 8 selected)
     // yt-dlp is bundled and auto-updated; no path field needed.
-    LTEXT           "YouTube Data &API key (optional, enables search):", IDC_LABEL_YOUTUBE_API_KEY, 17, 30, 200, 10
+    LTEXT           "YouTube Data &API key (optional, enables search):", IDC_LABEL_YOUTUBE_API_KEY, 17, 30, 260, 10
     EDITTEXT        IDC_YT_APIKEY, 17, 45, 256, 14, ES_AUTOHSCROLL | ES_PASSWORD
     LTEXT           "Get an API key from: console.cloud.google.com", IDC_LABEL_YOUTUBE_API_HELP, 17, 65, 200, 10
-    LTEXT           "Without API key, yt-dlp will be used for search (slower).", IDC_LABEL_YOUTUBE_API_NOTE, 17, 80, 230, 10
+    LTEXT           "Without API key, yt-dlp will be used for search (slower).", IDC_LABEL_YOUTUBE_API_NOTE, 17, 80, 270, 10
 
     // SoundTouch tab controls (shown when tab 9 selected)
     LTEXT           "SoundTouch settings (changes apply on next file load):", IDC_LABEL_SOUNDTOUCH_DESCRIPTION, 17, 30, 220, 10
-    AUTOCHECKBOX    "&Anti-alias filter", IDC_ST_AA_FILTER, 17, 45, 80, 10
-    LTEXT           "AA filter &length:", IDC_LABEL_SOUNDTOUCH_AA_LENGTH, 17, 62, 60, 10
-    COMBOBOX        IDC_ST_AA_LENGTH, 80, 60, 60, 120, CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
-    AUTOCHECKBOX    "&Quick algorithm (lower quality, less CPU)", IDC_ST_QUICK_ALGO, 17, 80, 180, 10
-    AUTOCHECKBOX    "&Prevent click (reduces artifacts)", IDC_ST_PREVENT_CLICK, 17, 95, 150, 10
-    LTEXT           "&Interpolation:", IDC_LABEL_SOUNDTOUCH_INTERPOLATION, 17, 115, 50, 10
-    COMBOBOX        IDC_ST_ALGORITHM, 70, 113, 80, 120, CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    AUTOCHECKBOX    "&Anti-alias filter", IDC_ST_AA_FILTER, 17, 45, 100, 10
+    LTEXT           "AA filter &length:", IDC_LABEL_SOUNDTOUCH_AA_LENGTH, 110, 47, 90, 10
+    COMBOBOX        IDC_ST_AA_LENGTH, 205, 45, 60, 120, CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    AUTOCHECKBOX    "&Quick algorithm (lower quality, less CPU)", IDC_ST_QUICK_ALGO, 17, 80, 210, 10
+    AUTOCHECKBOX    "&Prevent click (reduces artifacts)", IDC_ST_PREVENT_CLICK, 17, 95, 170, 10
+    LTEXT           "&Interpolation:", IDC_LABEL_SOUNDTOUCH_INTERPOLATION, 17, 115, 65, 10
+    COMBOBOX        IDC_ST_ALGORITHM, 85, 113, 80, 120, CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
     LTEXT           "&Sequence (ms):", IDC_LABEL_SOUNDTOUCH_SEQUENCE, 17, 135, 55, 10
     EDITTEXT        IDC_ST_SEQUENCE, 75, 133, 35, 14, ES_AUTOHSCROLL | ES_NUMBER
     LTEXT           "See&k window:", IDC_LABEL_SOUNDTOUCH_SEEKWINDOW, 120, 135, 50, 10
@@ -228,29 +228,29 @@ BEGIN
     LTEXT           "(0 = automatic for Sequence/Seek window)", IDC_LABEL_SOUNDTOUCH_AUTO_NOTE, 17, 152, 200, 10
 
     // Speedy tab controls (shown when tab 10 selected)
-    LTEXT           "Google Speedy algorithm settings:", IDC_LABEL_SPEEDY_DESCRIPTION, 17, 30, 150, 10
-    LTEXT           "Speedy uses nonlinear speedup optimized for speech.", IDC_LABEL_SPEEDY_INFO1, 17, 45, 250, 10
-    LTEXT           "It compresses vowels more than consonants for clarity.", IDC_LABEL_SPEEDY_INFO2, 17, 57, 250, 10
-    AUTOCHECKBOX    "&Enable nonlinear speedup (recommended for speech)", IDC_SPEEDY_NONLINEAR, 17, 78, 230, 10
+    LTEXT           "Google Speedy algorithm settings:", IDC_LABEL_SPEEDY_DESCRIPTION, 17, 30, 200, 10
+    LTEXT           "Speedy uses nonlinear speedup optimized for speech.", IDC_LABEL_SPEEDY_INFO1, 17, 45, 290, 10
+    LTEXT           "It compresses vowels more than consonants for clarity.", IDC_LABEL_SPEEDY_INFO2, 17, 57, 290, 10
+    AUTOCHECKBOX    "&Enable nonlinear speedup (recommended for speech)", IDC_SPEEDY_NONLINEAR, 17, 78, 270, 10
 
     // Signalsmith tab controls (shown when tab 11 selected)
-    LTEXT           "Signalsmith Stretch settings (changes apply on next file load):", IDC_LABEL_SIGNALSMITH_DESCRIPTION, 17, 30, 250, 10
-    LTEXT           "&Quality preset:", IDC_LABEL_SIGNALSMITH_QUALITY, 17, 50, 55, 10
-    COMBOBOX        IDC_SS_PRESET, 75, 48, 120, 120, CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
-    LTEXT           "&Tonality limit (Hz, 0 = auto):", IDC_LABEL_SIGNALSMITH_TONALITY, 17, 72, 100, 10
-    EDITTEXT        IDC_SS_TONALITY, 120, 70, 50, 14, ES_AUTOHSCROLL | ES_NUMBER
-    LTEXT           "Higher tonality limits preserve more harmonics during pitch shift.", IDC_LABEL_SIGNALSMITH_HARMONICS, 17, 90, 260, 10
-    LTEXT           "Use 0 for automatic, or 4000-8000 for speech, 8000-16000 for music.", IDC_LABEL_SIGNALSMITH_VALUES, 17, 102, 260, 10
+    LTEXT           "Signalsmith Stretch settings (changes apply on next file load):", IDC_LABEL_SIGNALSMITH_DESCRIPTION, 17, 30, 280, 10
+    LTEXT           "&Quality preset:", IDC_LABEL_SIGNALSMITH_QUALITY, 17, 50, 80, 10
+    COMBOBOX        IDC_SS_PRESET, 100, 48, 120, 120, CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    LTEXT           "&Tonality limit (Hz, 0 = auto):", IDC_LABEL_SIGNALSMITH_TONALITY, 17, 72, 140, 10
+    EDITTEXT        IDC_SS_TONALITY, 160, 70, 50, 14, ES_AUTOHSCROLL | ES_NUMBER
+    LTEXT           "Higher tonality limits preserve more harmonics during pitch shift.", IDC_LABEL_SIGNALSMITH_HARMONICS, 17, 90, 295, 10
+    LTEXT           "Use 0 for automatic, or 4000-8000 for speech, 8000-16000 for music.", IDC_LABEL_SIGNALSMITH_VALUES, 17, 102, 300, 10
 
     // MIDI tab controls (shown when tab 12 selected)
     LTEXT           "MIDI playback settings (BASSMIDI):", IDC_LABEL_MIDI_DESCRIPTION, 17, 30, 150, 10
-    LTEXT           "&SoundFont (.sf2/.sf3):", IDC_LABEL_MIDI_SOUNDFONT, 17, 48, 80, 10
+    LTEXT           "&SoundFont (.sf2/.sf3):", IDC_LABEL_MIDI_SOUNDFONT, 17, 48, 100, 10
     EDITTEXT        IDC_MIDI_SOUNDFONT, 17, 60, 200, 14, ES_AUTOHSCROLL
-    PUSHBUTTON      "&Browse...", IDC_MIDI_SF_BROWSE, 222, 60, 45, 14
-    LTEXT           "Ma&x voices (polyphony):", IDC_LABEL_MIDI_VOICES, 17, 82, 90, 10
-    EDITTEXT        IDC_MIDI_VOICES, 110, 80, 40, 14, ES_AUTOHSCROLL | ES_NUMBER
-    LTEXT           "(1-1000, default 128)", IDC_LABEL_MIDI_VOICES_RANGE, 155, 82, 90, 10
-    AUTOCHECKBOX    "Use s&inc interpolation (higher quality, more CPU)", IDC_MIDI_SINC, 17, 100, 220, 10
+    PUSHBUTTON      "&Browse...", IDC_MIDI_SF_BROWSE, 222, 60, 50, 14
+    LTEXT           "Ma&x voices (polyphony):", IDC_LABEL_MIDI_VOICES, 17, 82, 125, 10
+    EDITTEXT        IDC_MIDI_VOICES, 145, 80, 40, 14, ES_AUTOHSCROLL | ES_NUMBER
+    LTEXT           "(1-1000, default 128)", IDC_LABEL_MIDI_VOICES_RANGE, 190, 82, 105, 10
+    AUTOCHECKBOX    "Use s&inc interpolation (higher quality, more CPU)", IDC_MIDI_SINC, 17, 100, 260, 10
 
     DEFPUSHBUTTON   "OK", IDOK, 229, 240, 50, 14
     PUSHBUTTON      "Cancel", IDCANCEL, 283, 240, 50, 14

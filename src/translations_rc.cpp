@@ -373,7 +373,7 @@ void RegisterRcTranslations() {
     AddTranslation("fr", "&3D Audio (HRTF/Binaural)", L"Audio &3D (HRTF/binaural)");
 
     AddTranslation("en", "Co&nvolution Reverb", L"Co&nvolution Reverb");
-    AddTranslation("fr", "Co&nvolution Reverb", L"Réverbération à co&nvolution");
+    AddTranslation("fr", "Co&nvolution Reverb", L"Réverbération conv.");
 
     AddTranslation("en", "IR File:", L"IR File:");
     AddTranslation("fr", "IR File:", L"Fichier IR :");
@@ -480,10 +480,10 @@ void RegisterRcTranslations() {
     AddTranslation("fr", "&Sequence (ms):", L"&Séquence (ms) :");
 
     AddTranslation("en", "See&k window:", L"See&k window:");
-    AddTranslation("fr", "See&k window:", L"Fenêtre de rec&herche :");
+    AddTranslation("fr", "See&k window:", L"F. recherche :");
 
     AddTranslation("en", "&Overlap:", L"&Overlap:");
-    AddTranslation("fr", "&Overlap:", L"&Chevauchement :");
+    AddTranslation("fr", "&Overlap:", L"Recouvr. :");
 
     AddTranslation("en", "(0 = automatic for Sequence/Seek window)",
                    L"(0 = automatic for Sequence/Seek window)");

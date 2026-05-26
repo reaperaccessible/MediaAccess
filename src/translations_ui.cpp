@@ -46,13 +46,13 @@ void RegisterUiTranslations() {
     AddTranslation("en", "Options",                                 L"Options");
     AddTranslation("fr", "Options",                                 L"Options");
     AddTranslation("en", "&Output device:",                         L"&Output device:");
-    AddTranslation("fr", "&Output device:",                         L"&Périphérique de sortie :");
+    AddTranslation("fr", "&Output device:",                         L"Sortie audio :");
     AddTranslation("en", "&Allow volume above 100%",                L"&Allow volume above 100%");
     AddTranslation("fr", "&Allow volume above 100%",                L"&Autoriser le volume au-dessus de 100%");
     AddTranslation("en", "&Remember playback state on exit",        L"&Remember playback state on exit");
     AddTranslation("fr", "&Remember playback state on exit",        L"&Mémoriser l'état de lecture à la sortie");
     AddTranslation("en", "Remember p&osition if longer than:",      L"Remember p&osition if longer than:");
-    AddTranslation("fr", "Remember p&osition if longer than:",      L"Mémoriser la p&osition si plus long que :");
+    AddTranslation("fr", "Remember p&osition if longer than:",      L"Reprendre si plus long que :");
     AddTranslation("en", "&Bring window to front when opening files",   L"&Bring window to front when opening files");
     AddTranslation("fr", "&Bring window to front when opening files",   L"&Mettre la fenêtre au premier plan à l'ouverture");
     AddTranslation("en", "&Load all files in folder when opening single file", L"&Load all files in folder when opening single file");
@@ -62,7 +62,7 @@ void RegisterUiTranslations() {
     AddTranslation("en", "Show &track name in window title",        L"Show &track name in window title");
     AddTranslation("fr", "Show &track name in window title",        L"Afficher le nom de la &piste dans le titre");
     AddTranslation("en", "Auto-ad&vance to next playlist item",     L"Auto-ad&vance to next playlist item");
-    AddTranslation("fr", "Auto-ad&vance to next playlist item",     L"A&vancer automatiquement à la piste suivante");
+    AddTranslation("fr", "Auto-ad&vance to next playlist item",     L"Lecture auto de l'élément suivant");
     AddTranslation("en", "&Follow playback in playlist dialog",     L"&Follow playback in playlist dialog");
     AddTranslation("fr", "&Follow playback in playlist dialog",     L"&Suivre la lecture dans la liste");
     AddTranslation("en", "Check for &updates on startup",           L"Check for &updates on startup");
