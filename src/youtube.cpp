@@ -8,6 +8,8 @@
 #include "resource.h"
 #include <wininet.h>
 #include <shlwapi.h>
+#include <shlobj.h>      // SHGetFolderPathW, CSIDL_*
+#include <knownfolders.h>// FOLDERID_Downloads
 #include <regex>
 #include <sstream>
 
@@ -387,34 +389,139 @@ bool YouTubeGetStreamURL(const std::wstring& videoId, std::wstring& streamUrl) {
     return false;
 }
 
-// Downloads YouTube audio to a temp .m4a file. Blocking.
-// Returns true and fills outFilePath on success. outFilePath is
-// %TEMP%\MediaAccess\yt-<videoId>.m4a — the caller should later
-// remove the file (handled by CleanupYouTubeTempFiles below).
+// Returns %LOCALAPPDATA%\MediaAccess\YouTubeCache (creates it if missing).
+// Cache lives in LOCALAPPDATA — survives reboots and Windows disk cleanup.
+static std::wstring GetYouTubeCacheDir() {
+    wchar_t base[MAX_PATH] = {0};
+    SHGetFolderPathW(nullptr, CSIDL_LOCAL_APPDATA, nullptr, 0, base);
+    std::wstring dir = std::wstring(base) + L"\\MediaAccess";
+    CreateDirectoryW(dir.c_str(), nullptr);
+    dir += L"\\YouTubeCache";
+    CreateDirectoryW(dir.c_str(), nullptr);
+    return dir;
+}
+
+// Returns the file in the cache for this video id if one exists, else L"".
+// The video ID is the canonical key (independent of title changes on YT).
+static std::wstring FindCachedAudio(const std::wstring& videoId) {
+    std::wstring base = GetYouTubeCacheDir() + L"\\yt-" + videoId;
+    static const wchar_t* exts[] = { L".m4a", L".mp4", L".aac", L".mp3", L".webm", L".opus" };
+    for (auto ext : exts) {
+        std::wstring candidate = base + ext;
+        if (PathFileExistsW(candidate.c_str())) return candidate;
+    }
+    return L"";
+}
+
+// Downloads YouTube audio into the persistent cache and returns the local path.
+// If the audio is already cached we return immediately — no network round-trip,
+// no yt-dlp invocation, no Speak("Downloading audio") needed by the caller.
 bool YouTubeDownloadAudio(const std::wstring& videoId, std::wstring& outFilePath) {
-    if (!IsYtdlpAvailable()) return false;
     std::wstring safeId = SanitizeForCommandLine(videoId);
 
-    // Build %TEMP%\MediaAccess directory
-    wchar_t tempDir[MAX_PATH] = {0};
-    GetTempPathW(MAX_PATH, tempDir);
-    std::wstring dir = std::wstring(tempDir) + L"MediaAccess";
-    CreateDirectoryW(dir.c_str(), nullptr);
+    // Cache hit → instant playback.
+    std::wstring cached = FindCachedAudio(safeId);
+    if (!cached.empty()) {
+        outFilePath = cached;
+        return true;
+    }
 
-    // Output template — yt-dlp will append the right extension
+    if (!IsYtdlpAvailable()) return false;
+
+    std::wstring dir = GetYouTubeCacheDir();
     std::wstring outBase = dir + L"\\yt-" + safeId;
-    std::wstring outArg = outBase + L".%(ext)s";
+    std::wstring outArg  = outBase + L".%(ext)s";
 
-    // Prefer M4A (AAC) for BASS compatibility.
-    // --no-playlist prevents accidental queue. --quiet for less noise.
-    // --no-progress, --no-warnings keeps stdout clean.
+    // Prefer M4A (AAC) for BASS compatibility. --no-playlist guards against
+    // accidental queue expansion. --quiet/--no-progress/--no-warnings keep
+    // stdout clean. We DON'T pass --no-overwrites because the cache hit
+    // check above already covers that.
     std::wstring url = L"https://www.youtube.com/watch?v=" + safeId;
     std::wstring args = L"-f \"bestaudio[ext=m4a]/bestaudio[acodec=aac]/140\" "
                         L"--no-playlist --no-progress --no-warnings --quiet "
                         L"-o \"" + outArg + L"\" \"" + url + L"\"";
     RunYtdlp(args);
 
-    // Find the actual downloaded file (extension varies: .m4a, .mp4, .webm)
+    cached = FindCachedAudio(safeId);
+    if (!cached.empty()) { outFilePath = cached; return true; }
+    return false;
+}
+
+// Returns true if this video is already in the persistent cache.
+bool YouTubeIsAudioCached(const std::wstring& videoId) {
+    return !FindCachedAudio(SanitizeForCommandLine(videoId)).empty();
+}
+
+// Sanitize a video title for use as a Windows filename — strips characters
+// that NTFS forbids: \ / : * ? " < > | plus control chars. Replaces them
+// with a space then collapses runs of whitespace.
+static std::wstring SanitizeForFilename(const std::wstring& title) {
+    std::wstring out;
+    out.reserve(title.size());
+    for (wchar_t ch : title) {
+        if (ch < 32) continue;  // control
+        switch (ch) {
+            case L'\\': case L'/': case L':': case L'*':
+            case L'?':  case L'"': case L'<': case L'>': case L'|':
+                out += L' '; break;
+            default:
+                out += ch;
+        }
+    }
+    // Trim leading/trailing whitespace
+    while (!out.empty() && iswspace(out.front())) out.erase(out.begin());
+    while (!out.empty() && iswspace(out.back()))  out.pop_back();
+    // Cap length (Windows MAX_PATH is 260; keep room for path + ext)
+    if (out.size() > 150) out.resize(150);
+    if (out.empty()) out = L"video";
+    return out;
+}
+
+// Returns Downloads\MediaAccess\YouTube, creating directories as needed.
+static std::wstring GetDownloadsTargetDir() {
+    PWSTR raw = nullptr;
+    std::wstring root;
+    if (SUCCEEDED(SHGetKnownFolderPath(FOLDERID_Downloads, 0, nullptr, &raw)) && raw) {
+        root = raw;
+        CoTaskMemFree(raw);
+    } else {
+        // Fallback: %USERPROFILE%\Downloads
+        wchar_t profile[MAX_PATH] = {0};
+        SHGetFolderPathW(nullptr, CSIDL_PROFILE, nullptr, 0, profile);
+        root = std::wstring(profile) + L"\\Downloads";
+    }
+    std::wstring out = root + L"\\MediaAccess";
+    CreateDirectoryW(out.c_str(), nullptr);
+    out += L"\\YouTube";
+    CreateDirectoryW(out.c_str(), nullptr);
+    return out;
+}
+
+// Permanently download a video to the user's Downloads folder.
+// Filename uses the video's real title (sanitized) so users can browse the
+// folder and recognize their tracks. Returns the absolute path on success.
+bool YouTubeDownloadPermanent(const std::wstring& videoId,
+                              const std::wstring& title,
+                              std::wstring& outFilePath) {
+    if (!IsYtdlpAvailable()) return false;
+    std::wstring safeId = SanitizeForCommandLine(videoId);
+
+    std::wstring dir = GetDownloadsTargetDir();
+    std::wstring base = SanitizeForFilename(title);
+    if (base.empty()) base = safeId;
+    std::wstring outBase = dir + L"\\" + base;
+
+    // If the file already exists (user downloaded this before), don't
+    // overwrite — yt-dlp's default behavior with -o is to skip if file
+    // exists, but be explicit by adding --no-overwrites.
+    std::wstring outArg = outBase + L".%(ext)s";
+    std::wstring url = L"https://www.youtube.com/watch?v=" + safeId;
+    std::wstring args = L"-f \"bestaudio[ext=m4a]/bestaudio[acodec=aac]/140\" "
+                        L"--no-playlist --no-progress --no-warnings --quiet "
+                        L"--no-overwrites "
+                        L"-o \"" + outArg + L"\" \"" + url + L"\"";
+    RunYtdlp(args);
+
     static const wchar_t* exts[] = { L".m4a", L".mp4", L".aac", L".mp3", L".webm", L".opus" };
     for (auto ext : exts) {
         std::wstring candidate = outBase + ext;
@@ -426,8 +533,43 @@ bool YouTubeDownloadAudio(const std::wstring& videoId, std::wstring& outFilePath
     return false;
 }
 
-// Removes files in %TEMP%\MediaAccess older than 6 hours. Called on
-// startup and after each playback so the temp dir does not balloon.
+// Wipes every cached audio file. Returns the count removed.
+int ClearYouTubeCache() {
+    std::wstring dir = GetYouTubeCacheDir();
+    std::wstring pattern = dir + L"\\yt-*.*";
+    WIN32_FIND_DATAW fd;
+    HANDLE h = FindFirstFileW(pattern.c_str(), &fd);
+    if (h == INVALID_HANDLE_VALUE) return 0;
+    int n = 0;
+    do {
+        if (fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) continue;
+        std::wstring full = dir + L"\\" + fd.cFileName;
+        if (DeleteFileW(full.c_str())) n++;
+    } while (FindNextFileW(h, &fd));
+    FindClose(h);
+    return n;
+}
+
+// Returns total bytes used by the YouTube cache.
+unsigned long long GetYouTubeCacheSize() {
+    std::wstring dir = GetYouTubeCacheDir();
+    std::wstring pattern = dir + L"\\yt-*.*";
+    WIN32_FIND_DATAW fd;
+    HANDLE h = FindFirstFileW(pattern.c_str(), &fd);
+    if (h == INVALID_HANDLE_VALUE) return 0;
+    unsigned long long total = 0;
+    do {
+        if (fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) continue;
+        ULARGE_INTEGER sz; sz.LowPart = fd.nFileSizeLow; sz.HighPart = fd.nFileSizeHigh;
+        total += sz.QuadPart;
+    } while (FindNextFileW(h, &fd));
+    FindClose(h);
+    return total;
+}
+
+// Removes any leftover files from the old %TEMP%\MediaAccess location
+// (pre-v1.0.8). The new cache lives in %LOCALAPPDATA%\MediaAccess\YouTubeCache
+// and is permanent — kept until the user explicitly clears it via the menu.
 void CleanupYouTubeTempFiles() {
     wchar_t tempDir[MAX_PATH] = {0};
     GetTempPathW(MAX_PATH, tempDir);
@@ -437,22 +579,13 @@ void CleanupYouTubeTempFiles() {
     WIN32_FIND_DATAW fd;
     HANDLE h = FindFirstFileW(pattern.c_str(), &fd);
     if (h == INVALID_HANDLE_VALUE) return;
-
-    FILETIME nowFt; GetSystemTimeAsFileTime(&nowFt);
-    ULARGE_INTEGER now; now.LowPart = nowFt.dwLowDateTime; now.HighPart = nowFt.dwHighDateTime;
-    const ULONGLONG sixHoursIn100ns = 6ULL * 60 * 60 * 10000000ULL;
-
     do {
         if (fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) continue;
-        ULARGE_INTEGER mtime;
-        mtime.LowPart = fd.ftLastWriteTime.dwLowDateTime;
-        mtime.HighPart = fd.ftLastWriteTime.dwHighDateTime;
-        if (now.QuadPart - mtime.QuadPart > sixHoursIn100ns) {
-            std::wstring fullPath = dir + L"\\" + fd.cFileName;
-            DeleteFileW(fullPath.c_str());
-        }
+        std::wstring full = dir + L"\\" + fd.cFileName;
+        DeleteFileW(full.c_str());
     } while (FindNextFileW(h, &fd));
     FindClose(h);
+    RemoveDirectoryW(dir.c_str());  // ok if not empty (no-op)
 }
 
 // Plays a YouTube video by ID. Strategy (in order):
@@ -480,12 +613,13 @@ bool YouTubePlayById(const std::wstring& videoId) {
         return false;
     }
 
-    // AUDIO MODE — download first, play locally with BASS.
+    // AUDIO MODE — if cached, play instantly; otherwise download then play.
     std::wstring localFile;
-    Speak(Ts("Downloading audio"));
+    bool cached = YouTubeIsAudioCached(videoId);
+    if (!cached) Speak(Ts("Downloading audio"));
     if (YouTubeDownloadAudio(videoId, localFile)) {
         if (LoadFile(localFile.c_str())) {
-            Speak(Ts("Playing"));
+            Speak(Ts(cached ? "Playing from cache" : "Playing"));
             return true;
         }
     }
@@ -667,6 +801,30 @@ static void PlaySelected(HWND hwnd) {
     YouTubePlayById(result.videoId);
 }
 
+// Permanently download the selected result to Downloads\MediaAccess\YouTube.
+static void DownloadSelected(HWND hwnd) {
+    HWND hList = GetDlgItem(hwnd, IDC_YT_RESULTS);
+    int sel = static_cast<int>(SendMessageW(hList, LB_GETCURSEL, 0, 0));
+    if (sel < 0 || sel >= static_cast<int>(g_ytResults.size())) return;
+
+    const YouTubeResult& result = g_ytResults[sel];
+    if (result.videoId.empty()) {
+        Speak(Ts("Cannot download this item"));
+        return;
+    }
+
+    Speak(Ts("Downloading"));
+    std::wstring saved;
+    if (YouTubeDownloadPermanent(result.videoId, result.title, saved)) {
+        // Speak the saved filename so the user knows where it landed.
+        const wchar_t* fname = wcsrchr(saved.c_str(), L'\\');
+        std::wstring name = fname ? (fname + 1) : saved;
+        SpeakW((std::wstring(T("Downloaded: ")) + name).c_str());
+    } else {
+        Speak(Ts("Download failed"));
+    }
+}
+
 
 // Dialog procedure
 INT_PTR CALLBACK YouTubeDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
@@ -702,6 +860,10 @@ INT_PTR CALLBACK YouTubeDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
 
                 case IDC_YT_LOADMORE:
                     DoLoadMore(hwnd);
+                    break;
+
+                case IDC_YT_DOWNLOAD:
+                    DownloadSelected(hwnd);
                     break;
 
                 case IDCANCEL:

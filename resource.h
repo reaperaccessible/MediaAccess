@@ -225,6 +225,8 @@
 #define IDC_YT_SEARCH       751
 #define IDC_YT_RESULTS      752
 #define IDC_YT_LOADMORE     753
+#define IDC_YT_DOWNLOAD     754
+#define IDM_HELP_CLEAR_YT_CACHE 119
 
 // YouTube tab in Options
 #define IDC_YTDLP_PATH      760

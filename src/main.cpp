@@ -375,6 +375,20 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
                 case IDM_HELP_TEST_YOUTUBE:
                     ShowTestYouTubePlayback();
                     break;
+                case IDM_HELP_CLEAR_YT_CACHE: {
+                    unsigned long long bytes = GetYouTubeCacheSize();
+                    double mb = bytes / (1024.0 * 1024.0);
+                    wchar_t prompt[256];
+                    swprintf(prompt, 256, L"%s\n\n%.1f MB", T("Clear all cached YouTube audio?"), mb);
+                    if (MessageBoxW(hwnd, prompt, T("Clear YouTube cache"),
+                                    MB_YESNO | MB_ICONQUESTION) == IDYES) {
+                        int n = ClearYouTubeCache();
+                        wchar_t done[128];
+                        swprintf(done, 128, T("Removed %d cached files."), n);
+                        MessageBoxW(hwnd, done, T("Clear YouTube cache"), MB_OK | MB_ICONINFORMATION);
+                    }
+                    break;
+                }
                 case IDM_HELP_UPDATES:
                     ShowCheckForUpdatesDialog(hwnd, false);
                     break;

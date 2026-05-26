@@ -565,4 +565,36 @@ void RegisterPlayerTranslations() {
 
     AddTranslation("en", "Failed to play this video", L"Failed to play this video");
     AddTranslation("fr", "Failed to play this video", L"Impossible de lire cette vidéo");
+
+    // YouTube cache + download button (v1.0.8)
+    AddTranslation("en", "Playing from cache", L"Playing from cache");
+    AddTranslation("fr", "Playing from cache", L"Lecture depuis le cache");
+
+    AddTranslation("en", "Downloading", L"Downloading");
+    AddTranslation("fr", "Downloading", L"Téléchargement");
+
+    AddTranslation("en", "Downloaded: ", L"Downloaded: ");
+    AddTranslation("fr", "Downloaded: ", L"Téléchargé : ");
+
+    AddTranslation("en", "Download failed", L"Download failed");
+    AddTranslation("fr", "Download failed", L"Échec du téléchargement");
+
+    AddTranslation("en", "Cannot download this item", L"Cannot download this item");
+    AddTranslation("fr", "Cannot download this item", L"Impossible de télécharger cet élément");
+
+    // YouTube dialog button + Help menu cache item
+    AddTranslation("en", "&Download", L"&Download");
+    AddTranslation("fr", "&Download", L"&Télécharger");
+
+    AddTranslation("en", "C&lear YouTube cache...", L"C&lear YouTube cache...");
+    AddTranslation("fr", "C&lear YouTube cache...", L"Vider le cache &YouTube...");
+
+    AddTranslation("en", "Clear YouTube cache", L"Clear YouTube cache");
+    AddTranslation("fr", "Clear YouTube cache", L"Vider le cache YouTube");
+
+    AddTranslation("en", "Clear all cached YouTube audio?", L"Clear all cached YouTube audio?");
+    AddTranslation("fr", "Clear all cached YouTube audio?", L"Vider tout l'audio YouTube en cache ?");
+
+    AddTranslation("en", "Removed %d cached files.", L"Removed %d cached files.");
+    AddTranslation("fr", "Removed %d cached files.", L"%d fichiers en cache supprimés.");
 }

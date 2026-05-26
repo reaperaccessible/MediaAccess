@@ -36,11 +36,30 @@ bool YouTubeGetVideoURL(const std::wstring& videoId, std::wstring& url);
 void SetYouTubeVideoMode(bool mode);
 bool GetYouTubeVideoMode();
 
-// Download YouTube audio to temp file (more reliable than streaming)
+// Download (or fetch from cache) YouTube audio to a permanent location
+// under %LOCALAPPDATA%\MediaAccess\YouTubeCache. Subsequent plays of the
+// same videoId are instant.
 bool YouTubeDownloadAudio(const std::wstring& videoId, std::wstring& filePath);
 
-// Remove old downloads from %TEMP%\MediaAccess (called on startup/shutdown
-// and at the start of YouTubePlayById to keep the temp dir tidy).
+// Returns true if the video is already in the persistent cache.
+bool YouTubeIsAudioCached(const std::wstring& videoId);
+
+// Permanently download a video to the user's Downloads folder
+// (Downloads\MediaAccess\YouTube\<title>.m4a). The title is used as the
+// filename so users can browse the folder. Returns the absolute path on
+// success.
+bool YouTubeDownloadPermanent(const std::wstring& videoId,
+                              const std::wstring& title,
+                              std::wstring& outFilePath);
+
+// Wipe every file from the YouTube audio cache. Returns the count removed.
+int ClearYouTubeCache();
+
+// Total bytes currently used by the YouTube audio cache.
+unsigned long long GetYouTubeCacheSize();
+
+// Removes the legacy %TEMP%\MediaAccess directory (pre-1.0.8). Kept for
+// backwards compatibility / housekeeping at startup and shutdown.
 void CleanupYouTubeTempFiles();
 
 // Unified YouTube playback entry point. Downloads audio with yt-dlp and
