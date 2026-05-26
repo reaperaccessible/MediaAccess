@@ -257,6 +257,7 @@
 #define IDM_HELP_PLUGINS    109
 #define IDM_HELP_UPDATES    112
 #define IDM_HELP_README     114
+#define IDM_HELP_TEST_YOUTUBE   118
 
 // Progress dialog (for updates)
 #define IDD_PROGRESS        995

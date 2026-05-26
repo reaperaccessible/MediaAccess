@@ -277,6 +277,31 @@ bool InitMPV(HWND parentHwnd)
     /* Enable yt-dlp integration for URL playback */
     fn_mpv_set_option_string(g_mpv, "ytdl", "yes");
 
+    /* Tell mpv's ytdl_hook where our bundled yt-dlp.exe lives so it does not
+     * rely on PATH lookup. g_ytdlpPath is populated by settings.cpp auto-
+     * detection (prefers the auto-updated %LOCALAPPDATA% copy if present,
+     * otherwise falls back to the bundled <install>\lib\yt-dlp.exe). */
+    if (!g_ytdlpPath.empty()) {
+        int len = WideCharToMultiByte(CP_UTF8, 0, g_ytdlpPath.c_str(), -1,
+                                      nullptr, 0, nullptr, nullptr);
+        if (len > 1) {
+            std::string utf8Path(len - 1, '\0');
+            WideCharToMultiByte(CP_UTF8, 0, g_ytdlpPath.c_str(), -1,
+                                &utf8Path[0], len, nullptr, nullptr);
+            /* mpv treats backslashes as escape characters inside script-opts
+             * values; forward slashes work fine on Windows for file paths. */
+            for (auto& c : utf8Path) if (c == '\\') c = '/';
+
+            std::string scriptOpts = "ytdl_hook-ytdl_path=" + utf8Path;
+            fn_mpv_set_option_string(g_mpv, "script-opts", scriptOpts.c_str());
+        }
+    }
+
+    /* Network cache settings for smoother streaming (especially livestreams
+     * and long YouTube videos). */
+    fn_mpv_set_option_string(g_mpv, "cache", "yes");
+    fn_mpv_set_option_string(g_mpv, "demuxer-max-bytes", "150MiB");
+
     /* Subtitle auto-detection */
     fn_mpv_set_option_string(g_mpv, "sub-auto", "fuzzy");
 

@@ -488,4 +488,42 @@ void RegisterUiTranslations() {
     // ============================================================
     AddTranslation("en", "Language",                                L"Language");
     AddTranslation("fr", "Language",                                L"Langue");
+
+    // ============================================================
+    // "Test YouTube playback" diagnostic dialog (new in v1.0.7)
+    // ============================================================
+    AddTranslation("en", "Test YouTube playback", L"Test YouTube playback");
+    AddTranslation("fr", "Test YouTube playback", L"Tester la lecture YouTube");
+
+    AddTranslation("en",
+        "yt-dlp not found.\n\nMediaAccess looks for it in:\n  - %LOCALAPPDATA%\\MediaAccess\\yt-dlp.exe\n  - <install>\\lib\\yt-dlp.exe\n  - system PATH",
+        L"yt-dlp not found.\n\nMediaAccess looks for it in:\n  - %LOCALAPPDATA%\\MediaAccess\\yt-dlp.exe\n  - <install>\\lib\\yt-dlp.exe\n  - system PATH");
+    AddTranslation("fr",
+        "yt-dlp not found.\n\nMediaAccess looks for it in:\n  - %LOCALAPPDATA%\\MediaAccess\\yt-dlp.exe\n  - <install>\\lib\\yt-dlp.exe\n  - system PATH",
+        L"yt-dlp introuvable.\n\nMediaAccess le cherche dans :\n  - %LOCALAPPDATA%\\MediaAccess\\yt-dlp.exe\n  - <installation>\\lib\\yt-dlp.exe\n  - le PATH système");
+
+    AddTranslation("en", "yt-dlp is working.\n\nPath: ", L"yt-dlp is working.\n\nPath: ");
+    AddTranslation("fr", "yt-dlp is working.\n\nPath: ", L"yt-dlp fonctionne.\n\nChemin : ");
+
+    AddTranslation("en", "Version: ", L"Version: ");
+    AddTranslation("fr", "Version: ", L"Version : ");
+
+    AddTranslation("en", "libmpv (for video / fallback): ", L"libmpv (vidéo / repli) : ");
+    AddTranslation("fr", "libmpv (for video / fallback): ", L"libmpv (vidéo / repli) : ");
+
+    AddTranslation("en", "available", L"available");
+    AddTranslation("fr", "available", L"disponible");
+
+    AddTranslation("en", "not available", L"not available");
+    AddTranslation("fr", "not available", L"non disponible");
+
+    AddTranslation("en", "If a YouTube video still fails, check the log file at:\n",
+                         L"If a YouTube video still fails, check the log file at:\n");
+    AddTranslation("fr", "If a YouTube video still fails, check the log file at:\n",
+                         L"Si une vidéo YouTube échoue encore, consultez le fichier journal :\n");
+
+    AddTranslation("en", "yt-dlp is present but failed to run.\n\nPath: ",
+                         L"yt-dlp is present but failed to run.\n\nPath: ");
+    AddTranslation("fr", "yt-dlp is present but failed to run.\n\nPath: ",
+                         L"yt-dlp est présent mais ne s'est pas exécuté.\n\nChemin : ");
 }

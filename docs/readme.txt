@@ -16,3 +16,15 @@ The rest of the app is pretty explanitory. Just check out the menus for the rest
 * Able to set as default for filetypes.
 
 Enjoy this early beta!
+
+TROUBLESHOOTING YOUTUBE PLAYBACK / DÉPANNAGE LECTURE YOUTUBE
+============================================================
+
+EN: Open Help > Test YouTube playback to verify yt-dlp is detected.
+    Logs at: %LOCALAPPDATA%\MediaAccess\mediaaccess.log
+    yt-dlp updates automatically on each launch.
+
+FR: Ouvrez Aide > Tester la lecture YouTube pour vérifier que yt-dlp
+    est détecté.
+    Journal : %LOCALAPPDATA%\MediaAccess\mediaaccess.log
+    yt-dlp se met à jour automatiquement à chaque démarrage.

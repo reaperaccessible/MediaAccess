@@ -25,6 +25,7 @@ void ShowOpenDialog();
 void ShowAddFolderDialog();
 void ShowPlaylistDialog();
 void ShowOpenURLDialog();
+void ShowTestYouTubePlayback();  // Help menu diagnostic — verifies yt-dlp is wired correctly
 void ShowJumpToTimeDialog();
 void ShowEffectPresetsMenu(HWND hwnd);
 void ShowSaveEffectPresetDialog();

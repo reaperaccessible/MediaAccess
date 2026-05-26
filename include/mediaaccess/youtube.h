@@ -39,6 +39,15 @@ bool GetYouTubeVideoMode();
 // Download YouTube audio to temp file (more reliable than streaming)
 bool YouTubeDownloadAudio(const std::wstring& videoId, std::wstring& filePath);
 
+// Remove old downloads from %TEMP%\MediaAccess (called on startup/shutdown
+// and at the start of YouTubePlayById to keep the temp dir tidy).
+void CleanupYouTubeTempFiles();
+
+// Unified YouTube playback entry point. Downloads audio with yt-dlp and
+// plays locally with BASS (audio mode), or hands the raw URL to libmpv
+// (video mode / fallback). Returns true if playback was started.
+bool YouTubePlayById(const std::wstring& videoId);
+
 // Start streaming - downloads and returns path when complete (blocking)
 bool YouTubeStartStream(const std::wstring& videoId, std::wstring& filePath);
 

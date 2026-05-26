@@ -1,6 +1,8 @@
 #include "ui_internal.h"
 #include "video_engine.h"
 #include "mediaaccess/translations.h"
+#include <shlwapi.h>
+#include <vector>
 
 // Constants
 const wchar_t* const APP_NAME_INTERNAL = L"MediaAccess";
@@ -734,6 +736,79 @@ void ShowOpenURLDialog() {
             g_currentTrack = -1;
             PlayTrack(0);
         }
+    }
+}
+
+// Diagnostic: verify yt-dlp is installed and reports a version. Purely informational —
+// invoked from the Help menu (IDM_HELP_TEST_YOUTUBE) so the user can confirm the
+// yt-dlp + libmpv/BASS toolchain is healthy before relying on it for YouTube playback.
+void ShowTestYouTubePlayback() {
+    std::wstring msg;
+    if (g_ytdlpPath.empty() || !PathFileExistsW(g_ytdlpPath.c_str())) {
+        msg = T("yt-dlp not found.\n\nMediaAccess looks for it in:\n  - %LOCALAPPDATA%\\MediaAccess\\yt-dlp.exe\n  - <install>\\lib\\yt-dlp.exe\n  - system PATH");
+        MessageBoxW(g_hwnd, msg.c_str(), T("Test YouTube playback"), MB_ICONWARNING | MB_OK);
+        return;
+    }
+
+    // Run "yt-dlp --version"
+    std::wstring cmd = L"\"" + g_ytdlpPath + L"\" --version";
+
+    SECURITY_ATTRIBUTES sa = { sizeof(sa), nullptr, TRUE };
+    HANDLE hRead = nullptr, hWrite = nullptr;
+    CreatePipe(&hRead, &hWrite, &sa, 0);
+    SetHandleInformation(hRead, HANDLE_FLAG_INHERIT, 0);
+
+    STARTUPINFOW si = { sizeof(si) };
+    si.dwFlags = STARTF_USESTDHANDLES | STARTF_USESHOWWINDOW;
+    si.hStdOutput = hWrite;
+    si.hStdError = hWrite;
+    si.wShowWindow = SW_HIDE;
+    PROCESS_INFORMATION pi = {};
+
+    std::vector<wchar_t> cmdBuf(cmd.begin(), cmd.end());
+    cmdBuf.push_back(L'\0');
+    BOOL ok = CreateProcessW(nullptr, cmdBuf.data(), nullptr, nullptr, TRUE,
+                             CREATE_NO_WINDOW, nullptr, nullptr, &si, &pi);
+    CloseHandle(hWrite);
+
+    std::string output;
+    if (ok) {
+        char buf[256];
+        DWORD readBytes = 0;
+        while (ReadFile(hRead, buf, sizeof(buf), &readBytes, nullptr) && readBytes > 0) {
+            output.append(buf, readBytes);
+        }
+        WaitForSingleObject(pi.hProcess, 10000);
+        CloseHandle(pi.hProcess);
+        CloseHandle(pi.hThread);
+    }
+    CloseHandle(hRead);
+
+    // Trim whitespace from output
+    while (!output.empty() && (output.back() == '\n' || output.back() == '\r' || output.back() == ' '))
+        output.pop_back();
+
+    std::wstring version;
+    if (!output.empty()) {
+        int len = MultiByteToWideChar(CP_UTF8, 0, output.c_str(), -1, nullptr, 0);
+        if (len > 1) {
+            version.resize(len - 1);
+            MultiByteToWideChar(CP_UTF8, 0, output.c_str(), -1, &version[0], len);
+        }
+    }
+
+    if (ok && !version.empty()) {
+        msg = T("yt-dlp is working.\n\nPath: ") + g_ytdlpPath + L"\n";
+        msg += T("Version: ") + version + L"\n\n";
+        msg += T("libmpv (for video / fallback): ") + std::wstring(IsMPVAvailable() ? T("available") : T("not available")) + L"\n\n";
+        msg += T("If a YouTube video still fails, check the log file at:\n");
+        wchar_t base[MAX_PATH] = {0};
+        SHGetFolderPathW(nullptr, CSIDL_LOCAL_APPDATA, nullptr, 0, base);
+        msg += std::wstring(base) + L"\\MediaAccess\\mediaaccess.log";
+        MessageBoxW(g_hwnd, msg.c_str(), T("Test YouTube playback"), MB_ICONINFORMATION | MB_OK);
+    } else {
+        msg = T("yt-dlp is present but failed to run.\n\nPath: ") + g_ytdlpPath;
+        MessageBoxW(g_hwnd, msg.c_str(), T("Test YouTube playback"), MB_ICONERROR | MB_OK);
     }
 }
 

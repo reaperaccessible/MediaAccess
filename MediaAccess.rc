@@ -75,6 +75,8 @@ BEGIN
         MENUITEM "Check for &Updates...", IDM_HELP_UPDATES
         MENUITEM SEPARATOR
         MENUITEM "&Loaded Plugins...", IDM_HELP_PLUGINS
+        MENUITEM SEPARATOR
+        MENUITEM "&Test YouTube playback", IDM_HELP_TEST_YOUTUBE
     END
 END
 

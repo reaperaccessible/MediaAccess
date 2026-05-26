@@ -71,3 +71,17 @@ MediaAccess is licensed under the **GNU General Public License v3.0**. See [LICE
 ## Build from source
 
 Run `download-deps.bat` (downloads BASS, libmpv, dependencies) then `build_new.bat` (requires MSVC 2017+).
+
+## Troubleshooting
+
+### YouTube playback fails
+1. Open **Help → Test YouTube playback / Aide → Tester la lecture YouTube** to verify yt-dlp is detected and reports a version.
+2. Check the log file at `%LOCALAPPDATA%\MediaAccess\mediaaccess.log` for the exact yt-dlp command and any errors.
+3. yt-dlp is auto-updated on every launch (silent background download to `%LOCALAPPDATA%\MediaAccess\yt-dlp.exe`). If updates are blocked by your network, the bundled `lib\yt-dlp.exe` is used as fallback.
+4. For livestreams and DRM-protected videos, MediaAccess automatically falls back to the libmpv engine (you'll hear "Playing via video engine" — DSP effects do not apply in this mode).
+
+### Lecture YouTube en échec (FR)
+1. Ouvrez **Aide → Tester la lecture YouTube** pour vérifier que yt-dlp est détecté et qu'une version est rapportée.
+2. Consultez le fichier journal `%LOCALAPPDATA%\MediaAccess\mediaaccess.log` pour voir la commande yt-dlp exacte et les erreurs éventuelles.
+3. yt-dlp est mis à jour automatiquement à chaque démarrage (téléchargement silencieux dans `%LOCALAPPDATA%\MediaAccess\yt-dlp.exe`). Si les mises à jour sont bloquées par votre réseau, le `lib\yt-dlp.exe` livré sert de fallback.
+4. Pour les livestreams et vidéos protégées par DRM, MediaAccess bascule automatiquement sur libmpv (vous entendrez « Lecture via le moteur vidéo » — les effets DSP ne s'appliquent pas dans ce mode).

@@ -558,4 +558,11 @@ void RegisterPlayerTranslations() {
 
     AddTranslation("en", "Playing via video engine", L"Playing via video engine");
     AddTranslation("fr", "Playing via video engine", L"Lecture via le moteur vidéo");
+
+    // YouTubePlayById (new in v1.0.7)
+    AddTranslation("en", "Downloading audio", L"Downloading audio");
+    AddTranslation("fr", "Downloading audio", L"Téléchargement de l'audio");
+
+    AddTranslation("en", "Failed to play this video", L"Failed to play this video");
+    AddTranslation("fr", "Failed to play this video", L"Impossible de lire cette vidéo");
 }

@@ -387,6 +387,125 @@ bool YouTubeGetStreamURL(const std::wstring& videoId, std::wstring& streamUrl) {
     return false;
 }
 
+// Downloads YouTube audio to a temp .m4a file. Blocking.
+// Returns true and fills outFilePath on success. outFilePath is
+// %TEMP%\MediaAccess\yt-<videoId>.m4a — the caller should later
+// remove the file (handled by CleanupYouTubeTempFiles below).
+bool YouTubeDownloadAudio(const std::wstring& videoId, std::wstring& outFilePath) {
+    if (!IsYtdlpAvailable()) return false;
+    std::wstring safeId = SanitizeForCommandLine(videoId);
+
+    // Build %TEMP%\MediaAccess directory
+    wchar_t tempDir[MAX_PATH] = {0};
+    GetTempPathW(MAX_PATH, tempDir);
+    std::wstring dir = std::wstring(tempDir) + L"MediaAccess";
+    CreateDirectoryW(dir.c_str(), nullptr);
+
+    // Output template — yt-dlp will append the right extension
+    std::wstring outBase = dir + L"\\yt-" + safeId;
+    std::wstring outArg = outBase + L".%(ext)s";
+
+    // Prefer M4A (AAC) for BASS compatibility.
+    // --no-playlist prevents accidental queue. --quiet for less noise.
+    // --no-progress, --no-warnings keeps stdout clean.
+    std::wstring url = L"https://www.youtube.com/watch?v=" + safeId;
+    std::wstring args = L"-f \"bestaudio[ext=m4a]/bestaudio[acodec=aac]/140\" "
+                        L"--no-playlist --no-progress --no-warnings --quiet "
+                        L"-o \"" + outArg + L"\" \"" + url + L"\"";
+    RunYtdlp(args);
+
+    // Find the actual downloaded file (extension varies: .m4a, .mp4, .webm)
+    static const wchar_t* exts[] = { L".m4a", L".mp4", L".aac", L".mp3", L".webm", L".opus" };
+    for (auto ext : exts) {
+        std::wstring candidate = outBase + ext;
+        if (PathFileExistsW(candidate.c_str())) {
+            outFilePath = candidate;
+            return true;
+        }
+    }
+    return false;
+}
+
+// Removes files in %TEMP%\MediaAccess older than 6 hours. Called on
+// startup and after each playback so the temp dir does not balloon.
+void CleanupYouTubeTempFiles() {
+    wchar_t tempDir[MAX_PATH] = {0};
+    GetTempPathW(MAX_PATH, tempDir);
+    std::wstring dir = std::wstring(tempDir) + L"MediaAccess";
+    std::wstring pattern = dir + L"\\yt-*.*";
+
+    WIN32_FIND_DATAW fd;
+    HANDLE h = FindFirstFileW(pattern.c_str(), &fd);
+    if (h == INVALID_HANDLE_VALUE) return;
+
+    FILETIME nowFt; GetSystemTimeAsFileTime(&nowFt);
+    ULARGE_INTEGER now; now.LowPart = nowFt.dwLowDateTime; now.HighPart = nowFt.dwHighDateTime;
+    const ULONGLONG sixHoursIn100ns = 6ULL * 60 * 60 * 10000000ULL;
+
+    do {
+        if (fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) continue;
+        ULARGE_INTEGER mtime;
+        mtime.LowPart = fd.ftLastWriteTime.dwLowDateTime;
+        mtime.HighPart = fd.ftLastWriteTime.dwHighDateTime;
+        if (now.QuadPart - mtime.QuadPart > sixHoursIn100ns) {
+            std::wstring fullPath = dir + L"\\" + fd.cFileName;
+            DeleteFileW(fullPath.c_str());
+        }
+    } while (FindNextFileW(h, &fd));
+    FindClose(h);
+}
+
+// Plays a YouTube video by ID. Strategy (in order):
+//   1. yt-dlp downloads bestaudio AAC/M4A to temp file -> BASS plays the
+//      file locally with full DSP/effects support. (Most reliable, all features.)
+//   2. If download fails or file won't load, libmpv plays the raw
+//      YouTube URL directly (handles every format including livestreams,
+//      but loses BASS effects). User is told via Speak.
+//   3. If both fail, user sees a single error.
+//
+// IMPORTANT: When the user prefers video mode (g_ytVideoMode), skip the
+// audio download and go straight to libmpv with the raw YouTube URL.
+bool YouTubePlayById(const std::wstring& videoId) {
+    CleanupYouTubeTempFiles();
+
+    if (g_ytVideoMode) {
+        std::wstring url;
+        if (YouTubeGetVideoURL(videoId, url)) {
+            if (LoadURL(url.c_str(), /*silentOnFail=*/true)) {
+                Speak(Ts("Playing video"));
+                return true;
+            }
+        }
+        Speak(Ts("Failed to load video"));
+        return false;
+    }
+
+    // AUDIO MODE — download first, play locally with BASS.
+    std::wstring localFile;
+    Speak(Ts("Downloading audio"));
+    if (YouTubeDownloadAudio(videoId, localFile)) {
+        if (LoadFile(localFile.c_str())) {
+            Speak(Ts("Playing"));
+            return true;
+        }
+    }
+
+    // Fall back to libmpv with the raw URL (handles livestreams,
+    // age-restricted, anything BASS can't).
+    if (IsMPVAvailable()) {
+        std::wstring url;
+        if (YouTubeGetVideoURL(videoId, url)) {
+            if (LoadURL(url.c_str(), /*silentOnFail=*/true)) {
+                Speak(Ts("Playing via video engine"));
+                return true;
+            }
+        }
+    }
+
+    Speak(Ts("Failed to play this video"));
+    return false;
+}
+
 // Check if input is a YouTube URL
 bool IsYouTubeURL(const std::wstring& input) {
     return input.find(L"youtube.com") != std::wstring::npos ||
@@ -494,41 +613,8 @@ static void DoSearch(HWND hwnd) {
                 Speak(Ts("Playlist loaded"));
                 return;
             } else if (!isPlaylist && !isChannel) {
-                // Single video - try to play it directly
-                std::wstring streamUrl;
-                Speak(Ts("Loading video"));
-                if (g_ytVideoMode) {
-                    // Video mode: pass raw YouTube URL to LoadURL (mpv handles yt-dlp)
-                    std::wstring videoUrl;
-                    if (YouTubeGetVideoURL(id, videoUrl)) {
-                        LoadURL(videoUrl.c_str());
-                        Speak(Ts("Playing video"));
-                    } else {
-                        Speak(Ts("Failed to load video"));
-                    }
-                } else {
-                    // Try BASS path first (with DSP/effects). If it can't decode the
-                    // stream (WebM/Opus/etc.), silently fall back to libmpv which
-                    // handles every YouTube format. silentOnFail=true suppresses
-                    // the BASS error dialog so the fallback is seamless.
-                    bool played = false;
-                    if (YouTubeGetStreamURL(id, streamUrl)) {
-                        if (LoadURL(streamUrl.c_str(), /*silentOnFail=*/true)) {
-                            Speak(Ts("Playing"));
-                            played = true;
-                        }
-                    }
-                    if (!played && IsMPVAvailable()) {
-                        std::wstring videoUrl;
-                        if (YouTubeGetVideoURL(id, videoUrl)) {
-                            if (LoadURL(videoUrl.c_str(), /*silentOnFail=*/true)) {
-                                Speak(Ts("Playing via video engine"));
-                                played = true;
-                            }
-                        }
-                    }
-                    if (!played) Speak(Ts("Failed to get stream URL"));
-                }
+                // Single video — let YouTubePlayById handle download/playback.
+                YouTubePlayById(id);
                 return;
             }
         }
@@ -578,41 +664,7 @@ static void PlaySelected(HWND hwnd) {
     if (sel < 0 || sel >= static_cast<int>(g_ytResults.size())) return;
 
     const YouTubeResult& result = g_ytResults[sel];
-    std::wstring streamUrl;
-
-    Speak(Ts("Loading"));
-    if (g_ytVideoMode) {
-        // Video mode: pass raw YouTube URL (LoadURL routes YouTube URLs to mpv)
-        std::wstring videoUrl;
-        if (YouTubeGetVideoURL(result.videoId, videoUrl)) {
-            LoadURL(videoUrl.c_str());
-            Speak(Ts("Playing video"));
-        } else {
-            Speak(Ts("Failed to load video"));
-        }
-    } else {
-        // Try BASS path first (preserves DSP/effects/tempo/pitch). If BASS can't
-        // decode the stream — WebM/Opus, livestream, signed URL quirks, etc. —
-        // silently fall back to libmpv which handles every YouTube format.
-        // silentOnFail=true suppresses the BASS error dialog mid-attempt.
-        bool played = false;
-        if (YouTubeGetStreamURL(result.videoId, streamUrl)) {
-            if (LoadURL(streamUrl.c_str(), /*silentOnFail=*/true)) {
-                Speak(Ts("Playing"));
-                played = true;
-            }
-        }
-        if (!played && IsMPVAvailable()) {
-            std::wstring videoUrl;
-            if (YouTubeGetVideoURL(result.videoId, videoUrl)) {
-                if (LoadURL(videoUrl.c_str(), /*silentOnFail=*/true)) {
-                    Speak(Ts("Playing via video engine"));
-                    played = true;
-                }
-            }
-        }
-        if (!played) Speak(Ts("Failed to get stream URL"));
-    }
+    YouTubePlayById(result.videoId);
 }
 
 
@@ -714,6 +766,7 @@ HWND GetYouTubeDialog() {
 
 // Cleanup temporary files and resources
 void YouTubeCleanup() {
+    CleanupYouTubeTempFiles();
     g_ytResults.clear();
     g_ytNextPageToken.clear();
     g_ytCurrentQuery.clear();

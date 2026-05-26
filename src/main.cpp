@@ -26,6 +26,7 @@
 #include "updater.h"
 #include "resource.h"
 #include "video_engine.h"
+#include "mediaaccess/logger.h"
 #include <utility>  // for std::pair
 
 #pragma comment(lib, "bass.lib")
@@ -370,6 +371,9 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
                     break;
                 case IDM_HELP_PLUGINS:
                     MessageBoxW(hwnd, GetLoadedPluginsInfo().c_str(), T("Loaded Plugins"), MB_OK | MB_ICONINFORMATION);
+                    break;
+                case IDM_HELP_TEST_YOUTUBE:
+                    ShowTestYouTubePlayback();
                     break;
                 case IDM_HELP_UPDATES:
                     ShowCheckForUpdatesDialog(hwnd, false);
@@ -739,6 +743,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
             YouTubeCleanup();  // Clean up temp files
             CloseDatabase();
             FreeMPV();  // Free video engine before BASS
+            FreeLogger();
             FreeBass();
             FreeSpeech();
             PostQuitMessage(0);
@@ -761,6 +766,8 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLi
     // Restrict DLL search order to system32 + app dir + user-added dirs (prevents DLL hijacking
     // while still allowing SetDllDirectoryW below to add the lib subfolder)
     SetDefaultDllDirectories(LOAD_LIBRARY_SEARCH_SYSTEM32 | LOAD_LIBRARY_SEARCH_APPLICATION_DIR | LOAD_LIBRARY_SEARCH_USER_DIRS);
+
+    InitLogger();
 
     // Set DLL search path to lib subfolder (must be before any DLL loads)
     wchar_t exePath[MAX_PATH];
