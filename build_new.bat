@@ -87,7 +87,7 @@ rc /nologo MediaAccess.rc
 if errorlevel 1 goto :error
 
 REM Compile and link
-cl /nologo /W3 /O2 /MT /EHsc /DUNICODE /D_UNICODE /DNOMINMAX %COMMIT_FLAG% %SPEECH_FLAG% %SPEEDY_FLAG% %SIGNALSMITH_FLAG% %STEAMAUDIO_FLAG% ^
+cl /nologo /W3 /O2 /MT /EHsc /utf-8 /DUNICODE /D_UNICODE /DNOMINMAX %COMMIT_FLAG% %SPEECH_FLAG% %SPEEDY_FLAG% %SIGNALSMITH_FLAG% %STEAMAUDIO_FLAG% ^
    /I"." /I"include" /I"include\mediaaccess" %SPEEDY_INC% %SIGNALSMITH_INC% %STEAMAUDIO_INC% ^
    %SOURCES% MediaAccess.res ^
    /Fe:MediaAccess.exe ^
