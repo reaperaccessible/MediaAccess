@@ -4,6 +4,7 @@
 #include "player.h"
 #include "accessibility.h"
 #include "translations.h"
+#include "video_engine.h"  // IsMPVAvailable() — used as YouTube playback fallback
 #include "resource.h"
 #include <wininet.h>
 #include <shlwapi.h>
@@ -363,10 +364,16 @@ bool YouTubeGetVideoURL(const std::wstring& videoId, std::wstring& url) {
 bool YouTubeGetStreamURL(const std::wstring& videoId, std::wstring& streamUrl) {
     if (!IsYtdlpAvailable()) return false;
 
-    // Get best audio format URL
+    // Get best audio format URL. Prefer M4A/AAC because BASS can decode that
+    // via bass_aac.dll. Plain "bestaudio" usually returns WebM/Opus which
+    // BASS cannot demux (BASS_ERROR_FILEFORM). Fallback chain:
+    //   1. Any m4a container (AAC).
+    //   2. Any AAC codec regardless of container.
+    //   3. mp3 (rare on YouTube, but fine for BASS).
+    //   4. itag 140 — YouTube's universal 128 kbps AAC stream.
     std::wstring safeVideoId = SanitizeForCommandLine(videoId);
     std::wstring url = L"https://www.youtube.com/watch?v=" + safeVideoId;
-    std::wstring args = L"-f bestaudio --get-url \"" + url + L"\"";
+    std::wstring args = L"-f \"bestaudio[ext=m4a]/bestaudio[acodec=aac]/bestaudio[ext=mp3]/140\" --get-url \"" + url + L"\"";
     std::wstring output = RunYtdlp(args);
 
     // Trim whitespace
@@ -502,6 +509,16 @@ static void DoSearch(HWND hwnd) {
                 } else if (YouTubeGetStreamURL(id, streamUrl)) {
                     LoadURL(streamUrl.c_str());
                     Speak(Ts("Playing"));
+                } else if (IsMPVAvailable()) {
+                    // BASS path failed (codec mismatch, livestream, etc.) — fall back to libmpv,
+                    // which handles every YouTube format. Audio DSP effects won't apply.
+                    std::wstring videoUrl;
+                    if (YouTubeGetVideoURL(id, videoUrl)) {
+                        LoadURL(videoUrl.c_str());
+                        Speak(Ts("Playing via video engine"));
+                    } else {
+                        Speak(Ts("Failed to get stream URL"));
+                    }
                 } else {
                     Speak(Ts("Failed to get stream URL"));
                 }
@@ -569,6 +586,16 @@ static void PlaySelected(HWND hwnd) {
     } else if (YouTubeGetStreamURL(result.videoId, streamUrl)) {
         LoadURL(streamUrl.c_str());
         Speak(Ts("Playing"));
+    } else if (IsMPVAvailable()) {
+        // BASS path failed — fall back to libmpv (handles every YouTube format).
+        // Audio DSP effects won't apply when playing through mpv.
+        std::wstring videoUrl;
+        if (YouTubeGetVideoURL(result.videoId, videoUrl)) {
+            LoadURL(videoUrl.c_str());
+            Speak(Ts("Playing via video engine"));
+        } else {
+            Speak(Ts("Failed to get stream URL"));
+        }
     } else {
         Speak(Ts("Failed to get stream URL"));
     }

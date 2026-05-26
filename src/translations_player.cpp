@@ -555,4 +555,7 @@ void RegisterPlayerTranslations() {
 
     AddTranslation("en", "YouTube", L"YouTube");
     AddTranslation("fr", "YouTube", L"YouTube");
+
+    AddTranslation("en", "Playing via video engine", L"Playing via video engine");
+    AddTranslation("fr", "Playing via video engine", L"Lecture via le moteur vidéo");
 }
