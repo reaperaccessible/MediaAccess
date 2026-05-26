@@ -104,8 +104,11 @@ void InitTranslations() {
     AddTranslation("fr", "LANG_FRENCH",  L"Français");
 
     RegisterPlayerTranslations();
-    RegisterRcTranslations();
     RegisterUiTranslations();
+    // RegisterRcTranslations runs LAST so its tab-specific abbreviated forms
+    // (added in v1.0.16 to fit the .rc widths) override any duplicate keys
+    // left over in translations_ui.cpp from earlier iterations.
+    RegisterRcTranslations();
 }
 
 void LocalizeDialog(HWND hDlg) {

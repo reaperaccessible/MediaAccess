@@ -181,8 +181,8 @@ BEGIN
     AUTOCHECKBOX    "Ce&nter Cancel (-100 to +100%)", IDC_DSP_CENTERCANCEL, 100, 160, 160, 10
     AUTOCHECKBOX    "&3D Audio (HRTF/Binaural)", IDC_DSP_SPATIAL, 100, 175, 120, 10
     AUTOCHECKBOX    "Co&nvolution Reverb", IDC_DSP_CONVOLUTION, 17, 190, 90, 10
-    LTEXT           "IR File:", IDC_LABEL_EFFECTS_IR_FILE, 110, 191, 35, 10
-    EDITTEXT        IDC_CONV_IR, 150, 189, 75, 14, ES_AUTOHSCROLL | ES_READONLY
+    LTEXT           "IR File:", IDC_LABEL_EFFECTS_IR_FILE, 110, 191, 42, 10
+    EDITTEXT        IDC_CONV_IR, 155, 189, 70, 14, ES_AUTOHSCROLL | ES_READONLY
     PUSHBUTTON      "...", IDC_CONV_BROWSE, 228, 189, 18, 14
 
     // Advanced tab controls (shown when tab 7 selected)
@@ -225,8 +225,8 @@ BEGIN
     EDITTEXT        IDC_ST_SEQUENCE, 75, 133, 35, 14, ES_AUTOHSCROLL | ES_NUMBER
     LTEXT           "See&k window:", IDC_LABEL_SOUNDTOUCH_SEEKWINDOW, 120, 135, 50, 10
     EDITTEXT        IDC_ST_SEEKWINDOW, 175, 133, 35, 14, ES_AUTOHSCROLL | ES_NUMBER
-    LTEXT           "&Overlap:", IDC_LABEL_SOUNDTOUCH_OVERLAP, 220, 135, 30, 10
-    EDITTEXT        IDC_ST_OVERLAP, 252, 133, 25, 14, ES_AUTOHSCROLL | ES_NUMBER
+    LTEXT           "&Overlap:", IDC_LABEL_SOUNDTOUCH_OVERLAP, 220, 135, 40, 10
+    EDITTEXT        IDC_ST_OVERLAP, 262, 133, 25, 14, ES_AUTOHSCROLL | ES_NUMBER
     LTEXT           "(0 = automatic for Sequence/Seek window)", IDC_LABEL_SOUNDTOUCH_AUTO_NOTE, 17, 152, 200, 10
 
     // Speedy tab controls (shown when tab 10 selected)
