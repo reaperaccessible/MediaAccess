@@ -22,6 +22,11 @@ void MPVPause();
 void MPVStop();
 void MPVPlayPause();
 
+// Toggle mpv's video output. Pass true before loading a URL when you only
+// want the audio decoded (e.g. YouTube hybrid streaming) so no video
+// window is shown and no video decoder is spun up.
+void MPVSetAudioOnly(bool audioOnly);
+
 // ===== Seek / Position =====
 void MPVSeek(double seconds);
 void MPVSeekToPosition(double seconds);

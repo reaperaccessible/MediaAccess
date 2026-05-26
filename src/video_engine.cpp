@@ -425,6 +425,16 @@ void MPVStop()
     g_mpvIdle.store(true);
 }
 
+// Toggle mpv's video output. Setting "vid" to "no" disables video decoding
+// entirely (no demuxing, no decoder, no window). Useful for YouTube hybrid
+// streaming where we only want the audio. Should be called BEFORE the next
+// LoadFile/LoadURL — mpv applies the property to the next loaded media.
+void MPVSetAudioOnly(bool audioOnly)
+{
+    if (!g_mpv) return;
+    fn_mpv_set_property_string(g_mpv, "vid", audioOnly ? "no" : "auto");
+}
+
 /* ================================================================
  *  Seeking
  * ================================================================ */

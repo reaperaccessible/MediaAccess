@@ -650,9 +650,17 @@ void YouTubeOnHybridDownloadReady(const std::wstring& videoId) {
     std::wstring localFile;
     if (!YouTubeDownloadAudio(videoId, localFile)) return;
 
-    // Snapshot the mpv playback position so we can resume seamlessly.
-    // GetCurrentPosition() returns mpv's reading via the player.cpp facade.
+    // Snapshot mpv's position BEFORE we silence it.
     double pos = GetCurrentPosition();
+
+    // Critical: silence mpv FIRST. LoadFile() only tears down BASS state;
+    // it doesn't know mpv is still streaming the same audio in parallel.
+    // Without this stop, both engines play the YouTube audio at once.
+    MPVStop();
+    // Re-enable mpv's video for the next real video playback request.
+    MPVSetAudioOnly(false);
+    if (g_videoHwnd) ShowWindow(g_videoHwnd, SW_HIDE);
+    g_isVideoPlaying = false;
 
     if (!LoadFile(localFile.c_str())) return;
     if (pos > 1.0) SeekToPosition(pos);
@@ -693,12 +701,27 @@ bool YouTubePlayById(const std::wstring& videoId) {
 
     // -----------------------------------------------------------------
     // Cache miss + libmpv available → HYBRID: stream now, BASS later.
+    // We disable mpv's video output so no video window pops up — we only
+    // want the audio while we wait for the BASS download to finish.
     // -----------------------------------------------------------------
     if (IsMPVAvailable()) {
+        // Ensure mpv is initialized so the audio-only property sticks for
+        // the next load. InitMPV is idempotent.
+        InitMPV(g_videoHwnd);
+        MPVSetAudioOnly(true);
+
         std::wstring rawUrl;
         if (YouTubeGetVideoURL(videoId, rawUrl) &&
             LoadURL(rawUrl.c_str(), /*silentOnFail=*/true))
         {
+            // LoadURL routed to libmpv showed the video window — hide it,
+            // we're audio-only here. Reset main window to audio size too.
+            if (g_videoHwnd && IsWindowVisible(g_videoHwnd)) {
+                ShowWindow(g_videoHwnd, SW_HIDE);
+                SetWindowPos(g_hwnd, nullptr, 0, 0, 500, 150, SWP_NOMOVE | SWP_NOZORDER);
+                g_isVideoPlaying = false;
+            }
+
             Speak(Ts("Streaming, effects will activate shortly"));
             g_ytHybrid.videoId = videoId;
             g_ytHybrid.active.store(true);
@@ -707,6 +730,8 @@ bool YouTubePlayById(const std::wstring& videoId) {
             if (t) CloseHandle(t);
             return true;
         }
+        // Stream failed: re-enable video for next time (e.g. real video playback).
+        MPVSetAudioOnly(false);
     }
 
     // -----------------------------------------------------------------
