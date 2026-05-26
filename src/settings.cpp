@@ -12,6 +12,7 @@
 #include "resource.h"
 #include <cstdio>
 #include <shlobj.h>
+#include <shlwapi.h>  // PathFileExistsW
 
 // Video settings (file-scope, accessed via getters)
 static bool s_hwdecEnabled = true;
@@ -178,6 +179,36 @@ void LoadSettings() {
     wchar_t ytBuf[512] = {0};
     GetPrivateProfileStringW(L"YouTube", L"YtdlpPath", L"", ytBuf, 512, g_configPath.c_str());
     g_ytdlpPath = ytBuf;
+
+    // Auto-detect yt-dlp.exe if user didn't set it manually.
+    // Check (in order): app's lib subfolder, app directory, system PATH.
+    if (g_ytdlpPath.empty() || !PathFileExistsW(g_ytdlpPath.c_str())) {
+        wchar_t exePath[MAX_PATH];
+        GetModuleFileNameW(nullptr, exePath, MAX_PATH);
+        wchar_t* lastSlash = wcsrchr(exePath, L'\\');
+        if (lastSlash) {
+            *(lastSlash + 1) = L'\0';
+            std::wstring appDir = exePath;
+            std::wstring candidates[] = {
+                appDir + L"lib\\yt-dlp.exe",
+                appDir + L"yt-dlp.exe",
+            };
+            for (const auto& candidate : candidates) {
+                if (PathFileExistsW(candidate.c_str())) {
+                    g_ytdlpPath = candidate;
+                    break;
+                }
+            }
+            // Last resort: search system PATH
+            if (g_ytdlpPath.empty()) {
+                wchar_t found[MAX_PATH] = {0};
+                if (SearchPathW(nullptr, L"yt-dlp.exe", nullptr, MAX_PATH, found, nullptr) > 0) {
+                    g_ytdlpPath = found;
+                }
+            }
+        }
+    }
+
     GetPrivateProfileStringW(L"YouTube", L"ApiKey", L"", ytBuf, 512, g_configPath.c_str());
     g_ytApiKey = ytBuf;
 

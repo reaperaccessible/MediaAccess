@@ -278,3 +278,22 @@ if exist "lib\libmpv-2.dll" (
     if exist temp_dl rmdir temp_dl 2>/dev/null
 )
 echo.
+
+REM ============================================================
+REM yt-dlp.exe (YouTube downloader, bundled with installer)
+REM ============================================================
+echo.
+echo ===== yt-dlp.exe =====
+if exist "lib\yt-dlp.exe" (
+    echo yt-dlp.exe already present in lib\, skipping download.
+) else (
+    echo Downloading latest yt-dlp.exe...
+    powershell -NoProfile -ExecutionPolicy Bypass -Command ^
+        "$ErrorActionPreference='Stop';" ^
+        "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12;" ^
+        "Invoke-WebRequest -Uri 'https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp.exe' -OutFile 'lib\yt-dlp.exe' -UseBasicParsing;" ^
+        "Write-Host 'yt-dlp.exe installed in lib\' -ForegroundColor Green;"
+    if errorlevel 1 (
+        echo WARNING: yt-dlp.exe download failed. YouTube features will be unavailable.
+    )
+)

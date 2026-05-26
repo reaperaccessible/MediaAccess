@@ -78,6 +78,8 @@ Source: "{#SourceDir}\MediaAccess.exe"; DestDir: "{app}"; Flags: ignoreversion
 Source: "{#SourceDir}\MediaAccess.ini"; DestDir: "{app}"; Flags: ignoreversion skipifsourcedoesntexist
 ; Install lib folder with DLLs
 Source: "{#SourceDir}\lib\*.dll"; DestDir: "{app}\lib"; Flags: ignoreversion
+; Bundle yt-dlp.exe for YouTube support (auto-detected by the app)
+Source: "{#SourceDir}\lib\yt-dlp.exe"; DestDir: "{app}\lib"; Flags: ignoreversion skipifsourcedoesntexist
 ; Install documentation
 Source: "{#SourceDir}\docs\readme.txt"; DestDir: "{app}\docs"; Flags: ignoreversion
 Source: "{#SourceDir}\docs\changelog.txt"; DestDir: "{app}\docs"; Flags: ignoreversion
