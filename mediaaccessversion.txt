@@ -1,0 +1,3 @@
+version=0.6.6
+download=https://reaperaccessible.fr/softs/MediaAccess.zip
+installer=https://reaperaccessible.fr/softs/MediaAccessInstaller.exe

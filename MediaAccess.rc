@@ -1,0 +1,598 @@
+#include <windows.h>
+#include "resource.h"
+
+// Application icon
+IDI_APPICON ICON "MediaAccess.ico"
+
+IDM_MAIN_MENU MENU
+BEGIN
+    POPUP "&File"
+    BEGIN
+        MENUITEM "&Open...\tCtrl+O", IDM_FILE_OPEN
+        MENUITEM "Add &Folder...\tCtrl+Shift+O", IDM_FILE_ADD_FOLDER
+        MENUITEM "&Playlist...\tCtrl+P", IDM_FILE_PLAYLIST
+        MENUITEM "Open &URL...\tCtrl+U", IDM_FILE_OPEN_URL
+        MENUITEM "&YouTube...\tCtrl+Y", IDM_FILE_YOUTUBE
+        MENUITEM "&Radio...\tCtrl+R", IDM_FILE_RADIO
+        MENUITEM "&Add Stream to Favorites...\tCtrl+D", IDM_FILE_ADD_TO_FAVORITES
+        MENUITEM "&Podcasts...\tCtrl+Shift+P", IDM_FILE_PODCAST
+        MENUITEM "&Schedule...\tCtrl+S", IDM_FILE_SCHEDULE
+        MENUITEM "Song &History...\tCtrl+Shift+H", IDM_VIEW_SONG_HISTORY
+        MENUITEM SEPARATOR
+        POPUP "Recent &Files"
+        BEGIN
+            MENUITEM "(Empty)", 0, GRAYED
+        END
+        MENUITEM SEPARATOR
+        MENUITEM "&Hide to Tray\tCtrl+H", IDM_FILE_HIDE_TRAY
+        MENUITEM SEPARATOR
+        MENUITEM "O&ptions...\tCtrl+,", IDM_TOOLS_OPTIONS
+        MENUITEM SEPARATOR
+        MENUITEM "E&xit\tAlt+F4", IDM_FILE_EXIT
+    END
+    POPUP "&Playback"
+    BEGIN
+        MENUITEM "&Play\tX", IDM_PLAY_PLAY
+        MENUITEM "Pa&use\tC", IDM_PLAY_PAUSE
+        MENUITEM "Play/Pause\tSpace", IDM_PLAY_PLAYPAUSE
+        MENUITEM "&Stop\tV", IDM_PLAY_STOP
+        MENUITEM SEPARATOR
+        MENUITEM "P&revious\tZ", IDM_PLAY_PREV
+        MENUITEM "&Next\tB", IDM_PLAY_NEXT
+        MENUITEM SEPARATOR
+        MENUITEM "S&huffle\tH", IDM_PLAY_SHUFFLE
+        MENUITEM "R&epeat\tE", IDM_PLAY_REPEAT_TOGGLE
+        MENUITEM SEPARATOR
+        MENUITEM "Seek &Backward\tLeft", IDM_PLAY_SEEKBACK
+        MENUITEM "Seek &Forward\tRight", IDM_PLAY_SEEKFWD
+        MENUITEM "&Beginning\tHome", IDM_PLAY_BEGINNING
+        MENUITEM "&Jump to Time...\tJ", IDM_PLAY_JUMPTOTIME
+        MENUITEM SEPARATOR
+        MENUITEM "Volume &Up\tUp", IDM_PLAY_VOLUP
+        MENUITEM "Volume &Down\tDown", IDM_PLAY_VOLDOWN
+        MENUITEM SEPARATOR
+        MENUITEM "Speak &Elapsed\tCtrl+Shift+E", IDM_PLAY_ELAPSED
+        MENUITEM "Speak &Remaining\tCtrl+Shift+R", IDM_PLAY_REMAINING
+        MENUITEM "Speak &Total\tCtrl+Shift+T", IDM_PLAY_TOTAL
+    END
+    POPUP "&Video"
+    BEGIN
+        MENUITEM "&Fullscreen\tF11",                IDM_VIDEO_FULLSCREEN
+        MENUITEM SEPARATOR
+        MENUITEM "Cycle &Subtitles",                IDM_VIDEO_SUB_CYCLE
+        MENUITEM "&Load Subtitle File...",          IDM_VIDEO_SUB_LOAD
+        MENUITEM "Subtitles &Off",                  IDM_VIDEO_SUB_OFF
+        MENUITEM SEPARATOR
+        MENUITEM "Cycle &Audio Track",              IDM_VIDEO_AUDIO_CYCLE
+        MENUITEM SEPARATOR
+        MENUITEM "Cycle Aspect &Ratio",             IDM_VIDEO_ASPECT
+        MENUITEM SEPARATOR
+        MENUITEM "Take Scr&eenshot",                IDM_VIDEO_SCREENSHOT
+    END
+    POPUP "&Help"
+    BEGIN
+        MENUITEM "&Readme", IDM_HELP_README
+        MENUITEM "Check for &Updates...", IDM_HELP_UPDATES
+        MENUITEM SEPARATOR
+        MENUITEM "&Loaded Plugins...", IDM_HELP_PLUGINS
+    END
+END
+
+IDD_OPTIONS DIALOGEX 0, 0, 340, 260
+STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "Options"
+FONT 8, "MS Shell Dlg"
+BEGIN
+    CONTROL         "", IDC_TAB, "SysTabControl32", WS_TABSTOP, 7, 7, 326, 225
+
+    // Playback tab controls (shown when tab 0 selected)
+    LTEXT           "&Output device:", IDC_LABEL_PLAYBACK_OUTPUT_DEVICE, 17, 30, 55, 10
+    COMBOBOX        IDC_SOUNDCARD, 75, 28, 188, 120, CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    AUTOCHECKBOX    "&Allow volume above 100%", IDC_ALLOW_AMPLIFY, 17, 48, 120, 10
+    AUTOCHECKBOX    "&Remember playback state on exit", IDC_REMEMBER_STATE, 17, 61, 150, 10
+    LTEXT           "Remember p&osition if longer than:", IDC_LABEL_PLAYBACK_REMEMBER_POS, 17, 76, 125, 10
+    COMBOBOX        IDC_REMEMBER_POS, 145, 74, 118, 120, CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    AUTOCHECKBOX    "&Bring window to front when opening files", IDC_BRING_TO_FRONT, 17, 92, 180, 10
+    AUTOCHECKBOX    "&Load all files in folder when opening single file", IDC_LOAD_FOLDER, 17, 105, 200, 10
+    AUTOCHECKBOX    "&Minimize to system tray", IDC_MINIMIZE_TO_TRAY, 17, 118, 120, 10
+    AUTOCHECKBOX    "Show &track name in window title", IDC_SHOW_TITLE, 17, 131, 150, 10
+    AUTOCHECKBOX    "Auto-ad&vance to next playlist item", IDC_AUTO_ADVANCE, 17, 144, 150, 10
+    AUTOCHECKBOX    "&Follow playback in playlist dialog", IDC_PLAYLIST_FOLLOW, 17, 157, 150, 10
+    AUTOCHECKBOX    "Check for &updates on startup", IDC_CHECK_UPDATES, 17, 170, 150, 10
+    AUTOCHECKBOX    "Allow &multiple instances", IDC_MULTI_INSTANCE, 17, 183, 150, 10
+    AUTOCHECKBOX    "Register all supported &file types", IDC_REGISTER_FILE_TYPES, 155, 183, 140, 10
+    LTEXT           "Re&wind on pause (ms):", IDC_REWIND_LABEL, 170, 145, 80, 10
+    EDITTEXT        IDC_REWIND_ON_PAUSE, 250, 143, 30, 14, ES_AUTOHSCROLL | ES_NUMBER
+    LTEXT           "Volu&me step:", IDC_LABEL_PLAYBACK_VOLUME_STEP, 160, 118, 50, 10
+    COMBOBOX        IDC_VOLUME_STEP, 215, 116, 55, 120, CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    LTEXT           "Lan&guage:", IDC_LABEL_LANGUAGE, 17, 200, 40, 10
+    COMBOBOX        IDC_LANGUAGE_COMBO, 60, 198, 90, 80, CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+
+    // Recording tab controls (shown when tab 1 selected)
+    LTEXT           "Record audio output to file. Press R to toggle recording.", IDC_LABEL_RECORDING_DESCRIPTION, 17, 30, 230, 10
+    LTEXT           "&Output folder:", IDC_LABEL_RECORDING_OUTPUT_FOLDER, 17, 50, 50, 10
+    EDITTEXT        IDC_REC_PATH, 70, 48, 155, 14, ES_AUTOHSCROLL
+    PUSHBUTTON      "&Browse...", IDC_REC_BROWSE, 228, 47, 40, 14
+    LTEXT           "Filename &template:", IDC_LABEL_RECORDING_TEMPLATE, 17, 72, 65, 10
+    EDITTEXT        IDC_REC_TEMPLATE, 85, 70, 140, 14, ES_AUTOHSCROLL
+    LTEXT           "(Uses strftime format: %Y=year, %m=month, %d=day, %H=hour, %M=min, %S=sec)", IDC_LABEL_RECORDING_TEMPLATE_HELP, 17, 88, 250, 10
+    LTEXT           "&Format:", IDC_LABEL_RECORDING_FORMAT, 17, 108, 30, 10
+    COMBOBOX        IDC_REC_FORMAT, 50, 106, 70, 80, CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    LTEXT           "&Bitrate:", IDC_LABEL_RECORDING_BITRATE, 130, 108, 30, 10
+    COMBOBOX        IDC_REC_BITRATE, 163, 106, 70, 80, CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    LTEXT           "(Bitrate only applies to MP3 and OGG formats)", IDC_LABEL_RECORDING_BITRATE_NOTE, 17, 125, 200, 10
+
+    // Downloads tab controls (shown when tab 2 selected)
+    LTEXT           "Configure podcast episode download settings.", IDC_LABEL_DOWNLOADS_DESCRIPTION, 17, 30, 230, 10
+    LTEXT           "&Downloads folder:", IDC_LABEL_DOWNLOADS_FOLDER, 17, 50, 65, 10
+    EDITTEXT        IDC_DOWNLOAD_PATH, 17, 62, 205, 14, ES_AUTOHSCROLL | ES_READONLY
+    PUSHBUTTON      "&Browse...", IDC_DOWNLOAD_BROWSE, 225, 61, 45, 14
+    AUTOCHECKBOX    "&Organize downloads into folders by feed title", IDC_DOWNLOAD_ORGANIZE, 17, 82, 200, 10
+
+    // Speech tab controls (shown when tab 3 selected)
+    LTEXT           "Configure speech feedback for various events.", IDC_LABEL_SPEECH_DESCRIPTION, 17, 30, 230, 10
+    AUTOCHECKBOX    "&Announce track changes", IDC_SPEECH_TRACKCHANGE, 17, 50, 150, 10
+    AUTOCHECKBOX    "Speak &volume when adjusted", IDC_SPEECH_VOLUME, 17, 70, 150, 10
+    AUTOCHECKBOX    "Speak &effect value when adjusted", IDC_SPEECH_EFFECT, 17, 90, 150, 10
+
+    // Movement tab controls (shown when tab 4 selected)
+    LTEXT           "Seek amounts (use , and . to cycle):", IDC_LABEL_MOVEMENT_DESCRIPTION, 17, 30, 150, 10
+    AUTOCHECKBOX    "&1 second", IDC_SEEK_1S, 17, 45, 60, 10
+    AUTOCHECKBOX    "&5 seconds", IDC_SEEK_5S, 17, 60, 60, 10
+    AUTOCHECKBOX    "1&0 seconds", IDC_SEEK_10S, 17, 75, 60, 10
+    AUTOCHECKBOX    "&30 seconds", IDC_SEEK_30S, 17, 90, 60, 10
+    AUTOCHECKBOX    "1 &minute", IDC_SEEK_1M, 17, 105, 60, 10
+    AUTOCHECKBOX    "5 m&inutes", IDC_SEEK_5M, 17, 120, 60, 10
+    AUTOCHECKBOX    "10 min&utes", IDC_SEEK_10M, 17, 135, 60, 10
+    AUTOCHECKBOX    "3&0 minutes", IDC_SEEK_30M, 80, 120, 60, 10
+    AUTOCHECKBOX    "1 &hour", IDC_SEEK_1H, 80, 135, 60, 10
+    AUTOCHECKBOX    "1 &track", IDC_SEEK_1T, 17, 150, 60, 10
+    AUTOCHECKBOX    "5 t&racks", IDC_SEEK_5T, 17, 165, 60, 10
+    AUTOCHECKBOX    "10 trac&ks", IDC_SEEK_10T, 80, 165, 60, 10
+    AUTOCHECKBOX    "1 c&hapter (if available)", IDC_CHAPTER_SEEK, 150, 165, 110, 10
+
+    // Global Hotkeys tab controls (shown when tab 5 selected)
+    AUTOCHECKBOX    "&Enable global hotkeys", IDC_HOTKEY_ENABLED, 17, 30, 100, 10
+    LISTBOX         IDC_HOTKEY_LIST, 17, 45, 246, 105, LBS_NOTIFY | WS_VSCROLL | WS_TABSTOP
+    PUSHBUTTON      "&Add...", IDC_HOTKEY_ADD, 17, 158, 50, 14
+    PUSHBUTTON      "&Edit...", IDC_HOTKEY_EDIT, 72, 158, 50, 14
+    PUSHBUTTON      "&Remove", IDC_HOTKEY_REMOVE, 127, 158, 50, 14
+
+    // Effects tab controls (shown when tab 6 selected)
+    LTEXT           "Stream effects ([ ] to cycle, Up/Down to adjust):", IDC_LABEL_EFFECTS_DESCRIPTION, 17, 30, 200, 10
+    AUTOCHECKBOX    "&Volume (0-400%)", IDC_EFFECT_VOLUME, 17, 45, 100, 10
+    AUTOCHECKBOX    "&Pitch (-12 to +12 semitones)", IDC_EFFECT_PITCH, 17, 60, 140, 10
+    AUTOCHECKBOX    "&Tempo (-50% to +100%)", IDC_EFFECT_TEMPO, 17, 75, 120, 10
+    AUTOCHECKBOX    "Playback &Rate (0.5x - 2x)", IDC_EFFECT_RATE, 17, 90, 120, 10
+    LTEXT           "Step:", IDC_LABEL_EFFECTS_STEP, 140, 91, 20, 10
+    COMBOBOX        IDC_RATE_STEP_MODE, 162, 89, 70, 60, CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    LTEXT           "DSP effects (enable to add their parameters to cycle list):", IDC_LABEL_EFFECTS_DSP_DESCRIPTION, 17, 110, 230, 10
+    LTEXT           "Re&verb:", IDC_LABEL_EFFECTS_REVERB, 17, 127, 30, 10
+    COMBOBOX        IDC_DSP_REVERB, 50, 125, 140, 80, CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    AUTOCHECKBOX    "&Echo", IDC_DSP_ECHO, 17, 145, 60, 10
+    AUTOCHECKBOX    "E&Q (Bass/Mid/Treble)", IDC_DSP_EQ, 17, 160, 110, 10
+    AUTOCHECKBOX    "&Compressor", IDC_DSP_COMPRESSOR, 17, 175, 70, 10
+    AUTOCHECKBOX    "&Stereo Width (0-200%)", IDC_DSP_STEREOWIDTH, 100, 145, 110, 10
+    AUTOCHECKBOX    "Ce&nter Cancel (-100 to +100%)", IDC_DSP_CENTERCANCEL, 100, 160, 130, 10
+    AUTOCHECKBOX    "&3D Audio (HRTF/Binaural)", IDC_DSP_SPATIAL, 100, 175, 120, 10
+    AUTOCHECKBOX    "Co&nvolution Reverb", IDC_DSP_CONVOLUTION, 17, 190, 90, 10
+    LTEXT           "IR File:", IDC_LABEL_EFFECTS_IR_FILE, 110, 191, 25, 10
+    EDITTEXT        IDC_CONV_IR, 135, 189, 90, 14, ES_AUTOHSCROLL | ES_READONLY
+    PUSHBUTTON      "...", IDC_CONV_BROWSE, 228, 189, 18, 14
+
+    // Advanced tab controls (shown when tab 7 selected)
+    LTEXT           "Audio buffer settings (changes apply on next file load):", IDC_LABEL_ADVANCED_BUFFER_DESC, 17, 30, 220, 10
+    LTEXT           "&Buffer size:", IDC_LABEL_ADVANCED_BUFFER_SIZE, 17, 50, 50, 10
+    COMBOBOX        IDC_BUFFER_SIZE, 75, 48, 100, 120, CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    LTEXT           "&Update period:", IDC_LABEL_ADVANCED_UPDATE_PERIOD, 17, 72, 55, 10
+    COMBOBOX        IDC_UPDATE_PERIOD, 75, 70, 100, 120, CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    LTEXT           "Lower values reduce latency but may cause audio glitches.", IDC_LABEL_ADVANCED_LATENCY_NOTE, 17, 95, 230, 10
+    LTEXT           "Tempo/pitch &algorithm (changes apply on next file load):", IDC_LABEL_ADVANCED_TEMPO_ALGO, 17, 118, 220, 10
+    COMBOBOX        IDC_TEMPO_ALGORITHM, 17, 133, 200, 120, CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    LTEXT           "EQ frequencies (Hz) - changes apply on next EQ enable:", IDC_LABEL_ADVANCED_EQ_FREQ, 17, 158, 220, 10
+    LTEXT           "Bass (20-500):", IDC_LABEL_ADVANCED_EQ_BASS, 17, 175, 55, 10
+    EDITTEXT        IDC_EQ_BASS_FREQ, 75, 173, 40, 14, ES_AUTOHSCROLL | ES_NUMBER
+    LTEXT           "Mid (200-5k):", IDC_LABEL_ADVANCED_EQ_MID, 125, 175, 50, 10
+    EDITTEXT        IDC_EQ_MID_FREQ, 175, 173, 40, 14, ES_AUTOHSCROLL | ES_NUMBER
+    LTEXT           "Treble (2k-20k):", IDC_LABEL_ADVANCED_EQ_TREBLE, 225, 175, 55, 10
+    EDITTEXT        IDC_EQ_TREBLE_FREQ, 280, 173, 45, 14, ES_AUTOHSCROLL | ES_NUMBER
+    AUTOCHECKBOX    "&Legacy volume (faster, but affects recordings)", IDC_LEGACY_VOLUME, 17, 195, 200, 10
+    AUTOCHECKBOX    "Disable &batch delay (only catches one file at a time)", IDC_DISABLE_BATCH, 17, 209, 220, 10
+    PUSHBUTTON      "Reset station/podcast &order to alphabetical", IDC_RESET_LIST_ORDER, 17, 228, 200, 14
+
+    // YouTube tab controls (shown when tab 8 selected)
+    LTEXT           "&yt-dlp path:", IDC_LABEL_YOUTUBE_YTDLP_PATH, 17, 30, 50, 10
+    EDITTEXT        IDC_YTDLP_PATH, 70, 28, 160, 14, ES_AUTOHSCROLL
+    PUSHBUTTON      "&Browse...", IDC_YTDLP_BROWSE, 233, 27, 40, 14
+    LTEXT           "YouTube Data &API key (optional, enables search):", IDC_LABEL_YOUTUBE_API_KEY, 17, 55, 200, 10
+    EDITTEXT        IDC_YT_APIKEY, 17, 70, 256, 14, ES_AUTOHSCROLL | ES_PASSWORD
+    LTEXT           "Get an API key from: console.cloud.google.com", IDC_LABEL_YOUTUBE_API_HELP, 17, 90, 200, 10
+    LTEXT           "Without API key, yt-dlp will be used for search (slower).", IDC_LABEL_YOUTUBE_API_NOTE, 17, 105, 230, 10
+
+    // SoundTouch tab controls (shown when tab 9 selected)
+    LTEXT           "SoundTouch settings (changes apply on next file load):", IDC_LABEL_SOUNDTOUCH_DESCRIPTION, 17, 30, 220, 10
+    AUTOCHECKBOX    "&Anti-alias filter", IDC_ST_AA_FILTER, 17, 45, 80, 10
+    LTEXT           "AA filter &length:", IDC_LABEL_SOUNDTOUCH_AA_LENGTH, 17, 62, 60, 10
+    COMBOBOX        IDC_ST_AA_LENGTH, 80, 60, 60, 120, CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    AUTOCHECKBOX    "&Quick algorithm (lower quality, less CPU)", IDC_ST_QUICK_ALGO, 17, 80, 180, 10
+    AUTOCHECKBOX    "&Prevent click (reduces artifacts)", IDC_ST_PREVENT_CLICK, 17, 95, 150, 10
+    LTEXT           "&Interpolation:", IDC_LABEL_SOUNDTOUCH_INTERPOLATION, 17, 115, 50, 10
+    COMBOBOX        IDC_ST_ALGORITHM, 70, 113, 80, 120, CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    LTEXT           "&Sequence (ms):", IDC_LABEL_SOUNDTOUCH_SEQUENCE, 17, 135, 55, 10
+    EDITTEXT        IDC_ST_SEQUENCE, 75, 133, 35, 14, ES_AUTOHSCROLL | ES_NUMBER
+    LTEXT           "See&k window:", IDC_LABEL_SOUNDTOUCH_SEEKWINDOW, 120, 135, 50, 10
+    EDITTEXT        IDC_ST_SEEKWINDOW, 175, 133, 35, 14, ES_AUTOHSCROLL | ES_NUMBER
+    LTEXT           "&Overlap:", IDC_LABEL_SOUNDTOUCH_OVERLAP, 220, 135, 30, 10
+    EDITTEXT        IDC_ST_OVERLAP, 252, 133, 25, 14, ES_AUTOHSCROLL | ES_NUMBER
+    LTEXT           "(0 = automatic for Sequence/Seek window)", IDC_LABEL_SOUNDTOUCH_AUTO_NOTE, 17, 152, 200, 10
+
+    // Speedy tab controls (shown when tab 10 selected)
+    LTEXT           "Google Speedy algorithm settings:", IDC_LABEL_SPEEDY_DESCRIPTION, 17, 30, 150, 10
+    LTEXT           "Speedy uses nonlinear speedup optimized for speech.", IDC_LABEL_SPEEDY_INFO1, 17, 45, 250, 10
+    LTEXT           "It compresses vowels more than consonants for clarity.", IDC_LABEL_SPEEDY_INFO2, 17, 57, 250, 10
+    AUTOCHECKBOX    "&Enable nonlinear speedup (recommended for speech)", IDC_SPEEDY_NONLINEAR, 17, 78, 230, 10
+
+    // Signalsmith tab controls (shown when tab 11 selected)
+    LTEXT           "Signalsmith Stretch settings (changes apply on next file load):", IDC_LABEL_SIGNALSMITH_DESCRIPTION, 17, 30, 250, 10
+    LTEXT           "&Quality preset:", IDC_LABEL_SIGNALSMITH_QUALITY, 17, 50, 55, 10
+    COMBOBOX        IDC_SS_PRESET, 75, 48, 120, 120, CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    LTEXT           "&Tonality limit (Hz, 0 = auto):", IDC_LABEL_SIGNALSMITH_TONALITY, 17, 72, 100, 10
+    EDITTEXT        IDC_SS_TONALITY, 120, 70, 50, 14, ES_AUTOHSCROLL | ES_NUMBER
+    LTEXT           "Higher tonality limits preserve more harmonics during pitch shift.", IDC_LABEL_SIGNALSMITH_HARMONICS, 17, 90, 260, 10
+    LTEXT           "Use 0 for automatic, or 4000-8000 for speech, 8000-16000 for music.", IDC_LABEL_SIGNALSMITH_VALUES, 17, 102, 260, 10
+
+    // MIDI tab controls (shown when tab 12 selected)
+    LTEXT           "MIDI playback settings (BASSMIDI):", IDC_LABEL_MIDI_DESCRIPTION, 17, 30, 150, 10
+    LTEXT           "&SoundFont (.sf2/.sf3):", IDC_LABEL_MIDI_SOUNDFONT, 17, 48, 80, 10
+    EDITTEXT        IDC_MIDI_SOUNDFONT, 17, 60, 200, 14, ES_AUTOHSCROLL
+    PUSHBUTTON      "&Browse...", IDC_MIDI_SF_BROWSE, 222, 60, 45, 14
+    LTEXT           "Ma&x voices (polyphony):", IDC_LABEL_MIDI_VOICES, 17, 82, 90, 10
+    EDITTEXT        IDC_MIDI_VOICES, 110, 80, 40, 14, ES_AUTOHSCROLL | ES_NUMBER
+    LTEXT           "(1-1000, default 128)", IDC_LABEL_MIDI_VOICES_RANGE, 155, 82, 90, 10
+    AUTOCHECKBOX    "Use s&inc interpolation (higher quality, more CPU)", IDC_MIDI_SINC, 17, 100, 220, 10
+
+    DEFPUSHBUTTON   "OK", IDOK, 229, 240, 50, 14
+    PUSHBUTTON      "Cancel", IDCANCEL, 283, 240, 50, 14
+END
+
+IDD_HOTKEY DIALOGEX 0, 0, 220, 80
+STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "Assign Global Hotkey"
+FONT 8, "MS Shell Dlg"
+BEGIN
+    LTEXT           "&Action:", -1, 7, 10, 30, 10
+    COMBOBOX        IDC_HOTKEY_ACTION, 45, 8, 168, 120, CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    LTEXT           "&Hotkey:", -1, 7, 30, 30, 10
+    CONTROL         "", IDC_HOTKEY_KEY, "msctls_hotkey32", WS_TABSTOP, 45, 28, 168, 14
+    DEFPUSHBUTTON   "OK", IDOK, 108, 55, 50, 14
+    PUSHBUTTON      "Cancel", IDCANCEL, 163, 55, 50, 14
+END
+
+IDD_URL DIALOGEX 0, 0, 300, 70
+STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "Open URL"
+FONT 8, "MS Shell Dlg"
+BEGIN
+    LTEXT           "Enter stream &URL (http/https):", -1, 7, 10, 150, 10
+    EDITTEXT        IDC_URL_EDIT, 7, 24, 286, 14, ES_AUTOHSCROLL
+    DEFPUSHBUTTON   "OK", IDOK, 189, 48, 50, 14
+    PUSHBUTTON      "Cancel", IDCANCEL, 243, 48, 50, 14
+END
+
+IDD_JUMPTOTIME DIALOGEX 0, 0, 200, 70
+STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "Jump to Time"
+FONT 8, "MS Shell Dlg"
+BEGIN
+    LTEXT           "Enter &time (mm:ss or hh:mm:ss):", -1, 7, 10, 150, 10
+    EDITTEXT        IDC_JUMPTIME_EDIT, 7, 24, 186, 14, ES_AUTOHSCROLL
+    DEFPUSHBUTTON   "OK", IDOK, 89, 48, 50, 14
+    PUSHBUTTON      "Cancel", IDCANCEL, 143, 48, 50, 14
+END
+
+IDD_PRESET_NAME DIALOGEX 0, 0, 220, 70
+STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "Save Effect Preset"
+FONT 8, "MS Shell Dlg"
+BEGIN
+    LTEXT           "Preset &name:", -1, 7, 10, 150, 10
+    EDITTEXT        IDC_PRESET_NAME, 7, 24, 206, 14, ES_AUTOHSCROLL
+    DEFPUSHBUTTON   "OK", IDOK, 105, 48, 50, 14
+    PUSHBUTTON      "Cancel", IDCANCEL, 160, 48, 50, 14
+END
+
+IDD_YOUTUBE DIALOGEX 0, 0, 350, 280
+STYLE DS_SETFONT | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU | WS_THICKFRAME
+CAPTION "YouTube"
+FONT 8, "MS Shell Dlg"
+BEGIN
+    LTEXT           "&Search or paste URL:", -1, 7, 10, 100, 10
+    EDITTEXT        IDC_YT_SEARCH, 7, 22, 336, 14, ES_AUTOHSCROLL
+    LTEXT           "&Results:", -1, 7, 42, 50, 10
+    LISTBOX         IDC_YT_RESULTS, 7, 54, 336, 200, LBS_NOTIFY | WS_VSCROLL | WS_TABSTOP
+    PUSHBUTTON      "&Load More", IDC_YT_LOADMORE, 7, 260, 60, 14
+    PUSHBUTTON      "Close", IDCANCEL, 293, 260, 50, 14
+END
+
+IDD_BOOKMARKS DIALOGEX 0, 0, 350, 250
+STYLE DS_SETFONT | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU | WS_THICKFRAME
+CAPTION "Bookmarks"
+FONT 8, "MS Shell Dlg"
+BEGIN
+    LTEXT           "&Show:", -1, 7, 10, 25, 10
+    COMBOBOX        IDC_BOOKMARK_FILTER, 35, 8, 120, 60, CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    LTEXT           "Enter = jump, Delete = remove, Escape = close", -1, 165, 10, 178, 10
+    LISTBOX         IDC_BOOKMARK_LIST, 7, 26, 336, 198, LBS_NOTIFY | WS_VSCROLL | WS_TABSTOP
+    PUSHBUTTON      "Close", IDCANCEL, 293, 230, 50, 14
+END
+
+IDD_SONG_HISTORY DIALOGEX 0, 0, 400, 260
+STYLE DS_SETFONT | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU | WS_THICKFRAME
+CAPTION "Song History"
+FONT 8, "MS Shell Dlg"
+BEGIN
+    LTEXT           "Recent songs captured from stream metadata (Ctrl+C to copy):", -1, 7, 8, 320, 10
+    LISTBOX         IDC_HISTORY_LIST, 7, 22, 386, 210, LBS_NOTIFY | LBS_USETABSTOPS | WS_VSCROLL | WS_HSCROLL | WS_TABSTOP
+    PUSHBUTTON      "&Copy", IDC_HISTORY_COPY, 7, 238, 50, 14
+    PUSHBUTTON      "C&lear", IDC_HISTORY_CLEAR, 62, 238, 50, 14
+    DEFPUSHBUTTON   "Close", IDCANCEL, 343, 238, 50, 14
+END
+
+IDD_RADIO DIALOGEX 0, 0, 350, 280
+STYLE DS_SETFONT | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU | WS_THICKFRAME
+CAPTION "Internet Radio"
+FONT 8, "MS Shell Dlg"
+BEGIN
+    CONTROL         "", IDC_RADIO_TAB, "SysTabControl32", WS_TABSTOP, 7, 7, 336, 245
+    // Favorites tab controls
+    LISTBOX         IDC_RADIO_LIST, 14, 28, 322, 195, LBS_NOTIFY | WS_VSCROLL | WS_TABSTOP
+    LTEXT           "Enter = play, Delete = remove, Escape = close", -1, 14, 228, 200, 10
+    PUSHBUTTON      "&Add...", IDC_RADIO_ADD, 116, 226, 50, 14
+    PUSHBUTTON      "&Import...", IDC_RADIO_IMPORT, 170, 226, 50, 14
+    PUSHBUTTON      "&Export...", IDC_RADIO_EXPORT, 224, 226, 50, 14
+    // Search tab controls
+    LTEXT           "&Source:", -1, 14, 30, 30, 10
+    COMBOBOX        IDC_RADIO_SEARCH_SOURCE, 47, 28, 90, 80, CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    EDITTEXT        IDC_RADIO_SEARCH_EDIT, 142, 28, 140, 14, ES_AUTOHSCROLL
+    PUSHBUTTON      "&Search", IDC_RADIO_SEARCH_BTN, 286, 27, 50, 14
+    LTEXT           "Co&untry:", IDC_RADIO_SEARCH_COUNTRY_LABEL, 14, 48, 36, 10
+    COMBOBOX        IDC_RADIO_SEARCH_COUNTRY, 54, 46, 150, 160, CBS_DROPDOWN | CBS_AUTOHSCROLL | WS_VSCROLL | WS_TABSTOP
+    LTEXT           "S&tations:", IDC_RADIO_SEARCH_LIST_LABEL, 14, 62, 80, 10
+    LISTBOX         IDC_RADIO_SEARCH_LIST, 14, 74, 322, 149, LBS_NOTIFY | WS_VSCROLL | WS_TABSTOP
+    LTEXT           "Enter = play, Escape = close", -1, 14, 228, 150, 10
+    PUSHBUTTON      "Add to &Favorites", IDC_RADIO_SEARCH_ADD, 230, 226, 70, 14
+    // Common
+    PUSHBUTTON      "Close", IDCANCEL, 286, 258, 50, 14
+END
+
+IDD_RADIO_ADD DIALOGEX 0, 0, 280, 90
+STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "Add Radio Station"
+FONT 8, "MS Shell Dlg"
+BEGIN
+    LTEXT           "Station &name:", -1, 7, 12, 50, 10
+    EDITTEXT        IDC_RADIO_NAME, 60, 10, 213, 14, ES_AUTOHSCROLL
+    LTEXT           "Stream &URL:", -1, 7, 32, 50, 10
+    EDITTEXT        IDC_RADIO_URL, 60, 30, 213, 14, ES_AUTOHSCROLL
+    LTEXT           "(e.g., http://stream.example.com:8000/radio.mp3)", -1, 60, 48, 200, 10
+    DEFPUSHBUTTON   "OK", IDOK, 169, 68, 50, 14
+    PUSHBUTTON      "Cancel", IDCANCEL, 223, 68, 50, 14
+END
+
+IDD_SCHEDULER DIALOGEX 0, 0, 380, 280
+STYLE DS_SETFONT | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU | WS_THICKFRAME
+CAPTION "Scheduler"
+FONT 8, "MS Shell Dlg"
+BEGIN
+    LTEXT           "Scheduled events (Enter = toggle, Delete = remove, Escape = close):", -1, 7, 7, 280, 10
+    LISTBOX         IDC_SCHED_LIST, 7, 20, 366, 225, LBS_NOTIFY | WS_VSCROLL | WS_TABSTOP
+    PUSHBUTTON      "&Add...", IDC_SCHED_ADD, 7, 252, 50, 14
+    PUSHBUTTON      "&Edit...", IDC_SCHED_EDIT, 61, 252, 50, 14
+    PUSHBUTTON      "Close", IDCANCEL, 323, 260, 50, 14
+END
+
+IDD_SCHED_ADD DIALOGEX 0, 0, 300, 190
+STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "Add Scheduled Event"
+FONT 8, "MS Shell Dlg"
+BEGIN
+    LTEXT           "&Name:", -1, 7, 12, 30, 10
+    EDITTEXT        IDC_SCHED_NAME, 45, 10, 248, 14, ES_AUTOHSCROLL
+    LTEXT           "&Action:", -1, 7, 32, 30, 10
+    COMBOBOX        IDC_SCHED_ACTION, 45, 30, 100, 60, CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    LTEXT           "&Source:", -1, 7, 52, 30, 10
+    COMBOBOX        IDC_SCHED_SOURCE, 45, 50, 80, 60, CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    LTEXT           "&File:", -1, 7, 72, 20, 10
+    EDITTEXT        IDC_SCHED_FILE, 30, 70, 220, 14, ES_AUTOHSCROLL
+    PUSHBUTTON      "...", IDC_SCHED_BROWSE, 253, 70, 20, 14
+    LTEXT           "Ra&dio:", -1, 7, 72, 25, 10
+    COMBOBOX        IDC_SCHED_RADIO, 35, 70, 238, 120, CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    LTEXT           "&Date:", -1, 7, 92, 25, 10
+    CONTROL         "", IDC_SCHED_DATE, "SysDateTimePick32", DTS_SHORTDATECENTURYFORMAT | WS_TABSTOP, 35, 90, 100, 14
+    LTEXT           "&Time:", -1, 145, 92, 25, 10
+    CONTROL         "", IDC_SCHED_TIME, "SysDateTimePick32", DTS_TIMEFORMAT | WS_TABSTOP, 172, 90, 80, 14
+    LTEXT           "&Repeat:", -1, 7, 112, 30, 10
+    COMBOBOX        IDC_SCHED_REPEAT, 45, 110, 100, 80, CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    LTEXT           "D&uration:", -1, 7, 132, 35, 10
+    EDITTEXT        IDC_SCHED_DURATION, 45, 130, 40, 14, ES_AUTOHSCROLL | ES_NUMBER
+    LTEXT           "minutes (0 = no limit)", -1, 90, 132, 80, 10
+    LTEXT           "S&top:", -1, 175, 132, 25, 10
+    COMBOBOX        IDC_SCHED_STOP, 200, 130, 93, 60, CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    AUTOCHECKBOX    "&Enabled", IDC_SCHED_ENABLED, 7, 152, 60, 10
+    DEFPUSHBUTTON   "OK", IDOK, 189, 170, 50, 14
+    PUSHBUTTON      "Cancel", IDCANCEL, 243, 170, 50, 14
+END
+
+// Tag view dialog (for Shift+number keys)
+IDD_TAG_VIEW DIALOGEX 0, 0, 300, 50
+STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "Tag"
+FONT 8, "MS Shell Dlg", 400, 0, 0x1
+BEGIN
+    EDITTEXT        IDC_TAG_TEXT, 7, 7, 286, 36, ES_MULTILINE | ES_AUTOVSCROLL | ES_READONLY | WS_VSCROLL
+END
+
+// Playlist manager dialog
+IDD_PLAYLIST DIALOGEX 0, 0, 350, 250
+STYLE DS_SETFONT | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU | WS_THICKFRAME | WS_MINIMIZEBOX | WS_MAXIMIZEBOX
+CAPTION "Playlist Manager"
+FONT 8, "MS Shell Dlg", 400, 0, 0x1
+BEGIN
+    LISTBOX         IDC_PLAYLIST_LIST, 7, 7, 336, 205, LBS_NOINTEGRALHEIGHT | LBS_EXTENDEDSEL | WS_VSCROLL | WS_TABSTOP
+    PUSHBUTTON      "&Save...", IDC_PLAYLIST_SAVE, 7, 217, 50, 14
+    LTEXT           "Alt+Up/Down: Move  |  Delete: Remove  |  Enter: Play  |  Ctrl+V: Paste  |  Esc: Close", -1, 65, 220, 278, 10
+END
+
+// Podcast dialog
+IDD_PODCAST DIALOGEX 0, 0, 450, 300
+STYLE DS_SETFONT | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU | WS_THICKFRAME
+CAPTION "Podcasts"
+FONT 8, "MS Shell Dlg"
+BEGIN
+    CONTROL         "", IDC_PODCAST_TAB, "SysTabControl32", WS_TABSTOP, 7, 7, 436, 265
+    // Subscriptions tab controls (tab 0)
+    LTEXT           "&Subscriptions:", IDC_PODCAST_SUBS_LABEL, 14, 28, 55, 10
+    LISTBOX         IDC_PODCAST_SUBS_LIST, 14, 40, 150, 200, LBS_NOTIFY | WS_VSCROLL | WS_TABSTOP
+    LTEXT           "&Episodes:", IDC_PODCAST_EP_LABEL, 172, 28, 50, 10
+    LISTBOX         IDC_PODCAST_EPISODES, 172, 40, 264, 130, LBS_NOTIFY | LBS_EXTENDEDSEL | WS_VSCROLL | WS_TABSTOP
+    EDITTEXT        IDC_PODCAST_EP_DESC, 172, 174, 264, 66, ES_MULTILINE | ES_READONLY | ES_AUTOVSCROLL | WS_VSCROLL
+    LTEXT           "Enter = load/play, Delete = unsubscribe, F5 = refresh, Escape = close", IDC_PODCAST_SUBS_HELP, 14, 246, 230, 10
+    PUSHBUTTON      "&Download", IDC_PODCAST_DOWNLOAD, 172, 244, 50, 14
+    PUSHBUTTON      "Download &All", IDC_PODCAST_DOWNLOAD_ALL, 226, 244, 58, 14
+    PUSHBUTTON      "&Export OPML...", IDC_PODCAST_EXPORT_OPML, 288, 244, 60, 14
+    PUSHBUTTON      "&Refresh", IDC_PODCAST_REFRESH, 352, 244, 50, 14
+    // Search tab controls (tab 1)
+    LTEXT           "&Search iTunes:", IDC_PODCAST_SEARCH_LABEL, 14, 30, 55, 10
+    EDITTEXT        IDC_PODCAST_SEARCH_EDIT, 72, 28, 290, 14, ES_AUTOHSCROLL
+    PUSHBUTTON      "&Search", IDC_PODCAST_SEARCH_BTN, 366, 27, 50, 14
+    LISTBOX         IDC_PODCAST_SEARCH_LIST, 14, 48, 402, 175, LBS_NOTIFY | WS_VSCROLL | WS_TABSTOP
+    LTEXT           "Enter = preview, Escape = close", IDC_PODCAST_SEARCH_HELP, 14, 228, 150, 10
+    PUSHBUTTON      "S&ubscribe", IDC_PODCAST_SUBSCRIBE, 168, 226, 55, 14
+    PUSHBUTTON      "&Import OPML...", IDC_PODCAST_IMPORT_OPML, 228, 226, 60, 14
+    PUSHBUTTON      "&Add URL...", IDC_PODCAST_ADD_URL, 293, 226, 55, 14
+    // Common
+    PUSHBUTTON      "Close", IDCANCEL, 386, 278, 50, 14
+END
+
+// Add podcast subscription dialog
+IDD_PODCAST_ADD DIALOGEX 0, 0, 300, 100
+STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "Add Podcast"
+FONT 8, "MS Shell Dlg"
+BEGIN
+    LTEXT           "Feed &URL:", -1, 7, 12, 55, 10
+    EDITTEXT        IDC_PODCAST_FEED_URL, 65, 10, 228, 14, ES_AUTOHSCROLL
+    LTEXT           "(RSS feed URL, e.g., https://example.com/feed.xml)", -1, 65, 28, 220, 10
+    LTEXT           "&Username:", -1, 7, 48, 55, 10
+    EDITTEXT        IDC_PODCAST_USERNAME, 65, 46, 100, 14, ES_AUTOHSCROLL
+    LTEXT           "&Password:", -1, 172, 48, 40, 10
+    EDITTEXT        IDC_PODCAST_PASSWORD, 215, 46, 78, 14, ES_AUTOHSCROLL | ES_PASSWORD
+    LTEXT           "(Leave blank if feed doesn't require authentication)", -1, 65, 64, 220, 10
+    DEFPUSHBUTTON   "OK", IDOK, 189, 80, 50, 14
+    PUSHBUTTON      "Cancel", IDCANCEL, 243, 80, 50, 14
+END
+
+IDA_ACCEL ACCELERATORS
+BEGIN
+    "O",            IDM_FILE_OPEN,      VIRTKEY, CONTROL
+    "O",            IDM_FILE_ADD_FOLDER, VIRTKEY, CONTROL, SHIFT
+    "P",            IDM_FILE_PLAYLIST,  VIRTKEY, CONTROL
+    "U",            IDM_FILE_OPEN_URL,  VIRTKEY, CONTROL
+    "Y",            IDM_FILE_YOUTUBE,   VIRTKEY, CONTROL
+    "R",            IDM_FILE_RADIO,     VIRTKEY, CONTROL
+    "D",            IDM_FILE_ADD_TO_FAVORITES, VIRTKEY, CONTROL
+    "P",            IDM_FILE_PODCAST,   VIRTKEY, CONTROL, SHIFT
+    "S",            IDM_FILE_SCHEDULE,  VIRTKEY, CONTROL
+    "H",            IDM_FILE_HIDE_TRAY, VIRTKEY, CONTROL
+    "H",            IDM_VIEW_SONG_HISTORY, VIRTKEY, CONTROL, SHIFT
+    VK_OEM_COMMA,   IDM_TOOLS_OPTIONS,  VIRTKEY, CONTROL
+    VK_SPACE,       IDM_PLAY_PLAYPAUSE, VIRTKEY
+    VK_LEFT,        IDM_PLAY_SEEKBACK,  VIRTKEY
+    VK_RIGHT,       IDM_PLAY_SEEKFWD,   VIRTKEY
+    VK_UP,          IDM_EFFECT_UP,      VIRTKEY
+    VK_DOWN,        IDM_EFFECT_DOWN,    VIRTKEY
+    VK_UP,          IDM_PLAY_VOLUP,     VIRTKEY, CONTROL
+    VK_DOWN,        IDM_PLAY_VOLDOWN,   VIRTKEY, CONTROL
+    VK_OEM_COMMA,   IDM_SEEK_DECREASE,  VIRTKEY
+    VK_OEM_PERIOD,  IDM_SEEK_INCREASE,  VIRTKEY
+    "E",            IDM_PLAY_ELAPSED,   VIRTKEY, CONTROL, SHIFT
+    "R",            IDM_PLAY_REMAINING, VIRTKEY, CONTROL, SHIFT
+    "T",            IDM_PLAY_TOTAL,     VIRTKEY, CONTROL, SHIFT
+    // Winamp-style shortcuts
+    "Z",            IDM_PLAY_PREV,      VIRTKEY
+    "X",            IDM_PLAY_PLAY,      VIRTKEY
+    "C",            IDM_PLAY_PAUSE,     VIRTKEY
+    "V",            IDM_PLAY_STOP,      VIRTKEY
+    "B",            IDM_PLAY_NEXT,      VIRTKEY
+    "H",            IDM_PLAY_SHUFFLE,   VIRTKEY
+    "E",            IDM_PLAY_REPEAT_TOGGLE, VIRTKEY
+    "P",            IDM_EFFECT_PRESETS, VIRTKEY
+    VK_HOME,        IDM_PLAY_BEGINNING, VIRTKEY
+    "J",            IDM_PLAY_JUMPTOTIME, VIRTKEY
+    // Bookmarks
+    "M",            IDM_BOOKMARK_ADD,   VIRTKEY
+    "M",            IDM_BOOKMARK_LIST,  VIRTKEY, CONTROL
+    // Recording
+    "R",            IDM_RECORD_TOGGLE,  VIRTKEY
+    // Mute (recording still works)
+    "U",            IDM_PLAY_MUTE,      VIRTKEY
+    // Effect controls ([ and ] to cycle, Up/Down to adjust, Backspace to reset)
+    VK_OEM_4,       IDM_EFFECT_PREV,    VIRTKEY          // [ key
+    VK_OEM_6,       IDM_EFFECT_NEXT,    VIRTKEY          // ] key
+    VK_BACK,        IDM_EFFECT_RESET,   VIRTKEY          // Backspace key
+    VK_HOME,        IDM_EFFECT_MIN,     VIRTKEY, CONTROL // Ctrl+Home = min value
+    VK_END,         IDM_EFFECT_MAX,     VIRTKEY, CONTROL // Ctrl+End = max value
+    // Audio device selection
+    "A",            IDM_SHOW_AUDIO_DEVICES, VIRTKEY      // A = show audio devices menu
+    // Video controls
+    VK_F11,         IDM_VIDEO_FULLSCREEN, VIRTKEY        // F11 = toggle fullscreen
+    "T",            IDM_VIDEO_SUB_CYCLE,  VIRTKEY, CONTROL, SHIFT  // Ctrl+Shift+T = cycle subtitles
+    "A",            IDM_VIDEO_AUDIO_CYCLE, VIRTKEY, CONTROL, SHIFT // Ctrl+Shift+A = cycle audio tracks
+    "S",            IDM_VIDEO_SCREENSHOT, VIRTKEY, CONTROL, SHIFT  // Ctrl+Shift+S = take screenshot
+    // Tag reading (1-0 keys)
+    "1",            IDM_TOGGLE_VOLUME,      VIRTKEY, CONTROL
+    "2",            IDM_TOGGLE_PITCH,       VIRTKEY, CONTROL
+    "3",            IDM_TOGGLE_TEMPO,       VIRTKEY, CONTROL
+    "4",            IDM_TOGGLE_RATE,        VIRTKEY, CONTROL
+    "5",            IDM_TOGGLE_REVERB,      VIRTKEY, CONTROL
+    "6",            IDM_TOGGLE_ECHO,        VIRTKEY, CONTROL
+    "7",            IDM_TOGGLE_EQ,          VIRTKEY, CONTROL
+    "8",            IDM_TOGGLE_COMPRESSOR,  VIRTKEY, CONTROL
+    "9",            IDM_TOGGLE_STEREOWIDTH, VIRTKEY, CONTROL
+    "0",            IDM_TOGGLE_CENTERCANCEL, VIRTKEY, CONTROL
+    VK_OEM_MINUS,   IDM_TOGGLE_CONVOLUTION, VIRTKEY, CONTROL
+    VK_OEM_PLUS,    IDM_TOGGLE_SPATIAL,     VIRTKEY, CONTROL
+    "1",            IDM_READ_TAG_TITLE,     VIRTKEY
+    "2",            IDM_READ_TAG_ARTIST,    VIRTKEY
+    "3",            IDM_READ_TAG_ALBUM,     VIRTKEY
+    "4",            IDM_READ_TAG_YEAR,      VIRTKEY
+    "5",            IDM_READ_TAG_TRACK,     VIRTKEY
+    "6",            IDM_READ_TAG_GENRE,     VIRTKEY
+    "7",            IDM_READ_TAG_COMMENT,   VIRTKEY
+    "8",            IDM_READ_TAG_BITRATE,   VIRTKEY
+    "9",            IDM_READ_TAG_DURATION,  VIRTKEY
+    "0",            IDM_READ_TAG_FILENAME,  VIRTKEY
+
+    // View tags in dialog (Shift+1-0)
+    "1",            IDM_VIEW_TAG_TITLE,     VIRTKEY, SHIFT
+    "2",            IDM_VIEW_TAG_ARTIST,    VIRTKEY, SHIFT
+    "3",            IDM_VIEW_TAG_ALBUM,     VIRTKEY, SHIFT
+    "4",            IDM_VIEW_TAG_YEAR,      VIRTKEY, SHIFT
+    "5",            IDM_VIEW_TAG_TRACK,     VIRTKEY, SHIFT
+    "6",            IDM_VIEW_TAG_GENRE,     VIRTKEY, SHIFT
+    "7",            IDM_VIEW_TAG_COMMENT,   VIRTKEY, SHIFT
+    "8",            IDM_VIEW_TAG_BITRATE,   VIRTKEY, SHIFT
+    "9",            IDM_VIEW_TAG_DURATION,  VIRTKEY, SHIFT
+    "0",            IDM_VIEW_TAG_FILENAME,  VIRTKEY, SHIFT
+END
+
+// Progress dialog (for downloads/updates)
+IDD_PROGRESS DIALOGEX 0, 0, 250, 70
+STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "Downloading Update"
+FONT 8, "MS Shell Dlg"
+BEGIN
+    CONTROL         "", IDC_PROGRESS_BAR, "msctls_progress32", WS_BORDER, 14, 20, 222, 14
+    LTEXT           "Preparing download...", IDC_PROGRESS_TEXT, 14, 40, 222, 10
+    PUSHBUTTON      "Cancel", IDCANCEL, 100, 52, 50, 14
+END
