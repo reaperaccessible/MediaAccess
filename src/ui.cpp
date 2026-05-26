@@ -299,9 +299,10 @@ void ShowOpenDialog() {
     ofn.hwndOwner = g_hwnd;
     ofn.lpstrFile = szFile;
     ofn.nMaxFile = sizeof(szFile) / sizeof(wchar_t);
-    ofn.lpstrFilter = L"All Supported\0*.mp3;*.mp2;*.mp1;*.wav;*.ogg;*.oga;*.flac;*.m4a;*.m4b;*.m4r;*.mp4;*.wma;*.wmv;*.aac;*.opus;*.aiff;*.aif;*.ape;*.wv;*.alac;*.mid;*.midi;*.rmi;*.kar;*.dff;*.dsf;*.cda;*.mod;*.s3m;*.xm;*.it;*.mtm;*.umx;*.m3u;*.m3u8;*.pls\0"
+    // Keep these lists in sync with IsVideoExtension() in player.cpp.
+    ofn.lpstrFilter = L"All Supported\0*.mp3;*.mp2;*.mp1;*.wav;*.ogg;*.oga;*.flac;*.m4a;*.m4b;*.m4r;*.mp4;*.wma;*.wmv;*.aac;*.opus;*.aiff;*.aif;*.ape;*.wv;*.alac;*.mid;*.midi;*.rmi;*.kar;*.dff;*.dsf;*.cda;*.mod;*.s3m;*.xm;*.it;*.mtm;*.umx;*.mkv;*.avi;*.mov;*.webm;*.flv;*.ts;*.m2ts;*.vob;*.ogv;*.3gp;*.mpg;*.mpeg;*.m4v;*.divx;*.rmvb;*.m3u;*.m3u8;*.pls\0"
                       L"Audio Files\0*.mp3;*.mp2;*.mp1;*.wav;*.ogg;*.oga;*.flac;*.m4a;*.m4b;*.m4r;*.mp4;*.wma;*.aac;*.opus;*.aiff;*.aif;*.ape;*.wv;*.alac;*.mid;*.midi;*.rmi;*.kar;*.dff;*.dsf;*.cda;*.mod;*.s3m;*.xm;*.it;*.mtm;*.umx\0"
-                      L"Video Files\0*.wmv;*.mp4\0"
+                      L"Video Files\0*.mp4;*.mkv;*.avi;*.mov;*.webm;*.wmv;*.flv;*.ts;*.m2ts;*.vob;*.ogv;*.3gp;*.mpg;*.mpeg;*.m4v;*.divx;*.rmvb\0"
                       L"Playlists\0*.m3u;*.m3u8;*.pls\0"
                       L"All Files (*.*)\0*.*\0";
     ofn.nFilterIndex = 1;
