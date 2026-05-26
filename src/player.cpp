@@ -329,7 +329,7 @@ static bool LoadVideoFile(const wchar_t* path);
 static bool LoadVideoURL(const wchar_t* url);
 
 // Load and play a URL stream
-bool LoadURL(const wchar_t* url) {
+bool LoadURL(const wchar_t* url, bool silentOnFail) {
     // Validate URL scheme — only allow http:// and https://
     if (!url ||
         (_wcsnicmp(url, L"http://", 7) != 0 && _wcsnicmp(url, L"https://", 8) != 0)) {
@@ -425,7 +425,7 @@ bool LoadURL(const wchar_t* url) {
         msg += T("code ");
         msg += std::to_wstring(error);
         msg += L")";
-        MessageBoxW(GetMessageBoxOwner(), msg.c_str(), APP_NAME, MB_ICONERROR);
+        if (!silentOnFail) MessageBoxW(GetMessageBoxOwner(), msg.c_str(), APP_NAME, MB_ICONERROR);
         return false;
     }
 
@@ -462,7 +462,7 @@ bool LoadURL(const wchar_t* url) {
         BASS_StreamFree(g_stream);
         g_stream = 0;
         g_isLoading = false;
-        MessageBoxW(GetMessageBoxOwner(), T("Failed to create tempo processor."), APP_NAME, MB_ICONERROR);
+        if (!silentOnFail) MessageBoxW(GetMessageBoxOwner(), T("Failed to create tempo processor."), APP_NAME, MB_ICONERROR);
         return false;
     }
 
@@ -479,7 +479,7 @@ bool LoadURL(const wchar_t* url) {
         BASS_StreamFree(g_stream);
         g_stream = 0;
         g_isLoading = false;
-        MessageBoxW(GetMessageBoxOwner(), T("Failed to create tempo stream for URL."), APP_NAME, MB_ICONERROR);
+        if (!silentOnFail) MessageBoxW(GetMessageBoxOwner(), T("Failed to create tempo stream for URL."), APP_NAME, MB_ICONERROR);
         return false;
     }
 

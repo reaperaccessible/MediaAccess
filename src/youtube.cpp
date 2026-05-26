@@ -506,21 +506,28 @@ static void DoSearch(HWND hwnd) {
                     } else {
                         Speak(Ts("Failed to load video"));
                     }
-                } else if (YouTubeGetStreamURL(id, streamUrl)) {
-                    LoadURL(streamUrl.c_str());
-                    Speak(Ts("Playing"));
-                } else if (IsMPVAvailable()) {
-                    // BASS path failed (codec mismatch, livestream, etc.) — fall back to libmpv,
-                    // which handles every YouTube format. Audio DSP effects won't apply.
-                    std::wstring videoUrl;
-                    if (YouTubeGetVideoURL(id, videoUrl)) {
-                        LoadURL(videoUrl.c_str());
-                        Speak(Ts("Playing via video engine"));
-                    } else {
-                        Speak(Ts("Failed to get stream URL"));
-                    }
                 } else {
-                    Speak(Ts("Failed to get stream URL"));
+                    // Try BASS path first (with DSP/effects). If it can't decode the
+                    // stream (WebM/Opus/etc.), silently fall back to libmpv which
+                    // handles every YouTube format. silentOnFail=true suppresses
+                    // the BASS error dialog so the fallback is seamless.
+                    bool played = false;
+                    if (YouTubeGetStreamURL(id, streamUrl)) {
+                        if (LoadURL(streamUrl.c_str(), /*silentOnFail=*/true)) {
+                            Speak(Ts("Playing"));
+                            played = true;
+                        }
+                    }
+                    if (!played && IsMPVAvailable()) {
+                        std::wstring videoUrl;
+                        if (YouTubeGetVideoURL(id, videoUrl)) {
+                            if (LoadURL(videoUrl.c_str(), /*silentOnFail=*/true)) {
+                                Speak(Ts("Playing via video engine"));
+                                played = true;
+                            }
+                        }
+                    }
+                    if (!played) Speak(Ts("Failed to get stream URL"));
                 }
                 return;
             }
@@ -583,21 +590,28 @@ static void PlaySelected(HWND hwnd) {
         } else {
             Speak(Ts("Failed to load video"));
         }
-    } else if (YouTubeGetStreamURL(result.videoId, streamUrl)) {
-        LoadURL(streamUrl.c_str());
-        Speak(Ts("Playing"));
-    } else if (IsMPVAvailable()) {
-        // BASS path failed — fall back to libmpv (handles every YouTube format).
-        // Audio DSP effects won't apply when playing through mpv.
-        std::wstring videoUrl;
-        if (YouTubeGetVideoURL(result.videoId, videoUrl)) {
-            LoadURL(videoUrl.c_str());
-            Speak(Ts("Playing via video engine"));
-        } else {
-            Speak(Ts("Failed to get stream URL"));
-        }
     } else {
-        Speak(Ts("Failed to get stream URL"));
+        // Try BASS path first (preserves DSP/effects/tempo/pitch). If BASS can't
+        // decode the stream — WebM/Opus, livestream, signed URL quirks, etc. —
+        // silently fall back to libmpv which handles every YouTube format.
+        // silentOnFail=true suppresses the BASS error dialog mid-attempt.
+        bool played = false;
+        if (YouTubeGetStreamURL(result.videoId, streamUrl)) {
+            if (LoadURL(streamUrl.c_str(), /*silentOnFail=*/true)) {
+                Speak(Ts("Playing"));
+                played = true;
+            }
+        }
+        if (!played && IsMPVAvailable()) {
+            std::wstring videoUrl;
+            if (YouTubeGetVideoURL(result.videoId, videoUrl)) {
+                if (LoadURL(videoUrl.c_str(), /*silentOnFail=*/true)) {
+                    Speak(Ts("Playing via video engine"));
+                    played = true;
+                }
+            }
+        }
+        if (!played) Speak(Ts("Failed to get stream URL"));
     }
 }
 

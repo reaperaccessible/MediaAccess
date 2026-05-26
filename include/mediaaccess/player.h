@@ -14,7 +14,10 @@ std::wstring GetLoadedPluginsInfo();
 
 // Playback control
 bool LoadFile(const wchar_t* path);
-bool LoadURL(const wchar_t* url);
+// LoadURL — load and play a stream URL.
+//   silentOnFail = true → suppresses the BASS error MessageBox so the caller
+//   can attempt a fallback (used by the YouTube path to retry via libmpv).
+bool LoadURL(const wchar_t* url, bool silentOnFail = false);
 bool IsURL(const wchar_t* path);
 void PlayPause();
 void Play();
