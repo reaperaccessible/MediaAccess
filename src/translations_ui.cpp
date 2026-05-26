@@ -90,9 +90,9 @@ void RegisterUiTranslations() {
     AddTranslation("en", "Filename &template:",                     L"Filename &template:");
     AddTranslation("fr", "Filename &template:",                     L"Modèle de nom de fichier :");
     AddTranslation("en", "(Uses strftime format: %Y=year, %m=month, %d=day, %H=hour, %M=min, %S=sec)",
-                         L"(Uses strftime format: %Y=year, %m=month, %d=day, %H=hour, %M=min, %S=sec)");
+                         L"(Available: {year}, {month}, {day}, {hour}, {minute}, {second})");
     AddTranslation("fr", "(Uses strftime format: %Y=year, %m=month, %d=day, %H=hour, %M=min, %S=sec)",
-                         L"(Format strftime : %Y=année, %m=mois, %d=jour, %H=heure, %M=min, %S=sec)");
+                         L"(Disponibles : {année}, {mois}, {jour}, {heure}, {minute}, {seconde})");
     AddTranslation("en", "&Format:",                                L"&Format:");
     AddTranslation("fr", "&Format:",                                L"&Format :");
     AddTranslation("en", "&Bitrate:",                               L"&Bitrate:");

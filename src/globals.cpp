@@ -300,7 +300,9 @@ bool g_downloadOrganizeByFeed = false;   // Organize downloads into folders by f
 
 // Recording settings
 std::wstring g_recordPath;                          // Output directory
-std::wstring g_recordTemplate = L"%Y-%m-%d_%H-%M-%S";  // Filename template
+// Default template uses friendly tokens. Internally expanded via ExpandFilenameTokens()
+// before being passed to wcsftime(). Old %Y/%m/%d templates still work.
+std::wstring g_recordTemplate = L"{année}-{mois}-{jour}_{heure}-{minute}-{seconde}";
 int g_recordFormat = 0;                             // 0=WAV, 1=MP3, 2=OGG, 3=FLAC
 int g_recordBitrate = 192;                          // Bitrate for MP3/OGG
 bool g_isRecording = false;                         // Currently recording?

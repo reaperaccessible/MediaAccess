@@ -92,6 +92,9 @@ std::wstring GetTagFilename();
 void ToggleRecording();
 void StopRecording();
 
+// Expand friendly date tokens ({année}/{year}/etc.) to strftime codes (%Y/%m/etc.)
+std::wstring ExpandFilenameTokens(const std::wstring& tmpl);
+
 double GetTrackLength();
 bool IsCurrentlyPlaying();
 bool IsCurrentlyPaused();

@@ -2708,6 +2708,39 @@ std::wstring GetTagFilename() {
     return lastSlash ? (lastSlash + 1) : path;
 }
 
+// Convert friendly tokens ({année}, {year}, etc.) into C strftime codes.
+// This lets users type natural French/English placeholders while still
+// using the standard C library underneath. Existing strftime codes pass
+// through unchanged so old templates keep working.
+std::wstring ExpandFilenameTokens(const std::wstring& tmpl) {
+    struct TokenMap { const wchar_t* token; const wchar_t* code; };
+    static const TokenMap kTokens[] = {
+        // French
+        { L"{année}",   L"%Y" }, { L"{annee}",   L"%Y" },
+        { L"{mois}",    L"%m" },
+        { L"{jour}",    L"%d" },
+        { L"{heure}",   L"%H" },
+        { L"{minute}",  L"%M" },
+        { L"{seconde}", L"%S" },
+        // English
+        { L"{year}",    L"%Y" },
+        { L"{month}",   L"%m" },
+        { L"{day}",     L"%d" },
+        { L"{hour}",    L"%H" },
+        { L"{min}",     L"%M" },
+        { L"{second}",  L"%S" }, { L"{sec}", L"%S" },
+    };
+    std::wstring out = tmpl;
+    for (const auto& m : kTokens) {
+        size_t pos = 0;
+        while ((pos = out.find(m.token, pos)) != std::wstring::npos) {
+            out.replace(pos, wcslen(m.token), m.code);
+            pos += wcslen(m.code);
+        }
+    }
+    return out;
+}
+
 // Generate output filename based on template
 static std::wstring GenerateRecordingFilename() {
     // Get current time
@@ -2715,9 +2748,12 @@ static std::wstring GenerateRecordingFilename() {
     struct tm localTime;
     localtime_s(&localTime, &now);
 
+    // Expand friendly tokens first, then run strftime
+    std::wstring expanded = ExpandFilenameTokens(g_recordTemplate);
+
     // Format using the template
     wchar_t buffer[256];
-    wcsftime(buffer, 256, g_recordTemplate.c_str(), &localTime);
+    wcsftime(buffer, 256, expanded.c_str(), &localTime);
 
     // Add appropriate extension
     const wchar_t* ext;
