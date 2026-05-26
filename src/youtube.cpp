@@ -413,6 +413,104 @@ static std::wstring FindCachedAudio(const std::wstring& videoId) {
     return L"";
 }
 
+// ============================================================
+// Cache version marker (v1.0.12)
+// ============================================================
+//
+// A zero-byte sidecar "yt-<videoId>.v2" next to the audio file means the
+// audio was downloaded with --embed-chapters. Files downloaded prior to
+// v1.0.12 don't have this marker, so we lazily re-download them on next
+// play. After re-download lands the marker is written.
+
+static std::wstring GetCacheMarkerPath(const std::wstring& videoId) {
+    return GetYouTubeCacheDir() + L"\\yt-" + videoId + L".v2";
+}
+
+static bool HasCacheVersionMarker(const std::wstring& videoId) {
+    return PathFileExistsW(GetCacheMarkerPath(videoId).c_str()) != FALSE;
+}
+
+static void WriteCacheVersionMarker(const std::wstring& videoId) {
+    HANDLE h = CreateFileW(GetCacheMarkerPath(videoId).c_str(),
+                           GENERIC_WRITE, 0, nullptr,
+                           CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
+    if (h != INVALID_HANDLE_VALUE) CloseHandle(h);
+}
+
+// Look for a "yt-<id>.refresh.*" file in the cache dir. If one is found
+// AND the original audio file isn't currently locked (e.g. BASS no longer
+// playing it), atomically swap it in and create the version marker.
+// Called at the top of YouTubePlayById so the swap happens between plays,
+// never during one.
+static void ApplyPendingCacheRefresh(const std::wstring& videoId) {
+    std::wstring cacheDir = GetYouTubeCacheDir();
+    std::wstring refreshBase = cacheDir + L"\\yt-" + videoId + L".refresh";
+    static const wchar_t* exts[] = { L".m4a", L".mp4", L".aac", L".mp3" };
+    std::wstring newFile;
+    std::wstring newExt;
+    for (auto ext : exts) {
+        std::wstring c = refreshBase + ext;
+        if (PathFileExistsW(c.c_str())) { newFile = c; newExt = ext; break; }
+    }
+    if (newFile.empty()) return;
+
+    std::wstring target = cacheDir + L"\\yt-" + videoId + newExt;
+    // Remove the old cached file (any extension) — even one with a
+    // different ext, since the new file's ext may differ.
+    std::wstring oldFile = FindCachedAudio(videoId);
+    if (!oldFile.empty() && oldFile != target) DeleteFileW(oldFile.c_str());
+    DeleteFileW(target.c_str());  // ok if it didn't exist
+
+    if (MoveFileW(newFile.c_str(), target.c_str())) {
+        WriteCacheVersionMarker(videoId);
+    }
+}
+
+// Background re-download for a cached file that's missing the v2 marker.
+// Writes to "yt-<videoId>.refresh.<ext>" so the file BASS is currently
+// playing isn't touched. ApplyPendingCacheRefresh swaps it in on the
+// next play of the same video.
+static DWORD WINAPI RefreshCacheThread(LPVOID arg) {
+    std::wstring* idPtr = static_cast<std::wstring*>(arg);
+    std::wstring videoId = *idPtr;
+    delete idPtr;
+
+    if (!IsYtdlpAvailable()) return 0;
+
+    std::wstring dir = GetYouTubeCacheDir();
+    std::wstring outBase = dir + L"\\yt-" + videoId + L".refresh";
+    std::wstring outArg  = outBase + L".%(ext)s";
+
+    std::wstring url = L"https://www.youtube.com/watch?v=" + videoId;
+    std::wstring args = L"-f \"bestaudio[ext=m4a]/bestaudio[acodec=aac]/140\" "
+                        L"--no-playlist --no-progress --no-warnings --quiet "
+                        L"--embed-chapters --no-overwrites "
+                        L"-o \"" + outArg + L"\" \"" + url + L"\"";
+    RunYtdlp(args);
+    // Nothing else to do — the next call to ApplyPendingCacheRefresh
+    // (on next play of this video) will swap the file in.
+    return 0;
+}
+
+// Kick off a background refresh for this videoId if no .v2 marker exists.
+// Does nothing if there's already a refresh file pending (don't re-fetch
+// the same data twice).
+static void StartCacheRefreshIfNeeded(const std::wstring& videoId) {
+    if (HasCacheVersionMarker(videoId)) return;
+    // If a .refresh file is already present, skip — it'll be swapped on
+    // next play. ApplyPendingCacheRefresh actually swaps; here we just
+    // avoid spawning a second download for the same file.
+    std::wstring cacheDir = GetYouTubeCacheDir();
+    static const wchar_t* exts[] = { L".m4a", L".mp4", L".aac", L".mp3" };
+    for (auto ext : exts) {
+        std::wstring c = cacheDir + L"\\yt-" + videoId + L".refresh" + ext;
+        if (PathFileExistsW(c.c_str())) return;
+    }
+    std::wstring* idCopy = new std::wstring(videoId);
+    HANDLE t = CreateThread(nullptr, 0, RefreshCacheThread, idCopy, 0, nullptr);
+    if (t) CloseHandle(t);
+}
+
 // Downloads YouTube audio into the persistent cache and returns the local path.
 // If the audio is already cached we return immediately — no network round-trip,
 // no yt-dlp invocation, no Speak("Downloading audio") needed by the caller.
@@ -446,7 +544,12 @@ bool YouTubeDownloadAudio(const std::wstring& videoId, std::wstring& outFilePath
     RunYtdlp(args);
 
     cached = FindCachedAudio(safeId);
-    if (!cached.empty()) { outFilePath = cached; return true; }
+    if (!cached.empty()) {
+        // Brand-new download done with --embed-chapters → flag it as v2.
+        WriteCacheVersionMarker(safeId);
+        outFilePath = cached;
+        return true;
+    }
     return false;
 }
 
@@ -693,11 +796,28 @@ bool YouTubePlayById(const std::wstring& videoId) {
 
     // -----------------------------------------------------------------
     // Cache hit: play instantly with BASS, all effects active.
+    // Before playing, swap in any pending .refresh file from a previous
+    // background re-download. After starting playback, if this cached
+    // file is missing the v2 marker (i.e. predates --embed-chapters)
+    // kick off a silent background refresh — the next play of this same
+    // video will pick up the chapters.
     // -----------------------------------------------------------------
     if (YouTubeIsAudioCached(videoId)) {
+        std::wstring safeId = SanitizeForCommandLine(videoId);
+        ApplyPendingCacheRefresh(safeId);
         std::wstring localFile;
         if (YouTubeDownloadAudio(videoId, localFile) && LoadFile(localFile.c_str())) {
             Speak(Ts("Playing from cache"));
+            // If LoadFile populated chapters, this file is already good —
+            // mark it so we don't try to refresh it later. Otherwise (no
+            // chapters AND no marker = pre-v1.0.11 cache or v1.0.11 file
+            // that just hasn't been marked yet), trigger a silent
+            // background refresh.
+            if (!g_chapters.empty()) {
+                WriteCacheVersionMarker(safeId);
+            } else {
+                StartCacheRefreshIfNeeded(safeId);
+            }
             return true;
         }
     }
