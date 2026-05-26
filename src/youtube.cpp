@@ -1022,6 +1022,68 @@ static void DoLoadMore(HWND hwnd) {
     Speak(buf);
 }
 
+// ============================================================
+// Infinite scroll (v1.0.14)
+// ============================================================
+//
+// When the user navigates to the last item in the results list with the
+// arrow keys we transparently load the next page in the background — the
+// AYDP behaviour. A single atomic flag guards against multiple concurrent
+// loads (auto-key-repeat, fast scrolling).
+
+#include <atomic>
+
+static std::atomic<bool> g_ytLoadingMore{false};
+
+struct YtLoadMoreData {
+    HWND hDlg;
+    int previousSelection;          // restore after append so focus stays put
+    std::vector<YouTubeResult> results;
+    std::wstring newToken;
+};
+
+static DWORD WINAPI LoadMoreThreadProc(LPVOID arg) {
+    YtLoadMoreData* d = static_cast<YtLoadMoreData*>(arg);
+
+    // Snapshot the request state (g_ytCurrentQuery / token / mode) at the
+    // moment we start. If the user changes search while we're mid-fetch
+    // the result is discarded by the message handler (token/state check).
+    bool isPlaylist = g_ytIsPlaylistView;
+    std::wstring playlistId = g_ytCurrentPlaylistId;
+    std::wstring query = g_ytCurrentQuery;
+    std::wstring pageToken = g_ytNextPageToken;
+
+    if (isPlaylist) {
+        YouTubeGetPlaylistContents(playlistId, d->results, d->newToken, pageToken);
+    } else {
+        YouTubeSearch(query, d->results, d->newToken, pageToken);
+    }
+    PostMessageW(d->hDlg, WM_YT_LOAD_MORE_DONE, 0, reinterpret_cast<LPARAM>(d));
+    return 0;
+}
+
+// Triggered from LBN_SELCHANGE when the user lands on the last item.
+// No-ops if a load is already in flight or if there's no next page.
+static void TriggerAutoLoadMore(HWND hwnd, int selection) {
+    if (g_ytLoadingMore.load()) return;
+    if (g_ytNextPageToken.empty()) return;
+
+    g_ytLoadingMore.store(true);
+    Speak(Ts("Loading more"));
+
+    YtLoadMoreData* d = new YtLoadMoreData;
+    d->hDlg = hwnd;
+    d->previousSelection = selection;
+
+    HANDLE t = CreateThread(nullptr, 0, LoadMoreThreadProc, d, 0, nullptr);
+    if (!t) {
+        delete d;
+        g_ytLoadingMore.store(false);
+    } else {
+        CloseHandle(t);
+    }
+}
+
 // Play selected result
 static void PlaySelected(HWND hwnd) {
     HWND hList = GetDlgItem(hwnd, IDC_YT_RESULTS);
@@ -1086,6 +1148,15 @@ INT_PTR CALLBACK YouTubeDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
                 case IDC_YT_RESULTS:
                     if (HIWORD(wParam) == LBN_DBLCLK) {
                         PlaySelected(hwnd);
+                    } else if (HIWORD(wParam) == LBN_SELCHANGE) {
+                        // Auto-load more when the user reaches the last
+                        // item (AYDP-style infinite scroll).
+                        HWND hList = GetDlgItem(hwnd, IDC_YT_RESULTS);
+                        int sel = static_cast<int>(SendMessageW(hList, LB_GETCURSEL, 0, 0));
+                        int count = static_cast<int>(SendMessageW(hList, LB_GETCOUNT, 0, 0));
+                        if (sel >= 0 && sel == count - 1) {
+                            TriggerAutoLoadMore(hwnd, sel);
+                        }
                     }
                     break;
 
@@ -1103,6 +1174,37 @@ INT_PTR CALLBACK YouTubeDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
                     return TRUE;
             }
             break;
+
+        case WM_YT_LOAD_MORE_DONE: {
+            // Background load-more finished. Append the new results to
+            // the listbox, restore the user's selection, and announce a
+            // short count. If the dialog has been closed or a different
+            // search has started, we silently drop the result.
+            YtLoadMoreData* d = reinterpret_cast<YtLoadMoreData*>(lParam);
+            if (d) {
+                if (d->hDlg == hwnd) {
+                    g_ytNextPageToken = d->newToken;
+                    for (const auto& r : d->results) g_ytResults.push_back(r);
+                    UpdateResultsList(hwnd);
+
+                    // LB_SETCURSEL does NOT fire LBN_SELCHANGE, so this
+                    // won't re-trigger the loader.
+                    HWND hList = GetDlgItem(hwnd, IDC_YT_RESULTS);
+                    SendMessageW(hList, LB_SETCURSEL, d->previousSelection, 0);
+
+                    if (!d->results.empty()) {
+                        char buf[64];
+                        snprintf(buf, sizeof(buf),
+                                 Ts("%d more loaded").c_str(),
+                                 static_cast<int>(d->results.size()));
+                        Speak(buf);
+                    }
+                }
+                delete d;
+            }
+            g_ytLoadingMore.store(false);
+            return TRUE;
+        }
 
         case WM_SIZE: {
             int width = LOWORD(lParam);
