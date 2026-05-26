@@ -391,14 +391,14 @@ UpdateInfo CheckForUpdates() {
     std::string response = HttpGet(L"api.github.com", L"/repos/reaperaccessible/MediaAccess/releases");
 
     if (response.empty()) {
-        info.errorMessage = "Failed to connect to GitHub. Please check your internet connection.";
+        info.errorMessage = Ts("Failed to connect to GitHub. Please check your internet connection.");
         return info;
     }
 
     // Get first (latest) release
     std::string release = ExtractFirstArrayObject(response);
     if (release.empty()) {
-        info.errorMessage = "No releases found.";
+        info.errorMessage = Ts("No releases found.");
         return info;
     }
 
@@ -427,7 +427,7 @@ UpdateInfo CheckForUpdates() {
 
     WindowsAssets assets = FindWindowsAssets(release);
     if (assets.zipUrl.empty() && assets.installerUrl.empty()) {
-        info.errorMessage = "No Windows download available for this release.";
+        info.errorMessage = Ts("No Windows download available for this release.");
         return info;
     }
 
@@ -475,15 +475,15 @@ void ApplyUpdate() {
         std::wstring installerPath = GetUpdateInstallerPath();
 
         if (GetFileAttributesW(installerPath.c_str()) == INVALID_FILE_ATTRIBUTES) {
-            MessageBoxW(GetMessageBoxOwner(), L"Update file not found. The download may have failed.",
-                L"Update Error", MB_OK | MB_ICONERROR);
+            MessageBoxW(GetMessageBoxOwner(), T("Update file not found. The download may have failed."),
+                T("Update Error"), MB_OK | MB_ICONERROR);
             return;
         }
 
         HINSTANCE result = ShellExecuteW(NULL, L"open", installerPath.c_str(), L"/SILENT", NULL, SW_SHOWNORMAL);
         if (reinterpret_cast<intptr_t>(result) <= 32) {
-            MessageBoxW(GetMessageBoxOwner(), L"Failed to launch installer.",
-                L"Update Error", MB_OK | MB_ICONERROR);
+            MessageBoxW(GetMessageBoxOwner(), T("Failed to launch installer."),
+                T("Update Error"), MB_OK | MB_ICONERROR);
             return;
         }
         PostMessageW(g_hwnd, WM_CLOSE, 0, 0);
@@ -494,8 +494,8 @@ void ApplyUpdate() {
         std::wstring extractDir = appDir + L"\\update_temp";
 
         if (GetFileAttributesW(zipPath.c_str()) == INVALID_FILE_ATTRIBUTES) {
-            MessageBoxW(GetMessageBoxOwner(), L"Update file not found. The download may have failed.",
-                L"Update Error", MB_OK | MB_ICONERROR);
+            MessageBoxW(GetMessageBoxOwner(), T("Update file not found. The download may have failed."),
+                T("Update Error"), MB_OK | MB_ICONERROR);
             return;
         }
 
@@ -531,8 +531,8 @@ void ApplyUpdate() {
 
         HINSTANCE result = ShellExecuteW(NULL, L"open", batchPath.c_str(), NULL, appDir.c_str(), SW_HIDE);
         if (reinterpret_cast<intptr_t>(result) <= 32) {
-            MessageBoxW(GetMessageBoxOwner(), L"Failed to launch update script.",
-                L"Update Error", MB_OK | MB_ICONERROR);
+            MessageBoxW(GetMessageBoxOwner(), T("Failed to launch update script."),
+                T("Update Error"), MB_OK | MB_ICONERROR);
             return;
         }
         PostMessageW(g_hwnd, WM_CLOSE, 0, 0);
@@ -578,7 +578,7 @@ static INT_PTR CALLBACK ProgressDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPAR
                 wchar_t text[256];
                 double downloadedMB = g_progressData->downloadedBytes / (1024.0 * 1024.0);
                 double totalMB = g_progressData->totalBytes / (1024.0 * 1024.0);
-                swprintf(text, 256, L"Downloading: %.1f MB / %.1f MB (%d%%)",
+                swprintf(text, 256, T("Downloading: %.1f MB / %.1f MB (%d%%)"),
                     downloadedMB, totalMB, percent);
                 SetWindowTextW(g_progressData->hwndText, text);
             }
@@ -618,34 +618,34 @@ void CheckForUpdatesOnStartup() {
 void HandleUpdateCheckResult(HWND hwnd, UpdateInfo* info, bool silent) {
     if (!info->errorMessage.empty()) {
         if (!silent) {
-            MessageBoxA(hwnd, info->errorMessage.c_str(), "Check for Updates", MB_OK | MB_ICONERROR);
+            MessageBoxA(hwnd, info->errorMessage.c_str(), Ts("Check for Updates").c_str(), MB_OK | MB_ICONERROR);
         }
         return;
     }
 
     if (!info->available) {
         if (!silent) {
-            Speak("No updates available. You are running the latest version.");
-            MessageBoxA(hwnd, "No updates available. You are running the latest version.",
-                "Check for Updates", MB_OK | MB_ICONINFORMATION);
+            Speak(Ts("No updates available. You are running the latest version."));
+            MessageBoxA(hwnd, Ts("No updates available. You are running the latest version.").c_str(),
+                Ts("Check for Updates").c_str(), MB_OK | MB_ICONINFORMATION);
         }
         return;
     }
 
-    std::string message = "A new version of MediaAccess is available!\n\n";
-    message += "Current version: " + std::string(APP_VERSION);
+    std::string message = Ts("A new version of MediaAccess is available!") + "\n\n";
+    message += Ts("Current version: ") + std::string(APP_VERSION);
     if (strlen(BUILD_COMMIT) > 0) {
         message += " (" + std::string(BUILD_COMMIT).substr(0, 7) + ")";
     }
-    message += "\nLatest version: " + info->latestVersion;
+    message += "\n" + Ts("Latest version: ") + info->latestVersion;
     if (!info->latestCommit.empty()) {
         message += " (" + info->latestCommit.substr(0, 7) + ")";
     }
-    message += "\n\nDo you want to download and install the update?";
+    message += "\n\n" + Ts("Do you want to download and install the update?");
 
-    Speak("Update available. " + info->latestVersion);
+    Speak(Ts("Update available. ") + info->latestVersion);
 
-    if (MessageBoxA(hwnd, message.c_str(), "Update Available", MB_YESNO | MB_ICONQUESTION) == IDYES) {
+    if (MessageBoxA(hwnd, message.c_str(), Ts("Update Available").c_str(), MB_YESNO | MB_ICONQUESTION) == IDYES) {
         // Heap-allocate so the background thread has a safe pointer
         ProgressDialogData* progressData = new ProgressDialogData();
         progressData->hwndDialog = nullptr;
@@ -660,7 +660,7 @@ void HandleUpdateCheckResult(HWND hwnd, UpdateInfo* info, bool silent) {
             MAKEINTRESOURCEW(IDD_PROGRESS), hwnd, ProgressDlgProc);
 
         if (!hwndProgress) {
-            MessageBoxA(hwnd, "Starting download...", "Update", MB_OK);
+            MessageBoxA(hwnd, Ts("Starting download...").c_str(), Ts("Update").c_str(), MB_OK);
         }
 
         if (hwndProgress) {
@@ -699,7 +699,7 @@ void HandleUpdateCheckResult(HWND hwnd, UpdateInfo* info, bool silent) {
             if (success && !wasCancelled) {
                 PostMessageW(hwnd, WM_USER + 201, 0, 0);
             } else if (!success && !wasCancelled) {
-                MessageBoxA(hwnd, "Failed to download update.", "Error", MB_OK | MB_ICONERROR);
+                MessageBoxA(hwnd, Ts("Failed to download update.").c_str(), Ts("Error").c_str(), MB_OK | MB_ICONERROR);
             }
         }).detach();
 

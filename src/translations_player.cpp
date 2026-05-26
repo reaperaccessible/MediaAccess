@@ -97,6 +97,81 @@ void RegisterPlayerTranslations() {
     AddTranslation("fr", "The video playback engine could not be loaded. Please reinstall MediaAccess.",
                    L"Le moteur de lecture vidéo n'a pas pu être chargé. Veuillez réinstaller MediaAccess.");
 
+    // Updater dialog (updater.cpp) — every user-visible string
+    AddTranslation("en", "Check for Updates", L"Check for Updates");
+    AddTranslation("fr", "Check for Updates", L"Vérifier les mises à jour");
+
+    AddTranslation("en", "Update Available", L"Update Available");
+    AddTranslation("fr", "Update Available", L"Mise à jour disponible");
+
+    AddTranslation("en", "Update Error", L"Update Error");
+    AddTranslation("fr", "Update Error", L"Erreur de mise à jour");
+
+    AddTranslation("en", "Update", L"Update");
+    AddTranslation("fr", "Update", L"Mise à jour");
+
+    AddTranslation("en", "Error", L"Error");
+    AddTranslation("fr", "Error", L"Erreur");
+
+    AddTranslation("en", "Failed to connect to GitHub. Please check your internet connection.",
+                   L"Failed to connect to GitHub. Please check your internet connection.");
+    AddTranslation("fr", "Failed to connect to GitHub. Please check your internet connection.",
+                   L"Impossible de se connecter à GitHub. Vérifiez votre connexion Internet.");
+
+    AddTranslation("en", "No releases found.", L"No releases found.");
+    AddTranslation("fr", "No releases found.", L"Aucune version trouvée.");
+
+    AddTranslation("en", "No Windows download available for this release.",
+                   L"No Windows download available for this release.");
+    AddTranslation("fr", "No Windows download available for this release.",
+                   L"Aucun téléchargement Windows disponible pour cette version.");
+
+    AddTranslation("en", "No updates available. You are running the latest version.",
+                   L"No updates available. You are running the latest version.");
+    AddTranslation("fr", "No updates available. You are running the latest version.",
+                   L"Aucune mise à jour disponible. Vous utilisez la dernière version.");
+
+    AddTranslation("en", "A new version of MediaAccess is available!",
+                   L"A new version of MediaAccess is available!");
+    AddTranslation("fr", "A new version of MediaAccess is available!",
+                   L"Une nouvelle version de MediaAccess est disponible !");
+
+    AddTranslation("en", "Current version: ", L"Current version: ");
+    AddTranslation("fr", "Current version: ", L"Version actuelle : ");
+
+    AddTranslation("en", "Latest version: ", L"Latest version: ");
+    AddTranslation("fr", "Latest version: ", L"Dernière version : ");
+
+    AddTranslation("en", "Do you want to download and install the update?",
+                   L"Do you want to download and install the update?");
+    AddTranslation("fr", "Do you want to download and install the update?",
+                   L"Voulez-vous télécharger et installer la mise à jour ?");
+
+    AddTranslation("en", "Update available. ", L"Update available. ");
+    AddTranslation("fr", "Update available. ", L"Mise à jour disponible. ");
+
+    AddTranslation("en", "Starting download...", L"Starting download...");
+    AddTranslation("fr", "Starting download...", L"Démarrage du téléchargement...");
+
+    AddTranslation("en", "Downloading: %.1f MB / %.1f MB (%d%%)",
+                   L"Downloading: %.1f MB / %.1f MB (%d%%)");
+    AddTranslation("fr", "Downloading: %.1f MB / %.1f MB (%d%%)",
+                   L"Téléchargement : %.1f Mo / %.1f Mo (%d %%)");
+
+    AddTranslation("en", "Failed to download update.", L"Failed to download update.");
+    AddTranslation("fr", "Failed to download update.", L"Échec du téléchargement de la mise à jour.");
+
+    AddTranslation("en", "Update file not found. The download may have failed.",
+                   L"Update file not found. The download may have failed.");
+    AddTranslation("fr", "Update file not found. The download may have failed.",
+                   L"Fichier de mise à jour introuvable. Le téléchargement a peut-être échoué.");
+
+    AddTranslation("en", "Failed to launch installer.", L"Failed to launch installer.");
+    AddTranslation("fr", "Failed to launch installer.", L"Échec du lancement de l'installateur.");
+
+    AddTranslation("en", "Failed to launch update script.", L"Failed to launch update script.");
+    AddTranslation("fr", "Failed to launch update script.", L"Échec du lancement du script de mise à jour.");
+
     // Video engine messages (player.cpp routing to mpv)
     AddTranslation("en", "Failed to initialize video engine", L"Failed to initialize video engine");
     AddTranslation("fr", "Failed to initialize video engine", L"Échec de l'initialisation du moteur vidéo");
