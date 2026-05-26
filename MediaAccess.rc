@@ -201,13 +201,11 @@ BEGIN
     PUSHBUTTON      "Reset station/podcast &order to alphabetical", IDC_RESET_LIST_ORDER, 17, 228, 200, 14
 
     // YouTube tab controls (shown when tab 8 selected)
-    LTEXT           "&yt-dlp path:", IDC_LABEL_YOUTUBE_YTDLP_PATH, 17, 30, 50, 10
-    EDITTEXT        IDC_YTDLP_PATH, 70, 28, 160, 14, ES_AUTOHSCROLL
-    PUSHBUTTON      "&Browse...", IDC_YTDLP_BROWSE, 233, 27, 40, 14
-    LTEXT           "YouTube Data &API key (optional, enables search):", IDC_LABEL_YOUTUBE_API_KEY, 17, 55, 200, 10
-    EDITTEXT        IDC_YT_APIKEY, 17, 70, 256, 14, ES_AUTOHSCROLL | ES_PASSWORD
-    LTEXT           "Get an API key from: console.cloud.google.com", IDC_LABEL_YOUTUBE_API_HELP, 17, 90, 200, 10
-    LTEXT           "Without API key, yt-dlp will be used for search (slower).", IDC_LABEL_YOUTUBE_API_NOTE, 17, 105, 230, 10
+    // yt-dlp is bundled and auto-updated; no path field needed.
+    LTEXT           "YouTube Data &API key (optional, enables search):", IDC_LABEL_YOUTUBE_API_KEY, 17, 30, 200, 10
+    EDITTEXT        IDC_YT_APIKEY, 17, 45, 256, 14, ES_AUTOHSCROLL | ES_PASSWORD
+    LTEXT           "Get an API key from: console.cloud.google.com", IDC_LABEL_YOUTUBE_API_HELP, 17, 65, 200, 10
+    LTEXT           "Without API key, yt-dlp will be used for search (slower).", IDC_LABEL_YOUTUBE_API_NOTE, 17, 80, 230, 10
 
     // SoundTouch tab controls (shown when tab 9 selected)
     LTEXT           "SoundTouch settings (changes apply on next file load):", IDC_LABEL_SOUNDTOUCH_DESCRIPTION, 17, 30, 220, 10

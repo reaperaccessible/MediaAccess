@@ -35,9 +35,9 @@ void ShowTabControls(HWND hwnd, int tab) {
                            IDC_EQ_BASS_FREQ, IDC_EQ_MID_FREQ, IDC_EQ_TREBLE_FREQ,
                            IDC_LEGACY_VOLUME, IDC_DISABLE_BATCH, IDC_RESET_LIST_ORDER,
                            IDC_LABEL_ADVANCED_BUFFER_DESC, IDC_LABEL_ADVANCED_BUFFER_SIZE, IDC_LABEL_ADVANCED_UPDATE_PERIOD, IDC_LABEL_ADVANCED_LATENCY_NOTE, IDC_LABEL_ADVANCED_TEMPO_ALGO, IDC_LABEL_ADVANCED_EQ_FREQ, IDC_LABEL_ADVANCED_EQ_BASS, IDC_LABEL_ADVANCED_EQ_MID, IDC_LABEL_ADVANCED_EQ_TREBLE};
-    // YouTube tab controls (tab 8)
-    int youtubeCtrls[] = {IDC_YTDLP_PATH, IDC_YTDLP_BROWSE, IDC_YT_APIKEY,
-                          IDC_LABEL_YOUTUBE_YTDLP_PATH, IDC_LABEL_YOUTUBE_API_KEY, IDC_LABEL_YOUTUBE_API_HELP, IDC_LABEL_YOUTUBE_API_NOTE};
+    // YouTube tab controls (tab 8) — yt-dlp path/browse removed (bundled + auto-updated)
+    int youtubeCtrls[] = {IDC_YT_APIKEY,
+                          IDC_LABEL_YOUTUBE_API_KEY, IDC_LABEL_YOUTUBE_API_HELP, IDC_LABEL_YOUTUBE_API_NOTE};
     // SoundTouch tab controls (tab 9)
     int soundtouchCtrls[] = {IDC_ST_AA_FILTER, IDC_ST_AA_LENGTH, IDC_ST_QUICK_ALGO, IDC_ST_SEQUENCE,
                              IDC_ST_SEEKWINDOW, IDC_ST_OVERLAP, IDC_ST_PREVENT_CLICK, IDC_ST_ALGORITHM,
@@ -365,8 +365,7 @@ INT_PTR CALLBACK OptionsDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
             // Initialize disable batch delay checkbox
             CheckDlgButton(hwnd, IDC_DISABLE_BATCH, g_disableBatchDelay ? BST_CHECKED : BST_UNCHECKED);
 
-            // Initialize YouTube tab
-            SetDlgItemTextW(hwnd, IDC_YTDLP_PATH, g_ytdlpPath.c_str());
+            // Initialize YouTube tab (yt-dlp path is bundled/auto-detected, no UI)
             SetDlgItemTextW(hwnd, IDC_YT_APIKEY, g_ytApiKey.c_str());
 
             // Initialize Recording tab
@@ -707,11 +706,9 @@ INT_PTR CALLBACK OptionsDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
                         }
                     }
 
-                    // Get YouTube settings
+                    // Get YouTube settings (yt-dlp path managed automatically)
                     {
                         wchar_t buf[512];
-                        GetDlgItemTextW(hwnd, IDC_YTDLP_PATH, buf, 512);
-                        g_ytdlpPath = buf;
                         GetDlgItemTextW(hwnd, IDC_YT_APIKEY, buf, 512);
                         g_ytApiKey = buf;
                     }
@@ -865,21 +862,6 @@ INT_PTR CALLBACK OptionsDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
                         EnableWindow(GetDlgItem(hwnd, IDC_REC_BITRATE), enableBitrate);
                     }
                     return TRUE;
-
-                case IDC_YTDLP_BROWSE: {
-                    wchar_t filePath[MAX_PATH] = {0};
-                    OPENFILENAMEW ofn = {sizeof(ofn)};
-                    ofn.hwndOwner = hwnd;
-                    ofn.lpstrFilter = L"Executables (*.exe)\0*.exe\0All Files (*.*)\0*.*\0";
-                    ofn.lpstrFile = filePath;
-                    ofn.nMaxFile = MAX_PATH;
-                    ofn.lpstrTitle = T("Select yt-dlp executable");
-                    ofn.Flags = OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST;
-                    if (GetOpenFileNameW(&ofn)) {
-                        SetDlgItemTextW(hwnd, IDC_YTDLP_PATH, filePath);
-                    }
-                    return TRUE;
-                }
 
                 case IDC_MIDI_SF_BROWSE: {
                     wchar_t filePath[MAX_PATH] = {0};

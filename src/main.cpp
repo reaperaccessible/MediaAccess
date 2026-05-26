@@ -116,6 +116,9 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
             // Check for updates on startup (runs in background thread)
             CheckForUpdatesOnStartup();
 
+            // Silently keep yt-dlp.exe up to date (background thread).
+            LaunchYtdlpUpdateCheck();
+
             return 0;
         }
 
