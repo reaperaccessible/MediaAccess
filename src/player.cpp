@@ -924,6 +924,14 @@ bool LoadFile(const wchar_t* path) {
         msg += GetFileName(path);
         msg += L"\n\n";
         msg += T("The video playback engine could not be loaded. Please reinstall MediaAccess.");
+        // Append low-level reason so users can paste it back for diagnosis.
+        // Pure diagnostic — no fix instructions (autonomy rule: never tell
+        // users to download anything).
+        if (!g_lastMpvLoadError.empty()) {
+            msg += L"\n\n(Technical detail: ";
+            msg += g_lastMpvLoadError;
+            msg += L")";
+        }
         MessageBoxW(GetMessageBoxOwner(), msg.c_str(), APP_NAME, MB_ICONWARNING);
         return false;
     }

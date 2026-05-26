@@ -12,6 +12,7 @@
 #include "mediaaccess/globals.h"
 #include "mediaaccess/utils.h"
 #include "mediaaccess/translations.h"
+#include "mediaaccess/logger.h"
 #include "mpv/client.h"
 
 #include <windows.h>
@@ -45,13 +46,53 @@ static pfn_mpv_free                fn_mpv_free                = nullptr;
 static pfn_mpv_free_node_contents  fn_mpv_free_node_contents  = nullptr;
 static pfn_mpv_error_string        fn_mpv_error_string        = nullptr;
 
-#define LOAD_FN(handle, name) \
-    fn_##name = (pfn_##name)GetProcAddress(handle, #name); \
-    if (!fn_##name) return false
+// Diagnostic: populated by LoadMPVLibrary on failure. Surfaced verbatim
+// in the user-visible "please reinstall" dialog so we can diagnose without
+// asking the user for log files.
+std::wstring g_lastMpvLoadError;
+
+static std::wstring FormatWin32Error(DWORD err)
+{
+    wchar_t* buf = nullptr;
+    DWORD len = FormatMessageW(
+        FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM |
+        FORMAT_MESSAGE_IGNORE_INSERTS,
+        nullptr, err, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+        (LPWSTR)&buf, 0, nullptr);
+    std::wstring out;
+    if (len && buf) {
+        out.assign(buf, len);
+        while (!out.empty() && (out.back() == L'\r' || out.back() == L'\n' ||
+                                out.back() == L' '  || out.back() == L'.'))
+            out.pop_back();
+    }
+    if (buf) LocalFree(buf);
+    wchar_t numbuf[32];
+    swprintf(numbuf, 32, L" (0x%08lX)", err);
+    out += numbuf;
+    return out;
+}
+
+#define LOAD_FN(handle, name)                                                  \
+    do {                                                                       \
+        fn_##name = (pfn_##name)GetProcAddress(handle, #name);                 \
+        if (!fn_##name) {                                                      \
+            DWORD err = GetLastError();                                        \
+            g_lastMpvLoadError = L"GetProcAddress(\"" L#name L"\") failed: " + \
+                                 FormatWin32Error(err);                        \
+            LogF("MPV", "GetProcAddress(\"%s\") failed: 0x%08lX", #name, err); \
+            FreeLibrary(g_mpvDll);                                             \
+            g_mpvDll = nullptr;                                                \
+            return false;                                                      \
+        }                                                                      \
+    } while (0)
 
 static bool LoadMPVLibrary()
 {
     if (g_mpvDll) return true;
+
+    g_lastMpvLoadError.clear();
+    std::wstring lastAttemptError;
 
     // libmpv-2.dll is shipped in {exeDir}\lib\. We MUST load it by absolute
     // path: the bare-name LoadLibraryW("libmpv-2.dll") path used to fail
@@ -59,15 +100,54 @@ static bool LoadMPVLibrary()
     // Windows ignore the directory set via SetDllDirectoryW — only
     // AddDllDirectory-registered ones count under that flag. Loading by
     // full path sidesteps the search order entirely.
-    auto tryLoadFromLibDir = [](const wchar_t* name) -> HMODULE {
-        wchar_t exePath[MAX_PATH];
-        if (!GetModuleFileNameW(nullptr, exePath, MAX_PATH)) return nullptr;
+    //
+    // Buffers are sized generously (32k) instead of MAX_PATH (260) because
+    // install paths can exceed 260 on Win10+ with long-path support, and
+    // silent swprintf truncation would otherwise produce an invalid path
+    // that LoadLibraryExW rejects with a misleading error.
+    auto tryLoadFromLibDir = [&](const wchar_t* name) -> HMODULE {
+        wchar_t exePath[32768];
+        DWORD got = GetModuleFileNameW(nullptr, exePath, 32768);
+        if (got == 0 || got >= 32768) return nullptr;
         wchar_t* slash = wcsrchr(exePath, L'\\');
         if (!slash) return nullptr;
         *(slash + 1) = L'\0';
-        wchar_t full[MAX_PATH];
-        if (swprintf(full, MAX_PATH, L"%slib\\%s", exePath, name) < 0) return nullptr;
-        return LoadLibraryExW(full, nullptr, LOAD_WITH_ALTERED_SEARCH_PATH);
+        wchar_t full[32768];
+        int n = swprintf(full, 32768, L"%slib\\%s", exePath, name);
+        if (n < 0 || n >= 32768) return nullptr;
+
+        LogF("MPV", "Trying LoadLibraryExW: %ls", full);
+        // Also check existence so we can report "missing" vs "won't load"
+        DWORD attrs = GetFileAttributesW(full);
+        if (attrs == INVALID_FILE_ATTRIBUTES) {
+            LogF("MPV", "  -> file not present at this path");
+            lastAttemptError = std::wstring(L"File not found: ") + full;
+            return nullptr;
+        }
+        HMODULE h = LoadLibraryExW(full, nullptr, LOAD_WITH_ALTERED_SEARCH_PATH);
+        if (!h) {
+            DWORD err = GetLastError();
+            lastAttemptError = L"LoadLibraryExW(\"" + std::wstring(full) +
+                               L"\") failed: " + FormatWin32Error(err);
+            LogF("MPV", "  -> failed: 0x%08lX", err);
+        } else {
+            LogF("MPV", "  -> loaded OK");
+        }
+        return h;
+    };
+
+    auto tryLoadBare = [&](const wchar_t* name) -> HMODULE {
+        LogF("MPV", "Trying LoadLibraryW (bare): %ls", name);
+        HMODULE h = LoadLibraryW(name);
+        if (!h) {
+            DWORD err = GetLastError();
+            lastAttemptError = L"LoadLibraryW(\"" + std::wstring(name) +
+                               L"\") failed: " + FormatWin32Error(err);
+            LogF("MPV", "  -> failed: 0x%08lX", err);
+        } else {
+            LogF("MPV", "  -> loaded OK");
+        }
+        return h;
     };
 
     // Bundled location first (current and legacy DLL names)
@@ -77,12 +157,21 @@ static bool LoadMPVLibrary()
     if (!g_mpvDll) g_mpvDll = tryLoadFromLibDir(L"libmpv.dll");
 
     // Fallback: let Windows search (in case a user dropped the DLL elsewhere)
-    if (!g_mpvDll) g_mpvDll = LoadLibraryW(L"libmpv-2.dll");
-    if (!g_mpvDll) g_mpvDll = LoadLibraryW(L"mpv-2.dll");
-    if (!g_mpvDll) g_mpvDll = LoadLibraryW(L"mpv-1.dll");
-    if (!g_mpvDll) g_mpvDll = LoadLibraryW(L"libmpv.dll");
+    if (!g_mpvDll) g_mpvDll = tryLoadBare(L"libmpv-2.dll");
+    if (!g_mpvDll) g_mpvDll = tryLoadBare(L"mpv-2.dll");
+    if (!g_mpvDll) g_mpvDll = tryLoadBare(L"mpv-1.dll");
+    if (!g_mpvDll) g_mpvDll = tryLoadBare(L"libmpv.dll");
 
-    if (!g_mpvDll) return false;
+    if (!g_mpvDll) {
+        g_lastMpvLoadError = lastAttemptError.empty()
+            ? std::wstring(L"libmpv-2.dll not found")
+            : lastAttemptError;
+        Log("MPV", std::wstring(L"All load attempts failed. Last error: ") +
+                   g_lastMpvLoadError);
+        return false;
+    }
+
+    LogF("MPV", "DLL loaded, resolving exports...");
 
     LOAD_FN(g_mpvDll, mpv_create);
     LOAD_FN(g_mpvDll, mpv_initialize);

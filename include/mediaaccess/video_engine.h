@@ -5,6 +5,12 @@
 #include <windows.h>
 #include <string>
 
+// Populated by LoadMPVLibrary on failure: human-readable reason such as
+// "LoadLibraryExW(...) failed: <error string> (0x80070002)". Empty on
+// success. Read by player.cpp to surface in the "please reinstall" dialog
+// so users can paste it back to us for diagnosis.
+extern std::wstring g_lastMpvLoadError;
+
 // ===== Initialization =====
 bool IsMPVAvailable();
 bool InitMPV(HWND parentHwnd);

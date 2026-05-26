@@ -248,13 +248,17 @@ if exist "lib\libmpv-2.dll" (
     echo Fetching latest libmpv release from GitHub...
     if not exist temp_dl mkdir temp_dl
 
-    REM Use PowerShell to query GitHub API and download the latest v3 libmpv build
+    REM Use PowerShell to query GitHub API and download the GENERIC (non-v3) libmpv build.
+    REM The -v3 build requires x86_64-v3 CPU baseline (AVX2/BMI/FMA, Haswell 2013+ /
+    REM Excavator 2015+) and silently fails to load on older CPUs. The generic build
+    REM works on every 64-bit Windows CPU. (Switched in v1.0.20 after user reports
+    REM of "video engine could not be loaded" — diagnosed as the v3 ISA baseline.)
     powershell -NoProfile -ExecutionPolicy Bypass -Command ^
         "$ErrorActionPreference='Stop';" ^
         "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12;" ^
         "$r = Invoke-RestMethod -Uri 'https://api.github.com/repos/shinchiro/mpv-winbuild-cmake/releases/latest' -UseBasicParsing;" ^
-        "$asset = $r.assets | Where-Object { $_.name -like 'mpv-dev-x86_64-v3-*.7z' } | Select-Object -First 1;" ^
-        "if (-not $asset) { $asset = $r.assets | Where-Object { $_.name -like 'mpv-dev-x86_64-*.7z' -and $_.name -notlike '*v3*' } | Select-Object -First 1 }" ^
+        "$asset = $r.assets | Where-Object { $_.name -like 'mpv-dev-x86_64-*.7z' -and $_.name -notlike '*v3*' } | Select-Object -First 1;" ^
+        "if (-not $asset) { $asset = $r.assets | Where-Object { $_.name -like 'mpv-dev-x86_64-v3-*.7z' } | Select-Object -First 1 }" ^
         "if (-not $asset) { Write-Host 'No libmpv asset found in latest release.'; exit 1 }" ^
         "Write-Host ('Downloading ' + $asset.name + ' (' + [math]::Round($asset.size/1MB,1) + ' MB)...');" ^
         "Invoke-WebRequest -Uri $asset.browser_download_url -OutFile 'temp_dl\libmpv.7z' -UseBasicParsing;" ^
