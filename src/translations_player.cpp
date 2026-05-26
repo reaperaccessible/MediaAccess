@@ -439,10 +439,10 @@ void RegisterPlayerTranslations() {
     AddTranslation("fr", "Station added", L"Station ajoutée");
 
     AddTranslation("en", " moved to top", L" moved to top");
-    AddTranslation("fr", " moved to top", L" déplacé en haut");
+    AddTranslation("fr", " moved to top", L" déplacée en haut");
 
     AddTranslation("en", " moved below ", L" moved below ");
-    AddTranslation("fr", " moved below ", L" déplacé sous ");
+    AddTranslation("fr", " moved below ", L" déplacée sous ");
 
     AddTranslation("en", "Imported %d stations", L"Imported %d stations");
     AddTranslation("fr", "Imported %d stations", L"%d stations importées");

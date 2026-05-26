@@ -88,10 +88,10 @@ void RegisterRcTranslations() {
     AddTranslation("fr", "R&epeat\tE", L"R&épéter\tE");
 
     AddTranslation("en", "Seek &Backward\tLeft", L"Seek &Backward\tLeft");
-    AddTranslation("fr", "Seek &Backward\tLeft", L"Reculer en &arrière\tGauche");
+    AddTranslation("fr", "Seek &Backward\tLeft", L"&Reculer\tGauche");
 
     AddTranslation("en", "Seek &Forward\tRight", L"Seek &Forward\tRight");
-    AddTranslation("fr", "Seek &Forward\tRight", L"Avancer vers l'a&vant\tDroite");
+    AddTranslation("fr", "Seek &Forward\tRight", L"A&vancer\tDroite");
 
     AddTranslation("en", "&Beginning\tHome", L"&Beginning\tHome");
     AddTranslation("fr", "&Beginning\tHome", L"&Début\tHome");
@@ -458,7 +458,7 @@ void RegisterRcTranslations() {
                    L"Paramètres SoundTouch (s'applique au prochain chargement) :");
 
     AddTranslation("en", "&Anti-alias filter", L"&Anti-alias filter");
-    AddTranslation("fr", "&Anti-alias filter", L"Filtre &anti-aliasing");
+    AddTranslation("fr", "&Anti-alias filter", L"Filtre &anti-repliement");
 
     AddTranslation("en", "AA filter &length:", L"AA filter &length:");
     AddTranslation("fr", "AA filter &length:", L"&Longueur du filtre AA :");
@@ -471,7 +471,7 @@ void RegisterRcTranslations() {
     AddTranslation("en", "&Prevent click (reduces artifacts)",
                    L"&Prevent click (reduces artifacts)");
     AddTranslation("fr", "&Prevent click (reduces artifacts)",
-                   L"&Prévenir les clics (réduit les artéfacts)");
+                   L"&Éviter les clics (réduit les artefacts)");
 
     AddTranslation("en", "&Interpolation:", L"&Interpolation:");
     AddTranslation("fr", "&Interpolation:", L"&Interpolation :");
@@ -612,7 +612,7 @@ void RegisterRcTranslations() {
     AddTranslation("fr", "&Results:", L"&Résultats :");
 
     AddTranslation("en", "&Load More", L"&Load More");
-    AddTranslation("fr", "&Load More", L"En charger p&lus");
+    AddTranslation("fr", "&Load More", L"&Charger plus");
 
     // ===================================================================
     // DIALOG: IDD_BOOKMARKS - "Bookmarks"

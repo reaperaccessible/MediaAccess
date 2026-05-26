@@ -48,7 +48,7 @@ void RegisterUiTranslations() {
     AddTranslation("en", "&Output device:",                         L"&Output device:");
     AddTranslation("fr", "&Output device:",                         L"Sortie audio :");
     AddTranslation("en", "&Allow volume above 100%",                L"&Allow volume above 100%");
-    AddTranslation("fr", "&Allow volume above 100%",                L"&Autoriser le volume au-dessus de 100%");
+    AddTranslation("fr", "&Allow volume above 100%",                L"&Autoriser le volume au-dessus de 100 %");
     AddTranslation("en", "&Remember playback state on exit",        L"&Remember playback state on exit");
     AddTranslation("fr", "&Remember playback state on exit",        L"&Mémoriser l'état de lecture à la sortie");
     AddTranslation("en", "Remember p&osition if longer than:",      L"Remember p&osition if longer than:");
@@ -172,11 +172,11 @@ void RegisterUiTranslations() {
     AddTranslation("fr", "Stream effects ([ ] to cycle, Up/Down to adjust):",
                          L"Effets de flux ([ ] pour parcourir, Haut/Bas pour ajuster) :");
     AddTranslation("en", "&Volume (0-400%)",                        L"&Volume (0-400%)");
-    AddTranslation("fr", "&Volume (0-400%)",                        L"&Volume (0-400%)");
+    AddTranslation("fr", "&Volume (0-400%)",                        L"&Volume (0-400 %)");
     AddTranslation("en", "&Pitch (-12 to +12 semitones)",           L"&Pitch (-12 to +12 semitones)");
     AddTranslation("fr", "&Pitch (-12 to +12 semitones)",           L"&Hauteur (-12 à +12 demi-tons)");
     AddTranslation("en", "&Tempo (-50% to +100%)",                  L"&Tempo (-50% to +100%)");
-    AddTranslation("fr", "&Tempo (-50% to +100%)",                  L"&Tempo (-50% à +100%)");
+    AddTranslation("fr", "&Tempo (-50% to +100%)",                  L"&Tempo (-50 % à +100 %)");
     AddTranslation("en", "Playback &Rate (0.5x - 2x)",              L"Playback &Rate (0.5x - 2x)");
     AddTranslation("fr", "Playback &Rate (0.5x - 2x)",              L"&Vitesse de lecture (0.5x - 2x)");
     AddTranslation("en", "Step:",                                   L"Step:");
@@ -194,9 +194,9 @@ void RegisterUiTranslations() {
     AddTranslation("en", "&Compressor",                             L"&Compressor");
     AddTranslation("fr", "&Compressor",                             L"&Compresseur");
     AddTranslation("en", "&Stereo Width (0-200%)",                  L"&Stereo Width (0-200%)");
-    AddTranslation("fr", "&Stereo Width (0-200%)",                  L"&Largeur stéréo (0-200%)");
+    AddTranslation("fr", "&Stereo Width (0-200%)",                  L"&Largeur stéréo (0-200 %)");
     AddTranslation("en", "Ce&nter Cancel (-100 to +100%)",          L"Ce&nter Cancel (-100 to +100%)");
-    AddTranslation("fr", "Ce&nter Cancel (-100 to +100%)",          L"A&nnulation centre (-100 à +100%)");
+    AddTranslation("fr", "Ce&nter Cancel (-100 to +100%)",          L"A&nnulation du centre (-100 à +100 %)");
     AddTranslation("en", "&3D Audio (HRTF/Binaural)",               L"&3D Audio (HRTF/Binaural)");
     AddTranslation("fr", "&3D Audio (HRTF/Binaural)",               L"Audio &3D (HRTF/Binaural)");
     AddTranslation("en", "Co&nvolution Reverb",                     L"Co&nvolution Reverb");
@@ -208,7 +208,7 @@ void RegisterUiTranslations() {
     AddTranslation("en", "Audio buffer settings (changes apply on next file load):",
                          L"Audio buffer settings (changes apply on next file load):");
     AddTranslation("fr", "Audio buffer settings (changes apply on next file load):",
-                         L"Paramètres de mémoire tampon (effectif au prochain chargement) :");
+                         L"Paramètres de mémoire tampon (effectifs au prochain chargement) :");
     AddTranslation("en", "&Buffer size:",                           L"&Buffer size:");
     AddTranslation("fr", "&Buffer size:",                           L"Taille de la mémoire tam&pon :");
     AddTranslation("en", "&Update period:",                         L"&Update period:");
@@ -224,7 +224,7 @@ void RegisterUiTranslations() {
     AddTranslation("en", "EQ frequencies (Hz) - changes apply on next EQ enable:",
                          L"EQ frequencies (Hz) - changes apply on next EQ enable:");
     AddTranslation("fr", "EQ frequencies (Hz) - changes apply on next EQ enable:",
-                         L"Fréquences EQ (Hz) - effectif à la prochaine activation :");
+                         L"Fréquences EQ (Hz) — effectives à la prochaine activation :");
     AddTranslation("en", "Bass (20-500):",                          L"Bass (20-500):");
     AddTranslation("fr", "Bass (20-500):",                          L"Graves (20-500) :");
     AddTranslation("en", "Mid (200-5k):",                           L"Mid (200-5k):");
