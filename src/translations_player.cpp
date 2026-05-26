@@ -597,4 +597,13 @@ void RegisterPlayerTranslations() {
 
     AddTranslation("en", "Removed %d cached files.", L"Removed %d cached files.");
     AddTranslation("fr", "Removed %d cached files.", L"%d fichiers en cache supprimés.");
+
+    // Hybrid playback (v1.0.9) — stream now via mpv, swap to BASS when download lands
+    AddTranslation("en", "Streaming, effects will activate shortly",
+                         L"Streaming, effects will activate shortly");
+    AddTranslation("fr", "Streaming, effects will activate shortly",
+                         L"Lecture en streaming, les effets s'activeront sous peu");
+
+    AddTranslation("en", "Effects activated", L"Effects activated");
+    AddTranslation("fr", "Effects activated", L"Effets activés");
 }

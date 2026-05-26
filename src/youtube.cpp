@@ -598,9 +598,76 @@ void CleanupYouTubeTempFiles() {
 //
 // IMPORTANT: When the user prefers video mode (g_ytVideoMode), skip the
 // audio download and go straight to libmpv with the raw YouTube URL.
+// ============================================================
+// Hybrid playback state (v1.0.9)
+// ============================================================
+//
+// When the user picks an uncached YouTube result we want INSTANT playback
+// (like AYDP) but we also want all BASS DSP effects (tempo, pitch, EQ...)
+// once they're available. Solution: libmpv streams the YouTube URL
+// immediately while a background thread downloads the audio via yt-dlp.
+// As soon as the download lands on disk, the main thread swaps the engine
+// from mpv to BASS at the exact same playback position.
+//
+// `g_ytHybrid` tracks which video is currently in the "streaming, waiting
+// for download" state. If the user moves on to something else, .active
+// becomes false and the swap is skipped (the cached file still lands and
+// will be reused next time).
+
+#include <atomic>
+
+struct YtHybridState {
+    std::wstring videoId;
+    std::atomic<bool> active{false};
+};
+static YtHybridState g_ytHybrid;
+
+// Background thread: blocking download, then posts WM_YT_HYBRID_READY.
+static DWORD WINAPI HybridDownloadThread(LPVOID arg) {
+    std::wstring* idPtr = static_cast<std::wstring*>(arg);
+    std::wstring videoId = *idPtr;
+    delete idPtr;
+
+    std::wstring localFile;
+    if (YouTubeDownloadAudio(videoId, localFile)) {
+        // Heap-allocate the id again so it survives until the main thread
+        // pops the message off the queue.
+        std::wstring* postId = new std::wstring(videoId);
+        PostMessageW(g_hwnd, WM_YT_HYBRID_READY, 0, reinterpret_cast<LPARAM>(postId));
+    }
+    return 0;
+}
+
+// Called from the main thread when WM_YT_HYBRID_READY arrives. Swaps the
+// libmpv stream for a BASS file at the same playback position. If the
+// user has since changed track or stopped, the swap is skipped and the
+// downloaded file just stays in the cache for next time.
+void YouTubeOnHybridDownloadReady(const std::wstring& videoId) {
+    if (!g_ytHybrid.active.load()) return;
+    if (g_ytHybrid.videoId != videoId) return;
+    g_ytHybrid.active.store(false);
+
+    std::wstring localFile;
+    if (!YouTubeDownloadAudio(videoId, localFile)) return;
+
+    // Snapshot the mpv playback position so we can resume seamlessly.
+    // GetCurrentPosition() returns mpv's reading via the player.cpp facade.
+    double pos = GetCurrentPosition();
+
+    if (!LoadFile(localFile.c_str())) return;
+    if (pos > 1.0) SeekToPosition(pos);
+    Speak(Ts("Effects activated"));
+}
+
 bool YouTubePlayById(const std::wstring& videoId) {
     CleanupYouTubeTempFiles();
 
+    // Cancel any pending hybrid swap from a previous play — we're moving on.
+    g_ytHybrid.active.store(false);
+
+    // -----------------------------------------------------------------
+    // Video mode: hand the raw URL to libmpv (video + audio via mpv).
+    // -----------------------------------------------------------------
     if (g_ytVideoMode) {
         std::wstring url;
         if (YouTubeGetVideoURL(videoId, url)) {
@@ -613,27 +680,43 @@ bool YouTubePlayById(const std::wstring& videoId) {
         return false;
     }
 
-    // AUDIO MODE — if cached, play instantly; otherwise download then play.
-    std::wstring localFile;
-    bool cached = YouTubeIsAudioCached(videoId);
-    if (!cached) Speak(Ts("Downloading audio"));
-    if (YouTubeDownloadAudio(videoId, localFile)) {
-        if (LoadFile(localFile.c_str())) {
-            Speak(Ts(cached ? "Playing from cache" : "Playing"));
+    // -----------------------------------------------------------------
+    // Cache hit: play instantly with BASS, all effects active.
+    // -----------------------------------------------------------------
+    if (YouTubeIsAudioCached(videoId)) {
+        std::wstring localFile;
+        if (YouTubeDownloadAudio(videoId, localFile) && LoadFile(localFile.c_str())) {
+            Speak(Ts("Playing from cache"));
             return true;
         }
     }
 
-    // Fall back to libmpv with the raw URL (handles livestreams,
-    // age-restricted, anything BASS can't).
+    // -----------------------------------------------------------------
+    // Cache miss + libmpv available → HYBRID: stream now, BASS later.
+    // -----------------------------------------------------------------
     if (IsMPVAvailable()) {
-        std::wstring url;
-        if (YouTubeGetVideoURL(videoId, url)) {
-            if (LoadURL(url.c_str(), /*silentOnFail=*/true)) {
-                Speak(Ts("Playing via video engine"));
-                return true;
-            }
+        std::wstring rawUrl;
+        if (YouTubeGetVideoURL(videoId, rawUrl) &&
+            LoadURL(rawUrl.c_str(), /*silentOnFail=*/true))
+        {
+            Speak(Ts("Streaming, effects will activate shortly"));
+            g_ytHybrid.videoId = videoId;
+            g_ytHybrid.active.store(true);
+            std::wstring* idCopy = new std::wstring(videoId);
+            HANDLE t = CreateThread(nullptr, 0, HybridDownloadThread, idCopy, 0, nullptr);
+            if (t) CloseHandle(t);
+            return true;
         }
+    }
+
+    // -----------------------------------------------------------------
+    // Last resort: classic blocking download → BASS file.
+    // -----------------------------------------------------------------
+    std::wstring localFile;
+    Speak(Ts("Downloading audio"));
+    if (YouTubeDownloadAudio(videoId, localFile) && LoadFile(localFile.c_str())) {
+        Speak(Ts("Playing"));
+        return true;
     }
 
     Speak(Ts("Failed to play this video"));

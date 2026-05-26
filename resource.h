@@ -69,6 +69,7 @@
 #define WM_ADDFILE          (WM_USER + 2)
 #define WM_META_CHANGED     (WM_USER + 3)
 #define WM_PLAYLIST_TRACK_CHANGED (WM_USER + 4)
+#define WM_YT_HYBRID_READY  (WM_USER + 5)  // YouTube background download finished — swap mpv→BASS
 
 // Playback tab controls
 #define IDC_BRING_TO_FRONT  531

@@ -62,10 +62,16 @@ unsigned long long GetYouTubeCacheSize();
 // backwards compatibility / housekeeping at startup and shutdown.
 void CleanupYouTubeTempFiles();
 
-// Unified YouTube playback entry point. Downloads audio with yt-dlp and
-// plays locally with BASS (audio mode), or hands the raw URL to libmpv
-// (video mode / fallback). Returns true if playback was started.
+// Unified YouTube playback entry point. Hybrid strategy:
+//   * cached       -> instant BASS playback, full effects
+//   * uncached+mpv -> libmpv streams immediately + background download
+//                     swaps to BASS at the same position once ready
+//   * fallback     -> blocking download, then BASS
 bool YouTubePlayById(const std::wstring& videoId);
+
+// Called from WM_YT_HYBRID_READY: the background download has finished.
+// Swap from the streaming libmpv engine to BASS at the current position.
+void YouTubeOnHybridDownloadReady(const std::wstring& videoId);
 
 // Start streaming - downloads and returns path when complete (blocking)
 bool YouTubeStartStream(const std::wstring& videoId, std::wstring& filePath);

@@ -241,6 +241,16 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
             UpdateWindowTitle();
             return 0;
 
+        case WM_YT_HYBRID_READY: {
+            // YouTube hybrid background download finished — swap mpv -> BASS.
+            std::wstring* idPtr = reinterpret_cast<std::wstring*>(lParam);
+            if (idPtr) {
+                YouTubeOnHybridDownloadReady(*idPtr);
+                delete idPtr;
+            }
+            return 0;
+        }
+
         case WM_USER + 200: {
             // Update check result
             auto* data = reinterpret_cast<std::pair<UpdateInfo, bool>*>(lParam);
