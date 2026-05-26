@@ -53,11 +53,35 @@ static bool LoadMPVLibrary()
 {
     if (g_mpvDll) return true;
 
-    // Try all known libmpv DLL names (current and legacy)
-    g_mpvDll = LoadLibraryW(L"libmpv-2.dll");
+    // libmpv-2.dll is shipped in {exeDir}\lib\. We MUST load it by absolute
+    // path: the bare-name LoadLibraryW("libmpv-2.dll") path used to fail
+    // because SetDefaultDllDirectories(LOAD_LIBRARY_SEARCH_USER_DIRS) makes
+    // Windows ignore the directory set via SetDllDirectoryW — only
+    // AddDllDirectory-registered ones count under that flag. Loading by
+    // full path sidesteps the search order entirely.
+    auto tryLoadFromLibDir = [](const wchar_t* name) -> HMODULE {
+        wchar_t exePath[MAX_PATH];
+        if (!GetModuleFileNameW(nullptr, exePath, MAX_PATH)) return nullptr;
+        wchar_t* slash = wcsrchr(exePath, L'\\');
+        if (!slash) return nullptr;
+        *(slash + 1) = L'\0';
+        wchar_t full[MAX_PATH];
+        if (swprintf(full, MAX_PATH, L"%slib\\%s", exePath, name) < 0) return nullptr;
+        return LoadLibraryExW(full, nullptr, LOAD_WITH_ALTERED_SEARCH_PATH);
+    };
+
+    // Bundled location first (current and legacy DLL names)
+    g_mpvDll = tryLoadFromLibDir(L"libmpv-2.dll");
+    if (!g_mpvDll) g_mpvDll = tryLoadFromLibDir(L"mpv-2.dll");
+    if (!g_mpvDll) g_mpvDll = tryLoadFromLibDir(L"mpv-1.dll");
+    if (!g_mpvDll) g_mpvDll = tryLoadFromLibDir(L"libmpv.dll");
+
+    // Fallback: let Windows search (in case a user dropped the DLL elsewhere)
+    if (!g_mpvDll) g_mpvDll = LoadLibraryW(L"libmpv-2.dll");
     if (!g_mpvDll) g_mpvDll = LoadLibraryW(L"mpv-2.dll");
     if (!g_mpvDll) g_mpvDll = LoadLibraryW(L"mpv-1.dll");
     if (!g_mpvDll) g_mpvDll = LoadLibraryW(L"libmpv.dll");
+
     if (!g_mpvDll) return false;
 
     LOAD_FN(g_mpvDll, mpv_create);

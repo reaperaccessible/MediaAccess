@@ -92,13 +92,10 @@ void RegisterPlayerTranslations() {
     AddTranslation("en", "MediaAccess needs libmpv to play video files.", L"MediaAccess needs libmpv to play video files.");
     AddTranslation("fr", "MediaAccess needs libmpv to play video files.", L"MediaAccess a besoin de libmpv pour lire les fichiers vidéo.");
 
-    AddTranslation("en", "Download libmpv (libmpv-2.dll) from:", L"Download libmpv (libmpv-2.dll) from:");
-    AddTranslation("fr", "Download libmpv (libmpv-2.dll) from:", L"Téléchargez libmpv (libmpv-2.dll) depuis :");
-
-    AddTranslation("en", "Then place libmpv-2.dll (or mpv-2.dll) in the lib folder of MediaAccess.",
-                   L"Then place libmpv-2.dll (or mpv-2.dll) in the lib folder of MediaAccess.");
-    AddTranslation("fr", "Then place libmpv-2.dll (or mpv-2.dll) in the lib folder of MediaAccess.",
-                   L"Placez ensuite libmpv-2.dll (ou mpv-2.dll) dans le dossier lib de MediaAccess.");
+    AddTranslation("en", "The video playback engine could not be loaded. Please reinstall MediaAccess.",
+                   L"The video playback engine could not be loaded. Please reinstall MediaAccess.");
+    AddTranslation("fr", "The video playback engine could not be loaded. Please reinstall MediaAccess.",
+                   L"Le moteur de lecture vidéo n'a pas pu être chargé. Veuillez réinstaller MediaAccess.");
 
     // Video engine messages (player.cpp routing to mpv)
     AddTranslation("en", "Failed to initialize video engine", L"Failed to initialize video engine");

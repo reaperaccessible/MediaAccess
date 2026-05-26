@@ -914,18 +914,17 @@ bool LoadFile(const wchar_t* path) {
     if (IsVideoFile(path)) {
         return LoadVideoFile(path);
     }
-    // Video file but mpv DLL is not installed — give clear error message
+    // Video file but mpv DLL failed to load — this should never happen on a
+    // proper install (libmpv-2.dll is bundled in the lib\ folder). Show a
+    // neutral error and suggest reinstall; never tell users to download
+    // anything themselves — MediaAccess must be fully self-contained.
     if (IsVideoExtension(path)) {
         std::wstring msg = T("Cannot play video file:");
         msg += L"\n";
         msg += GetFileName(path);
         msg += L"\n\n";
-        msg += T("MediaAccess needs libmpv to play video files.");
-        msg += L"\n\n";
-        msg += T("Download libmpv (libmpv-2.dll) from:");
-        msg += L"\nhttps://sourceforge.net/projects/mpv-player-windows/files/libmpv/\n\n";
-        msg += T("Then place libmpv-2.dll (or mpv-2.dll) in the lib folder of MediaAccess.");
-        MessageBoxW(GetMessageBoxOwner(), msg.c_str(), APP_NAME, MB_ICONINFORMATION);
+        msg += T("The video playback engine could not be loaded. Please reinstall MediaAccess.");
+        MessageBoxW(GetMessageBoxOwner(), msg.c_str(), APP_NAME, MB_ICONWARNING);
         return false;
     }
     g_isLoading = true;
