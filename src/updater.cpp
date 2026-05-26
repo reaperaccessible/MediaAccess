@@ -11,6 +11,8 @@
 #include <sstream>
 #include <thread>
 #include <regex>
+#include <algorithm>
+#include <vector>
 
 #pragma comment(lib, "winhttp.lib")
 #pragma comment(lib, "comctl32.lib")
@@ -19,6 +21,45 @@
     "name='Microsoft.Windows.Common-Controls' " \
     "version='6.0.0.0' processorArchitecture='*' " \
     "publicKeyToken='6595b64144ccf1df' language='*'\"")
+
+// Parse a dotted version string ("1.0.24", "1.24", "v2.0.3-beta") into a
+// vector of unsigned ints. Non-numeric trailing junk is ignored. Missing
+// components are treated as 0, so "1.24" == "1.24.0" == "1.24.0.0".
+static std::vector<unsigned> ParseVersionParts(const std::string& s) {
+    std::vector<unsigned> parts;
+    size_t i = 0;
+    if (i < s.size() && (s[i] == 'v' || s[i] == 'V')) ++i;
+    while (i < s.size()) {
+        unsigned n = 0;
+        bool any = false;
+        while (i < s.size() && s[i] >= '0' && s[i] <= '9') {
+            n = n * 10 + unsigned(s[i] - '0');
+            ++i;
+            any = true;
+        }
+        if (!any) break;
+        parts.push_back(n);
+        if (i < s.size() && s[i] == '.') { ++i; continue; }
+        break;
+    }
+    return parts;
+}
+
+// Returns true iff `remote` is strictly newer than `local`.
+// Pads the shorter version with zeros so "1.24" vs "1.0.23" compares correctly:
+// {1,24,0} vs {1,0,23} -> first 1==1, second 24>0 -> remote newer.
+static bool IsRemoteNewer(const std::string& remote, const std::string& local) {
+    auto r = ParseVersionParts(remote);
+    auto l = ParseVersionParts(local);
+    size_t n = std::max(r.size(), l.size());
+    r.resize(n, 0);
+    l.resize(n, 0);
+    for (size_t i = 0; i < n; ++i) {
+        if (r[i] > l[i]) return true;
+        if (r[i] < l[i]) return false;
+    }
+    return false;
+}
 
 // Simple JSON value extraction (no external library needed)
 static std::string ExtractJsonString(const std::string& json, const std::string& key) {
@@ -442,17 +483,23 @@ UpdateInfo CheckForUpdates() {
     info.installerUrl = assets.installerUrl;
     info.releaseNotes = body;
 
-    // Compare commits if both are available, otherwise fall back to version strings
+    // Never offer a downgrade. Only prompt when the remote version is
+    // strictly newer than what's installed. Commit SHA is used only as a
+    // tiebreaker when versions are equal (e.g. same-version rebuild that
+    // shipped a real fix).
+    //
+    // ParseVersionParts handles both old "1.0.X" and new "1.X" schemes by
+    // zero-padding the shorter version, so "1.24" > "1.0.23" correctly:
+    // {1,24,0} vs {1,0,23} -> second component 24 > 0 -> remote newer.
     std::string localCommit = BUILD_COMMIT;
     std::string localVersion = APP_VERSION;
 
-    if (!info.latestCommit.empty() && !localCommit.empty()) {
-        std::string latestShort = info.latestCommit.substr(0, 7);
-        std::string localShort = localCommit.substr(0, 7);
-        info.available = (latestShort != localShort);
-    } else {
-        info.available = (info.latestVersion != localVersion);
-    }
+    bool versionNewer = IsRemoteNewer(info.latestVersion, localVersion);
+    bool versionEqual = !versionNewer &&
+                        !IsRemoteNewer(localVersion, info.latestVersion);
+    bool commitDiffers = !info.latestCommit.empty() && !localCommit.empty() &&
+                         info.latestCommit.substr(0, 7) != localCommit.substr(0, 7);
+    info.available = versionNewer || (versionEqual && commitDiffers);
 
     return info;
 }
