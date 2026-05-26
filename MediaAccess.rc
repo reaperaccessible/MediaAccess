@@ -78,6 +78,8 @@ BEGIN
         MENUITEM SEPARATOR
         MENUITEM "&Test YouTube playback", IDM_HELP_TEST_YOUTUBE
         MENUITEM "C&lear YouTube cache...", IDM_HELP_CLEAR_YT_CACHE
+        MENUITEM SEPARATOR
+        MENUITEM "Audit dialog &layout...", IDM_HELP_AUDIT_LAYOUT
     END
 END
 

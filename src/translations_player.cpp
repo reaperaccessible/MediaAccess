@@ -598,6 +598,22 @@ void RegisterPlayerTranslations() {
     AddTranslation("en", "Removed %d cached files.", L"Removed %d cached files.");
     AddTranslation("fr", "Removed %d cached files.", L"%d fichiers en cache supprimés.");
 
+    // Layout audit tool (v1.0.16)
+    AddTranslation("en", "Audit dialog &layout...", L"Audit dialog &layout...");
+    AddTranslation("fr", "Audit dialog &layout...", L"Audit de &mise en page...");
+
+    AddTranslation("en", "Layout audit", L"Layout audit");
+    AddTranslation("fr", "Layout audit", L"Audit de mise en page");
+
+    AddTranslation("en", "No truncated controls found.", L"No truncated controls found.");
+    AddTranslation("fr", "No truncated controls found.", L"Aucun contrôle tronqué détecté.");
+
+    AddTranslation("en", "Truncated controls:", L"Truncated controls:");
+    AddTranslation("fr", "Truncated controls:", L"Contrôles tronqués :");
+
+    AddTranslation("en", "Report saved to:", L"Report saved to:");
+    AddTranslation("fr", "Report saved to:", L"Rapport enregistré dans :");
+
     // Hybrid playback (v1.0.9) — stream now via mpv, swap to BASS when download lands
     AddTranslation("en", "Streaming, effects will activate shortly",
                          L"Streaming, effects will activate shortly");

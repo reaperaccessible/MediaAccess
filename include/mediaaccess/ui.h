@@ -30,6 +30,7 @@ void ShowJumpToTimeDialog();
 void ShowEffectPresetsMenu(HWND hwnd);
 void ShowSaveEffectPresetDialog();
 void ShowOptionsDialog();
+void AuditOptionsLayout();  // Help menu — finds truncated controls in current language
 void ShowBookmarksDialog();
 void ShowSongHistoryDialog();
 void ShowRadioDialog();

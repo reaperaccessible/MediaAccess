@@ -402,6 +402,9 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
                 case IDM_HELP_UPDATES:
                     ShowCheckForUpdatesDialog(hwnd, false);
                     break;
+                case IDM_HELP_AUDIT_LAYOUT:
+                    AuditOptionsLayout();
+                    break;
                 case IDM_HELP_README: {
                     wchar_t readmePath[MAX_PATH];
                     GetModuleFileNameW(nullptr, readmePath, MAX_PATH);

@@ -1015,3 +1015,154 @@ INT_PTR CALLBACK OptionsDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
 void ShowOptionsDialog() {
     DialogBoxW(GetModuleHandle(nullptr), MAKEINTRESOURCEW(IDD_OPTIONS), g_hwnd, OptionsDlgProc);
 }
+
+// ---------------------------------------------------------------------------
+// AuditOptionsLayout — runtime layout checker.
+//
+// Walks every control in IDD_OPTIONS in the current language, measures the
+// localized text with GetTextExtentPoint32W using the dialog's actual font,
+// and flags any STATIC/BUTTON whose text no longer fits. The Options dialog
+// is created modeless and never shown — we only need the layout, not the
+// interactive state.
+//
+// Padding heuristics (in pixels, matched against MS Shell Dlg 8pt rendering):
+//   - Checkbox / radio glyph + gap : 18 px
+//   - Pushbutton internal margin    : 10 px
+//   - Static label slack             :  2 px
+// ---------------------------------------------------------------------------
+struct AuditIssue {
+    int  id;
+    std::wstring text;
+    std::wstring cls;
+    int  controlPx;
+    int  neededPx;
+};
+
+struct AuditCtx {
+    HDC                       hdc;
+    std::vector<AuditIssue>*  issues;
+};
+
+static BOOL CALLBACK AuditEnumProc(HWND child, LPARAM lp) {
+    auto* ctx = reinterpret_cast<AuditCtx*>(lp);
+
+    wchar_t cls[64] = {0};
+    GetClassNameW(child, cls, 64);
+
+    // Only measure controls whose displayed text lives in GetWindowText().
+    // Skip combos (text is the dropdown selection, varies at runtime),
+    // edits, listboxes, tab control, and the dialog itself.
+    bool isStatic  = (_wcsicmp(cls, L"Static") == 0);
+    bool isButton  = (_wcsicmp(cls, L"Button") == 0);
+    if (!isStatic && !isButton) return TRUE;
+
+    int len = GetWindowTextLengthW(child);
+    if (len <= 0) return TRUE;
+    std::wstring text(len + 1, L'\0');
+    GetWindowTextW(child, &text[0], len + 1);
+    text.resize(len);
+
+    // Strip the & accelerator marker before measuring (it's not drawn).
+    std::wstring measured;
+    measured.reserve(text.size());
+    for (size_t i = 0; i < text.size(); ++i) {
+        if (text[i] == L'&' && i + 1 < text.size() && text[i + 1] != L'&') continue;
+        if (text[i] == L'&' && i + 1 < text.size() && text[i + 1] == L'&') { measured += L'&'; ++i; continue; }
+        measured += text[i];
+    }
+
+    RECT rc;
+    GetWindowRect(child, &rc);
+    int controlPx = rc.right - rc.left;
+
+    SIZE sz;
+    GetTextExtentPoint32W(ctx->hdc, measured.c_str(), (int)measured.size(), &sz);
+
+    int padding = 2;
+    if (isButton) {
+        LONG style = GetWindowLongW(child, GWL_STYLE);
+        DWORD bt   = style & BS_TYPEMASK;
+        bool isCheckOrRadio =
+            (bt == BS_CHECKBOX || bt == BS_AUTOCHECKBOX ||
+             bt == BS_RADIOBUTTON || bt == BS_AUTORADIOBUTTON ||
+             bt == BS_3STATE || bt == BS_AUTO3STATE);
+        padding = isCheckOrRadio ? 18 : 10;
+    }
+
+    int needed = sz.cx + padding;
+    if (needed > controlPx) {
+        AuditIssue iss;
+        iss.id        = GetDlgCtrlID(child);
+        iss.text      = text;
+        iss.cls       = cls;
+        iss.controlPx = controlPx;
+        iss.neededPx  = needed;
+        ctx->issues->push_back(iss);
+    }
+    return TRUE;
+}
+
+void AuditOptionsLayout() {
+    HWND hDlg = CreateDialogParamW(GetModuleHandle(nullptr),
+                                   MAKEINTRESOURCEW(IDD_OPTIONS),
+                                   g_hwnd, OptionsDlgProc, 0);
+    if (!hDlg) {
+        MessageBoxW(g_hwnd, L"Could not create Options dialog for audit.",
+                    T("Layout audit"), MB_OK | MB_ICONERROR);
+        return;
+    }
+
+    // Force every tab's controls to be visible so EnumChildWindows sees them
+    // with their final layout. ShowTabControls hides off-tab controls; we
+    // want them all measurable.
+    for (HWND c = GetWindow(hDlg, GW_CHILD); c; c = GetWindow(c, GW_HWNDNEXT)) {
+        ShowWindow(c, SW_SHOW);
+    }
+
+    std::vector<AuditIssue> issues;
+    HDC hdc = GetDC(hDlg);
+    HFONT hFont = (HFONT)SendMessageW(hDlg, WM_GETFONT, 0, 0);
+    HGDIOBJ oldFont = hFont ? SelectObject(hdc, hFont) : nullptr;
+
+    AuditCtx ctx{hdc, &issues};
+    EnumChildWindows(hDlg, AuditEnumProc, reinterpret_cast<LPARAM>(&ctx));
+
+    if (oldFont) SelectObject(hdc, oldFont);
+    ReleaseDC(hDlg, hdc);
+    DestroyWindow(hDlg);
+
+    if (issues.empty()) {
+        MessageBoxW(g_hwnd, T("No truncated controls found."),
+                    T("Layout audit"), MB_OK | MB_ICONINFORMATION);
+        return;
+    }
+
+    // Build a textual report and save it next to MediaAccess.exe.
+    std::wstring msg = T("Truncated controls:");
+    msg += L"\n\n";
+    for (const auto& e : issues) {
+        wchar_t line[768];
+        std::wstring shown = e.text;
+        if (shown.size() > 60) shown = shown.substr(0, 57) + L"...";
+        swprintf(line, 768, L"  [%d] %s — \"%s\" (needs %d px, has %d px)\n",
+                 e.id, e.cls.c_str(), shown.c_str(), e.neededPx, e.controlPx);
+        msg += line;
+    }
+
+    wchar_t exePath[MAX_PATH];
+    GetModuleFileNameW(nullptr, exePath, MAX_PATH);
+    if (wchar_t* slash = wcsrchr(exePath, L'\\')) {
+        *(slash + 1) = L'\0';
+        wcscat_s(exePath, MAX_PATH, L"layout_audit.txt");
+        if (FILE* f = _wfopen(exePath, L"w, ccs=UTF-8")) {
+            fputws(msg.c_str(), f);
+            fclose(f);
+            msg += L"\n";
+            msg += T("Report saved to:");
+            msg += L"\n";
+            msg += exePath;
+        }
+    }
+
+    MessageBoxW(g_hwnd, msg.c_str(), T("Layout audit"), MB_OK | MB_ICONWARNING);
+}
