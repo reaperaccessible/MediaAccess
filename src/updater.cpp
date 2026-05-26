@@ -420,6 +420,10 @@ UpdateInfo CheckForUpdates() {
     } else {
         info.latestVersion = tagName;
     }
+    // Normalize tag — strip leading "v" or "V" so "v1.0" compares equal to "1.0"
+    if (!info.latestVersion.empty() && (info.latestVersion[0] == 'v' || info.latestVersion[0] == 'V')) {
+        info.latestVersion = info.latestVersion.substr(1);
+    }
 
     WindowsAssets assets = FindWindowsAssets(release);
     if (assets.zipUrl.empty() && assets.installerUrl.empty()) {
