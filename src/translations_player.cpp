@@ -172,6 +172,34 @@ void RegisterPlayerTranslations() {
     AddTranslation("en", "Failed to launch update script.", L"Failed to launch update script.");
     AddTranslation("fr", "Failed to launch update script.", L"Échec du lancement du script de mise à jour.");
 
+    // System tray context menu (tray.cpp)
+    AddTranslation("en", "&Restore",    L"&Restore");
+    AddTranslation("fr", "&Restore",    L"&Restaurer");
+    AddTranslation("en", "&Play/Pause", L"&Play/Pause");
+    AddTranslation("fr", "&Play/Pause", L"&Lecture/Pause");
+    AddTranslation("en", "&Stop",       L"&Stop");
+    AddTranslation("fr", "&Stop",       L"&Arrêter");
+    AddTranslation("en", "P&revious",   L"P&revious");
+    AddTranslation("fr", "P&revious",   L"P&récédent");
+    AddTranslation("en", "&Next",       L"&Next");
+    AddTranslation("fr", "&Next",       L"&Suivant");
+    AddTranslation("en", "E&xit",       L"E&xit");
+    AddTranslation("fr", "E&xit",       L"&Quitter");
+
+    // Video window right-click context menu (main.cpp WM_RBUTTONUP)
+    AddTranslation("en", "Fullscreen\tF11",       L"Fullscreen\tF11");
+    AddTranslation("fr", "Fullscreen\tF11",       L"Plein écran\tF11");
+    AddTranslation("en", "Cycle Subtitles",       L"Cycle Subtitles");
+    AddTranslation("fr", "Cycle Subtitles",       L"Changer de sous-titres");
+    AddTranslation("en", "Load Subtitle File...", L"Load Subtitle File...");
+    AddTranslation("fr", "Load Subtitle File...", L"Charger un fichier de sous-titres...");
+    AddTranslation("en", "Cycle Audio Track",     L"Cycle Audio Track");
+    AddTranslation("fr", "Cycle Audio Track",     L"Changer de piste audio");
+    AddTranslation("en", "Cycle Aspect Ratio",    L"Cycle Aspect Ratio");
+    AddTranslation("fr", "Cycle Aspect Ratio",    L"Changer le format d'image");
+    AddTranslation("en", "Take Screenshot",       L"Take Screenshot");
+    AddTranslation("fr", "Take Screenshot",       L"Capture d'écran");
+
     // Video engine messages (player.cpp routing to mpv)
     AddTranslation("en", "Failed to initialize video engine", L"Failed to initialize video engine");
     AddTranslation("fr", "Failed to initialize video engine", L"Échec de l'initialisation du moteur vidéo");

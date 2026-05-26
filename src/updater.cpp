@@ -6,12 +6,19 @@
 #include "resource.h"
 #include <winhttp.h>
 #include <shlobj.h>
+#include <commctrl.h>
 #include <fstream>
 #include <sstream>
 #include <thread>
 #include <regex>
 
 #pragma comment(lib, "winhttp.lib")
+#pragma comment(lib, "comctl32.lib")
+// TaskDialogIndirect requires ComCtl32 v6. Embed the manifest dependency.
+#pragma comment(linker, "/manifestdependency:\"type='win32' " \
+    "name='Microsoft.Windows.Common-Controls' " \
+    "version='6.0.0.0' processorArchitecture='*' " \
+    "publicKeyToken='6595b64144ccf1df' language='*'\"")
 
 // Simple JSON value extraction (no external library needed)
 static std::string ExtractJsonString(const std::string& json, const std::string& key) {
@@ -618,7 +625,13 @@ void CheckForUpdatesOnStartup() {
 void HandleUpdateCheckResult(HWND hwnd, UpdateInfo* info, bool silent) {
     if (!info->errorMessage.empty()) {
         if (!silent) {
-            MessageBoxA(hwnd, info->errorMessage.c_str(), Ts("Check for Updates").c_str(), MB_OK | MB_ICONERROR);
+            // Errors come from JSON (already UTF-8) or our Ts() translations (also UTF-8).
+            // Must convert to wide for MessageBoxW or accents become mojibake.
+            std::wstring werr(info->errorMessage.begin(), info->errorMessage.end());
+            // Fallback proper UTF-8 -> wide conversion
+            int n = MultiByteToWideChar(CP_UTF8, 0, info->errorMessage.c_str(), -1, nullptr, 0);
+            if (n > 0) { werr.assign(n - 1, 0); MultiByteToWideChar(CP_UTF8, 0, info->errorMessage.c_str(), -1, &werr[0], n); }
+            MessageBoxW(hwnd, werr.c_str(), T("Check for Updates"), MB_OK | MB_ICONERROR);
         }
         return;
     }
@@ -626,26 +639,62 @@ void HandleUpdateCheckResult(HWND hwnd, UpdateInfo* info, bool silent) {
     if (!info->available) {
         if (!silent) {
             Speak(Ts("No updates available. You are running the latest version."));
-            MessageBoxA(hwnd, Ts("No updates available. You are running the latest version.").c_str(),
-                Ts("Check for Updates").c_str(), MB_OK | MB_ICONINFORMATION);
+            MessageBoxW(hwnd, T("No updates available. You are running the latest version."),
+                T("Check for Updates"), MB_OK | MB_ICONINFORMATION);
         }
         return;
     }
 
-    std::string message = Ts("A new version of MediaAccess is available!") + "\n\n";
-    message += Ts("Current version: ") + std::string(APP_VERSION);
+    // Build the prompt in wide chars end-to-end so accented French renders correctly.
+    std::wstring wmessage = T("A new version of MediaAccess is available!");
+    wmessage += L"\n\n";
+    wmessage += T("Current version: ");
+    wmessage += L"" APP_VERSION;
     if (strlen(BUILD_COMMIT) > 0) {
-        message += " (" + std::string(BUILD_COMMIT).substr(0, 7) + ")";
+        wmessage += L" (";
+        std::string sha7(BUILD_COMMIT);
+        sha7 = sha7.substr(0, 7);
+        wmessage += std::wstring(sha7.begin(), sha7.end());
+        wmessage += L")";
     }
-    message += "\n" + Ts("Latest version: ") + info->latestVersion;
+    wmessage += L"\n";
+    wmessage += T("Latest version: ");
+    wmessage += std::wstring(info->latestVersion.begin(), info->latestVersion.end());
     if (!info->latestCommit.empty()) {
-        message += " (" + info->latestCommit.substr(0, 7) + ")";
+        std::string sha7 = info->latestCommit.substr(0, 7);
+        wmessage += L" (";
+        wmessage += std::wstring(sha7.begin(), sha7.end());
+        wmessage += L")";
     }
-    message += "\n\n" + Ts("Do you want to download and install the update?");
+    wmessage += L"\n\n";
+    wmessage += T("Do you want to download and install the update?");
 
     Speak(Ts("Update available. ") + info->latestVersion);
 
-    if (MessageBoxA(hwnd, message.c_str(), Ts("Update Available").c_str(), MB_YESNO | MB_ICONQUESTION) == IDYES) {
+    // Use TaskDialogIndirect so we control the button labels — MessageBoxA/W
+    // takes "Yes"/"No" from the Windows UI language, ignoring our app locale.
+    TASKDIALOG_BUTTON buttons[] = {
+        { IDYES, T("BTN_YES") },
+        { IDNO,  T("BTN_NO")  },
+    };
+    TASKDIALOGCONFIG cfg = {0};
+    cfg.cbSize = sizeof(cfg);
+    cfg.hwndParent = hwnd;
+    cfg.dwFlags = TDF_ALLOW_DIALOG_CANCELLATION | TDF_POSITION_RELATIVE_TO_WINDOW;
+    cfg.pszWindowTitle = T("Update Available");
+    cfg.pszMainIcon = TD_INFORMATION_ICON;
+    cfg.pszContent = wmessage.c_str();
+    cfg.pButtons = buttons;
+    cfg.cButtons = 2;
+    cfg.nDefaultButton = IDYES;
+    int pressed = 0;
+    HRESULT hr = TaskDialogIndirect(&cfg, &pressed, nullptr, nullptr);
+    if (FAILED(hr)) {
+        // Fallback to MessageBoxW if TaskDialog isn't available (very old Windows).
+        pressed = MessageBoxW(hwnd, wmessage.c_str(), T("Update Available"),
+                              MB_YESNO | MB_ICONQUESTION);
+    }
+    if (pressed == IDYES) {
         // Heap-allocate so the background thread has a safe pointer
         ProgressDialogData* progressData = new ProgressDialogData();
         progressData->hwndDialog = nullptr;
@@ -660,7 +709,7 @@ void HandleUpdateCheckResult(HWND hwnd, UpdateInfo* info, bool silent) {
             MAKEINTRESOURCEW(IDD_PROGRESS), hwnd, ProgressDlgProc);
 
         if (!hwndProgress) {
-            MessageBoxA(hwnd, Ts("Starting download...").c_str(), Ts("Update").c_str(), MB_OK);
+            MessageBoxW(hwnd, T("Starting download..."), T("Update"), MB_OK);
         }
 
         if (hwndProgress) {
@@ -699,7 +748,7 @@ void HandleUpdateCheckResult(HWND hwnd, UpdateInfo* info, bool silent) {
             if (success && !wasCancelled) {
                 PostMessageW(hwnd, WM_USER + 201, 0, 0);
             } else if (!success && !wasCancelled) {
-                MessageBoxA(hwnd, Ts("Failed to download update.").c_str(), Ts("Error").c_str(), MB_OK | MB_ICONERROR);
+                MessageBoxW(hwnd, T("Failed to download update."), T("Error"), MB_OK | MB_ICONERROR);
             }
         }).detach();
 

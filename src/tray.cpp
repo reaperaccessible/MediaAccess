@@ -1,6 +1,7 @@
 #include "tray.h"
 #include "globals.h"
 #include "resource.h"
+#include "translations.h"
 #include <shellapi.h>
 
 void CreateTrayIcon(HWND hwnd) {
@@ -30,14 +31,14 @@ void ShowTrayMenu(HWND hwnd) {
     GetCursorPos(&pt);
 
     HMENU hMenu = CreatePopupMenu();
-    AppendMenuW(hMenu, MF_STRING, IDM_TRAY_RESTORE, L"&Restore");
+    AppendMenuW(hMenu, MF_STRING, IDM_TRAY_RESTORE,   T("&Restore"));
     AppendMenuW(hMenu, MF_SEPARATOR, 0, nullptr);
-    AppendMenuW(hMenu, MF_STRING, IDM_PLAY_PLAYPAUSE, L"&Play/Pause");
-    AppendMenuW(hMenu, MF_STRING, IDM_PLAY_STOP, L"&Stop");
-    AppendMenuW(hMenu, MF_STRING, IDM_PLAY_PREV, L"P&revious");
-    AppendMenuW(hMenu, MF_STRING, IDM_PLAY_NEXT, L"&Next");
+    AppendMenuW(hMenu, MF_STRING, IDM_PLAY_PLAYPAUSE, T("&Play/Pause"));
+    AppendMenuW(hMenu, MF_STRING, IDM_PLAY_STOP,      T("&Stop"));
+    AppendMenuW(hMenu, MF_STRING, IDM_PLAY_PREV,      T("P&revious"));
+    AppendMenuW(hMenu, MF_STRING, IDM_PLAY_NEXT,      T("&Next"));
     AppendMenuW(hMenu, MF_SEPARATOR, 0, nullptr);
-    AppendMenuW(hMenu, MF_STRING, IDM_TRAY_EXIT, L"E&xit");
+    AppendMenuW(hMenu, MF_STRING, IDM_TRAY_EXIT,      T("E&xit"));
 
     SetForegroundWindow(hwnd);
     TrackPopupMenu(hMenu, TPM_RIGHTBUTTON, pt.x, pt.y, 0, hwnd, nullptr);

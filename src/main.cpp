@@ -173,14 +173,14 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
         case WM_RBUTTONUP:
             if (g_isVideoPlaying) {
                 HMENU hMenu = CreatePopupMenu();
-                AppendMenuW(hMenu, MF_STRING, 1200, L"Fullscreen\tF11");
+                AppendMenuW(hMenu, MF_STRING, 1200, T("Fullscreen\tF11"));
                 AppendMenuW(hMenu, MF_SEPARATOR, 0, nullptr);
-                AppendMenuW(hMenu, MF_STRING, 1201, L"Cycle Subtitles");
-                AppendMenuW(hMenu, MF_STRING, 1202, L"Load Subtitle File...");
-                AppendMenuW(hMenu, MF_STRING, 1240, L"Cycle Audio Track");
-                AppendMenuW(hMenu, MF_STRING, 1270, L"Cycle Aspect Ratio");
+                AppendMenuW(hMenu, MF_STRING, 1201, T("Cycle Subtitles"));
+                AppendMenuW(hMenu, MF_STRING, 1202, T("Load Subtitle File..."));
+                AppendMenuW(hMenu, MF_STRING, 1240, T("Cycle Audio Track"));
+                AppendMenuW(hMenu, MF_STRING, 1270, T("Cycle Aspect Ratio"));
                 AppendMenuW(hMenu, MF_SEPARATOR, 0, nullptr);
-                AppendMenuW(hMenu, MF_STRING, 1280, L"Take Screenshot");
+                AppendMenuW(hMenu, MF_STRING, 1280, T("Take Screenshot"));
                 POINT pt;
                 GetCursorPos(&pt);
                 TrackPopupMenu(hMenu, TPM_LEFTALIGN, pt.x, pt.y, 0, hwnd, nullptr);
