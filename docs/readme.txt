@@ -23,10 +23,10 @@ Configure what appears in each slider via Tools > Options (Ctrl+,).
 FEATURES
 ========
 
-* Audio: MP3, FLAC, AAC, OGG, Opus, WAV, WMA, AIFF, APE, ALAC, MIDI, and
-  more via BASS audio plugins.
-* Video: MKV, MP4, AVI, MOV, WebM, FLV, TS, M2TS, MPG, M4V, and more via
-  libmpv (bundled, no separate install).
+* Audio: MP3, MP4, FLAC, AAC, OGG, Opus, WAV, WMA, AIFF, APE, ALAC, MIDI,
+  and more via BASS audio plugins.
+* Video: MKV, AVI, MOV, WebM, FLV, TS, M2TS, MPG, M4V, and more via the
+  bundled video engine (no separate install).
 * YouTube: integrated search, streaming, and download — no external setup
   required.
 * Internet radio: built-in browser for RadioBrowser, TuneIn, and iHeartRadio.

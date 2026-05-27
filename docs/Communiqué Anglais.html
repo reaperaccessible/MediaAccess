@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>MediaAccess 1.30 &mdash; Press Release</title>
+<title>MediaAccess 1.32 &mdash; Press Release</title>
 <style>
 body { font-family: Arial, Helvetica, sans-serif; max-width: 900px; margin: 0 auto; padding: 20px; line-height: 1.6; color: #222; background: #fff; }
 h1 { font-size: 2em; border-bottom: 3px solid #333; padding-bottom: 10px; }
@@ -22,7 +22,7 @@ footer { margin-top: 40px; border-top: 1px solid #ccc; padding-top: 10px; color:
 <body>
 
 <header>
-<h1>MediaAccess 1.30 &mdash; Official Release</h1>
+<h1>MediaAccess 1.32 &mdash; Official Release</h1>
 <p class="tagline">A lightweight, fully accessible audio and video player, designed from day one for blind and visually impaired users.</p>
 </header>
 
@@ -34,9 +34,9 @@ footer { margin-top: 40px; border-top: 1px solid #ccc; padding-top: 10px; color:
 <p>MediaAccess is <strong>completely free, open source</strong> (GPL-3.0 license), and available immediately as a standalone installer for Windows&nbsp;11 64-bit.</p>
 
 <h2>What is MediaAccess?</h2>
-<p>MediaAccess is a complete audio and video player for Windows, powered by the professional BASS audio library for audio and libmpv for video. It natively plays the most common audio formats (MP3, FLAC, OGG, M4A, WAV, Opus, AAC, WMA, AIFF, APE, WavPack, ALAC, DSD, MIDI, tracker formats) and all common video formats (MKV, MP4, AVI, MOV, WebM, FLV, TS, M2TS, VOB, 3GP, MPEG, etc.) with full subtitle and multi-language audio track support.</p>
+<p>MediaAccess is a complete audio and video player for Windows, powered by the professional BASS audio library for audio and libmpv for video. It natively plays the most common audio formats (MP3, MP4, FLAC, OGG, M4A, WAV, Opus, AAC, WMA, AIFF, APE, WavPack, ALAC, DSD, MIDI, tracker formats) and all common video formats (MKV, AVI, MOV, WebM, FLV, TS, M2TS, VOB, OGV, 3GP, MPEG, M4V, DivX, RMVB) with full subtitle and multi-language audio track support.</p>
 
-<p>What distinguishes MediaAccess is not a feature list &mdash; many audio players offer comparable feature sets. What distinguishes it is that <strong>every feature has been designed so that a person navigating with NVDA or JAWS can use it with complete mastery, keyboard only</strong>. No compromise: accessibility is not a layer added on top of a mouse-first design. It is the design itself.</p>
+<p>What distinguishes MediaAccess is not a feature list &mdash; many audio players offer comparable feature sets. What distinguishes it is that <strong>every feature has been designed so that a person navigating with NVDA, JAWS, or Windows Narrator can use it with complete mastery, keyboard only</strong>. No compromise: accessibility is not a layer added on top of a mouse-first design. It is the design itself.</p>
 
 <h2>Key features</h2>
 
@@ -45,7 +45,7 @@ footer { margin-top: 40px; border-top: 1px solid #ccc; padding-top: 10px; color:
 <li>Native playback of over 25 audio formats through the BASS library and its plugins (FLAC, Opus, AAC, WMA, APE, WavPack, ALAC, DSD, MIDI with SoundFont, tracker formats, audio CD files).</li>
 <li>M3U / M3U8 / PLS playlist playback with relative path handling.</li>
 <li>Speech announcement of ID3, Vorbis Comment, MP4 and other tags: title, artist, album, year, genre, track number, comment, bitrate, duration &mdash; each tag has its dedicated shortcut (<kbd>1</kbd> through <kbd>0</kbd>).</li>
-<li>Automatic chapter detection in Ogg, FLAC, Opus, MP3 (ID3v2 CHAP), MP4 files and Podcast 2.0 streams (RSS with <code>&lt;podcast:chapters&gt;</code> tags).</li>
+<li>Automatic chapter detection in Ogg, FLAC, Opus, MP3 (ID3v2 CHAP) files and Podcast 2.0 streams (RSS with <code>&lt;podcast:chapters&gt;</code> tags).</li>
 <li>Playback up to 400% volume via software amplification option, with configurable step (1 to 25%).</li>
 </ul>
 
@@ -97,7 +97,7 @@ footer { margin-top: 40px; border-top: 1px solid #ccc; padding-top: 10px; color:
 <h3>Internet radio</h3>
 <ul>
 <li>Three selectable search sources: <strong>RadioBrowser</strong> (global community database with country filter), <strong>TuneIn</strong>, and <strong>iHeartRadio</strong>.</li>
-<li>Persistent favorites with reordering (<kbd>Ctrl+arrows</kbd>), renaming (<kbd>F2</kbd>), and M3U/PLS import/export.</li>
+<li>Persistent favorites with reordering (<kbd>Ctrl+arrows</kbd>), renaming (<kbd>F2</kbd>), M3U/PLS import, and M3U export.</li>
 <li>Live ICY metadata capture (current song title), announced via speech and saved to song history.</li>
 <li>Quick add of current stream to favorites (<kbd>Ctrl+D</kbd>).</li>
 </ul>
@@ -135,7 +135,7 @@ footer { margin-top: 40px; border-top: 1px solid #ccc; padding-top: 10px; color:
 
 <h3>Screen reader support</h3>
 <ul>
-<li>Compatible with <strong>NVDA</strong>, <strong>JAWS</strong>, <strong>Window-Eyes</strong>, <strong>Supernova</strong>, and SAPI (fallback) through the bundled Universal Speech library &mdash; no configuration needed.</li>
+<li>Compatible with <strong>NVDA</strong>, <strong>JAWS</strong>, and <strong>Windows Narrator</strong> &mdash; auto-detected, no configuration needed.</li>
 <li>All speech announcements are configurable: track changes, volume adjustment, effect adjustment, stream metadata, effect toggles.</li>
 <li>Every dialog is fully keyboard navigable with <kbd>Alt</kbd>+letter accelerators indicated by underlines.</li>
 </ul>

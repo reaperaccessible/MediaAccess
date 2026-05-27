@@ -216,7 +216,7 @@
 
 <section id="intro" aria-labelledby="intro-h">
 <h2 id="intro-h">1. Présentation</h2>
-<p>MediaAccess est un lecteur audio et vidéo complet et accessible pour Windows, conçu pour les utilisateurs de lecteurs d'écran (NVDA, JAWS) tout en restant agréable pour les utilisateurs voyants. Il combine une empreinte réduite avec une chaîne d'effets professionnels très complète (égaliseur, réverbération, écho, tempo, hauteur, largeur stéréo, audio 3D, réverbération à convolution, etc.) tous ajustables en temps réel.</p>
+<p>MediaAccess est un lecteur audio et vidéo complet et accessible pour Windows, conçu pour les utilisateurs de lecteurs d'écran (NVDA, JAWS, Narrateur Windows) tout en restant agréable pour les utilisateurs voyants. Il combine une empreinte réduite avec une chaîne d'effets professionnels très complète (égaliseur, réverbération, écho, tempo, hauteur, largeur stéréo, audio 3D, réverbération à convolution, etc.) tous ajustables en temps réel.</p>
 <p>Cette aide peut être ouverte à tout moment via <kbd>F1</kbd> ou via le menu <strong>Aide → Manuel</strong>.</p>
 </section>
 
@@ -362,7 +362,7 @@
 </table>
 
 <h3>Chapitres</h3>
-<p>MediaAccess détecte les chapitres dans les fichiers Ogg/FLAC/Opus (VorbisComment), MP3 (ID3v2 CHAP), MP4 et les flux Podcast 2.0 (RSS avec <code>&lt;podcast:chapters&gt;</code>). Pour les exploiter, activez « 1 chapitre (si disponible) » dans <strong>Options → Déplacement</strong>, puis sélectionnez l'unité « chapitre » avec <kbd>,</kbd> / <kbd>.</kbd> et naviguez avec <kbd>←</kbd> / <kbd>→</kbd>. Le chapitre courant est énoncé sous la forme « Chapitre N : nom ».</p>
+<p>MediaAccess détecte les chapitres dans les fichiers Ogg/FLAC/Opus (VorbisComment), MP3 (ID3v2 CHAP) et les flux Podcast 2.0 (RSS avec <code>&lt;podcast:chapters&gt;</code>). Pour les exploiter, activez « 1 chapitre (si disponible) » dans <strong>Options → Déplacement</strong>, puis sélectionnez l'unité « chapitre » avec <kbd>,</kbd> / <kbd>.</kbd> et naviguez avec <kbd>←</kbd> / <kbd>→</kbd>. Le chapitre courant est énoncé sous la forme « Chapitre N : nom ».</p>
 
 <h3>Volume</h3>
 <p>Le volume va de 0 à 100 %. Si vous activez <strong>Options → Lecture → Autoriser le volume au-dessus de 100 %</strong>, la plage s'étend à 400 %. <kbd>Ctrl</kbd>+<kbd>↑</kbd> / <kbd>Ctrl</kbd>+<kbd>↓</kbd> ajustent toujours le volume quel que soit le paramètre courant. Le pas est configurable (1 %, 2 %, 5 %, 10 %, 15 %, 20 %, 25 %).</p>
@@ -622,7 +622,7 @@
 <p><kbd>Ctrl</kbd>+<kbd>D</kbd> ou <strong>Fichier → Ajouter le flux aux favoris</strong> sauvegarde rapidement la station en cours de lecture. L'application refuse silencieusement si rien n'est joué, si la piste n'est pas une URL, ou si l'URL est déjà dans vos favoris.</p>
 
 <h3>Import / Export</h3>
-<p>Les boutons <strong>Importer</strong> et <strong>Exporter</strong> lisent/écrivent au format M3U ou PLS.</p>
+<p>Le bouton <strong>Importer</strong> lit les formats M3U et PLS ; le bouton <strong>Exporter</strong> écrit en M3U.</p>
 
 <h3>Métadonnées en direct</h3>
 <p>Quand la station envoie des métadonnées ICY (titre de la chanson en cours), MediaAccess les enregistre dans l'<a href="#signets">historique des morceaux</a> et les annonce vocalement si « Annoncer les changements de piste » est activé.</p>
@@ -880,11 +880,11 @@
 <h2 id="accessibilite-h">19. Accessibilité</h2>
 
 <h3>Lecteurs d'écran pris en charge</h3>
-<p>MediaAccess utilise la bibliothèque Universal Speech qui détecte automatiquement le lecteur d'écran actif :</p>
+<p>MediaAccess détecte automatiquement le lecteur d'écran actif :</p>
 <ul>
-  <li><strong>NVDA</strong> via <code>nvdaControllerClient64.dll</code></li>
-  <li><strong>JAWS</strong> via <code>SAAPI64.dll</code></li>
-  <li><strong>Window-Eyes</strong>, <strong>Supernova</strong>, <strong>SAPI</strong> (en repli)</li>
+  <li><strong>NVDA</strong></li>
+  <li><strong>JAWS</strong></li>
+  <li><strong>Narrateur Windows</strong></li>
 </ul>
 <p>Aucune configuration nécessaire — si un lecteur d'écran est actif, MediaAccess parle.</p>
 
