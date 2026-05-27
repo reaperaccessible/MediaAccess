@@ -71,6 +71,7 @@ BEGIN
     END
     POPUP "&Help"
     BEGIN
+        MENUITEM "&Manual\tF1", IDM_HELP_MANUAL
         MENUITEM "&Readme", IDM_HELP_README
         MENUITEM "Check for &Updates...", IDM_HELP_UPDATES
         MENUITEM SEPARATOR
@@ -549,6 +550,7 @@ BEGIN
     // Audio device selection
     "A",            IDM_SHOW_AUDIO_DEVICES, VIRTKEY      // A = show audio devices menu
     // Video controls
+    VK_F1,          IDM_HELP_MANUAL,    VIRTKEY                // F1 = open manual
     VK_F11,         IDM_VIDEO_FULLSCREEN, VIRTKEY        // F11 = toggle fullscreen
     "T",            IDM_VIDEO_SUB_CYCLE,  VIRTKEY, CONTROL, SHIFT  // Ctrl+Shift+T = cycle subtitles
     "A",            IDM_VIDEO_AUDIO_CYCLE, VIRTKEY, CONTROL, SHIFT // Ctrl+Shift+A = cycle audio tracks

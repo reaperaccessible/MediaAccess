@@ -186,6 +186,16 @@ void RegisterPlayerTranslations() {
     AddTranslation("en", "E&xit",       L"E&xit");
     AddTranslation("fr", "E&xit",       L"&Quitter");
 
+    // Help menu — Manual (F1) opens the bilingual HTML manual
+    AddTranslation("en", "&Manual\tF1", L"&Manual\tF1");
+    AddTranslation("fr", "&Manual\tF1", L"&Manuel\tF1");
+    AddTranslation("en", "Manual", L"Manual");
+    AddTranslation("fr", "Manual", L"Manuel");
+    AddTranslation("en", "Could not open the manual. Make sure the docs folder is present alongside MediaAccess.exe.",
+                   L"Could not open the manual. Make sure the docs folder is present alongside MediaAccess.exe.");
+    AddTranslation("fr", "Could not open the manual. Make sure the docs folder is present alongside MediaAccess.exe.",
+                   L"Impossible d'ouvrir le manuel. Vérifiez que le dossier docs est présent à côté de MediaAccess.exe.");
+
     // Video window right-click context menu (main.cpp WM_RBUTTONUP)
     AddTranslation("en", "Fullscreen\tF11",       L"Fullscreen\tF11");
     AddTranslation("fr", "Fullscreen\tF11",       L"Plein écran\tF11");

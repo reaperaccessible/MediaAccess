@@ -35,7 +35,7 @@ DefaultDirName={autopf}\{#MyAppName}
 DefaultGroupName={#MyAppName}
 AllowNoIcons=yes
 ; Output installer filename
-OutputBaseFilename=MediaAccessInstaller
+OutputBaseFilename=MediaAccessInstaller_{#MyAppVersion}
 OutputDir={#OutputDir}
 Compression=lzma2/max
 SolidCompression=yes
@@ -83,6 +83,8 @@ Source: "{#SourceDir}\lib\yt-dlp.exe"; DestDir: "{app}\lib"; Flags: ignoreversio
 ; Install documentation
 Source: "{#SourceDir}\docs\readme.txt"; DestDir: "{app}\docs"; Flags: ignoreversion
 Source: "{#SourceDir}\docs\changelog.txt"; DestDir: "{app}\docs"; Flags: ignoreversion
+Source: "{#SourceDir}\docs\manual_fr.html"; DestDir: "{app}\docs"; Flags: ignoreversion
+Source: "{#SourceDir}\docs\manual_en.html"; DestDir: "{app}\docs"; Flags: ignoreversion
 ; Create installed marker file
 Source: "{#SourceDir}\MediaAccess.exe"; DestDir: "{app}"; AfterInstall: CreateInstalledMarker; Flags: ignoreversion
 

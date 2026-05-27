@@ -405,6 +405,29 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
                 case IDM_HELP_AUDIT_LAYOUT:
                     AuditOptionsLayout();
                     break;
+                case IDM_HELP_MANUAL: {
+                    // Open the bilingual HTML manual in the user's default browser.
+                    // We pick the file matching the current app language; user can
+                    // switch languages from the link inside the manual.
+                    wchar_t manualPath[MAX_PATH];
+                    GetModuleFileNameW(nullptr, manualPath, MAX_PATH);
+                    wchar_t* slash = wcsrchr(manualPath, L'\\');
+                    if (slash) {
+                        *(slash + 1) = L'\0';
+                        const char* lang = GetCurrentLanguage();
+                        const wchar_t* file = (lang && strcmp(lang, "fr") == 0)
+                            ? L"docs\\manual_fr.html"
+                            : L"docs\\manual_en.html";
+                        wcscat_s(manualPath, MAX_PATH, file);
+                        HINSTANCE r = ShellExecuteW(hwnd, L"open", manualPath, nullptr, nullptr, SW_SHOWNORMAL);
+                        if ((INT_PTR)r <= 32) {
+                            MessageBoxW(hwnd,
+                                T("Could not open the manual. Make sure the docs folder is present alongside MediaAccess.exe."),
+                                T("Manual"), MB_OK | MB_ICONWARNING);
+                        }
+                    }
+                    break;
+                }
                 case IDM_HELP_README: {
                     wchar_t readmePath[MAX_PATH];
                     GetModuleFileNameW(nullptr, readmePath, MAX_PATH);

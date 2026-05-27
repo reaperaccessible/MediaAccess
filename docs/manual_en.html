@@ -1,0 +1,1101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MediaAccess Manual</title>
+<style>
+  :root {
+    --bg: #ffffff;
+    --fg: #1a1a1a;
+    --muted: #555;
+    --accent: #0b5394;
+    --accent-bg: #e8f0fe;
+    --border: #cccccc;
+    --code-bg: #f4f4f4;
+    --table-stripe: #f7f7f7;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1a1a1a;
+      --fg: #f0f0f0;
+      --muted: #b0b0b0;
+      --accent: #6fb1ff;
+      --accent-bg: #1f2d40;
+      --border: #444;
+      --code-bg: #2a2a2a;
+      --table-stripe: #242424;
+    }
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    font-family: "Segoe UI", system-ui, sans-serif;
+    font-size: 17px;
+    line-height: 1.6;
+    color: var(--fg);
+    background: var(--bg);
+    margin: 0;
+    padding: 0;
+  }
+  .skip {
+    position: absolute;
+    left: -9999px;
+    top: 0;
+    background: var(--accent);
+    color: #fff;
+    padding: 0.5rem 1rem;
+    z-index: 100;
+  }
+  .skip:focus { left: 1rem; top: 1rem; }
+  header {
+    background: var(--accent-bg);
+    border-bottom: 2px solid var(--accent);
+    padding: 1.5rem 2rem;
+  }
+  header h1 { margin: 0 0 0.5rem 0; }
+  header p { margin: 0.25rem 0; color: var(--muted); }
+  .lang-switch a {
+    display: inline-block;
+    margin-left: 1rem;
+    padding: 0.25rem 0.75rem;
+    background: var(--accent);
+    color: #fff;
+    text-decoration: none;
+    border-radius: 4px;
+  }
+  .lang-switch a:focus,
+  .lang-switch a:hover { outline: 3px solid var(--fg); }
+  .layout {
+    display: grid;
+    grid-template-columns: 280px 1fr;
+    gap: 2rem;
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 2rem;
+  }
+  @media (max-width: 900px) {
+    .layout { grid-template-columns: 1fr; padding: 1rem; }
+    nav.toc { position: static !important; max-height: none !important; }
+  }
+  nav.toc {
+    position: sticky;
+    top: 1rem;
+    max-height: calc(100vh - 2rem);
+    overflow-y: auto;
+    background: var(--accent-bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 1rem;
+  }
+  nav.toc h2 { margin-top: 0; font-size: 1.1rem; }
+  nav.toc ol { padding-left: 1.5rem; margin: 0; }
+  nav.toc li { margin: 0.3rem 0; }
+  nav.toc a { color: var(--accent); text-decoration: none; }
+  nav.toc a:hover,
+  nav.toc a:focus { text-decoration: underline; outline: 2px solid var(--accent); }
+  main { min-width: 0; }
+  main h2 {
+    margin-top: 2.5rem;
+    padding-bottom: 0.4rem;
+    border-bottom: 2px solid var(--accent);
+    scroll-margin-top: 1rem;
+  }
+  main h3 { margin-top: 2rem; color: var(--accent); }
+  main h4 { margin-top: 1.2rem; }
+  main p, main li { max-width: 70ch; }
+  main ul, main ol { padding-left: 1.5rem; }
+  kbd {
+    display: inline-block;
+    font-family: "Cascadia Code", Consolas, monospace;
+    font-size: 0.9em;
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-bottom-width: 2px;
+    border-radius: 3px;
+    padding: 0.1em 0.4em;
+    margin: 0 0.1em;
+    white-space: nowrap;
+  }
+  code {
+    font-family: "Cascadia Code", Consolas, monospace;
+    background: var(--code-bg);
+    padding: 0.15em 0.35em;
+    border-radius: 3px;
+    font-size: 0.92em;
+  }
+  pre {
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 1rem;
+    overflow-x: auto;
+  }
+  table {
+    border-collapse: collapse;
+    width: 100%;
+    margin: 1rem 0;
+  }
+  caption {
+    font-weight: bold;
+    text-align: left;
+    padding: 0.4rem 0;
+    color: var(--accent);
+  }
+  th, td {
+    border: 1px solid var(--border);
+    padding: 0.4rem 0.7rem;
+    text-align: left;
+    vertical-align: top;
+  }
+  th { background: var(--accent-bg); }
+  tbody tr:nth-child(even) { background: var(--table-stripe); }
+  .note {
+    border-left: 4px solid var(--accent);
+    background: var(--accent-bg);
+    padding: 0.7rem 1rem;
+    margin: 1rem 0;
+    border-radius: 0 4px 4px 0;
+  }
+  .note strong { color: var(--accent); }
+  footer {
+    margin-top: 3rem;
+    padding: 1.5rem 2rem;
+    border-top: 1px solid var(--border);
+    color: var(--muted);
+    text-align: center;
+  }
+  a { color: var(--accent); }
+  a:focus { outline: 3px solid var(--accent); outline-offset: 2px; }
+  :focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+</style>
+</head>
+<body>
+<a class="skip" href="#main-content">Skip to main content</a>
+
+<header>
+  <h1>MediaAccess Manual</h1>
+  <p>Accessible audio and video player for Windows</p>
+  <p class="lang-switch">
+    <span lang="fr">Langue&nbsp;:</span>
+    <a href="manual_fr.html" lang="fr" hreflang="fr">Version française</a>
+  </p>
+</header>
+
+<div class="layout">
+
+<nav class="toc" aria-labelledby="toc-title">
+  <h2 id="toc-title">Table of contents</h2>
+  <ol>
+    <li><a href="#intro">Introduction</a></li>
+    <li><a href="#getting-started">Getting started</a></li>
+    <li><a href="#sliders">The two virtual sliders</a></li>
+    <li><a href="#audio">Audio playback</a></li>
+    <li><a href="#video">Video playback</a></li>
+    <li><a href="#effects">Effects and DSP</a></li>
+    <li><a href="#presets">Effect presets</a></li>
+    <li><a href="#playlists">Playlists</a></li>
+    <li><a href="#bookmarks">Bookmarks and history</a></li>
+    <li><a href="#youtube">YouTube</a></li>
+    <li><a href="#radio">Internet radio</a></li>
+    <li><a href="#podcasts">Podcasts</a></li>
+    <li><a href="#recording">Recording</a></li>
+    <li><a href="#midi">MIDI</a></li>
+    <li><a href="#scheduler">Scheduler</a></li>
+    <li><a href="#tray">System tray</a></li>
+    <li><a href="#hotkeys">Global hotkeys</a></li>
+    <li><a href="#options">Options reference</a></li>
+    <li><a href="#accessibility">Accessibility</a></li>
+    <li><a href="#updates">Updates</a></li>
+    <li><a href="#troubleshooting">Troubleshooting</a></li>
+    <li><a href="#shortcuts">Keyboard shortcuts reference</a></li>
+  </ol>
+</nav>
+
+<main id="main-content">
+
+<section id="intro" aria-labelledby="intro-h">
+<h2 id="intro-h">1. Introduction</h2>
+<p>MediaAccess is a lightweight, accessible audio and video player for Windows. It is designed for screen-reader users (NVDA, JAWS) while remaining pleasant for sighted users. It combines a small footprint with a deep effects chain (EQ, reverb, echo, tempo, pitch, stereo width, 3D audio, convolution reverb, and more), all adjustable in real time.</p>
+<p>MediaAccess is not a full media center — it is a focused player you can use seriously or for fun.</p>
+<p>This help is available at any time via <kbd>F1</kbd> or via <strong>Help → Manual</strong>.</p>
+</section>
+
+<section id="getting-started" aria-labelledby="getting-started-h">
+<h2 id="getting-started-h">2. Getting started</h2>
+
+<h3>Installation</h3>
+<p>Download <code>MediaAccessInstaller_<em>version</em>.exe</code> from the GitHub releases page and run it. The installer is bilingual (English/French), auto-detects the Windows display language, and installs MediaAccess with all its dependencies (BASS, libmpv, yt-dlp) bundled. No separate installs are needed.</p>
+
+<h3>First launch</h3>
+<p>On first launch, MediaAccess:</p>
+<ul>
+  <li>Detects the Windows language and uses French if Windows is French, English otherwise (overridable in <strong>Options → Playback → Language</strong>);</li>
+  <li>Picks your default audio output device;</li>
+  <li>Checks for a yt-dlp update in the background.</li>
+</ul>
+
+<h3>Opening a file</h3>
+<p>Several ways:</p>
+<ul>
+  <li><kbd>Ctrl</kbd>+<kbd>O</kbd> or <strong>File → Open</strong> to pick a file;</li>
+  <li><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>O</kbd> or <strong>File → Add Folder</strong> to recursively load every audio file in a folder;</li>
+  <li><kbd>Ctrl</kbd>+<kbd>U</kbd> to open an <code>http://</code> or <code>https://</code> URL;</li>
+  <li>Drag and drop a file on the window, or use "Open with" from Explorer if MediaAccess is registered for the file type (checkbox in <strong>Options → Playback</strong>).</li>
+</ul>
+
+<h3>Basic controls</h3>
+<table>
+<caption>Essential playback controls</caption>
+<thead><tr><th>Key</th><th>Action</th></tr></thead>
+<tbody>
+<tr><td><kbd>Space</kbd></td><td>Play / Pause</td></tr>
+<tr><td><kbd>X</kbd> / <kbd>C</kbd> / <kbd>V</kbd></td><td>Play / Pause / Stop (Winamp-style)</td></tr>
+<tr><td><kbd>Z</kbd> / <kbd>B</kbd></td><td>Previous / Next track</td></tr>
+<tr><td><kbd>←</kbd> / <kbd>→</kbd></td><td>Seek backward / forward (by chosen unit)</td></tr>
+<tr><td><kbd>↑</kbd> / <kbd>↓</kbd></td><td>Increase / Decrease the current parameter's value</td></tr>
+<tr><td><kbd>Ctrl</kbd>+<kbd>↑</kbd> / <kbd>Ctrl</kbd>+<kbd>↓</kbd></td><td>Always volume (regardless of current parameter)</td></tr>
+<tr><td><kbd>U</kbd></td><td>Toggle mute</td></tr>
+<tr><td><kbd>Home</kbd></td><td>Jump to beginning</td></tr>
+<tr><td><kbd>J</kbd></td><td>Jump to specific time</td></tr>
+</tbody>
+</table>
+</section>
+
+<section id="sliders" aria-labelledby="sliders-h">
+<h2 id="sliders-h">3. The two virtual sliders</h2>
+<p>MediaAccess organizes every adjustable parameter around two keyboard "sliders" that always work the same way. Each slider has a key pair to cycle through available items, and a key pair to adjust the value of the chosen item.</p>
+
+<h3>Effects slider</h3>
+<table>
+<caption>Effects slider keys</caption>
+<thead><tr><th>Key</th><th>Action</th></tr></thead>
+<tbody>
+<tr><td><kbd>[</kbd> / <kbd>]</kbd></td><td>Previous / Next parameter</td></tr>
+<tr><td><kbd>↓</kbd> / <kbd>↑</kbd></td><td>Decrease / Increase value</td></tr>
+<tr><td><kbd>Backspace</kbd></td><td>Reset to default</td></tr>
+<tr><td><kbd>Ctrl</kbd>+<kbd>Home</kbd></td><td>Minimum value</td></tr>
+<tr><td><kbd>Ctrl</kbd>+<kbd>End</kbd></td><td>Maximum value</td></tr>
+</tbody>
+</table>
+<p>The cycle list is built dynamically from currently-enabled effects. With only Volume enabled, <kbd>]</kbd> does nothing more. Enable the equalizer (<kbd>Ctrl</kbd>+<kbd>7</kbd>) and <kbd>]</kbd> now walks through Volume → Preamp → Bass → Mid → Treble.</p>
+
+<h3>Movement slider</h3>
+<table>
+<caption>Movement slider keys</caption>
+<thead><tr><th>Key</th><th>Action</th></tr></thead>
+<tbody>
+<tr><td><kbd>,</kbd> / <kbd>.</kbd></td><td>Previous / Next seek unit</td></tr>
+<tr><td><kbd>←</kbd> / <kbd>→</kbd></td><td>Seek backward / forward by one unit</td></tr>
+</tbody>
+</table>
+<p>Available units: 1 s, 5 s, 10 s, 30 s, 1 min, 5 min, 10 min, 30 min, 1 h, 1 track, 5 tracks, 10 tracks, 1 chapter (if available). Enable the ones you want in <strong>Options → Movement</strong>. By default only "5 seconds" is enabled.</p>
+
+<div class="note">
+<p><strong>Tip:</strong> the two-slider concept separates <em>what</em> to modify (the parameter) from <em>by how much</em> (the value). The adjust keys (arrows) give immediate speech feedback through the screen reader.</p>
+</div>
+</section>
+
+<section id="audio" aria-labelledby="audio-h">
+<h2 id="audio-h">4. Audio playback</h2>
+
+<h3>Supported audio formats</h3>
+<table>
+<caption>Recognized audio formats</caption>
+<thead><tr><th>Extension</th><th>Format</th><th>BASS module</th></tr></thead>
+<tbody>
+<tr><td>.mp1 .mp2 .mp3</td><td>MPEG audio</td><td>BASS core</td></tr>
+<tr><td>.wav</td><td>WAV PCM</td><td>BASS core</td></tr>
+<tr><td>.ogg .oga</td><td>Ogg Vorbis</td><td>BASS core</td></tr>
+<tr><td>.aif .aiff</td><td>AIFF</td><td>BASS core</td></tr>
+<tr><td>.flac</td><td>FLAC</td><td>bassflac.dll</td></tr>
+<tr><td>.aac .m4a .m4b .m4r .mp4</td><td>AAC / MP4 audio</td><td>bass_aac.dll</td></tr>
+<tr><td>.wma</td><td>Windows Media Audio</td><td>basswma.dll</td></tr>
+<tr><td>.opus</td><td>Opus</td><td>bassopus.dll</td></tr>
+<tr><td>.wv</td><td>WavPack</td><td>basswv.dll</td></tr>
+<tr><td>.ape</td><td>Monkey's Audio</td><td>bassape.dll</td></tr>
+<tr><td>.alac</td><td>Apple Lossless</td><td>bassalac.dll</td></tr>
+<tr><td>.mid .midi .rmi .kar</td><td>MIDI</td><td>bassmidi.dll</td></tr>
+<tr><td>.dff .dsf</td><td>DSD</td><td>bassdsd.dll</td></tr>
+<tr><td>.cda</td><td>CD Audio</td><td>basscd.dll</td></tr>
+<tr><td>.mod .s3m .xm .it .mtm .umx</td><td>Tracker / MOD</td><td>BASS core</td></tr>
+<tr><td>.m3u .m3u8 .pls</td><td>Playlists</td><td>parsed internally</td></tr>
+</tbody>
+</table>
+<p>Files with <code>.mp4</code> and <code>.wmv</code> extensions that contain video are intentionally treated as audio by BASS — to see them, use a dedicated video format (.mkv, .avi, etc.).</p>
+
+<h3>Tags (ID3, metadata)</h3>
+<p>Number keys <kbd>1</kbd> to <kbd>0</kbd> speak a tag of the current track; <kbd>Shift</kbd>+number opens a window showing the same tag (useful for copy-paste).</p>
+<table>
+<caption>Speak a tag</caption>
+<thead><tr><th>Key</th><th>Tag</th></tr></thead>
+<tbody>
+<tr><td><kbd>1</kbd></td><td>Title</td></tr>
+<tr><td><kbd>2</kbd></td><td>Artist</td></tr>
+<tr><td><kbd>3</kbd></td><td>Album</td></tr>
+<tr><td><kbd>4</kbd></td><td>Year</td></tr>
+<tr><td><kbd>5</kbd></td><td>Track number</td></tr>
+<tr><td><kbd>6</kbd></td><td>Genre</td></tr>
+<tr><td><kbd>7</kbd></td><td>Comment</td></tr>
+<tr><td><kbd>8</kbd></td><td>Bitrate, sample rate, format</td></tr>
+<tr><td><kbd>9</kbd></td><td>Duration</td></tr>
+<tr><td><kbd>0</kbd></td><td>Filename</td></tr>
+</tbody>
+</table>
+<p>For internet streams, ICY <code>StreamTitle</code> metadata is parsed live and split into artist / title by default.</p>
+
+<h3>Navigation</h3>
+<table>
+<caption>Navigation and playback</caption>
+<thead><tr><th>Key</th><th>Action</th></tr></thead>
+<tbody>
+<tr><td><kbd>Space</kbd></td><td>Play/Pause</td></tr>
+<tr><td><kbd>X</kbd> / <kbd>C</kbd> / <kbd>V</kbd></td><td>Play / Pause / Stop</td></tr>
+<tr><td><kbd>Z</kbd> / <kbd>B</kbd></td><td>Previous / Next</td></tr>
+<tr><td><kbd>H</kbd></td><td>Toggle shuffle</td></tr>
+<tr><td><kbd>E</kbd></td><td>Repeat mode (off → track → all → off)</td></tr>
+<tr><td><kbd>J</kbd></td><td>Jump to time (mm:ss or hh:mm:ss)</td></tr>
+<tr><td><kbd>Home</kbd></td><td>Beginning of track</td></tr>
+<tr><td><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>E</kbd></td><td>Speak elapsed time</td></tr>
+<tr><td><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>R</kbd></td><td>Speak remaining time</td></tr>
+<tr><td><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>T</kbd></td><td>Speak total duration</td></tr>
+<tr><td><kbd>A</kbd></td><td>Open audio device selection menu</td></tr>
+</tbody>
+</table>
+
+<h3>Chapters</h3>
+<p>MediaAccess detects chapters in Ogg/FLAC/Opus files (VorbisComment), MP3 (ID3v2 CHAP), MP4, and Podcast 2.0 streams (RSS with <code>&lt;podcast:chapters&gt;</code>). To use them, enable "1 chapter (if available)" in <strong>Options → Movement</strong>, then select the "chapter" unit with <kbd>,</kbd> / <kbd>.</kbd> and navigate with <kbd>←</kbd> / <kbd>→</kbd>. The current chapter is spoken as "Chapter N: name".</p>
+
+<h3>Volume</h3>
+<p>Volume goes from 0 to 100%. If you enable <strong>Options → Playback → Allow volume above 100%</strong>, the range extends to 400%. <kbd>Ctrl</kbd>+<kbd>↑</kbd> / <kbd>Ctrl</kbd>+<kbd>↓</kbd> always adjust volume regardless of the current parameter. The step is configurable (1%, 2%, 5%, 10%, 15%, 20%, 25%).</p>
+
+<div class="note">
+<p><strong>Technical note:</strong> by default, volume is applied after the effects chain, meaning your recordings (<kbd>R</kbd> key) capture audio at full amplitude regardless of listening volume. To change this, enable "Legacy volume" in <strong>Options → Advanced</strong>.</p>
+</div>
+</section>
+
+<section id="video" aria-labelledby="video-h">
+<h2 id="video-h">5. Video playback</h2>
+
+<h3>Video formats</h3>
+<p>Video playback uses libmpv (bundled). Recognized formats:</p>
+<p><code>.mkv .avi .mov .webm .flv .ts .m2ts .vob .ogv .3gp .mpg .mpeg .m4v .divx .rmvb</code></p>
+
+<h3>Video controls</h3>
+<table>
+<caption>Video menu</caption>
+<thead><tr><th>Key</th><th>Action</th></tr></thead>
+<tbody>
+<tr><td><kbd>F11</kbd></td><td>Toggle fullscreen</td></tr>
+<tr><td><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>T</kbd></td><td>Cycle subtitle track</td></tr>
+<tr><td><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>A</kbd></td><td>Cycle audio track (useful for multi-language .mkv)</td></tr>
+<tr><td><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>S</kbd></td><td>Take a screenshot</td></tr>
+<tr><td>Menu</td><td>Video → Cycle aspect ratio (4:3, 16:9, etc.)</td></tr>
+<tr><td>Menu</td><td>Video → Load subtitle file (.srt, .ass, .ssa, .sub, .vtt)</td></tr>
+<tr><td>Menu</td><td>Video → Subtitles off</td></tr>
+</tbody>
+</table>
+
+<h3>External subtitles</h3>
+<p>MediaAccess auto-detects subtitle files next to the video file (mpv option <code>sub-auto=fuzzy</code>). To load one manually: <strong>Video → Load Subtitle File</strong>.</p>
+</section>
+
+<section id="effects" aria-labelledby="effects-h">
+<h2 id="effects-h">6. Effects and DSP</h2>
+
+<h3>Stream effects</h3>
+<table>
+<caption>Effects applied to the main stream</caption>
+<thead><tr><th>Effect</th><th>Shortcut</th><th>Range</th><th>Step</th></tr></thead>
+<tbody>
+<tr><td>Volume</td><td><kbd>Ctrl</kbd>+<kbd>1</kbd></td><td>0 to 100% (400% if enabled)</td><td>2% (configurable)</td></tr>
+<tr><td>Pitch</td><td><kbd>Ctrl</kbd>+<kbd>2</kbd></td><td>-12 to +12 semitones</td><td>1 semitone</td></tr>
+<tr><td>Tempo</td><td><kbd>Ctrl</kbd>+<kbd>3</kbd></td><td>-75% to +200%</td><td>5%</td></tr>
+<tr><td>Rate</td><td><kbd>Ctrl</kbd>+<kbd>4</kbd></td><td>0.25× to 4×</td><td>0.01× or 1 semitone</td></tr>
+</tbody>
+</table>
+<p><strong>Tempo</strong> changes speed without changing pitch; <strong>Pitch</strong> changes pitch without changing speed; <strong>Rate</strong> changes both (sped-up/slowed-down like a vinyl). Tempo and Rate are disabled for live streams (internet radio).</p>
+
+<h3>DSP effects</h3>
+<p>Each DSP effect has a toggle shortcut and adds its parameters to the effects slider when active.</p>
+
+<table>
+<caption>DSP effects</caption>
+<thead><tr><th>Effect</th><th>Shortcut</th><th>Description</th></tr></thead>
+<tbody>
+<tr><td>Reverb</td><td><kbd>Ctrl</kbd>+<kbd>5</kbd></td><td>Cycle: Off → Freeverb (musical) → DX8 (DirectX) → I3DL2 (environmental) → Off</td></tr>
+<tr><td>Echo</td><td><kbd>Ctrl</kbd>+<kbd>6</kbd></td><td>Adjustable delay, feedback, mix</td></tr>
+<tr><td>EQ</td><td><kbd>Ctrl</kbd>+<kbd>7</kbd></td><td>3 bands (bass, mid, treble) + preamp; center frequencies configurable in Options → Advanced</td></tr>
+<tr><td>Compressor</td><td><kbd>Ctrl</kbd>+<kbd>8</kbd></td><td>Threshold, ratio, attack, release, output gain</td></tr>
+<tr><td>Stereo Width</td><td><kbd>Ctrl</kbd>+<kbd>9</kbd></td><td>0% = mono, 100% = original, 200% = widened</td></tr>
+<tr><td>Center Cancel</td><td><kbd>Ctrl</kbd>+<kbd>0</kbd></td><td>Negative = isolate vocals (-100 to 0), positive = remove vocals / karaoke (0 to +100)</td></tr>
+<tr><td>Convolution Reverb</td><td><kbd>Ctrl</kbd>+<kbd>-</kbd></td><td>Convolution with a stereo WAV impulse response file (selectable in Options → Effects)</td></tr>
+<tr><td>3D Audio</td><td><kbd>Ctrl</kbd>+<kbd>=</kbd></td><td>HRTF binaural or 5.1 upmix (Steam Audio); listener position adjustable in X/Y/Z</td></tr>
+</tbody>
+</table>
+
+<h3>Detailed parameters</h3>
+
+<h4>Freeverb</h4>
+<ul>
+  <li><strong>Mix</strong> 0–100% (default 30) — dry/wet ratio</li>
+  <li><strong>Room size</strong> 0–100% (default 50) — tail length</li>
+  <li><strong>Damping</strong> 0–100% (default 50) — high-frequency attenuation in the tail</li>
+</ul>
+
+<h4>DX8 Reverb</h4>
+<ul>
+  <li><strong>Time</strong> 1–3000 ms (default 1000)</li>
+  <li><strong>HF Ratio</strong> 0.001–0.999 (default 0.5)</li>
+  <li><strong>Mix</strong> -96 to 0 dB (default -10)</li>
+</ul>
+
+<h4>I3DL2 Reverb</h4>
+<ul>
+  <li><strong>Room Level</strong> -10000 to 0 millibels (default -1000)</li>
+  <li><strong>Decay Time</strong> 0.1 to 20 s (default 1.49)</li>
+  <li><strong>Diffusion</strong> 0–100% (default 100)</li>
+  <li><strong>Density</strong> 0–100% (default 100)</li>
+</ul>
+
+<h4>Echo</h4>
+<ul>
+  <li><strong>Delay</strong> 10–2000 ms (default 300)</li>
+  <li><strong>Feedback</strong> 0–90% (default 40)</li>
+  <li><strong>Mix</strong> 0–100% (default 30)</li>
+</ul>
+
+<h4>EQ</h4>
+<ul>
+  <li><strong>Preamp</strong> -15 to 0 dB</li>
+  <li><strong>Bass</strong> -15 to +15 dB (default center: 50 Hz)</li>
+  <li><strong>Mid</strong> -15 to +15 dB (default center: 1000 Hz)</li>
+  <li><strong>Treble</strong> -15 to +15 dB (default center: 12000 Hz)</li>
+</ul>
+<p>Center frequencies are configurable in <strong>Options → Advanced</strong>.</p>
+
+<h4>Compressor</h4>
+<ul>
+  <li><strong>Threshold</strong> -60 to 0 dB (default -20)</li>
+  <li><strong>Ratio</strong> 1:1 to 20:1 (default 4:1)</li>
+  <li><strong>Attack</strong> 0.01 to 500 ms (default 20)</li>
+  <li><strong>Release</strong> 10 to 2000 ms (default 200)</li>
+  <li><strong>Output gain</strong> -20 to +20 dB</li>
+</ul>
+
+<h4>3D Audio (Steam Audio)</h4>
+<ul>
+  <li><strong>Blend</strong> 0–100% (default 100)</li>
+  <li><strong>Width</strong> 15–90° (default 45)</li>
+  <li><strong>Rotation</strong> -180 to +180° (default 0, wraps around)</li>
+  <li><strong>Mode</strong> Binaural / 5.1 Surround</li>
+  <li><strong>Rear speaker</strong> On/Off (5.1 mode only)</li>
+  <li><strong>X/Y/Z position</strong> -50 to +50 (default 0,0,0)</li>
+</ul>
+</section>
+
+<section id="presets" aria-labelledby="presets-h">
+<h2 id="presets-h">7. Effect presets</h2>
+<p>You can save your effect combinations and recall them instantly.</p>
+<ul>
+  <li><kbd>P</kbd> opens the presets menu.</li>
+  <li>Choose "Save current preset" to name and save the current effects state.</li>
+  <li>Choose an existing preset to apply it immediately.</li>
+  <li>Choose "Delete" to remove a preset.</li>
+</ul>
+<p>A preset captures: the four stream effects (Pitch, Tempo, Rate — not Volume), the reverb algorithm, all enabled DSP effects, and every parameter value. Volume is intentionally not saved to avoid presets changing your listening level.</p>
+</section>
+
+<section id="playlists" aria-labelledby="playlists-h">
+<h2 id="playlists-h">8. Playlists</h2>
+<p><kbd>Ctrl</kbd>+<kbd>P</kbd> opens the playlist manager.</p>
+<table>
+<caption>Keys in the playlist manager</caption>
+<thead><tr><th>Key</th><th>Action</th></tr></thead>
+<tbody>
+<tr><td><kbd>Enter</kbd></td><td>Play selected item</td></tr>
+<tr><td><kbd>Delete</kbd></td><td>Remove selected item</td></tr>
+<tr><td><kbd>Ctrl</kbd>+<kbd>A</kbd></td><td>Select all</td></tr>
+<tr><td><kbd>Ctrl</kbd>+<kbd>V</kbd></td><td>Paste paths from clipboard</td></tr>
+<tr><td><kbd>Alt</kbd>+<kbd>↑</kbd> / <kbd>Alt</kbd>+<kbd>↓</kbd></td><td>Reorder selected rows</td></tr>
+</tbody>
+</table>
+<p>The <strong>Save</strong> button exports as M3U / M3U8 (UTF-8, with <code>#EXTM3U</code> header). Only M3U and M3U8 can be written; PLS is read-only.</p>
+<p>The <strong>Follow playback in playlist dialog</strong> option (Options → Playback) auto-selects the currently playing track when you open the manager.</p>
+</section>
+
+<section id="bookmarks" aria-labelledby="bookmarks-h">
+<h2 id="bookmarks-h">9. Bookmarks and history</h2>
+
+<h3>Bookmarks</h3>
+<table>
+<caption>Bookmark management</caption>
+<thead><tr><th>Key</th><th>Action</th></tr></thead>
+<tbody>
+<tr><td><kbd>M</kbd></td><td>Add a bookmark at the current position</td></tr>
+<tr><td><kbd>Ctrl</kbd>+<kbd>M</kbd></td><td>Open the bookmarks manager</td></tr>
+</tbody>
+</table>
+<p>In the manager, a filter shows only the current file's bookmarks or all bookmarks. <kbd>Enter</kbd> jumps to the bookmark, <kbd>Delete</kbd> removes it. Bookmarks are persisted in a SQLite database.</p>
+
+<h3>Recent files</h3>
+<p>The <strong>File → Recent Files</strong> submenu lists up to 10 recently opened files.</p>
+
+<h3>Song history</h3>
+<p><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>H</kbd> or <strong>File → Song History</strong> opens the list of the last 100 song titles captured from internet streams (radio, streamed podcasts). Date, time, and title. <kbd>Ctrl</kbd>+<kbd>C</kbd> copies the selected title.</p>
+<p>The history contains <strong>only</strong> streams — local file playback is not recorded. Consecutive duplicates are auto-removed.</p>
+</section>
+
+<section id="youtube" aria-labelledby="youtube-h">
+<h2 id="youtube-h">10. YouTube</h2>
+<p>MediaAccess integrates YouTube via yt-dlp (bundled and auto-updated) and the YouTube Data API.</p>
+
+<h3>Search and playback</h3>
+<ol>
+  <li><kbd>Ctrl</kbd>+<kbd>Y</kbd> or <strong>File → YouTube</strong> opens the dialog.</li>
+  <li>Type your search and press <kbd>Enter</kbd>.</li>
+  <li>Navigate the results with arrow keys. When you reach the last item, more results load automatically.</li>
+  <li><kbd>Enter</kbd> plays the selected result.</li>
+  <li>The <strong>Download</strong> button saves the video permanently to <code>Downloads\MediaAccess\YouTube\</code>.</li>
+</ol>
+
+<h3>Direct YouTube URL</h3>
+<p>You can paste a YouTube URL (video or playlist) in the search field instead of keywords.</p>
+
+<h3>Audio / video mode</h3>
+<p>By default MediaAccess plays YouTube in audio-only mode (so all BASS effects like tempo and pitch are available). For video, enable video mode in the YouTube options.</p>
+
+<h3>Cache</h3>
+<p>Played videos are cached in <code>%LOCALAPPDATA%\MediaAccess\YouTubeCache\</code>. The cache is <strong>permanent</strong> — it survives reboots. To clear it: <strong>Help → Clear YouTube cache</strong>.</p>
+
+<h3>YouTube Data API key (optional)</h3>
+<p>If you enter a YouTube Data API key in <strong>Options → YouTube</strong>, search uses the official API (faster). Without a key, yt-dlp is used (slower, but no account required). Get a key: <a href="https://console.cloud.google.com" rel="noopener">console.cloud.google.com</a>.</p>
+
+<h3>Test YouTube playback</h3>
+<p><strong>Help → Test YouTube playback</strong> opens a diagnostic dialog showing: detected yt-dlp version, its path, libmpv availability, and the log file location. Useful when troubleshooting.</p>
+</section>
+
+<section id="radio" aria-labelledby="radio-h">
+<h2 id="radio-h">11. Internet radio</h2>
+<p><kbd>Ctrl</kbd>+<kbd>R</kbd> or <strong>File → Radio</strong> opens the radio browser.</p>
+
+<h3>Two tabs</h3>
+<ul>
+  <li><strong>Favorites</strong>: your saved stations.</li>
+  <li><strong>Search</strong>: live search across three selectable sources:
+    <ul>
+      <li><strong>RadioBrowser</strong>: community database with country filter.</li>
+      <li><strong>TuneIn</strong>: search the TuneIn catalog.</li>
+      <li><strong>iHeartRadio</strong>: search iHeartRadio.</li>
+    </ul>
+  </li>
+</ul>
+
+<h3>Country filter (RadioBrowser)</h3>
+<p>With RadioBrowser selected, a country combo appears. Select a country to narrow results, or leave "(Any)". The list is sorted by station count (the combo is editable; you can type directly). You can search with a country selected and an empty search field — you'll get every station from that country sorted by popularity.</p>
+
+<h3>Search result list actions</h3>
+<table>
+<caption>Keys in search results</caption>
+<thead><tr><th>Key</th><th>Action</th></tr></thead>
+<tbody>
+<tr><td><kbd>Enter</kbd></td><td>Play the stream (a menu appears for multiple stream formats)</td></tr>
+<tr><td><kbd>Ctrl</kbd>+<kbd>C</kbd></td><td>Copy the stream URL</td></tr>
+<tr><td><kbd>Esc</kbd></td><td>Close the dialog</td></tr>
+</tbody>
+</table>
+<p>The <strong>Add to favorites</strong> button saves the selected station.</p>
+
+<h3>Favorites actions</h3>
+<table>
+<caption>Keys in favorites</caption>
+<thead><tr><th>Key</th><th>Action</th></tr></thead>
+<tbody>
+<tr><td><kbd>Enter</kbd></td><td>Play the station</td></tr>
+<tr><td><kbd>F2</kbd></td><td>Edit name / URL</td></tr>
+<tr><td><kbd>Delete</kbd></td><td>Remove the station</td></tr>
+<tr><td><kbd>Ctrl</kbd>+<kbd>↑</kbd> / <kbd>Ctrl</kbd>+<kbd>↓</kbd></td><td>Reorder</td></tr>
+<tr><td><kbd>Ctrl</kbd>+<kbd>C</kbd></td><td>Copy URL</td></tr>
+<tr><td>Double-click</td><td>Play the station</td></tr>
+</tbody>
+</table>
+
+<h3>Add current stream to favorites</h3>
+<p><kbd>Ctrl</kbd>+<kbd>D</kbd> or <strong>File → Add Stream to Favorites</strong> quickly saves the currently playing station. The app silently refuses if nothing is playing, if the track is not a URL, or if the URL is already in favorites.</p>
+
+<h3>Import / Export</h3>
+<p>The <strong>Import</strong> and <strong>Export</strong> buttons read/write M3U or PLS format.</p>
+
+<h3>Live metadata</h3>
+<p>When a station sends ICY metadata (current song title), MediaAccess records it in the <a href="#bookmarks">song history</a> and announces it via speech if "Announce track changes" is enabled.</p>
+</section>
+
+<section id="podcasts" aria-labelledby="podcasts-h">
+<h2 id="podcasts-h">12. Podcasts</h2>
+<p><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>P</kbd> or <strong>File → Podcasts</strong> opens the manager.</p>
+
+<h3>Two tabs</h3>
+<ul>
+  <li><strong>Subscriptions</strong>: three panels — subscriptions list on the left, episodes at top right, description at bottom right.</li>
+  <li><strong>Search</strong>: search the iTunes Podcast directory.</li>
+</ul>
+
+<h3>Manage subscriptions</h3>
+<ul>
+  <li><strong>Add by URL</strong>: a dialog asks for the RSS feed URL, optionally username/password (basic HTTP auth supported).</li>
+  <li><strong>Subscribe</strong> (from the Search tab): adds the selected iTunes podcast.</li>
+  <li><strong>Import / Export OPML</strong>: standard format to exchange subscriptions between podcast clients.</li>
+  <li><kbd>Delete</kbd> on a subscription: confirmation then unsubscribe.</li>
+  <li><kbd>Ctrl</kbd>+<kbd>↑</kbd> / <kbd>Ctrl</kbd>+<kbd>↓</kbd>: reorder subscriptions.</li>
+  <li><strong>Refresh</strong> button: reloads episodes from the selected feed.</li>
+</ul>
+
+<h3>Episode list (multi-select)</h3>
+<table>
+<caption>Episode navigation</caption>
+<thead><tr><th>Key</th><th>Action</th></tr></thead>
+<tbody>
+<tr><td><kbd>Shift</kbd>+<kbd>↑</kbd>/<kbd>↓</kbd></td><td>Extend selection</td></tr>
+<tr><td><kbd>Ctrl</kbd>+<kbd>↑</kbd>/<kbd>↓</kbd></td><td>Move focus without changing selection</td></tr>
+<tr><td><kbd>Ctrl</kbd>+<kbd>Space</kbd></td><td>Toggle selection of focused item</td></tr>
+<tr><td><kbd>Enter</kbd></td><td>Play all selected episodes (or just one)</td></tr>
+<tr><td>Double-click</td><td>Play only the clicked episode</td></tr>
+</tbody>
+</table>
+
+<h3>Downloads</h3>
+<ul>
+  <li><strong>Download</strong> button: downloads all selected episodes to the queue.</li>
+  <li><strong>Download All</strong> button: downloads every episode in the current feed.</li>
+  <li>Destination: <strong>Options → Downloads → Folder</strong>. With "Organize by feed", a subfolder is created per podcast.</li>
+  <li>Already-present files are skipped; duplicate names in a single batch get a "(2)", "(3)", etc. suffix.</li>
+</ul>
+
+<h3>Podcast 2.0 chapters</h3>
+<p>If the feed contains a <code>&lt;podcast:chapters url="..."/&gt;</code> tag, MediaAccess fetches the chapter JSON before playback and makes them navigable via the "chapter" unit in the movement slider.</p>
+
+<h3>Failed feed diagnostic</h3>
+<p>When loading a feed fails, a detailed dialog appears: URL, HTTP status, Win32/WinInet error code, bytes received, number of <code>&lt;item&gt;</code> tags found, number of episodes extracted, and a response body preview. Useful for diagnosing a malformed feed.</p>
+</section>
+
+<section id="recording" aria-labelledby="recording-h">
+<h2 id="recording-h">13. Recording</h2>
+<p><kbd>R</kbd> starts/stops recording the audio output.</p>
+
+<h3>Formats</h3>
+<ul>
+  <li><strong>WAV</strong> (lossless)</li>
+  <li><strong>MP3</strong> (configurable bitrate: 128 / 160 / 192 / 224 / 256 / 320 kbps)</li>
+  <li><strong>OGG Vorbis</strong> (configurable bitrate)</li>
+  <li><strong>FLAC</strong> (lossless)</li>
+</ul>
+
+<h3>Filename template</h3>
+<p>Configure the template in <strong>Options → Recording</strong>. Supports standard <code>strftime</code> codes (<code>%Y</code>, <code>%m</code>, <code>%d</code>, <code>%H</code>, <code>%M</code>, <code>%S</code>) and friendly tokens:</p>
+<ul>
+  <li>English: <code>{year}</code>, <code>{month}</code>, <code>{day}</code>, <code>{hour}</code>, <code>{min}</code>, <code>{second}</code> / <code>{sec}</code></li>
+  <li>French: <code>{année}</code> / <code>{annee}</code>, <code>{mois}</code>, <code>{jour}</code>, <code>{heure}</code>, <code>{minute}</code>, <code>{seconde}</code></li>
+</ul>
+<p>Default template: <code>{year}-{month}-{day}_{hour}-{min}-{second}</code>.</p>
+
+<div class="note">
+<p><strong>Important:</strong> by default, recording captures <strong>post-effects</strong> sound (all enabled effects are included) at full amplitude — the listening volume does not affect the recorded file. If you enable "Legacy volume" in Options → Advanced, volume affects the recording too.</p>
+</div>
+</section>
+
+<section id="midi" aria-labelledby="midi-h">
+<h2 id="midi-h">14. MIDI</h2>
+<p>Files <code>.mid</code>, <code>.midi</code>, <code>.rmi</code>, and <code>.kar</code> play via BASSMIDI.</p>
+
+<h3>SoundFont</h3>
+<p>In <strong>Options → MIDI</strong>, specify the path to a SoundFont file (.sf2 or .sf3). Without a SoundFont, BASSMIDI uses its default synthesizer.</p>
+
+<h3>Polyphony</h3>
+<p>"Maximum voices" controls polyphony (1 to 1000, default 128). Above 512 only matters for very dense MIDI files.</p>
+
+<h3>Sinc interpolation</h3>
+<p>Enables higher-quality interpolation at the cost of more CPU. Recommended for quality listening.</p>
+</section>
+
+<section id="scheduler" aria-labelledby="scheduler-h">
+<h2 id="scheduler-h">15. Scheduler</h2>
+<p><kbd>Ctrl</kbd>+<kbd>S</kbd> or <strong>File → Schedule</strong> opens scheduled event management.</p>
+
+<h3>Create an event</h3>
+<ul>
+  <li><strong>Name</strong>: free label</li>
+  <li><strong>Action</strong>: Playback / Recording / Both</li>
+  <li><strong>Source</strong>: a file (browse) or a radio station (selection from your favorites)</li>
+  <li><strong>Date and time</strong> of trigger</li>
+  <li><strong>Repeat</strong>: Once / Daily / Weekly / Weekdays / Weekends / Monthly</li>
+  <li><strong>Enabled</strong>: checkbox</li>
+  <li><strong>Duration</strong> in minutes (0 = no limit)</li>
+  <li><strong>Stop action</strong>: what to do when duration is reached (stop playback/recording/both)</li>
+</ul>
+
+<h3>Keys in the list</h3>
+<table>
+<caption>Event management</caption>
+<thead><tr><th>Key</th><th>Action</th></tr></thead>
+<tbody>
+<tr><td><kbd>Enter</kbd></td><td>Enable/disable selected event</td></tr>
+<tr><td><kbd>Delete</kbd></td><td>Remove the event</td></tr>
+<tr><td><kbd>Esc</kbd></td><td>Close</td></tr>
+<tr><td>Double-click</td><td>Enable/disable</td></tr>
+</tbody>
+</table>
+<p>"Recording only" mode mutes playback (the BASS encoder needs the stream to be active, but you don't need to hear it).</p>
+</section>
+
+<section id="tray" aria-labelledby="tray-h">
+<h2 id="tray-h">16. System tray</h2>
+<p><kbd>Ctrl</kbd>+<kbd>H</kbd> or <strong>File → Hide to Tray</strong> hides MediaAccess and places an icon in the system tray.</p>
+
+<h3>Tray icon context menu</h3>
+<p>Right-click on the icon:</p>
+<ul>
+  <li>Restore</li>
+  <li>Play/Pause</li>
+  <li>Stop</li>
+  <li>Previous</li>
+  <li>Next</li>
+  <li>Exit</li>
+</ul>
+<p>Double-click the icon: restore the window.</p>
+<p>The <strong>Options → Playback → Minimize to system tray</strong> option controls whether a normal minimize sends the window to the tray (instead of the taskbar).</p>
+</section>
+
+<section id="hotkeys" aria-labelledby="hotkeys-h">
+<h2 id="hotkeys-h">17. Global hotkeys</h2>
+<p>Global hotkeys are active even when MediaAccess doesn't have focus.</p>
+
+<h3>Configuration</h3>
+<ol>
+  <li>Open <strong>Options → Global Hotkeys</strong>.</li>
+  <li>Check "Enable global hotkeys".</li>
+  <li>Click <strong>Add</strong> and select an action plus a key combination (at least one Ctrl, Alt, or Shift modifier is required).</li>
+  <li><strong>Edit</strong> or <strong>Remove</strong> act on the selection.</li>
+</ol>
+
+<h3>Media keys</h3>
+<p>Dedicated media keys (Play/Pause, Stop, Previous, Next) are always globally active, regardless of your custom hotkeys.</p>
+
+<h3>Available actions</h3>
+<p>Over 35 actions available: Play, Pause, Stop, Next, Previous, Seek Backward/Forward, Volume Up/Down, Toggle Mute, Speak Elapsed/Remaining/Total/Now Playing, Toggle each effect, Toggle Recording, Show/Hide Window, Open YouTube, Toggle Shuffle, etc.</p>
+</section>
+
+<section id="options" aria-labelledby="options-h">
+<h2 id="options-h">18. Options reference</h2>
+<p><kbd>Ctrl</kbd>+<kbd>,</kbd> or <strong>File → Options</strong> opens preferences. Thirteen tabs.</p>
+
+<h3>Playback tab</h3>
+<ul>
+  <li><strong>Output device</strong>: BASS output device</li>
+  <li><strong>Allow volume above 100%</strong> (up to 400%)</li>
+  <li><strong>Remember playback state on exit</strong></li>
+  <li><strong>Remember position if longer than</strong>: Off / 5 / 10 / 20 / 30 / 45 / 60 minutes</li>
+  <li><strong>Bring window to front when opening files</strong></li>
+  <li><strong>Load all files in folder when opening single file</strong></li>
+  <li><strong>Minimize to system tray</strong></li>
+  <li><strong>Show track name in window title</strong></li>
+  <li><strong>Auto-advance to next playlist item</strong></li>
+  <li><strong>Follow playback in playlist dialog</strong></li>
+  <li><strong>Check for updates on startup</strong></li>
+  <li><strong>Allow multiple instances</strong></li>
+  <li><strong>Register all supported file types</strong></li>
+  <li><strong>Rewind on pause (ms)</strong></li>
+  <li><strong>Volume step</strong>: 1 / 2 / 5 / 10 / 15 / 20 / 25%</li>
+  <li><strong>Language</strong>: English / Français (applies on restart)</li>
+</ul>
+
+<h3>Recording tab</h3>
+<p>Output folder, filename template, format (WAV/MP3/OGG/FLAC), bitrate. See <a href="#recording">section 13</a>.</p>
+
+<h3>Downloads tab</h3>
+<ul>
+  <li><strong>Downloads folder</strong> (for podcasts)</li>
+  <li><strong>Organize downloads into folders by feed title</strong></li>
+</ul>
+
+<h3>Speech tab</h3>
+<ul>
+  <li><strong>Announce track changes</strong> (off by default)</li>
+  <li><strong>Speak volume when adjusted</strong> (on by default)</li>
+  <li><strong>Speak effect value when adjusted</strong> (on by default)</li>
+</ul>
+
+<h3>Movement tab</h3>
+<p>Checkboxes to enable each movement unit: 1 s, 5 s, 10 s, 30 s, 1 min, 5 min, 10 min, 30 min, 1 h, 1 track, 5 tracks, 10 tracks, 1 chapter. By default, only 5 s is enabled.</p>
+
+<h3>Global Hotkeys tab</h3>
+<p>See <a href="#hotkeys">section 17</a>.</p>
+
+<h3>Effects tab</h3>
+<p>Checkboxes to add Volume, Pitch, Tempo, Rate to the effects slider, choice of rate step (0.01× or semitone), checkboxes to enable each DSP effect, reverb algorithm selection, and impulse response file path for convolution reverb.</p>
+
+<h3>Advanced tab</h3>
+<ul>
+  <li><strong>Buffer size</strong>: 100 / 200 / 300 / 500 / 1000 / 2000 ms</li>
+  <li><strong>Update period</strong>: 5 / 10 / 20 / 50 / 100 / 200 ms</li>
+  <li><strong>Tempo/pitch algorithm</strong>: SoundTouch / Speedy / Signalsmith</li>
+  <li><strong>EQ frequencies</strong>: Bass (20-500 Hz), Mid (200-5000 Hz), Treble (2000-20000 Hz)</li>
+  <li><strong>Legacy volume</strong> (faster but affects recordings)</li>
+  <li><strong>Disable batch delay</strong></li>
+  <li><strong>Reset station/podcast order to alphabetical</strong> (button)</li>
+</ul>
+
+<h3>YouTube tab</h3>
+<p>YouTube Data API key (optional).</p>
+
+<h3>SoundTouch tab</h3>
+<ul>
+  <li><strong>Anti-alias filter</strong></li>
+  <li><strong>AA filter length</strong>: 8 / 16 / 32 / 64 / 128 taps</li>
+  <li><strong>Quick algorithm</strong> (lower quality, less CPU)</li>
+  <li><strong>Prevent clicks</strong> (reduces artifacts)</li>
+  <li><strong>Interpolation</strong>: Linear / Cubic / Shannon</li>
+  <li><strong>Sequence (ms)</strong>: 0-200 (0 = automatic)</li>
+  <li><strong>Seek window (ms)</strong>: 0-100 (0 = automatic)</li>
+  <li><strong>Overlap (ms)</strong>: 0-50</li>
+</ul>
+
+<h3>Speedy tab</h3>
+<p><strong>Nonlinear speedup</strong>: optimizes acceleration for speech (compresses vowels less than consonants).</p>
+
+<h3>Signalsmith tab</h3>
+<ul>
+  <li><strong>Quality preset</strong>: Default (higher quality) / Cheaper (lower CPU)</li>
+  <li><strong>Tonality limit (Hz, 0 = auto)</strong>: 0-20000. Suggested: 0 for auto, 4000-8000 for speech, 8000-16000 for music.</li>
+</ul>
+
+<h3>MIDI tab</h3>
+<p>See <a href="#midi">section 14</a>.</p>
+</section>
+
+<section id="accessibility" aria-labelledby="accessibility-h">
+<h2 id="accessibility-h">19. Accessibility</h2>
+
+<h3>Supported screen readers</h3>
+<p>MediaAccess uses the Universal Speech library, which auto-detects the active screen reader:</p>
+<ul>
+  <li><strong>NVDA</strong> via <code>nvdaControllerClient64.dll</code></li>
+  <li><strong>JAWS</strong> via <code>SAAPI64.dll</code></li>
+  <li><strong>Window-Eyes</strong>, <strong>Supernova</strong>, <strong>SAPI</strong> (fallback)</li>
+</ul>
+<p>No configuration needed — if a screen reader is active, MediaAccess speaks.</p>
+
+<h3>What is announced automatically</h3>
+<ul>
+  <li>Track change (if enabled)</li>
+  <li>Stream metadata (song title on radio/podcast)</li>
+  <li>Volume change (if enabled)</li>
+  <li>Effect adjustment (if enabled)</li>
+  <li>Movement unit change</li>
+  <li>Chapters</li>
+  <li>Errors (always)</li>
+  <li>Repeat mode, shuffle, mute, recording (on every toggle)</li>
+</ul>
+
+<h3>On-demand announcements</h3>
+<ul>
+  <li><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>E</kbd>: elapsed time</li>
+  <li><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>R</kbd>: remaining time</li>
+  <li><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>T</kbd>: total duration</li>
+  <li><kbd>1</kbd> to <kbd>0</kbd>: ID3 tags (see <a href="#audio">section 4</a>)</li>
+</ul>
+
+<h3>Keyboard navigation</h3>
+<p>All dialogs are keyboard-navigable. <kbd>Tab</kbd> and <kbd>Shift</kbd>+<kbd>Tab</kbd> cycle between controls. <kbd>Alt</kbd>+letter accelerators are indicated by an underlined letter in each label.</p>
+
+<h3>Automatic bilingualism</h3>
+<p>The interface adapts to the Windows language on first launch. You can change it manually in <strong>Options → Playback → Language</strong>. All dialogs, menus, error messages, and speech announcements are available in English and French.</p>
+</section>
+
+<section id="updates" aria-labelledby="updates-h">
+<h2 id="updates-h">20. Updates</h2>
+
+<h3>Automatic check</h3>
+<p>On startup, MediaAccess checks in the background for a new version on GitHub (option <strong>Options → Playback → Check for updates on startup</strong>, on by default).</p>
+
+<h3>Manual check</h3>
+<p><strong>Help → Check for Updates</strong>.</p>
+
+<h3>Behavior</h3>
+<p>If a new version is available, MediaAccess shows a dialog with the current version, the new version, and a Yes/No button. If you accept, the new installer is downloaded then executed silently; MediaAccess closes and reopens in the new version.</p>
+<p>MediaAccess will never automatically downgrade: if the remote version is older, no dialog is shown.</p>
+</section>
+
+<section id="troubleshooting" aria-labelledby="troubleshooting-h">
+<h2 id="troubleshooting-h">21. Troubleshooting</h2>
+
+<h3>Log file</h3>
+<p>MediaAccess writes a log to:</p>
+<p><code>%LOCALAPPDATA%\MediaAccess\mediaaccess.log</code></p>
+<p>Rotation is automatic (the old file becomes <code>.log.old</code> at 1 MB).</p>
+
+<h3>Loaded plugins</h3>
+<p><strong>Help → Loaded Plugins</strong> shows the list of detected BASS plugins and any that failed to load. Useful if an audio format doesn't work.</p>
+
+<h3>Test YouTube playback</h3>
+<p><strong>Help → Test YouTube playback</strong> verifies that yt-dlp is detected and functional.</p>
+
+<h3>Audit dialog layout</h3>
+<p><strong>Help → Audit dialog layout</strong> verifies that no text is truncated in the Options dialog for the active language. A quality tool primarily useful for development.</p>
+
+<h3>Clear YouTube cache</h3>
+<p><strong>Help → Clear YouTube cache</strong> deletes all files in the YouTube cache. Current size is shown before confirmation.</p>
+
+<h3>Reset preferences</h3>
+<p>To go back to defaults:</p>
+<ol>
+  <li>Quit MediaAccess.</li>
+  <li>Delete <code>%APPDATA%\MediaAccess\MediaAccess.ini</code> (installed mode) or <code>MediaAccess.ini</code> next to the executable (portable mode).</li>
+  <li>Relaunch. Language is re-detected from Windows.</li>
+</ol>
+
+<h3>Video load error</h3>
+<p>If MediaAccess shows "The video playback engine could not be loaded", reinstall MediaAccess. The message includes a technical detail in parentheses useful for diagnosis.</p>
+</section>
+
+<section id="shortcuts" aria-labelledby="shortcuts-h">
+<h2 id="shortcuts-h">22. Keyboard shortcuts reference</h2>
+
+<h3>File</h3>
+<table>
+<caption>File menu shortcuts</caption>
+<thead><tr><th>Shortcut</th><th>Action</th></tr></thead>
+<tbody>
+<tr><td><kbd>Ctrl</kbd>+<kbd>O</kbd></td><td>Open file</td></tr>
+<tr><td><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>O</kbd></td><td>Add folder</td></tr>
+<tr><td><kbd>Ctrl</kbd>+<kbd>P</kbd></td><td>Playlist</td></tr>
+<tr><td><kbd>Ctrl</kbd>+<kbd>U</kbd></td><td>Open URL</td></tr>
+<tr><td><kbd>Ctrl</kbd>+<kbd>Y</kbd></td><td>YouTube</td></tr>
+<tr><td><kbd>Ctrl</kbd>+<kbd>R</kbd></td><td>Radio</td></tr>
+<tr><td><kbd>Ctrl</kbd>+<kbd>D</kbd></td><td>Add stream to favorites</td></tr>
+<tr><td><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>P</kbd></td><td>Podcasts</td></tr>
+<tr><td><kbd>Ctrl</kbd>+<kbd>S</kbd></td><td>Schedule</td></tr>
+<tr><td><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>H</kbd></td><td>Song history</td></tr>
+<tr><td><kbd>Ctrl</kbd>+<kbd>H</kbd></td><td>Hide to system tray</td></tr>
+<tr><td><kbd>Ctrl</kbd>+<kbd>,</kbd></td><td>Options</td></tr>
+</tbody>
+</table>
+
+<h3>Playback</h3>
+<table>
+<caption>Playback shortcuts</caption>
+<thead><tr><th>Shortcut</th><th>Action</th></tr></thead>
+<tbody>
+<tr><td><kbd>Space</kbd></td><td>Play/Pause</td></tr>
+<tr><td><kbd>X</kbd> / <kbd>C</kbd> / <kbd>V</kbd></td><td>Play / Pause / Stop</td></tr>
+<tr><td><kbd>Z</kbd> / <kbd>B</kbd></td><td>Previous / Next</td></tr>
+<tr><td><kbd>H</kbd></td><td>Toggle shuffle</td></tr>
+<tr><td><kbd>E</kbd></td><td>Repeat mode</td></tr>
+<tr><td><kbd>J</kbd></td><td>Jump to time</td></tr>
+<tr><td><kbd>Home</kbd></td><td>Beginning</td></tr>
+<tr><td><kbd>R</kbd></td><td>Start/stop recording</td></tr>
+<tr><td><kbd>U</kbd></td><td>Mute</td></tr>
+<tr><td><kbd>M</kbd></td><td>Add bookmark</td></tr>
+<tr><td><kbd>Ctrl</kbd>+<kbd>M</kbd></td><td>Bookmark manager</td></tr>
+<tr><td><kbd>A</kbd></td><td>Audio device selection menu</td></tr>
+<tr><td><kbd>P</kbd></td><td>Effect presets menu</td></tr>
+</tbody>
+</table>
+
+<h3>Effects slider</h3>
+<table>
+<caption>Effects slider</caption>
+<thead><tr><th>Shortcut</th><th>Action</th></tr></thead>
+<tbody>
+<tr><td><kbd>[</kbd> / <kbd>]</kbd></td><td>Previous / Next parameter</td></tr>
+<tr><td><kbd>↑</kbd> / <kbd>↓</kbd></td><td>Increase / Decrease value</td></tr>
+<tr><td><kbd>Backspace</kbd></td><td>Default value</td></tr>
+<tr><td><kbd>Ctrl</kbd>+<kbd>Home</kbd> / <kbd>Ctrl</kbd>+<kbd>End</kbd></td><td>Minimum / Maximum</td></tr>
+<tr><td><kbd>Ctrl</kbd>+<kbd>↑</kbd> / <kbd>Ctrl</kbd>+<kbd>↓</kbd></td><td>Direct volume (regardless of current parameter)</td></tr>
+</tbody>
+</table>
+
+<h3>Movement slider</h3>
+<table>
+<caption>Movement slider</caption>
+<thead><tr><th>Shortcut</th><th>Action</th></tr></thead>
+<tbody>
+<tr><td><kbd>,</kbd> / <kbd>.</kbd></td><td>Previous / Next unit</td></tr>
+<tr><td><kbd>←</kbd> / <kbd>→</kbd></td><td>Backward / Forward by one unit</td></tr>
+</tbody>
+</table>
+
+<h3>Effect toggles</h3>
+<table>
+<caption>Effect toggles</caption>
+<thead><tr><th>Shortcut</th><th>Effect</th></tr></thead>
+<tbody>
+<tr><td><kbd>Ctrl</kbd>+<kbd>1</kbd></td><td>Volume</td></tr>
+<tr><td><kbd>Ctrl</kbd>+<kbd>2</kbd></td><td>Pitch</td></tr>
+<tr><td><kbd>Ctrl</kbd>+<kbd>3</kbd></td><td>Tempo</td></tr>
+<tr><td><kbd>Ctrl</kbd>+<kbd>4</kbd></td><td>Rate</td></tr>
+<tr><td><kbd>Ctrl</kbd>+<kbd>5</kbd></td><td>Reverb (cycles algorithms)</td></tr>
+<tr><td><kbd>Ctrl</kbd>+<kbd>6</kbd></td><td>Echo</td></tr>
+<tr><td><kbd>Ctrl</kbd>+<kbd>7</kbd></td><td>EQ</td></tr>
+<tr><td><kbd>Ctrl</kbd>+<kbd>8</kbd></td><td>Compressor</td></tr>
+<tr><td><kbd>Ctrl</kbd>+<kbd>9</kbd></td><td>Stereo Width</td></tr>
+<tr><td><kbd>Ctrl</kbd>+<kbd>0</kbd></td><td>Center Cancel</td></tr>
+<tr><td><kbd>Ctrl</kbd>+<kbd>-</kbd></td><td>Convolution Reverb</td></tr>
+<tr><td><kbd>Ctrl</kbd>+<kbd>=</kbd></td><td>3D Audio</td></tr>
+</tbody>
+</table>
+
+<h3>Video</h3>
+<table>
+<caption>Video shortcuts</caption>
+<thead><tr><th>Shortcut</th><th>Action</th></tr></thead>
+<tbody>
+<tr><td><kbd>F11</kbd></td><td>Fullscreen</td></tr>
+<tr><td><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>T</kbd></td><td>Cycle subtitles</td></tr>
+<tr><td><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>A</kbd></td><td>Cycle audio track</td></tr>
+<tr><td><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>S</kbd></td><td>Screenshot</td></tr>
+</tbody>
+</table>
+
+<h3>Speech announcements</h3>
+<table>
+<caption>On-demand announcements</caption>
+<thead><tr><th>Shortcut</th><th>Action</th></tr></thead>
+<tbody>
+<tr><td><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>E</kbd></td><td>Elapsed time</td></tr>
+<tr><td><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>R</kbd></td><td>Remaining time</td></tr>
+<tr><td><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>T</kbd></td><td>Total duration</td></tr>
+<tr><td><kbd>1</kbd></td><td>Title</td></tr>
+<tr><td><kbd>2</kbd></td><td>Artist</td></tr>
+<tr><td><kbd>3</kbd></td><td>Album</td></tr>
+<tr><td><kbd>4</kbd></td><td>Year</td></tr>
+<tr><td><kbd>5</kbd></td><td>Track number</td></tr>
+<tr><td><kbd>6</kbd></td><td>Genre</td></tr>
+<tr><td><kbd>7</kbd></td><td>Comment</td></tr>
+<tr><td><kbd>8</kbd></td><td>Bitrate / format</td></tr>
+<tr><td><kbd>9</kbd></td><td>Duration</td></tr>
+<tr><td><kbd>0</kbd></td><td>Filename</td></tr>
+<tr><td><kbd>Shift</kbd>+digit</td><td>Show the same tag in a window</td></tr>
+</tbody>
+</table>
+
+<h3>Help</h3>
+<table>
+<caption>Help menu</caption>
+<thead><tr><th>Shortcut</th><th>Action</th></tr></thead>
+<tbody>
+<tr><td><kbd>F1</kbd></td><td>Open this manual</td></tr>
+</tbody>
+</table>
+
+</section>
+
+</main>
+</div>
+
+<footer>
+  <p>MediaAccess — <a href="https://github.com/reaperaccessible/MediaAccess">github.com/reaperaccessible/MediaAccess</a></p>
+  <p>Documentation under GPL-3.0 license, like MediaAccess itself.</p>
+</footer>
+
+</body>
+</html>
