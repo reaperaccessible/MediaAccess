@@ -242,6 +242,7 @@ void LoadSettings() {
     g_speechTrackChange = GetPrivateProfileIntW(L"Speech", L"TrackChange", 0, g_configPath.c_str()) != 0;
     g_speechVolume = GetPrivateProfileIntW(L"Speech", L"Volume", 1, g_configPath.c_str()) != 0;
     g_speechEffect = GetPrivateProfileIntW(L"Speech", L"Effect", 1, g_configPath.c_str()) != 0;
+    g_speechYTHybrid = GetPrivateProfileIntW(L"Speech", L"YTHybrid", 1, g_configPath.c_str()) != 0;
 
     // Load shuffle and auto-advance settings
     g_shuffle = GetPrivateProfileIntW(L"Playback", L"Shuffle", 0, g_configPath.c_str()) != 0;
@@ -565,6 +566,7 @@ void SaveSettings() {
     WritePrivateProfileStringW(L"Speech", L"TrackChange", g_speechTrackChange ? L"1" : L"0", g_configPath.c_str());
     WritePrivateProfileStringW(L"Speech", L"Volume", g_speechVolume ? L"1" : L"0", g_configPath.c_str());
     WritePrivateProfileStringW(L"Speech", L"Effect", g_speechEffect ? L"1" : L"0", g_configPath.c_str());
+    WritePrivateProfileStringW(L"Speech", L"YTHybrid", g_speechYTHybrid ? L"1" : L"0", g_configPath.c_str());
 
     // Save shuffle and auto-advance settings
     WritePrivateProfileStringW(L"Playback", L"Shuffle", g_shuffle ? L"1" : L"0", g_configPath.c_str());

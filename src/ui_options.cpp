@@ -17,7 +17,7 @@ void ShowTabControls(HWND hwnd, int tab) {
     int downloadsCtrls[] = {IDC_DOWNLOAD_PATH, IDC_DOWNLOAD_BROWSE, IDC_DOWNLOAD_ORGANIZE,
                             IDC_LABEL_DOWNLOADS_DESCRIPTION, IDC_LABEL_DOWNLOADS_FOLDER};
     // Speech tab controls (tab 3)
-    int speechCtrls[] = {IDC_SPEECH_TRACKCHANGE, IDC_SPEECH_VOLUME, IDC_SPEECH_EFFECT,
+    int speechCtrls[] = {IDC_SPEECH_TRACKCHANGE, IDC_SPEECH_VOLUME, IDC_SPEECH_EFFECT, IDC_SPEECH_YT_HYBRID,
                          IDC_LABEL_SPEECH_DESCRIPTION};
     // Movement tab controls (tab 4)
     int movementCtrls[] = {IDC_SEEK_1S, IDC_SEEK_5S, IDC_SEEK_10S, IDC_SEEK_30S, IDC_SEEK_1M, IDC_SEEK_5M, IDC_SEEK_10M,
@@ -411,6 +411,7 @@ INT_PTR CALLBACK OptionsDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
             CheckDlgButton(hwnd, IDC_SPEECH_TRACKCHANGE, g_speechTrackChange ? BST_CHECKED : BST_UNCHECKED);
             CheckDlgButton(hwnd, IDC_SPEECH_VOLUME, g_speechVolume ? BST_CHECKED : BST_UNCHECKED);
             CheckDlgButton(hwnd, IDC_SPEECH_EFFECT, g_speechEffect ? BST_CHECKED : BST_UNCHECKED);
+            CheckDlgButton(hwnd, IDC_SPEECH_YT_HYBRID, g_speechYTHybrid ? BST_CHECKED : BST_UNCHECKED);
 
             // Initialize SoundTouch tab
             {
@@ -735,6 +736,7 @@ INT_PTR CALLBACK OptionsDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
                     g_speechTrackChange = (IsDlgButtonChecked(hwnd, IDC_SPEECH_TRACKCHANGE) == BST_CHECKED);
                     g_speechVolume = (IsDlgButtonChecked(hwnd, IDC_SPEECH_VOLUME) == BST_CHECKED);
                     g_speechEffect = (IsDlgButtonChecked(hwnd, IDC_SPEECH_EFFECT) == BST_CHECKED);
+                    g_speechYTHybrid = (IsDlgButtonChecked(hwnd, IDC_SPEECH_YT_HYBRID) == BST_CHECKED);
 
                     // Get SoundTouch settings
                     {

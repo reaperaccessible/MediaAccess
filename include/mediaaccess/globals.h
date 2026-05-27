@@ -203,6 +203,7 @@ extern HENCODE g_encoder;               // BASS encoder handle
 extern bool g_speechTrackChange;        // Announce track changes
 extern bool g_speechVolume;             // Speak volume when adjusted
 extern bool g_speechEffect;             // Speak effect value when adjusted
+extern bool g_speechYTHybrid;           // Announce "Effects activated" after YouTube hybrid swap
 
 // Shuffle and auto-advance
 extern bool g_shuffle;                  // Shuffle playback order

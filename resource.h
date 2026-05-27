@@ -255,6 +255,7 @@
 #define IDC_SPEECH_TRACKCHANGE  840
 #define IDC_SPEECH_VOLUME       841
 #define IDC_SPEECH_EFFECT       842
+#define IDC_SPEECH_YT_HYBRID    843
 
 // Radio dialog
 #define IDM_FILE_RADIO      107

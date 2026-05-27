@@ -313,6 +313,7 @@ HENCODE g_encoder = 0;                              // BASS encoder handle
 bool g_speechTrackChange = false;                   // Announce track changes (default off)
 bool g_speechVolume = true;                         // Speak volume when adjusted (default on)
 bool g_speechEffect = true;                         // Speak effect value when adjusted (default on)
+bool g_speechYTHybrid = true;                       // Announce "Effects activated" when YouTube hybrid swap completes (default on)
 
 // Shuffle and auto-advance
 bool g_shuffle = false;                             // Shuffle playback order

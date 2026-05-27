@@ -821,7 +821,7 @@ void YouTubeOnHybridDownloadReady(const std::wstring& videoId) {
 
     if (!LoadFile(localFile.c_str())) return;
     if (pos > 1.0) SeekToPosition(pos);
-    Speak(Ts("Effects activated"));
+    if (g_speechYTHybrid) Speak(Ts("Effects activated"));
 }
 
 bool YouTubePlayById(const std::wstring& videoId) {

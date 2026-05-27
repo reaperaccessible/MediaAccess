@@ -271,6 +271,9 @@ void RegisterRcTranslations() {
     AddTranslation("en", "Speak &effect value when adjusted", L"Speak &effect value when adjusted");
     AddTranslation("fr", "Speak &effect value when adjusted", L"Annoncer la valeur d'&effet lors des ajustements");
 
+    AddTranslation("en", "Announce YouTube effects activation", L"Announce YouTube effects activation");
+    AddTranslation("fr", "Announce YouTube effects activation", L"Annoncer l'activation des effets YouTube");
+
     // Movement tab
     AddTranslation("en", "Seek amounts (use , and . to cycle):", L"Seek amounts (use , and . to cycle):");
     AddTranslation("fr", "Seek amounts (use , and . to cycle):",
