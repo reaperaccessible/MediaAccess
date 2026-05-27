@@ -24,6 +24,9 @@ void RegisterRcTranslations() {
     AddTranslation("en", "Open &URL...\tCtrl+U", L"Open &URL...\tCtrl+U");
     AddTranslation("fr", "Open &URL...\tCtrl+U", L"Ouvrir une &URL...\tCtrl+U");
 
+    AddTranslation("en", "Paste from clip&board\tCtrl+V", L"Paste from clip&board\tCtrl+V");
+    AddTranslation("fr", "Paste from clip&board\tCtrl+V", L"Coller depuis le &presse-papiers\tCtrl+V");
+
     AddTranslation("en", "&YouTube...\tCtrl+Y", L"&YouTube...\tCtrl+Y");
     AddTranslation("fr", "&YouTube...\tCtrl+Y", L"&YouTube...\tCtrl+Y");
 

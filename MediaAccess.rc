@@ -12,6 +12,7 @@ BEGIN
         MENUITEM "Add &Folder...\tCtrl+Shift+O", IDM_FILE_ADD_FOLDER
         MENUITEM "&Playlist...\tCtrl+P", IDM_FILE_PLAYLIST
         MENUITEM "Open &URL...\tCtrl+U", IDM_FILE_OPEN_URL
+        MENUITEM "Paste from clip&board\tCtrl+V", IDM_FILE_PASTE
         MENUITEM "&YouTube...\tCtrl+Y", IDM_FILE_YOUTUBE
         MENUITEM "&Radio...\tCtrl+R", IDM_FILE_RADIO
         MENUITEM "&Add Stream to Favorites...\tCtrl+D", IDM_FILE_ADD_TO_FAVORITES
@@ -551,6 +552,7 @@ BEGIN
     "A",            IDM_SHOW_AUDIO_DEVICES, VIRTKEY      // A = show audio devices menu
     // Video controls
     VK_F1,          IDM_HELP_MANUAL,    VIRTKEY                // F1 = open manual
+    "V",            IDM_FILE_PASTE,     VIRTKEY, CONTROL       // Ctrl+V = paste media from clipboard
     VK_F11,         IDM_VIDEO_FULLSCREEN, VIRTKEY        // F11 = toggle fullscreen
     "T",            IDM_VIDEO_SUB_CYCLE,  VIRTKEY, CONTROL, SHIFT  // Ctrl+Shift+T = cycle subtitles
     "A",            IDM_VIDEO_AUDIO_CYCLE, VIRTKEY, CONTROL, SHIFT // Ctrl+Shift+A = cycle audio tracks

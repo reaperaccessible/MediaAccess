@@ -376,6 +376,29 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
                 case IDM_FILE_HIDE_TRAY:
                     HideToTray(hwnd);
                     break;
+                case IDM_FILE_PASTE: { extern std::vector<std::wstring> GetFilesFromClipboard();
+                    // Ctrl+V on the main window: paste media files/URLs from the
+                    // clipboard. Replaces the current playlist (matching the
+                    // "Open file" semantics — paste behaves like a fresh open).
+                    std::vector<std::wstring> files;
+                    try {
+                        files = GetFilesFromClipboard();
+                    } catch (...) {}
+                    if (files.empty()) {
+                        Speak(Ts("No media in clipboard"));
+                    } else {
+                        g_playlist.clear();
+                        g_currentTrack = -1;
+                        for (const auto& f : files) g_playlist.push_back(f);
+                        PlayTrack(0);
+                        if (files.size() == 1) {
+                            Speak(Ts("Pasted 1 item"));
+                        } else {
+                            Speak(std::to_string(files.size()) + " " + Ts("items pasted"));
+                        }
+                    }
+                    break;
+                }
                 case IDM_TOOLS_OPTIONS:
                     ShowOptionsDialog();
                     break;

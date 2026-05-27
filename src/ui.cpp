@@ -156,6 +156,24 @@ bool IsSupportedAudioExt(const std::wstring& ext) {
     return false;
 }
 
+// Check if a file extension is any supported media format (audio OR video).
+// Used by clipboard paste so users can copy a .mkv from Explorer and paste
+// it into MediaAccess.
+bool IsSupportedMediaExt(const std::wstring& ext) {
+    if (IsSupportedAudioExt(ext)) return true;
+    static const wchar_t* videoExts[] = {
+        L".mp4", L".mkv", L".avi", L".mov", L".webm", L".wmv", L".flv",
+        L".ts", L".m2ts", L".vob", L".ogv", L".3gp", L".mpg", L".mpeg",
+        L".m4v", L".divx", L".rmvb"
+    };
+    std::wstring lowerExt = ext;
+    for (auto& c : lowerExt) c = towlower(c);
+    for (const auto& e : videoExts) {
+        if (lowerExt == e) return true;
+    }
+    return false;
+}
+
 // Expand a single file to all audio files in its folder
 // Returns the index of the original file in the expanded list
 int ExpandFileToFolder(const std::wstring& filePath, std::vector<std::wstring>& outFiles) {
@@ -461,7 +479,7 @@ std::vector<std::wstring> GetFilesFromClipboard() {
                             size_t dotPos = path.rfind(L'.');
                             if (dotPos != std::wstring::npos) {
                                 std::wstring ext = path.substr(dotPos);
-                                if (IsSupportedAudioExt(ext)) {
+                                if (IsSupportedMediaExt(ext)) {
                                     files.push_back(path);
                                 }
                             }

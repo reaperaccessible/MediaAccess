@@ -186,6 +186,14 @@ void RegisterPlayerTranslations() {
     AddTranslation("en", "E&xit",       L"E&xit");
     AddTranslation("fr", "E&xit",       L"&Quitter");
 
+    // Ctrl+V clipboard paste on the main window (loads media files/URLs)
+    AddTranslation("en", "No media in clipboard", L"No media in clipboard");
+    AddTranslation("fr", "No media in clipboard", L"Aucun média dans le presse-papiers");
+    AddTranslation("en", "Pasted 1 item", L"Pasted 1 item");
+    AddTranslation("fr", "Pasted 1 item", L"1 élément collé");
+    AddTranslation("en", "items pasted", L"items pasted");
+    AddTranslation("fr", "items pasted", L"éléments collés");
+
     // Help menu — Manual (F1) opens the bilingual HTML manual
     AddTranslation("en", "&Manual\tF1", L"&Manual\tF1");
     AddTranslation("fr", "&Manual\tF1", L"&Manuel\tF1");

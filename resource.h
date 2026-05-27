@@ -22,6 +22,7 @@
 #define IDM_FILE_HIDE_TRAY  106
 #define IDM_FILE_ADD_FOLDER 110
 #define IDM_FILE_PLAYLIST   111
+#define IDM_FILE_PASTE      122
 #define IDM_FILE_RECENT_BASE 6000  // Recent files use IDs 6000-6009
 
 // Playlist manager dialog
