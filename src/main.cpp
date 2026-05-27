@@ -305,6 +305,16 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
 
         case WM_COPYDATA: {
             COPYDATASTRUCT* cds = reinterpret_cast<COPYDATASTRUCT*>(lParam);
+            // dwData == 3: second launch with no file args — just bring the
+            // existing window back. Fixes "desktop icon does nothing when
+            // MediaAccess is hidden in the system tray".
+            if (cds && cds->dwData == 3) {
+                RestoreFromTray(hwnd);
+                if (IsIconic(hwnd)) ShowWindow(hwnd, SW_RESTORE);
+                ShowWindow(hwnd, SW_SHOW);
+                SetForegroundWindow(hwnd);
+                return TRUE;
+            }
             if (cds && (cds->dwData == 1 || cds->dwData == 2) && cds->lpData) {
                 const wchar_t* filePath = static_cast<const wchar_t*>(cds->lpData);
                 if (GetFileAttributesW(filePath) != INVALID_FILE_ATTRIBUTES) {
@@ -899,6 +909,20 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLi
                         firstFile = false;
                     }
                 }
+            } else {
+                // No file args: user launched MediaAccess again (desktop
+                // icon, Start menu, Win+R, etc.) while it's already running
+                // — possibly hidden in the system tray. Ask the existing
+                // instance to restore and come to the foreground.
+                COPYDATASTRUCT cds;
+                cds.dwData = 3;       // "activate" sentinel
+                cds.cbData = 0;
+                cds.lpData = nullptr;
+                SendMessageW(existingWnd, WM_COPYDATA, 0, reinterpret_cast<LPARAM>(&cds));
+                // Also try to allow SetForegroundWindow on the other process
+                DWORD existingPid = 0;
+                GetWindowThreadProcessId(existingWnd, &existingPid);
+                if (existingPid) AllowSetForegroundWindow(existingPid);
             }
             if (argv) LocalFree(argv);
             CloseHandle(hMutex);

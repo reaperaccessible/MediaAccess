@@ -95,94 +95,94 @@ Source: "{#SourceDir}\MediaAccess.exe"; DestDir: "{app}"; AfterInstall: CreateIn
 ; ============================================================
 
 ; Step 1: Register the application under HKLM\SOFTWARE\RegisteredApplications
-Root: HKLM; Subkey: "SOFTWARE\RegisteredApplications"; ValueType: string; ValueName: "MediaAccess"; ValueData: "SOFTWARE\MediaAccess\Capabilities"; Flags: uninsdeletevalue
+Root: HKA; Subkey: "SOFTWARE\RegisteredApplications"; ValueType: string; ValueName: "MediaAccess"; ValueData: "SOFTWARE\MediaAccess\Capabilities"; Flags: uninsdeletevalue
 
 ; Step 2: Application capabilities (metadata)
-Root: HKLM; Subkey: "SOFTWARE\MediaAccess\Capabilities"; ValueType: string; ValueName: "ApplicationName"; ValueData: "MediaAccess"; Flags: uninsdeletekey
-Root: HKLM; Subkey: "SOFTWARE\MediaAccess\Capabilities"; ValueType: string; ValueName: "ApplicationDescription"; ValueData: "{cm:AppDesc}"
-Root: HKLM; Subkey: "SOFTWARE\MediaAccess\Capabilities"; ValueType: string; ValueName: "ApplicationIcon"; ValueData: """{app}\{#MyAppExeName}"",0"
+Root: HKA; Subkey: "SOFTWARE\MediaAccess\Capabilities"; ValueType: string; ValueName: "ApplicationName"; ValueData: "MediaAccess"; Flags: uninsdeletekey
+Root: HKA; Subkey: "SOFTWARE\MediaAccess\Capabilities"; ValueType: string; ValueName: "ApplicationDescription"; ValueData: "{cm:AppDesc}"
+Root: HKA; Subkey: "SOFTWARE\MediaAccess\Capabilities"; ValueType: string; ValueName: "ApplicationIcon"; ValueData: """{app}\{#MyAppExeName}"",0"
 
 ; Step 3: ProgIDs for audio and video files
-Root: HKLM; Subkey: "SOFTWARE\Classes\MediaAccess.AudioFile"; ValueType: string; ValueName: ""; ValueData: "{cm:AudioFileDesc}"; Flags: uninsdeletekey
-Root: HKLM; Subkey: "SOFTWARE\Classes\MediaAccess.AudioFile\DefaultIcon"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"",0"
-Root: HKLM; Subkey: "SOFTWARE\Classes\MediaAccess.AudioFile\shell\open"; ValueType: string; ValueName: "FriendlyAppName"; ValueData: "MediaAccess"
-Root: HKLM; Subkey: "SOFTWARE\Classes\MediaAccess.AudioFile\shell\open\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"" ""%1"""
+Root: HKA; Subkey: "SOFTWARE\Classes\MediaAccess.AudioFile"; ValueType: string; ValueName: ""; ValueData: "{cm:AudioFileDesc}"; Flags: uninsdeletekey
+Root: HKA; Subkey: "SOFTWARE\Classes\MediaAccess.AudioFile\DefaultIcon"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"",0"
+Root: HKA; Subkey: "SOFTWARE\Classes\MediaAccess.AudioFile\shell\open"; ValueType: string; ValueName: "FriendlyAppName"; ValueData: "MediaAccess"
+Root: HKA; Subkey: "SOFTWARE\Classes\MediaAccess.AudioFile\shell\open\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"" ""%1"""
 
-Root: HKLM; Subkey: "SOFTWARE\Classes\MediaAccess.VideoFile"; ValueType: string; ValueName: ""; ValueData: "{cm:VideoFileDesc}"; Flags: uninsdeletekey
-Root: HKLM; Subkey: "SOFTWARE\Classes\MediaAccess.VideoFile\DefaultIcon"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"",0"
-Root: HKLM; Subkey: "SOFTWARE\Classes\MediaAccess.VideoFile\shell\open"; ValueType: string; ValueName: "FriendlyAppName"; ValueData: "MediaAccess"
-Root: HKLM; Subkey: "SOFTWARE\Classes\MediaAccess.VideoFile\shell\open\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"" ""%1"""
+Root: HKA; Subkey: "SOFTWARE\Classes\MediaAccess.VideoFile"; ValueType: string; ValueName: ""; ValueData: "{cm:VideoFileDesc}"; Flags: uninsdeletekey
+Root: HKA; Subkey: "SOFTWARE\Classes\MediaAccess.VideoFile\DefaultIcon"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"",0"
+Root: HKA; Subkey: "SOFTWARE\Classes\MediaAccess.VideoFile\shell\open"; ValueType: string; ValueName: "FriendlyAppName"; ValueData: "MediaAccess"
+Root: HKA; Subkey: "SOFTWARE\Classes\MediaAccess.VideoFile\shell\open\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"" ""%1"""
 
-Root: HKLM; Subkey: "SOFTWARE\Classes\MediaAccess.Playlist"; ValueType: string; ValueName: ""; ValueData: "{cm:PlaylistDesc}"; Flags: uninsdeletekey
-Root: HKLM; Subkey: "SOFTWARE\Classes\MediaAccess.Playlist\DefaultIcon"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"",0"
-Root: HKLM; Subkey: "SOFTWARE\Classes\MediaAccess.Playlist\shell\open"; ValueType: string; ValueName: "FriendlyAppName"; ValueData: "MediaAccess"
-Root: HKLM; Subkey: "SOFTWARE\Classes\MediaAccess.Playlist\shell\open\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"" ""%1"""
+Root: HKA; Subkey: "SOFTWARE\Classes\MediaAccess.Playlist"; ValueType: string; ValueName: ""; ValueData: "{cm:PlaylistDesc}"; Flags: uninsdeletekey
+Root: HKA; Subkey: "SOFTWARE\Classes\MediaAccess.Playlist\DefaultIcon"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"",0"
+Root: HKA; Subkey: "SOFTWARE\Classes\MediaAccess.Playlist\shell\open"; ValueType: string; ValueName: "FriendlyAppName"; ValueData: "MediaAccess"
+Root: HKA; Subkey: "SOFTWARE\Classes\MediaAccess.Playlist\shell\open\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"" ""%1"""
 
 ; Step 4: File extension associations (which ProgID handles which extension)
 ; Audio formats
-Root: HKLM; Subkey: "SOFTWARE\MediaAccess\Capabilities\FileAssociations"; ValueType: string; ValueName: ".mp3";   ValueData: "MediaAccess.AudioFile"
-Root: HKLM; Subkey: "SOFTWARE\MediaAccess\Capabilities\FileAssociations"; ValueType: string; ValueName: ".mp2";   ValueData: "MediaAccess.AudioFile"
-Root: HKLM; Subkey: "SOFTWARE\MediaAccess\Capabilities\FileAssociations"; ValueType: string; ValueName: ".wav";   ValueData: "MediaAccess.AudioFile"
-Root: HKLM; Subkey: "SOFTWARE\MediaAccess\Capabilities\FileAssociations"; ValueType: string; ValueName: ".ogg";   ValueData: "MediaAccess.AudioFile"
-Root: HKLM; Subkey: "SOFTWARE\MediaAccess\Capabilities\FileAssociations"; ValueType: string; ValueName: ".aiff";  ValueData: "MediaAccess.AudioFile"
-Root: HKLM; Subkey: "SOFTWARE\MediaAccess\Capabilities\FileAssociations"; ValueType: string; ValueName: ".flac";  ValueData: "MediaAccess.AudioFile"
-Root: HKLM; Subkey: "SOFTWARE\MediaAccess\Capabilities\FileAssociations"; ValueType: string; ValueName: ".aac";   ValueData: "MediaAccess.AudioFile"
-Root: HKLM; Subkey: "SOFTWARE\MediaAccess\Capabilities\FileAssociations"; ValueType: string; ValueName: ".m4a";   ValueData: "MediaAccess.AudioFile"
-Root: HKLM; Subkey: "SOFTWARE\MediaAccess\Capabilities\FileAssociations"; ValueType: string; ValueName: ".m4b";   ValueData: "MediaAccess.AudioFile"
-Root: HKLM; Subkey: "SOFTWARE\MediaAccess\Capabilities\FileAssociations"; ValueType: string; ValueName: ".m4r";   ValueData: "MediaAccess.AudioFile"
-Root: HKLM; Subkey: "SOFTWARE\MediaAccess\Capabilities\FileAssociations"; ValueType: string; ValueName: ".wma";   ValueData: "MediaAccess.AudioFile"
-Root: HKLM; Subkey: "SOFTWARE\MediaAccess\Capabilities\FileAssociations"; ValueType: string; ValueName: ".opus";  ValueData: "MediaAccess.AudioFile"
-Root: HKLM; Subkey: "SOFTWARE\MediaAccess\Capabilities\FileAssociations"; ValueType: string; ValueName: ".wv";    ValueData: "MediaAccess.AudioFile"
-Root: HKLM; Subkey: "SOFTWARE\MediaAccess\Capabilities\FileAssociations"; ValueType: string; ValueName: ".ape";   ValueData: "MediaAccess.AudioFile"
-Root: HKLM; Subkey: "SOFTWARE\MediaAccess\Capabilities\FileAssociations"; ValueType: string; ValueName: ".alac";  ValueData: "MediaAccess.AudioFile"
-Root: HKLM; Subkey: "SOFTWARE\MediaAccess\Capabilities\FileAssociations"; ValueType: string; ValueName: ".mid";   ValueData: "MediaAccess.AudioFile"
-Root: HKLM; Subkey: "SOFTWARE\MediaAccess\Capabilities\FileAssociations"; ValueType: string; ValueName: ".midi";  ValueData: "MediaAccess.AudioFile"
-Root: HKLM; Subkey: "SOFTWARE\MediaAccess\Capabilities\FileAssociations"; ValueType: string; ValueName: ".dff";   ValueData: "MediaAccess.AudioFile"
-Root: HKLM; Subkey: "SOFTWARE\MediaAccess\Capabilities\FileAssociations"; ValueType: string; ValueName: ".dsf";   ValueData: "MediaAccess.AudioFile"
-Root: HKLM; Subkey: "SOFTWARE\MediaAccess\Capabilities\FileAssociations"; ValueType: string; ValueName: ".cda";   ValueData: "MediaAccess.AudioFile"
-Root: HKLM; Subkey: "SOFTWARE\MediaAccess\Capabilities\FileAssociations"; ValueType: string; ValueName: ".mod";   ValueData: "MediaAccess.AudioFile"
-Root: HKLM; Subkey: "SOFTWARE\MediaAccess\Capabilities\FileAssociations"; ValueType: string; ValueName: ".s3m";   ValueData: "MediaAccess.AudioFile"
-Root: HKLM; Subkey: "SOFTWARE\MediaAccess\Capabilities\FileAssociations"; ValueType: string; ValueName: ".xm";    ValueData: "MediaAccess.AudioFile"
-Root: HKLM; Subkey: "SOFTWARE\MediaAccess\Capabilities\FileAssociations"; ValueType: string; ValueName: ".it";    ValueData: "MediaAccess.AudioFile"
-Root: HKLM; Subkey: "SOFTWARE\MediaAccess\Capabilities\FileAssociations"; ValueType: string; ValueName: ".mtm";   ValueData: "MediaAccess.AudioFile"
-Root: HKLM; Subkey: "SOFTWARE\MediaAccess\Capabilities\FileAssociations"; ValueType: string; ValueName: ".umx";   ValueData: "MediaAccess.AudioFile"
+Root: HKA; Subkey: "SOFTWARE\MediaAccess\Capabilities\FileAssociations"; ValueType: string; ValueName: ".mp3";   ValueData: "MediaAccess.AudioFile"
+Root: HKA; Subkey: "SOFTWARE\MediaAccess\Capabilities\FileAssociations"; ValueType: string; ValueName: ".mp2";   ValueData: "MediaAccess.AudioFile"
+Root: HKA; Subkey: "SOFTWARE\MediaAccess\Capabilities\FileAssociations"; ValueType: string; ValueName: ".wav";   ValueData: "MediaAccess.AudioFile"
+Root: HKA; Subkey: "SOFTWARE\MediaAccess\Capabilities\FileAssociations"; ValueType: string; ValueName: ".ogg";   ValueData: "MediaAccess.AudioFile"
+Root: HKA; Subkey: "SOFTWARE\MediaAccess\Capabilities\FileAssociations"; ValueType: string; ValueName: ".aiff";  ValueData: "MediaAccess.AudioFile"
+Root: HKA; Subkey: "SOFTWARE\MediaAccess\Capabilities\FileAssociations"; ValueType: string; ValueName: ".flac";  ValueData: "MediaAccess.AudioFile"
+Root: HKA; Subkey: "SOFTWARE\MediaAccess\Capabilities\FileAssociations"; ValueType: string; ValueName: ".aac";   ValueData: "MediaAccess.AudioFile"
+Root: HKA; Subkey: "SOFTWARE\MediaAccess\Capabilities\FileAssociations"; ValueType: string; ValueName: ".m4a";   ValueData: "MediaAccess.AudioFile"
+Root: HKA; Subkey: "SOFTWARE\MediaAccess\Capabilities\FileAssociations"; ValueType: string; ValueName: ".m4b";   ValueData: "MediaAccess.AudioFile"
+Root: HKA; Subkey: "SOFTWARE\MediaAccess\Capabilities\FileAssociations"; ValueType: string; ValueName: ".m4r";   ValueData: "MediaAccess.AudioFile"
+Root: HKA; Subkey: "SOFTWARE\MediaAccess\Capabilities\FileAssociations"; ValueType: string; ValueName: ".wma";   ValueData: "MediaAccess.AudioFile"
+Root: HKA; Subkey: "SOFTWARE\MediaAccess\Capabilities\FileAssociations"; ValueType: string; ValueName: ".opus";  ValueData: "MediaAccess.AudioFile"
+Root: HKA; Subkey: "SOFTWARE\MediaAccess\Capabilities\FileAssociations"; ValueType: string; ValueName: ".wv";    ValueData: "MediaAccess.AudioFile"
+Root: HKA; Subkey: "SOFTWARE\MediaAccess\Capabilities\FileAssociations"; ValueType: string; ValueName: ".ape";   ValueData: "MediaAccess.AudioFile"
+Root: HKA; Subkey: "SOFTWARE\MediaAccess\Capabilities\FileAssociations"; ValueType: string; ValueName: ".alac";  ValueData: "MediaAccess.AudioFile"
+Root: HKA; Subkey: "SOFTWARE\MediaAccess\Capabilities\FileAssociations"; ValueType: string; ValueName: ".mid";   ValueData: "MediaAccess.AudioFile"
+Root: HKA; Subkey: "SOFTWARE\MediaAccess\Capabilities\FileAssociations"; ValueType: string; ValueName: ".midi";  ValueData: "MediaAccess.AudioFile"
+Root: HKA; Subkey: "SOFTWARE\MediaAccess\Capabilities\FileAssociations"; ValueType: string; ValueName: ".dff";   ValueData: "MediaAccess.AudioFile"
+Root: HKA; Subkey: "SOFTWARE\MediaAccess\Capabilities\FileAssociations"; ValueType: string; ValueName: ".dsf";   ValueData: "MediaAccess.AudioFile"
+Root: HKA; Subkey: "SOFTWARE\MediaAccess\Capabilities\FileAssociations"; ValueType: string; ValueName: ".cda";   ValueData: "MediaAccess.AudioFile"
+Root: HKA; Subkey: "SOFTWARE\MediaAccess\Capabilities\FileAssociations"; ValueType: string; ValueName: ".mod";   ValueData: "MediaAccess.AudioFile"
+Root: HKA; Subkey: "SOFTWARE\MediaAccess\Capabilities\FileAssociations"; ValueType: string; ValueName: ".s3m";   ValueData: "MediaAccess.AudioFile"
+Root: HKA; Subkey: "SOFTWARE\MediaAccess\Capabilities\FileAssociations"; ValueType: string; ValueName: ".xm";    ValueData: "MediaAccess.AudioFile"
+Root: HKA; Subkey: "SOFTWARE\MediaAccess\Capabilities\FileAssociations"; ValueType: string; ValueName: ".it";    ValueData: "MediaAccess.AudioFile"
+Root: HKA; Subkey: "SOFTWARE\MediaAccess\Capabilities\FileAssociations"; ValueType: string; ValueName: ".mtm";   ValueData: "MediaAccess.AudioFile"
+Root: HKA; Subkey: "SOFTWARE\MediaAccess\Capabilities\FileAssociations"; ValueType: string; ValueName: ".umx";   ValueData: "MediaAccess.AudioFile"
 ; Video formats
-Root: HKLM; Subkey: "SOFTWARE\MediaAccess\Capabilities\FileAssociations"; ValueType: string; ValueName: ".mp4";   ValueData: "MediaAccess.VideoFile"
-Root: HKLM; Subkey: "SOFTWARE\MediaAccess\Capabilities\FileAssociations"; ValueType: string; ValueName: ".mkv";   ValueData: "MediaAccess.VideoFile"
-Root: HKLM; Subkey: "SOFTWARE\MediaAccess\Capabilities\FileAssociations"; ValueType: string; ValueName: ".avi";   ValueData: "MediaAccess.VideoFile"
-Root: HKLM; Subkey: "SOFTWARE\MediaAccess\Capabilities\FileAssociations"; ValueType: string; ValueName: ".mov";   ValueData: "MediaAccess.VideoFile"
-Root: HKLM; Subkey: "SOFTWARE\MediaAccess\Capabilities\FileAssociations"; ValueType: string; ValueName: ".webm";  ValueData: "MediaAccess.VideoFile"
-Root: HKLM; Subkey: "SOFTWARE\MediaAccess\Capabilities\FileAssociations"; ValueType: string; ValueName: ".flv";   ValueData: "MediaAccess.VideoFile"
-Root: HKLM; Subkey: "SOFTWARE\MediaAccess\Capabilities\FileAssociations"; ValueType: string; ValueName: ".wmv";   ValueData: "MediaAccess.VideoFile"
-Root: HKLM; Subkey: "SOFTWARE\MediaAccess\Capabilities\FileAssociations"; ValueType: string; ValueName: ".ts";    ValueData: "MediaAccess.VideoFile"
-Root: HKLM; Subkey: "SOFTWARE\MediaAccess\Capabilities\FileAssociations"; ValueType: string; ValueName: ".m2ts";  ValueData: "MediaAccess.VideoFile"
-Root: HKLM; Subkey: "SOFTWARE\MediaAccess\Capabilities\FileAssociations"; ValueType: string; ValueName: ".vob";   ValueData: "MediaAccess.VideoFile"
-Root: HKLM; Subkey: "SOFTWARE\MediaAccess\Capabilities\FileAssociations"; ValueType: string; ValueName: ".ogv";   ValueData: "MediaAccess.VideoFile"
-Root: HKLM; Subkey: "SOFTWARE\MediaAccess\Capabilities\FileAssociations"; ValueType: string; ValueName: ".3gp";   ValueData: "MediaAccess.VideoFile"
-Root: HKLM; Subkey: "SOFTWARE\MediaAccess\Capabilities\FileAssociations"; ValueType: string; ValueName: ".mpg";   ValueData: "MediaAccess.VideoFile"
-Root: HKLM; Subkey: "SOFTWARE\MediaAccess\Capabilities\FileAssociations"; ValueType: string; ValueName: ".mpeg";  ValueData: "MediaAccess.VideoFile"
-Root: HKLM; Subkey: "SOFTWARE\MediaAccess\Capabilities\FileAssociations"; ValueType: string; ValueName: ".m4v";   ValueData: "MediaAccess.VideoFile"
+Root: HKA; Subkey: "SOFTWARE\MediaAccess\Capabilities\FileAssociations"; ValueType: string; ValueName: ".mp4";   ValueData: "MediaAccess.VideoFile"
+Root: HKA; Subkey: "SOFTWARE\MediaAccess\Capabilities\FileAssociations"; ValueType: string; ValueName: ".mkv";   ValueData: "MediaAccess.VideoFile"
+Root: HKA; Subkey: "SOFTWARE\MediaAccess\Capabilities\FileAssociations"; ValueType: string; ValueName: ".avi";   ValueData: "MediaAccess.VideoFile"
+Root: HKA; Subkey: "SOFTWARE\MediaAccess\Capabilities\FileAssociations"; ValueType: string; ValueName: ".mov";   ValueData: "MediaAccess.VideoFile"
+Root: HKA; Subkey: "SOFTWARE\MediaAccess\Capabilities\FileAssociations"; ValueType: string; ValueName: ".webm";  ValueData: "MediaAccess.VideoFile"
+Root: HKA; Subkey: "SOFTWARE\MediaAccess\Capabilities\FileAssociations"; ValueType: string; ValueName: ".flv";   ValueData: "MediaAccess.VideoFile"
+Root: HKA; Subkey: "SOFTWARE\MediaAccess\Capabilities\FileAssociations"; ValueType: string; ValueName: ".wmv";   ValueData: "MediaAccess.VideoFile"
+Root: HKA; Subkey: "SOFTWARE\MediaAccess\Capabilities\FileAssociations"; ValueType: string; ValueName: ".ts";    ValueData: "MediaAccess.VideoFile"
+Root: HKA; Subkey: "SOFTWARE\MediaAccess\Capabilities\FileAssociations"; ValueType: string; ValueName: ".m2ts";  ValueData: "MediaAccess.VideoFile"
+Root: HKA; Subkey: "SOFTWARE\MediaAccess\Capabilities\FileAssociations"; ValueType: string; ValueName: ".vob";   ValueData: "MediaAccess.VideoFile"
+Root: HKA; Subkey: "SOFTWARE\MediaAccess\Capabilities\FileAssociations"; ValueType: string; ValueName: ".ogv";   ValueData: "MediaAccess.VideoFile"
+Root: HKA; Subkey: "SOFTWARE\MediaAccess\Capabilities\FileAssociations"; ValueType: string; ValueName: ".3gp";   ValueData: "MediaAccess.VideoFile"
+Root: HKA; Subkey: "SOFTWARE\MediaAccess\Capabilities\FileAssociations"; ValueType: string; ValueName: ".mpg";   ValueData: "MediaAccess.VideoFile"
+Root: HKA; Subkey: "SOFTWARE\MediaAccess\Capabilities\FileAssociations"; ValueType: string; ValueName: ".mpeg";  ValueData: "MediaAccess.VideoFile"
+Root: HKA; Subkey: "SOFTWARE\MediaAccess\Capabilities\FileAssociations"; ValueType: string; ValueName: ".m4v";   ValueData: "MediaAccess.VideoFile"
 ; Playlist formats
-Root: HKLM; Subkey: "SOFTWARE\MediaAccess\Capabilities\FileAssociations"; ValueType: string; ValueName: ".m3u";   ValueData: "MediaAccess.Playlist"
-Root: HKLM; Subkey: "SOFTWARE\MediaAccess\Capabilities\FileAssociations"; ValueType: string; ValueName: ".m3u8";  ValueData: "MediaAccess.Playlist"
-Root: HKLM; Subkey: "SOFTWARE\MediaAccess\Capabilities\FileAssociations"; ValueType: string; ValueName: ".pls";   ValueData: "MediaAccess.Playlist"
+Root: HKA; Subkey: "SOFTWARE\MediaAccess\Capabilities\FileAssociations"; ValueType: string; ValueName: ".m3u";   ValueData: "MediaAccess.Playlist"
+Root: HKA; Subkey: "SOFTWARE\MediaAccess\Capabilities\FileAssociations"; ValueType: string; ValueName: ".m3u8";  ValueData: "MediaAccess.Playlist"
+Root: HKA; Subkey: "SOFTWARE\MediaAccess\Capabilities\FileAssociations"; ValueType: string; ValueName: ".pls";   ValueData: "MediaAccess.Playlist"
 
 ; Step 5: Application registration in App Paths (allows running from Win+R)
-Root: HKLM; Subkey: "SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\{#MyAppExeName}"; ValueType: string; ValueName: ""; ValueData: "{app}\{#MyAppExeName}"; Flags: uninsdeletekey
-Root: HKLM; Subkey: "SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\{#MyAppExeName}"; ValueType: string; ValueName: "Path"; ValueData: "{app}"
+Root: HKA; Subkey: "SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\{#MyAppExeName}"; ValueType: string; ValueName: ""; ValueData: "{app}\{#MyAppExeName}"; Flags: uninsdeletekey
+Root: HKA; Subkey: "SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\{#MyAppExeName}"; ValueType: string; ValueName: "Path"; ValueData: "{app}"
 
 ; Step 6: Register supported file types under "Open with" for each extension
 ; This adds MediaAccess to the "Open with" list even before being set as default
-Root: HKLM; Subkey: "SOFTWARE\Classes\Applications\{#MyAppExeName}"; ValueType: string; ValueName: "FriendlyAppName"; ValueData: "MediaAccess"; Flags: uninsdeletekey
-Root: HKLM; Subkey: "SOFTWARE\Classes\Applications\{#MyAppExeName}\shell\open\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"" ""%1"""
-Root: HKLM; Subkey: "SOFTWARE\Classes\Applications\{#MyAppExeName}\SupportedTypes"; ValueType: string; ValueName: ".mp3";  ValueData: ""
-Root: HKLM; Subkey: "SOFTWARE\Classes\Applications\{#MyAppExeName}\SupportedTypes"; ValueType: string; ValueName: ".mp4";  ValueData: ""
-Root: HKLM; Subkey: "SOFTWARE\Classes\Applications\{#MyAppExeName}\SupportedTypes"; ValueType: string; ValueName: ".mkv";  ValueData: ""
-Root: HKLM; Subkey: "SOFTWARE\Classes\Applications\{#MyAppExeName}\SupportedTypes"; ValueType: string; ValueName: ".avi";  ValueData: ""
-Root: HKLM; Subkey: "SOFTWARE\Classes\Applications\{#MyAppExeName}\SupportedTypes"; ValueType: string; ValueName: ".flac"; ValueData: ""
-Root: HKLM; Subkey: "SOFTWARE\Classes\Applications\{#MyAppExeName}\SupportedTypes"; ValueType: string; ValueName: ".m4a";  ValueData: ""
-Root: HKLM; Subkey: "SOFTWARE\Classes\Applications\{#MyAppExeName}\SupportedTypes"; ValueType: string; ValueName: ".webm"; ValueData: ""
-Root: HKLM; Subkey: "SOFTWARE\Classes\Applications\{#MyAppExeName}\SupportedTypes"; ValueType: string; ValueName: ".mov";  ValueData: ""
+Root: HKA; Subkey: "SOFTWARE\Classes\Applications\{#MyAppExeName}"; ValueType: string; ValueName: "FriendlyAppName"; ValueData: "MediaAccess"; Flags: uninsdeletekey
+Root: HKA; Subkey: "SOFTWARE\Classes\Applications\{#MyAppExeName}\shell\open\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"" ""%1"""
+Root: HKA; Subkey: "SOFTWARE\Classes\Applications\{#MyAppExeName}\SupportedTypes"; ValueType: string; ValueName: ".mp3";  ValueData: ""
+Root: HKA; Subkey: "SOFTWARE\Classes\Applications\{#MyAppExeName}\SupportedTypes"; ValueType: string; ValueName: ".mp4";  ValueData: ""
+Root: HKA; Subkey: "SOFTWARE\Classes\Applications\{#MyAppExeName}\SupportedTypes"; ValueType: string; ValueName: ".mkv";  ValueData: ""
+Root: HKA; Subkey: "SOFTWARE\Classes\Applications\{#MyAppExeName}\SupportedTypes"; ValueType: string; ValueName: ".avi";  ValueData: ""
+Root: HKA; Subkey: "SOFTWARE\Classes\Applications\{#MyAppExeName}\SupportedTypes"; ValueType: string; ValueName: ".flac"; ValueData: ""
+Root: HKA; Subkey: "SOFTWARE\Classes\Applications\{#MyAppExeName}\SupportedTypes"; ValueType: string; ValueName: ".m4a";  ValueData: ""
+Root: HKA; Subkey: "SOFTWARE\Classes\Applications\{#MyAppExeName}\SupportedTypes"; ValueType: string; ValueName: ".webm"; ValueData: ""
+Root: HKA; Subkey: "SOFTWARE\Classes\Applications\{#MyAppExeName}\SupportedTypes"; ValueType: string; ValueName: ".mov";  ValueData: ""
 
 [Icons]
 Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
