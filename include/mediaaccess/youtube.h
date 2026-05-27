@@ -58,6 +58,10 @@ int ClearYouTubeCache();
 // Total bytes currently used by the YouTube audio cache.
 unsigned long long GetYouTubeCacheSize();
 
+// Enforce a cache size cap by deleting oldest files first until the total
+// is below limitMB. Pass 0 or negative to disable. Returns count removed.
+int EnforceYouTubeCacheLimit(int limitMB);
+
 // Removes the legacy %TEMP%\MediaAccess directory (pre-1.0.8). Kept for
 // backwards compatibility / housekeeping at startup and shutdown.
 void CleanupYouTubeTempFiles();

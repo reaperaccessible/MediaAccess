@@ -828,6 +828,9 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
             FreeMPV();  // Free video engine before BASS
             FreeLogger();
             FreeBass();
+            // After BASS is released, any cache file that was open as the
+            // playing stream is now closed and safe to delete.
+            if (g_clearYtCacheOnExit) ClearYouTubeCache();
             FreeSpeech();
             PostQuitMessage(0);
             return 0;
@@ -941,6 +944,10 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLi
     }
     LoadHotkeys();
     YouTubeCleanup();  // Clean up any leftover temp files from previous sessions
+    // Enforce user-configured cache size cap (0 = unlimited, no-op).
+    // Runs at startup so the user notices the cache shrinking when they
+    // launch, not at unpredictable mid-session moments.
+    if (g_ytCacheLimitMB > 0) EnforceYouTubeCacheLimit(g_ytCacheLimitMB);
     ParseCommandLine();
 
     WNDCLASSEXW wc = {0};

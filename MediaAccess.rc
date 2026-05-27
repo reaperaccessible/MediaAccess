@@ -214,6 +214,10 @@ BEGIN
     EDITTEXT        IDC_YT_APIKEY, 17, 45, 256, 14, ES_AUTOHSCROLL | ES_PASSWORD
     LTEXT           "Get an API key from: console.cloud.google.com", IDC_LABEL_YOUTUBE_API_HELP, 17, 65, 200, 10
     LTEXT           "Without API key, yt-dlp will be used for search (slower).", IDC_LABEL_YOUTUBE_API_NOTE, 17, 80, 270, 10
+    AUTOCHECKBOX    "Clear cache when MediaAccess closes", IDC_YT_CLEAR_ON_EXIT, 17, 105, 230, 10
+    PUSHBUTTON      "Clear cache now...", IDC_YT_CLEAR_NOW, 17, 122, 100, 14
+    LTEXT           "Limit cache size (MB, 0 = unlimited):", IDC_LABEL_YT_LIMIT, 17, 145, 145, 10
+    EDITTEXT        IDC_YT_CACHE_LIMIT, 165, 143, 50, 14, ES_AUTOHSCROLL | ES_NUMBER
 
     // SoundTouch tab controls (shown when tab 9 selected)
     LTEXT           "SoundTouch settings (changes apply on next file load):", IDC_LABEL_SOUNDTOUCH_DESCRIPTION, 17, 30, 220, 10

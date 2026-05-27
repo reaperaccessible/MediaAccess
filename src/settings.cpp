@@ -311,6 +311,9 @@ void LoadSettings() {
     s_videoOutput = voBuf;
     // YouTube video mode
     SetYouTubeVideoMode(GetPrivateProfileIntW(L"YouTube", L"VideoMode", 0, g_configPath.c_str()) != 0);
+    g_clearYtCacheOnExit = GetPrivateProfileIntW(L"YouTube", L"ClearCacheOnExit", 0, g_configPath.c_str()) != 0;
+    g_ytCacheLimitMB = GetPrivateProfileIntW(L"YouTube", L"CacheLimitMB", 0, g_configPath.c_str());
+    if (g_ytCacheLimitMB < 0) g_ytCacheLimitMB = 0;
 
     // Language: load saved setting, or auto-detect from Windows on first run.
     // Note: InitTranslations() must have been called before this so SetLanguage()
@@ -711,6 +714,11 @@ void SaveSettings() {
     WritePrivateProfileStringW(L"Video", L"VideoOutput", s_videoOutput.c_str(), g_configPath.c_str());
     // YouTube video mode
     WritePrivateProfileStringW(L"YouTube", L"VideoMode", GetYouTubeVideoMode() ? L"1" : L"0", g_configPath.c_str());
+    WritePrivateProfileStringW(L"YouTube", L"ClearCacheOnExit", g_clearYtCacheOnExit ? L"1" : L"0", g_configPath.c_str());
+    {
+        wchar_t buf[32]; swprintf(buf, 32, L"%d", g_ytCacheLimitMB);
+        WritePrivateProfileStringW(L"YouTube", L"CacheLimitMB", buf, g_configPath.c_str());
+    }
 
     // Save UI language
     {

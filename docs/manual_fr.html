@@ -846,7 +846,12 @@
 </ul>
 
 <h3>Onglet YouTube</h3>
-<p>Clé API YouTube Data (optionnelle).</p>
+<ul>
+  <li><strong>Clé API YouTube Data</strong> (optionnelle, accélère la recherche)</li>
+  <li><strong>Vider le cache à la fermeture de MediaAccess</strong> (désactivé par défaut) — chaque vidéo YouTube écoutée est mise en cache permanent dans <code>%LOCALAPPDATA%\MediaAccess\YouTubeCache\</code> pour des relectures instantanées. Cochez si vous voulez tout effacer à chaque fermeture (utile sur poste partagé ou pour économiser l'espace disque). Attention : les relectures redeviendront alors lentes (re-téléchargement à chaque écoute).</li>
+  <li><strong>Vider le cache maintenant</strong> — bouton pour effacer le cache immédiatement. Demande confirmation, affiche la taille actuelle, puis indique le nombre de fichiers supprimés.</li>
+  <li><strong>Limite du cache (Mo, 0 = illimité)</strong> — taille maximale autorisée. Quand le cache dépasse cette limite, les fichiers les plus anciens sont supprimés au prochain démarrage. Suggéré : 500 Mo pour un usage léger, 2000 Mo pour un usage quotidien.</li>
+</ul>
 
 <h3>Onglet SoundTouch</h3>
 <ul>

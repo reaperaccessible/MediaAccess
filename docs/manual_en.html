@@ -846,7 +846,12 @@
 </ul>
 
 <h3>YouTube tab</h3>
-<p>YouTube Data API key (optional).</p>
+<ul>
+  <li><strong>YouTube Data API key</strong> (optional, speeds up search)</li>
+  <li><strong>Clear cache when MediaAccess closes</strong> (off by default) — every YouTube video played is cached permanently in <code>%LOCALAPPDATA%\MediaAccess\YouTubeCache\</code> for instant replays. Check this if you want everything wiped on each close (useful on shared machines or to save disk space). Note: replays will then be slow (re-download every time).</li>
+  <li><strong>Clear cache now</strong> — button to wipe the cache immediately. Asks for confirmation, shows the current size, then reports the number of removed files.</li>
+  <li><strong>Limit cache size (MB, 0 = unlimited)</strong> — maximum allowed size. When the cache exceeds this limit, the oldest files are removed at the next startup. Suggested: 500 MB for light use, 2000 MB for daily use.</li>
+</ul>
 
 <h3>SoundTouch tab</h3>
 <ul>

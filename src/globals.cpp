@@ -314,6 +314,8 @@ bool g_speechTrackChange = false;                   // Announce track changes (d
 bool g_speechVolume = true;                         // Speak volume when adjusted (default on)
 bool g_speechEffect = true;                         // Speak effect value when adjusted (default on)
 bool g_speechYTHybrid = true;                       // Announce "Effects activated" when YouTube hybrid swap completes (default on)
+bool g_clearYtCacheOnExit = false;                  // Wipe YouTube cache on app exit (default off)
+int  g_ytCacheLimitMB = 0;                          // Cap on cache size in MB (0 = unlimited, default 0)
 
 // Shuffle and auto-advance
 bool g_shuffle = false;                             // Shuffle playback order

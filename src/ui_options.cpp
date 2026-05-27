@@ -1,5 +1,6 @@
 #include "ui_internal.h"
 #include "mediaaccess/translations.h"
+#include "mediaaccess/youtube.h"  // ClearYouTubeCache, GetYouTubeCacheSize
 
 // Helper to show/hide tab controls
 void ShowTabControls(HWND hwnd, int tab) {
@@ -36,7 +37,7 @@ void ShowTabControls(HWND hwnd, int tab) {
                            IDC_LEGACY_VOLUME, IDC_DISABLE_BATCH, IDC_RESET_LIST_ORDER,
                            IDC_LABEL_ADVANCED_BUFFER_DESC, IDC_LABEL_ADVANCED_BUFFER_SIZE, IDC_LABEL_ADVANCED_UPDATE_PERIOD, IDC_LABEL_ADVANCED_LATENCY_NOTE, IDC_LABEL_ADVANCED_TEMPO_ALGO, IDC_LABEL_ADVANCED_EQ_FREQ, IDC_LABEL_ADVANCED_EQ_BASS, IDC_LABEL_ADVANCED_EQ_MID, IDC_LABEL_ADVANCED_EQ_TREBLE};
     // YouTube tab controls (tab 8) — yt-dlp path/browse removed (bundled + auto-updated)
-    int youtubeCtrls[] = {IDC_YT_APIKEY,
+    int youtubeCtrls[] = {IDC_YT_APIKEY, IDC_YT_CLEAR_ON_EXIT, IDC_YT_CLEAR_NOW, IDC_YT_CACHE_LIMIT, IDC_LABEL_YT_LIMIT,
                           IDC_LABEL_YOUTUBE_API_KEY, IDC_LABEL_YOUTUBE_API_HELP, IDC_LABEL_YOUTUBE_API_NOTE};
     // SoundTouch tab controls (tab 9)
     int soundtouchCtrls[] = {IDC_ST_AA_FILTER, IDC_ST_AA_LENGTH, IDC_ST_QUICK_ALGO, IDC_ST_SEQUENCE,
@@ -367,6 +368,8 @@ INT_PTR CALLBACK OptionsDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
 
             // Initialize YouTube tab (yt-dlp path is bundled/auto-detected, no UI)
             SetDlgItemTextW(hwnd, IDC_YT_APIKEY, g_ytApiKey.c_str());
+            CheckDlgButton(hwnd, IDC_YT_CLEAR_ON_EXIT, g_clearYtCacheOnExit ? BST_CHECKED : BST_UNCHECKED);
+            SetDlgItemInt(hwnd, IDC_YT_CACHE_LIMIT, g_ytCacheLimitMB, FALSE);
 
             // Initialize Recording tab
             {
@@ -713,6 +716,12 @@ INT_PTR CALLBACK OptionsDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
                         GetDlgItemTextW(hwnd, IDC_YT_APIKEY, buf, 512);
                         g_ytApiKey = buf;
                     }
+                    g_clearYtCacheOnExit = (IsDlgButtonChecked(hwnd, IDC_YT_CLEAR_ON_EXIT) == BST_CHECKED);
+                    {
+                        BOOL ok = FALSE;
+                        int v = (int)GetDlgItemInt(hwnd, IDC_YT_CACHE_LIMIT, &ok, FALSE);
+                        if (ok && v >= 0) g_ytCacheLimitMB = v;
+                    }
 
                     // Get Recording settings
                     {
@@ -821,6 +830,24 @@ INT_PTR CALLBACK OptionsDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
                 case IDCANCEL:
                     EndDialog(hwnd, IDCANCEL);
                     return TRUE;
+
+                case IDC_YT_CLEAR_NOW: {
+                    // Clear-now button: confirmation prompt that mirrors the
+                    // Help > Clear YouTube cache item, so users get the same
+                    // affordance from inside Options.
+                    unsigned long long bytes = GetYouTubeCacheSize();
+                    double mb = bytes / (1024.0 * 1024.0);
+                    wchar_t prompt[256];
+                    swprintf(prompt, 256, L"%s\n\n%.1f MB", T("Clear all cached YouTube audio?"), mb);
+                    if (MessageBoxW(hwnd, prompt, T("Clear YouTube cache"),
+                                    MB_YESNO | MB_ICONQUESTION) == IDYES) {
+                        int n = ClearYouTubeCache();
+                        wchar_t done[128];
+                        swprintf(done, 128, T("Removed %d cached files."), n);
+                        MessageBoxW(hwnd, done, T("Clear YouTube cache"), MB_OK | MB_ICONINFORMATION);
+                    }
+                    return TRUE;
+                }
 
                 case IDC_REC_BROWSE: {
                     // Browse for recording output folder

@@ -12,6 +12,8 @@
 #include <knownfolders.h>// FOLDERID_Downloads
 #include <regex>
 #include <sstream>
+#include <algorithm>
+#include <vector>
 
 #pragma comment(lib, "wininet.lib")
 
@@ -722,6 +724,54 @@ unsigned long long GetYouTubeCacheSize() {
     } while (FindNextFileW(h, &fd));
     FindClose(h);
     return total;
+}
+
+// Enforce a cache size cap: delete the OLDEST yt-* files (by last-write time)
+// until the total cache size is below the limit. Companion files (sidecars
+// like .v2 markers, .refresh.*) are deleted alongside their primary so the
+// cache stays consistent. Pass 0 or negative to disable (no-op).
+// Returns the number of files actually removed.
+int EnforceYouTubeCacheLimit(int limitMB) {
+    if (limitMB <= 0) return 0;
+    unsigned long long limitBytes = (unsigned long long)limitMB * 1024ULL * 1024ULL;
+    unsigned long long current = GetYouTubeCacheSize();
+    if (current <= limitBytes) return 0;
+
+    std::wstring dir = GetYouTubeCacheDir();
+    std::wstring pattern = dir + L"\\yt-*.*";
+
+    struct CacheEntry {
+        std::wstring name;
+        ULONGLONG mtime;
+        unsigned long long size;
+    };
+    std::vector<CacheEntry> entries;
+
+    WIN32_FIND_DATAW fd;
+    HANDLE h = FindFirstFileW(pattern.c_str(), &fd);
+    if (h == INVALID_HANDLE_VALUE) return 0;
+    do {
+        if (fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) continue;
+        ULARGE_INTEGER sz; sz.LowPart = fd.nFileSizeLow; sz.HighPart = fd.nFileSizeHigh;
+        ULARGE_INTEGER mt; mt.LowPart = fd.ftLastWriteTime.dwLowDateTime; mt.HighPart = fd.ftLastWriteTime.dwHighDateTime;
+        entries.push_back({fd.cFileName, mt.QuadPart, sz.QuadPart});
+    } while (FindNextFileW(h, &fd));
+    FindClose(h);
+
+    // Sort oldest first
+    std::sort(entries.begin(), entries.end(),
+              [](const CacheEntry& a, const CacheEntry& b) { return a.mtime < b.mtime; });
+
+    int removed = 0;
+    for (const auto& e : entries) {
+        if (current <= limitBytes) break;
+        std::wstring full = dir + L"\\" + e.name;
+        if (DeleteFileW(full.c_str())) {
+            current = (current > e.size) ? (current - e.size) : 0;
+            removed++;
+        }
+    }
+    return removed;
 }
 
 // Removes any leftover files from the old %TEMP%\MediaAccess location

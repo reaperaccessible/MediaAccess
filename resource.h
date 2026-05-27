@@ -235,6 +235,10 @@
 #define IDC_YTDLP_PATH      760
 #define IDC_YTDLP_BROWSE    761
 #define IDC_YT_APIKEY       762
+#define IDC_YT_CLEAR_ON_EXIT 763
+#define IDC_YT_CLEAR_NOW    764
+#define IDC_YT_CACHE_LIMIT  765
+#define IDC_LABEL_YT_LIMIT  766
 
 // Bookmarks
 #define IDM_BOOKMARK_ADD    800

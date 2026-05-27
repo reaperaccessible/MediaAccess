@@ -204,6 +204,8 @@ extern bool g_speechTrackChange;        // Announce track changes
 extern bool g_speechVolume;             // Speak volume when adjusted
 extern bool g_speechEffect;             // Speak effect value when adjusted
 extern bool g_speechYTHybrid;           // Announce "Effects activated" after YouTube hybrid swap
+extern bool g_clearYtCacheOnExit;       // Wipe YouTube cache on exit
+extern int  g_ytCacheLimitMB;           // Cache size cap in MB (0 = unlimited)
 
 // Shuffle and auto-advance
 extern bool g_shuffle;                  // Shuffle playback order

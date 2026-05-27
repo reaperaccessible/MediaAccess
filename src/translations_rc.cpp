@@ -274,6 +274,15 @@ void RegisterRcTranslations() {
     AddTranslation("en", "Announce YouTube effects activation", L"Announce YouTube effects activation");
     AddTranslation("fr", "Announce YouTube effects activation", L"Annoncer l'activation des effets YouTube");
 
+    AddTranslation("en", "Clear cache when MediaAccess closes", L"Clear cache when MediaAccess closes");
+    AddTranslation("fr", "Clear cache when MediaAccess closes", L"Vider le cache à la fermeture de MediaAccess");
+
+    AddTranslation("en", "Clear cache now...", L"Clear cache now...");
+    AddTranslation("fr", "Clear cache now...", L"Vider le cache maintenant...");
+
+    AddTranslation("en", "Limit cache size (MB, 0 = unlimited):", L"Limit cache size (MB, 0 = unlimited):");
+    AddTranslation("fr", "Limit cache size (MB, 0 = unlimited):", L"Limite du cache (Mo, 0 = illimité) :");
+
     // Movement tab
     AddTranslation("en", "Seek amounts (use , and . to cycle):", L"Seek amounts (use , and . to cycle):");
     AddTranslation("fr", "Seek amounts (use , and . to cycle):",
