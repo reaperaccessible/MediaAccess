@@ -216,8 +216,7 @@
 
 <section id="intro" aria-labelledby="intro-h">
 <h2 id="intro-h">1. Présentation</h2>
-<p>MediaAccess est un lecteur audio et vidéo léger et accessible pour Windows, conçu pour les utilisateurs de lecteurs d'écran (NVDA, JAWS) tout en restant agréable pour les utilisateurs voyants. Il combine une empreinte réduite avec une chaîne d'effets très complète (égaliseur, réverbération, écho, tempo, hauteur, largeur stéréo, audio 3D, réverbération à convolution, etc.) tous ajustables en temps réel.</p>
-<p>MediaAccess n'est pas un centre multimédia complet — c'est un lecteur ciblé que vous pouvez utiliser sérieusement ou pour le plaisir.</p>
+<p>MediaAccess est un lecteur audio et vidéo complet et accessible pour Windows, conçu pour les utilisateurs de lecteurs d'écran (NVDA, JAWS) tout en restant agréable pour les utilisateurs voyants. Il combine une empreinte réduite avec une chaîne d'effets professionnels très complète (égaliseur, réverbération, écho, tempo, hauteur, largeur stéréo, audio 3D, réverbération à convolution, etc.) tous ajustables en temps réel.</p>
 <p>Cette aide peut être ouverte à tout moment via <kbd>F1</kbd> ou via le menu <strong>Aide → Manuel</strong>.</p>
 </section>
 
@@ -225,14 +224,13 @@
 <h2 id="demarrage-h">2. Premiers pas</h2>
 
 <h3>Installation</h3>
-<p>Téléchargez <code>MediaAccessInstaller_<em>version</em>.exe</code> depuis la page des versions GitHub et exécutez-le. L'installateur est bilingue (anglais/français), détecte automatiquement la langue de Windows, et installe MediaAccess avec toutes ses dépendances (BASS, libmpv, yt-dlp). Aucune installation séparée n'est nécessaire.</p>
+<p>Téléchargez <code>MediaAccessInstaller_<em>version</em>.exe</code> depuis la page des versions GitHub et exécutez-le. L'installateur est bilingue (anglais/français), détecte automatiquement la langue de Windows, et fournit tout ce qui est nécessaire. Aucune installation séparée n'est requise.</p>
 
 <h3>Premier lancement</h3>
 <p>Au premier lancement, MediaAccess :</p>
 <ul>
   <li>Détecte la langue de Windows et adopte le français si Windows est en français, l'anglais sinon (modifiable dans <strong>Options → Lecture → Langue</strong>) ;</li>
-  <li>Choisit votre périphérique de sortie audio par défaut ;</li>
-  <li>Vérifie en arrière-plan s'il existe une mise à jour de yt-dlp.</li>
+  <li>Choisit votre périphérique de sortie audio par défaut.</li>
 </ul>
 
 <h3>Ouvrir un fichier</h3>
@@ -548,7 +546,7 @@
 
 <section id="youtube" aria-labelledby="youtube-h">
 <h2 id="youtube-h">10. YouTube</h2>
-<p>MediaAccess intègre YouTube via yt-dlp (fourni et mis à jour automatiquement) et l'API YouTube Data.</p>
+<p>MediaAccess dispose d'un support YouTube complet intégré — recherche, lecture et téléchargement — sans aucune configuration externe requise.</p>
 
 <h3>Recherche et lecture</h3>
 <ol>
@@ -569,10 +567,10 @@
 <p>Les vidéos lues sont mises en cache dans <code>%LOCALAPPDATA%\MediaAccess\YouTubeCache\</code>. Le cache est <strong>permanent</strong> — il survit aux redémarrages. Pour le vider : <strong>Aide → Vider le cache YouTube</strong>.</p>
 
 <h3>Clé API YouTube Data (optionnelle)</h3>
-<p>Si vous saisissez une clé API YouTube Data dans <strong>Options → YouTube</strong>, la recherche utilise l'API officielle (plus rapide). Sans clé, yt-dlp est utilisé (plus lent mais aucun compte requis). Obtenir une clé : <a href="https://console.cloud.google.com" rel="noopener">console.cloud.google.com</a>.</p>
+<p>Si vous saisissez une clé API YouTube Data dans <strong>Options → YouTube</strong>, la recherche utilise l'API officielle (plus rapide). Sans clé, MediaAccess utilise un mécanisme interne de repli (plus lent mais aucun compte requis). Obtenir une clé : <a href="https://console.cloud.google.com" rel="noopener">console.cloud.google.com</a>.</p>
 
 <h3>Tester la lecture YouTube</h3>
-<p><strong>Aide → Tester la lecture YouTube</strong> ouvre un diagnostic qui affiche : la version de yt-dlp détectée, son chemin, la disponibilité de libmpv et l'emplacement du journal. Utile en cas de problème.</p>
+<p><strong>Aide → Tester la lecture YouTube</strong> ouvre un diagnostic qui confirme que l'extracteur YouTube et le moteur vidéo fonctionnent, et indique l'emplacement du fichier journal. Utile en cas de problème.</p>
 </section>
 
 <section id="radio" aria-labelledby="radio-h">
@@ -943,7 +941,7 @@
 <p><strong>Aide → Modules chargés</strong> affiche la liste des plugins BASS détectés et ceux qui ont échoué à charger. Utile si un format audio ne fonctionne pas.</p>
 
 <h3>Tester la lecture YouTube</h3>
-<p><strong>Aide → Tester la lecture YouTube</strong> vérifie que yt-dlp est détecté et fonctionnel.</p>
+<p><strong>Aide → Tester la lecture YouTube</strong> vérifie que l'extracteur YouTube et le moteur vidéo fonctionnent.</p>
 
 <h3>Audit de mise en page</h3>
 <p><strong>Aide → Audit de mise en page</strong> vérifie qu'aucun texte n'est tronqué dans le dialogue Options pour la langue active. Outil de qualité essentiellement utile au développement.</p>

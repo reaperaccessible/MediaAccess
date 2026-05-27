@@ -1,30 +1,51 @@
-Welcome to Fastplay!
-Fastplay is a very lightweight, simple, yet powerful and flexible media player for Windows. It is designed to be accessible, minimalistic, yet powerful, all at the same time. It is also very small, and fast and responsive.
-Note! Fastplay is not designed to be a replacement for a complete media player. Rather, it's designed to be a small, lightweight media player that you can either use seriously or for fun! It has a vast list of effects including an EQ, reverb, echo, tempo/pitch, stereo width, and more, which you can adjust in realtime (See below).
-At the core of Fastplay are what we will call virtual sliders. Right now, there are two of these virtual sliders.
-The first one adjusts things like your volume and any effects you choose to enable/add. You choose what this slider adjusts by using left and right brackets, and then adjust the value itself with up or down arrows.
-The second slider allows you to do things such as seek and move between tracks. You adjust what this slider does by using comma and period, and you adjust the slider with left and right arrows.
-You can choose what shows up in these sliders by heading to the options dialog, control comma.
-The rest of the app is pretty explanitory. Just check out the menus for the rest of the keyboard shortcuts. Some of the other features include:
-* Basic Youtube search
-* Completely configurable Global hotkeys
-* MIDI support
-* ID3 tags with numbers 1 through 0.
-* URL stream support
-* Load all files in folder when clicking on a file.
-* Remember playback position of files
-* Able to set as default for filetypes.
+Welcome to MediaAccess!
 
-Enjoy this early beta!
+MediaAccess is a complete, accessible audio and video player for Windows.
+It is designed with screen-reader users in mind (NVDA, JAWS) and combines a
+small footprint with a deep professional effects chain (EQ, reverb, echo,
+tempo/pitch, stereo width, 3D audio, convolution reverb, and more) that
+can all be adjusted in real time.
 
-TROUBLESHOOTING YOUTUBE PLAYBACK / DÉPANNAGE LECTURE YOUTUBE
+
+CORE CONCEPT — VIRTUAL SLIDERS
+==============================
+
+MediaAccess centers on two virtual sliders:
+
+* Effects slider: adjusts volume and any effect you enable. Use [ and ] to
+  pick which parameter the slider controls, then Up/Down to adjust.
+* Movement slider: handles seeking and track navigation. Use , and . to pick
+  what the slider does, then Left/Right to move.
+
+Configure what appears in each slider via Tools > Options (Ctrl+,).
+
+
+FEATURES
+========
+
+* Audio: MP3, FLAC, AAC, OGG, Opus, WAV, WMA, AIFF, APE, ALAC, MIDI, and
+  more via BASS audio plugins.
+* Video: MKV, MP4, AVI, MOV, WebM, FLV, TS, M2TS, MPG, M4V, and more via
+  libmpv (bundled, no separate install).
+* YouTube: integrated search, streaming, and download — no external setup
+  required.
+* Internet radio: built-in browser for RadioBrowser, TuneIn, and iHeartRadio.
+* Podcasts: subscription manager with RSS, Podcast 2.0 chapters, automatic
+  episode downloads.
+* Recording: capture audio output to WAV, MP3, OGG, or FLAC.
+* MIDI playback with SoundFont support.
+* Global hotkeys, fully configurable.
+* Remember playback position per file.
+* French and English UI, auto-detected from Windows display language.
+
+
+TROUBLESHOOTING YOUTUBE PLAYBACK / DEPANNAGE LECTURE YOUTUBE
 ============================================================
 
-EN: Open Help > Test YouTube playback to verify yt-dlp is detected.
+EN: Open Help > Test YouTube playback to verify the YouTube extractor
+    is working.
     Logs at: %LOCALAPPDATA%\MediaAccess\mediaaccess.log
-    yt-dlp updates automatically on each launch.
 
-FR: Ouvrez Aide > Tester la lecture YouTube pour vérifier que yt-dlp
-    est détecté.
+FR: Ouvrez Aide > Tester la lecture YouTube pour verifier que
+    l'extracteur YouTube fonctionne.
     Journal : %LOCALAPPDATA%\MediaAccess\mediaaccess.log
-    yt-dlp se met à jour automatiquement à chaque démarrage.

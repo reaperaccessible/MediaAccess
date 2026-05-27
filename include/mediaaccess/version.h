@@ -2,9 +2,9 @@
 #ifndef MEDIAACCESS_VERSION_H
 #define MEDIAACCESS_VERSION_H
 
-#define APP_VERSION "1.30"
+#define APP_VERSION "1.31"
 #define APP_VERSION_MAJOR 1
-#define APP_VERSION_MINOR 30
+#define APP_VERSION_MINOR 31
 
 // This will be set during build from git commit
 #ifndef BUILD_COMMIT

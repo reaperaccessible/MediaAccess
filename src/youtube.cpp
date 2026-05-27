@@ -1341,9 +1341,9 @@ void ShowYouTubeDialog(HWND parent) {
         return;
     }
 
-    // Check if yt-dlp is available
+    // Check if the YouTube extractor is available (bundled — should always be)
     if (!IsYtdlpAvailable()) {
-        MessageBoxW(parent, T("yt-dlp is not configured. Please set the yt-dlp path in Options > YouTube tab."),
+        MessageBoxW(parent, T("The YouTube extractor was not found. Please reinstall MediaAccess."),
                     T("YouTube"), MB_ICONWARNING);
         return;
     }

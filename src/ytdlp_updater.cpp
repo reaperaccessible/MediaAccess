@@ -2,7 +2,7 @@
  * ytdlp_updater.cpp — silently keep yt-dlp.exe up to date
  *
  * On app startup we spawn a detached background thread that:
- *   1. Reads the last-seen GitHub release tag from FastPlay.ini ([YouTube] YtdlpVersion=).
+ *   1. Reads the last-seen GitHub release tag from MediaAccess.ini ([YouTube] YtdlpVersion=).
  *   2. Queries https://api.github.com/repos/yt-dlp/yt-dlp/releases/latest
  *      to learn the current tag.
  *   3. If the tag is different, downloads the new yt-dlp.exe to

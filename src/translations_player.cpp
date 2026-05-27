@@ -666,10 +666,39 @@ void RegisterPlayerTranslations() {
     AddTranslation("en", "Loading", L"Loading");
     AddTranslation("fr", "Loading", L"Chargement");
 
-    AddTranslation("en", "yt-dlp is not configured. Please set the yt-dlp path in Options > YouTube tab.",
-                   L"yt-dlp is not configured. Please set the yt-dlp path in Options > YouTube tab.");
-    AddTranslation("fr", "yt-dlp is not configured. Please set the yt-dlp path in Options > YouTube tab.",
-                   L"yt-dlp n'est pas configuré. Veuillez définir le chemin de yt-dlp dans Options > onglet YouTube.");
+    // Generic YouTube extractor messages (impl detail = yt-dlp, but user
+    // never sees the tool name — autonomy rule).
+    AddTranslation("en", "The YouTube extractor was not found. Please reinstall MediaAccess.",
+                   L"The YouTube extractor was not found. Please reinstall MediaAccess.");
+    AddTranslation("fr", "The YouTube extractor was not found. Please reinstall MediaAccess.",
+                   L"L'extracteur YouTube est introuvable. Veuillez réinstaller MediaAccess.");
+
+    AddTranslation("en", "The YouTube extractor was found but failed to run. Please reinstall MediaAccess.",
+                   L"The YouTube extractor was found but failed to run. Please reinstall MediaAccess.");
+    AddTranslation("fr", "The YouTube extractor was found but failed to run. Please reinstall MediaAccess.",
+                   L"L'extracteur YouTube est présent mais n'a pas pu démarrer. Veuillez réinstaller MediaAccess.");
+
+    AddTranslation("en", "The YouTube extractor is working.\n\n",
+                   L"The YouTube extractor is working.\n\n");
+    AddTranslation("fr", "The YouTube extractor is working.\n\n",
+                   L"L'extracteur YouTube fonctionne.\n\n");
+
+    AddTranslation("en", "Version: ", L"Version: ");
+    AddTranslation("fr", "Version: ", L"Version : ");
+
+    AddTranslation("en", "Video engine: ", L"Video engine: ");
+    AddTranslation("fr", "Video engine: ", L"Moteur vidéo : ");
+
+    AddTranslation("en", "available", L"available");
+    AddTranslation("fr", "available", L"disponible");
+
+    AddTranslation("en", "not available", L"not available");
+    AddTranslation("fr", "not available", L"indisponible");
+
+    AddTranslation("en", "If a YouTube video still fails, check the log file at:\n",
+                   L"If a YouTube video still fails, check the log file at:\n");
+    AddTranslation("fr", "If a YouTube video still fails, check the log file at:\n",
+                   L"Si une vidéo YouTube échoue encore, consultez le fichier journal :\n");
 
     AddTranslation("en", "YouTube", L"YouTube");
     AddTranslation("fr", "YouTube", L"YouTube");

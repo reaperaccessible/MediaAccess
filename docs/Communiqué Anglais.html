@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MediaAccess 1.30 &mdash; Press Release</title>
+<style>
+body { font-family: Arial, Helvetica, sans-serif; max-width: 900px; margin: 0 auto; padding: 20px; line-height: 1.6; color: #222; background: #fff; }
+h1 { font-size: 2em; border-bottom: 3px solid #333; padding-bottom: 10px; }
+h2 { font-size: 1.4em; border-bottom: 2px solid #666; padding-bottom: 5px; margin-top: 35px; color: #1a1a2e; }
+h3 { font-size: 1.15em; margin-top: 22px; color: #1a1a2e; }
+p { margin: 12px 0; }
+ul { margin-left: 10px; }
+li { margin-bottom: 6px; }
+kbd { background: #eee; border: 1px solid #ccc; border-radius: 3px; padding: 2px 6px; font-family: monospace; font-size: 0.95em; }
+.tagline { font-style: italic; color: #555; font-size: 1.1em; margin-bottom: 25px; }
+.callout { background: #f0f4ff; border-left: 4px solid #0056b3; padding: 15px 20px; margin: 25px 0; }
+.callout a { color: #0056b3; font-weight: bold; }
+footer { margin-top: 40px; border-top: 1px solid #ccc; padding-top: 10px; color: #666; font-size: 0.9em; }
+</style>
+</head>
+<body>
+
+<header>
+<h1>MediaAccess 1.30 &mdash; Official Release</h1>
+<p class="tagline">A lightweight, fully accessible audio and video player, designed from day one for blind and visually impaired users.</p>
+</header>
+
+<h2>Announcement</h2>
+<p>ReaperAccessible is pleased to announce the official release of <strong>MediaAccess&nbsp;1.30</strong>, a Windows audio and video player designed from day one to be fully usable by blind and visually impaired users with screen readers. After numerous public iterations and continuous integration of user feedback, MediaAccess today reaches its official stable milestone, ready for daily use.</p>
+
+<p><strong>One player for all your media.</strong> MediaAccess brings together in a single lightweight application: local audio file playback, video playback, internet radio listening, podcast subscriptions, direct YouTube search and playback, audio output recording, and a full real-time professional effects chain. No add-ons, no external players, no browser required &mdash; everything is integrated and keyboard accessible.</p>
+
+<p>MediaAccess is <strong>completely free, open source</strong> (GPL-3.0 license), and available immediately as a standalone installer for Windows&nbsp;11 64-bit.</p>
+
+<h2>What is MediaAccess?</h2>
+<p>MediaAccess is a complete audio and video player for Windows, powered by the professional BASS audio library for audio and libmpv for video. It natively plays the most common audio formats (MP3, FLAC, OGG, M4A, WAV, Opus, AAC, WMA, AIFF, APE, WavPack, ALAC, DSD, MIDI, tracker formats) and all common video formats (MKV, MP4, AVI, MOV, WebM, FLV, TS, M2TS, VOB, 3GP, MPEG, etc.) with full subtitle and multi-language audio track support.</p>
+
+<p>What distinguishes MediaAccess is not a feature list &mdash; many audio players offer comparable feature sets. What distinguishes it is that <strong>every feature has been designed so that a person navigating with NVDA or JAWS can use it with complete mastery, keyboard only</strong>. No compromise: accessibility is not a layer added on top of a mouse-first design. It is the design itself.</p>
+
+<h2>Key features</h2>
+
+<h3>Professional audio playback</h3>
+<ul>
+<li>Native playback of over 25 audio formats through the BASS library and its plugins (FLAC, Opus, AAC, WMA, APE, WavPack, ALAC, DSD, MIDI with SoundFont, tracker formats, audio CD files).</li>
+<li>M3U / M3U8 / PLS playlist playback with relative path handling.</li>
+<li>Speech announcement of ID3, Vorbis Comment, MP4 and other tags: title, artist, album, year, genre, track number, comment, bitrate, duration &mdash; each tag has its dedicated shortcut (<kbd>1</kbd> through <kbd>0</kbd>).</li>
+<li>Automatic chapter detection in Ogg, FLAC, Opus, MP3 (ID3v2 CHAP), MP4 files and Podcast 2.0 streams (RSS with <code>&lt;podcast:chapters&gt;</code> tags).</li>
+<li>Playback up to 400% volume via software amplification option, with configurable step (1 to 25%).</li>
+</ul>
+
+<h3>Integrated video playback</h3>
+<ul>
+<li>libmpv video engine bundled &mdash; no external installation required.</li>
+<li>Audio track cycling (useful for multilingual MKV files), subtitle handling (cycle, manual load, disable), aspect ratio cycling (4/3, 16/9, etc.).</li>
+<li>Fullscreen mode (<kbd>F11</kbd>), screenshot capture (<kbd>Ctrl+Shift+S</kbd>).</li>
+<li>Automatic detection of external subtitle files placed next to the video (.srt, .ass, .ssa, .sub, .vtt).</li>
+</ul>
+
+<h3>Real-time professional effects chain</h3>
+<p>MediaAccess offers a complete effects chain, all driveable by keyboard and screen reader.</p>
+<ul>
+<li><strong>Tempo</strong> &mdash; slow down or speed up without changing pitch, from -75% to +200%. Three algorithms to choose from: SoundTouch (fast), Google Speedy (optimized for speech), or Signalsmith Stretch (high quality).</li>
+<li><strong>Pitch</strong> &mdash; transpose from -12 to +12 semitones without changing speed, ideal for musicians and language learners.</li>
+<li><strong>Rate</strong> &mdash; sped-up or slowed-down playback like a vinyl (0.25&times; to 4&times;).</li>
+<li><strong>Reverb</strong> &mdash; three algorithms (Freeverb, DX8 DirectX, I3DL2 environmental) plus convolution reverb with your own WAV impulse response file.</li>
+<li><strong>Three-band equalizer</strong> with preamp and configurable center frequencies (bass, mid, treble).</li>
+<li><strong>Full compressor</strong> (threshold, ratio, attack, release, output gain).</li>
+<li><strong>Echo</strong> with adjustable delay, feedback, and mix.</li>
+<li><strong>Stereo width</strong> &mdash; from mono (0%) to ultra-wide (200%).</li>
+<li><strong>Center cancel</strong> &mdash; isolate or remove vocals for karaoke and practice use.</li>
+<li><strong>3D binaural or 5.1 audio</strong> powered by Steam Audio, with listener position adjustable in X/Y/Z and continuous rotation.</li>
+<li>Each effect has its own toggle shortcut (<kbd>Ctrl+1</kbd> through <kbd>Ctrl+=</kbd>) and all values are saved between sessions.</li>
+<li><strong>Effect presets</strong> &mdash; save your favorite combinations and recall them instantly via <kbd>P</kbd>.</li>
+</ul>
+
+<h3>Two-slider keyboard concept</h3>
+<p>Control organization revolves entirely around two persistent &laquo;virtual sliders&raquo;.</p>
+<ul>
+<li><strong>Effects slider</strong>: <kbd>[</kbd> and <kbd>]</kbd> cycle through active parameters; <kbd>up/down arrows</kbd> adjust the value. The list grows automatically as you enable new effects.</li>
+<li><strong>Movement slider</strong>: <kbd>,</kbd> and <kbd>.</kbd> change the unit (1 second, 5 seconds, 1 minute, 1 track, 1 chapter, etc.); <kbd>left/right arrows</kbd> seek.</li>
+</ul>
+<p>This principle separates <em>what</em> to modify from <em>by how much</em>, giving immediate and precise speech feedback with no ambiguity.</p>
+
+<h3>Native YouTube integration</h3>
+<ul>
+<li>Integrated YouTube search (<kbd>Ctrl+Y</kbd>) &mdash; no manual install required.</li>
+<li>Infinite scroll of results: new results load automatically when you reach the end of the list.</li>
+<li><strong>MediaAccess signature hybrid playback</strong>: playback starts instantly via libmpv while the full file downloads in the background, then automatically swaps to BASS once the download is complete &mdash; you get the best of both worlds: instant playback <em>and</em> access to all BASS effects (tempo, pitch, EQ, etc.).</li>
+<li>Permanent cache (configurable) for instant replays of already-heard tracks &mdash; no network cost, even offline.</li>
+<li>Three cache management options (clear on close, manual clear, size limit with oldest-files-first automatic removal).</li>
+<li>Embedded chapter detection: even on YouTube, you can navigate by chapters.</li>
+<li>Optional video mode to watch YouTube directly.</li>
+<li>Optional YouTube Data API key to speed up search.</li>
+</ul>
+
+<h3>Internet radio</h3>
+<ul>
+<li>Three selectable search sources: <strong>RadioBrowser</strong> (global community database with country filter), <strong>TuneIn</strong>, and <strong>iHeartRadio</strong>.</li>
+<li>Persistent favorites with reordering (<kbd>Ctrl+arrows</kbd>), renaming (<kbd>F2</kbd>), and M3U/PLS import/export.</li>
+<li>Live ICY metadata capture (current song title), announced via speech and saved to song history.</li>
+<li>Quick add of current stream to favorites (<kbd>Ctrl+D</kbd>).</li>
+</ul>
+
+<h3>Podcasts</h3>
+<ul>
+<li>Complete subscriptions manager with standard OPML import/export.</li>
+<li>Search the iTunes Podcasts directory.</li>
+<li>Basic HTTP authentication supported (password-protected RSS feeds).</li>
+<li>Multi-select episode list (<kbd>Shift+arrows</kbd>) with batch downloads.</li>
+<li><strong>Podcast 2.0 chapters</strong>: if the feed contains a <code>&lt;podcast:chapters&gt;</code> tag, MediaAccess fetches them and makes them navigable.</li>
+<li>Detailed diagnostic when a feed fails to load (URL, HTTP status, error code, received content, tags found).</li>
+<li>Automatic download organization by feed title.</li>
+</ul>
+
+<h3>Recording and scheduling</h3>
+<ul>
+<li>Audio output recording in one shortcut (<kbd>R</kbd>) to WAV, MP3, OGG Vorbis or FLAC.</li>
+<li>Flexible filename template with <code>strftime</code> codes or bilingual friendly tokens (<code>{year}</code>, <code>{ann&eacute;e}</code>, <code>{month}</code>, <code>{hour}</code>, etc.).</li>
+<li>Post-effects capture at full amplitude: listening volume does not affect the recorded file.</li>
+<li>Event scheduler (<kbd>Ctrl+S</kbd>): scheduled playback or recording of a file or radio at a specific date, with daily, weekly, monthly, or weekday/weekend repetition.</li>
+</ul>
+
+<h3>Daily productivity</h3>
+<ul>
+<li>Persistent bookmarks (<kbd>M</kbd> to add, <kbd>Ctrl+M</kbd> to manage) with filter by current file or all bookmarks.</li>
+<li>Song history (<kbd>Ctrl+Shift+H</kbd>): the last 100 titles captured from radio and podcast streams, with date, time, and clipboard copy.</li>
+<li>10 recent files in the File menu.</li>
+<li>Minimize to system tray (<kbd>Ctrl+H</kbd>) with full context menu.</li>
+<li>Configurable global hotkeys: over 35 actions assignable to keyboard combinations active even when MediaAccess does not have focus.</li>
+<li><strong>Paste from clipboard</strong> (<kbd>Ctrl+V</kbd>): <kbd>Ctrl+C</kbd> a file in Windows Explorer, then <kbd>Ctrl+V</kbd> in MediaAccess replaces the playlist and starts playback immediately.</li>
+</ul>
+
+<h2>Accessibility &mdash; first class, not an afterthought</h2>
+
+<h3>Screen reader support</h3>
+<ul>
+<li>Compatible with <strong>NVDA</strong>, <strong>JAWS</strong>, <strong>Window-Eyes</strong>, <strong>Supernova</strong>, and SAPI (fallback) through the bundled Universal Speech library &mdash; no configuration needed.</li>
+<li>All speech announcements are configurable: track changes, volume adjustment, effect adjustment, stream metadata, effect toggles.</li>
+<li>Every dialog is fully keyboard navigable with <kbd>Alt</kbd>+letter accelerators indicated by underlines.</li>
+</ul>
+
+<h3>Native bilingual &mdash; English and French</h3>
+<ul>
+<li>Automatic Windows language detection on first launch.</li>
+<li>Manual switch in <strong>Options &rarr; Playback &rarr; Language</strong>.</li>
+<li><strong>Every</strong> interface string is translated: menus, dialogs, error messages, NVDA speech announcements, control labels, the user manual itself &mdash; nothing is left in English on a French install (and vice versa).</li>
+</ul>
+
+<h3>Accessible HTML user manual</h3>
+<ul>
+<li>Press <kbd>F1</kbd> from anywhere to open the complete user manual in your default browser, automatically in the active language.</li>
+<li>Document compliant with WCAG 2.1 AA standards: proper heading hierarchy, high contrast, &laquo;skip to main content&raquo; link, navigable table of contents, captioned tables, <code>&lt;kbd&gt;</code> element for each key, automatic dark mode.</li>
+<li>22 sections covering 100% of features, with a complete keyboard shortcut reference.</li>
+</ul>
+
+<h2>Full autonomy &mdash; one installer, everything included</h2>
+<p>MediaAccess is <strong>fully self-contained</strong>. The installer ships everything required: audio engine and all its plugins (FLAC, Opus, AAC, MIDI, WMA, etc.), the video engine, YouTube support, the 3D audio library, and screen reader client DLLs (NVDA, JAWS). No third-party component needs to be installed or configured manually &mdash; <strong>MediaAccess will never ask the user to download or install anything</strong>.</p>
+
+<h2>Automatic updates</h2>
+<p>MediaAccess checks for a new version on startup (option can be disabled). If an update is available, an accessible dialog offers to download and install it in one click &mdash; no browser or manual intervention needed. The version comparison logic is protected against accidental downgrades.</p>
+
+<h2>System requirements</h2>
+<ul>
+<li>Windows&nbsp;11 64-bit (older versions of Windows are no longer supported by Microsoft and are not targeted).</li>
+<li>NVDA, JAWS or Windows Narrator screen reader (optional, but strongly recommended for the target audience).</li>
+<li>Standard 64-bit processor &mdash; no recent instruction requirement (Sandy Bridge or newer).</li>
+<li>~60&nbsp;MB disk space for the installer (includes the audio and video engines and all required components).</li>
+<li>Internet connection for online features (YouTube, radio, podcasts) &mdash; not required for local file playback.</li>
+</ul>
+
+<h2>Download</h2>
+
+<div class="callout">
+<p>MediaAccess is available immediately as a free download:</p>
+<p><a href="https://github.com/reaperaccessible/MediaAccess/releases/latest">github.com/reaperaccessible/MediaAccess/releases/latest</a></p>
+<p>The installer is named <strong>MediaAccessInstaller_1.30.exe</strong> (61&nbsp;MB). Choose &laquo;install for all users&raquo; or &laquo;install for me only&raquo; according to your preference: both modes are fully supported.</p>
+<p>The complete source code is available under the GPL-3.0 license on the same repository. User feedback &mdash; bug reports, feature requests, accessibility observations, workflow suggestions &mdash; is welcome.</p>
+</div>
+
+<h2>Contact</h2>
+<p>Website: <a href="https://reaperaccessible.fr">reaperaccessible.fr</a><br>
+Email: <a href="mailto:reaperaccessible@gmail.com">reaperaccessible@gmail.com</a><br>
+Repository: <a href="https://github.com/reaperaccessible/MediaAccess">github.com/reaperaccessible/MediaAccess</a></p>
+
+</body>
+</html>

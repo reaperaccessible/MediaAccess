@@ -15,7 +15,7 @@ MediaAccess est un lecteur multimédia conçu pour être pleinement accessible a
 - **Lecture vidéo** : MP4, MKV, AVI, MOV, WebM, FLV et autres (via libmpv)
 - **Contrôles audio avancés** : tempo, pitch, vitesse de lecture indépendants
 - **Effets DSP** : réverbération, écho, égaliseur 3 bandes, compresseur, élargissement stéréo, suppression vocale, audio spatial 3D
-- **YouTube intégré** : recherche et lecture (audio ou vidéo) via yt-dlp
+- **YouTube intégré** : recherche, lecture et téléchargement (audio ou vidéo) sans configuration externe
 - **Radio internet** : recherche RadioBrowser, iHeartRadio, TuneIn + favoris
 - **Podcasts** : abonnements RSS, téléchargement d'épisodes
 - **Planificateur** : programmer des lectures à heures fixes
@@ -40,7 +40,7 @@ MediaAccess is a multimedia player designed for full accessibility with screen r
 - **Video playback**: MP4, MKV, AVI, MOV, WebM, FLV and others (via libmpv)
 - **Advanced audio controls**: independent tempo, pitch, and playback speed
 - **DSP effects**: reverb, echo, 3-band EQ, compressor, stereo widening, vocal removal, 3D spatial audio
-- **Integrated YouTube**: search and playback (audio or video) via yt-dlp
+- **Integrated YouTube**: search, playback, and download (audio or video) with no external setup
 - **Internet radio**: RadioBrowser, iHeartRadio, TuneIn search + favorites
 - **Podcasts**: RSS subscriptions, episode downloads
 - **Scheduler**: schedule playback at specific times
@@ -75,13 +75,11 @@ Run `download-deps.bat` (downloads BASS, libmpv, dependencies) then `build_new.b
 ## Troubleshooting
 
 ### YouTube playback fails
-1. Open **Help → Test YouTube playback / Aide → Tester la lecture YouTube** to verify yt-dlp is detected and reports a version.
-2. Check the log file at `%LOCALAPPDATA%\MediaAccess\mediaaccess.log` for the exact yt-dlp command and any errors.
-3. yt-dlp is auto-updated on every launch (silent background download to `%LOCALAPPDATA%\MediaAccess\yt-dlp.exe`). If updates are blocked by your network, the bundled `lib\yt-dlp.exe` is used as fallback.
-4. For livestreams and DRM-protected videos, MediaAccess automatically falls back to the libmpv engine (you'll hear "Playing via video engine" — DSP effects do not apply in this mode).
+1. Open **Help → Test YouTube playback** to verify the YouTube extractor and the video engine are functional.
+2. Check the log file at `%LOCALAPPDATA%\MediaAccess\mediaaccess.log` for the exact error.
+3. For livestreams and DRM-protected videos, MediaAccess automatically falls back to the video engine (you'll hear "Playing via video engine" — DSP effects do not apply in this mode).
 
 ### Lecture YouTube en échec (FR)
-1. Ouvrez **Aide → Tester la lecture YouTube** pour vérifier que yt-dlp est détecté et qu'une version est rapportée.
-2. Consultez le fichier journal `%LOCALAPPDATA%\MediaAccess\mediaaccess.log` pour voir la commande yt-dlp exacte et les erreurs éventuelles.
-3. yt-dlp est mis à jour automatiquement à chaque démarrage (téléchargement silencieux dans `%LOCALAPPDATA%\MediaAccess\yt-dlp.exe`). Si les mises à jour sont bloquées par votre réseau, le `lib\yt-dlp.exe` livré sert de fallback.
-4. Pour les livestreams et vidéos protégées par DRM, MediaAccess bascule automatiquement sur libmpv (vous entendrez « Lecture via le moteur vidéo » — les effets DSP ne s'appliquent pas dans ce mode).
+1. Ouvrez **Aide → Tester la lecture YouTube** pour vérifier que l'extracteur YouTube et le moteur vidéo fonctionnent.
+2. Consultez le fichier journal `%LOCALAPPDATA%\MediaAccess\mediaaccess.log` pour l'erreur exacte.
+3. Pour les livestreams et vidéos protégées par DRM, MediaAccess bascule automatiquement sur le moteur vidéo (vous entendrez « Lecture via le moteur vidéo » — les effets DSP ne s'appliquent pas dans ce mode).

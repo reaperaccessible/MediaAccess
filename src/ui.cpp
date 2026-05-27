@@ -758,18 +758,20 @@ void ShowOpenURLDialog() {
     }
 }
 
-// Diagnostic: verify yt-dlp is installed and reports a version. Purely informational —
-// invoked from the Help menu (IDM_HELP_TEST_YOUTUBE) so the user can confirm the
-// yt-dlp + libmpv/BASS toolchain is healthy before relying on it for YouTube playback.
+// Diagnostic: verify the YouTube extractor is functional and reports a version.
+// Purely informational — invoked from the Help menu (IDM_HELP_TEST_YOUTUBE) so
+// the user can confirm the YouTube + video toolchain is healthy before relying
+// on it for playback. Internal implementation uses yt-dlp but the user-facing
+// messages refer only to "the YouTube extractor".
 void ShowTestYouTubePlayback() {
     std::wstring msg;
     if (g_ytdlpPath.empty() || !PathFileExistsW(g_ytdlpPath.c_str())) {
-        msg = T("yt-dlp not found.\n\nMediaAccess looks for it in:\n  - %LOCALAPPDATA%\\MediaAccess\\yt-dlp.exe\n  - <install>\\lib\\yt-dlp.exe\n  - system PATH");
+        msg = T("The YouTube extractor was not found. Please reinstall MediaAccess.");
         MessageBoxW(g_hwnd, msg.c_str(), T("Test YouTube playback"), MB_ICONWARNING | MB_OK);
         return;
     }
 
-    // Run "yt-dlp --version"
+    // Run the extractor with --version to confirm it works
     std::wstring cmd = L"\"" + g_ytdlpPath + L"\" --version";
 
     SECURITY_ATTRIBUTES sa = { sizeof(sa), nullptr, TRUE };
@@ -817,16 +819,16 @@ void ShowTestYouTubePlayback() {
     }
 
     if (ok && !version.empty()) {
-        msg = T("yt-dlp is working.\n\nPath: ") + g_ytdlpPath + L"\n";
-        msg += T("Version: ") + version + L"\n\n";
-        msg += T("libmpv (for video / fallback): ") + std::wstring(IsMPVAvailable() ? T("available") : T("not available")) + L"\n\n";
+        msg = T("The YouTube extractor is working.\n\n");
+        msg += T("Version: ") + version + L"\n";
+        msg += T("Video engine: ") + std::wstring(IsMPVAvailable() ? T("available") : T("not available")) + L"\n\n";
         msg += T("If a YouTube video still fails, check the log file at:\n");
         wchar_t base[MAX_PATH] = {0};
         SHGetFolderPathW(nullptr, CSIDL_LOCAL_APPDATA, nullptr, 0, base);
         msg += std::wstring(base) + L"\\MediaAccess\\mediaaccess.log";
         MessageBoxW(g_hwnd, msg.c_str(), T("Test YouTube playback"), MB_ICONINFORMATION | MB_OK);
     } else {
-        msg = T("yt-dlp is present but failed to run.\n\nPath: ") + g_ytdlpPath;
+        msg = T("The YouTube extractor was found but failed to run. Please reinstall MediaAccess.");
         MessageBoxW(g_hwnd, msg.c_str(), T("Test YouTube playback"), MB_ICONERROR | MB_OK);
     }
 }

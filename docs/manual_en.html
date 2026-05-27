@@ -216,8 +216,7 @@
 
 <section id="intro" aria-labelledby="intro-h">
 <h2 id="intro-h">1. Introduction</h2>
-<p>MediaAccess is a lightweight, accessible audio and video player for Windows. It is designed for screen-reader users (NVDA, JAWS) while remaining pleasant for sighted users. It combines a small footprint with a deep effects chain (EQ, reverb, echo, tempo, pitch, stereo width, 3D audio, convolution reverb, and more), all adjustable in real time.</p>
-<p>MediaAccess is not a full media center — it is a focused player you can use seriously or for fun.</p>
+<p>MediaAccess is a complete, accessible audio and video player for Windows. It is designed for screen-reader users (NVDA, JAWS) while remaining pleasant for sighted users. It combines a small footprint with a deep professional effects chain (EQ, reverb, echo, tempo, pitch, stereo width, 3D audio, convolution reverb, and more), all adjustable in real time.</p>
 <p>This help is available at any time via <kbd>F1</kbd> or via <strong>Help → Manual</strong>.</p>
 </section>
 
@@ -225,14 +224,13 @@
 <h2 id="getting-started-h">2. Getting started</h2>
 
 <h3>Installation</h3>
-<p>Download <code>MediaAccessInstaller_<em>version</em>.exe</code> from the GitHub releases page and run it. The installer is bilingual (English/French), auto-detects the Windows display language, and installs MediaAccess with all its dependencies (BASS, libmpv, yt-dlp) bundled. No separate installs are needed.</p>
+<p>Download <code>MediaAccessInstaller_<em>version</em>.exe</code> from the GitHub releases page and run it. The installer is bilingual (English/French), auto-detects the Windows display language, and bundles everything required. No separate installs are needed.</p>
 
 <h3>First launch</h3>
 <p>On first launch, MediaAccess:</p>
 <ul>
   <li>Detects the Windows language and uses French if Windows is French, English otherwise (overridable in <strong>Options → Playback → Language</strong>);</li>
-  <li>Picks your default audio output device;</li>
-  <li>Checks for a yt-dlp update in the background.</li>
+  <li>Picks your default audio output device.</li>
 </ul>
 
 <h3>Opening a file</h3>
@@ -548,7 +546,7 @@
 
 <section id="youtube" aria-labelledby="youtube-h">
 <h2 id="youtube-h">10. YouTube</h2>
-<p>MediaAccess integrates YouTube via yt-dlp (bundled and auto-updated) and the YouTube Data API.</p>
+<p>MediaAccess has full built-in YouTube support — search, playback, and download — with no external setup required.</p>
 
 <h3>Search and playback</h3>
 <ol>
@@ -569,10 +567,10 @@
 <p>Played videos are cached in <code>%LOCALAPPDATA%\MediaAccess\YouTubeCache\</code>. The cache is <strong>permanent</strong> — it survives reboots. To clear it: <strong>Help → Clear YouTube cache</strong>.</p>
 
 <h3>YouTube Data API key (optional)</h3>
-<p>If you enter a YouTube Data API key in <strong>Options → YouTube</strong>, search uses the official API (faster). Without a key, yt-dlp is used (slower, but no account required). Get a key: <a href="https://console.cloud.google.com" rel="noopener">console.cloud.google.com</a>.</p>
+<p>If you enter a YouTube Data API key in <strong>Options → YouTube</strong>, search uses the official API (faster). Without a key, MediaAccess uses an internal fallback (slower, but no account required). Get a key: <a href="https://console.cloud.google.com" rel="noopener">console.cloud.google.com</a>.</p>
 
 <h3>Test YouTube playback</h3>
-<p><strong>Help → Test YouTube playback</strong> opens a diagnostic dialog showing: detected yt-dlp version, its path, libmpv availability, and the log file location. Useful when troubleshooting.</p>
+<p><strong>Help → Test YouTube playback</strong> opens a diagnostic dialog confirming that the YouTube extractor and the video engine are functional, plus the location of the log file. Useful when troubleshooting.</p>
 </section>
 
 <section id="radio" aria-labelledby="radio-h">
@@ -943,7 +941,7 @@
 <p><strong>Help → Loaded Plugins</strong> shows the list of detected BASS plugins and any that failed to load. Useful if an audio format doesn't work.</p>
 
 <h3>Test YouTube playback</h3>
-<p><strong>Help → Test YouTube playback</strong> verifies that yt-dlp is detected and functional.</p>
+<p><strong>Help → Test YouTube playback</strong> verifies that the YouTube extractor and video engine are functional.</p>
 
 <h3>Audit dialog layout</h3>
 <p><strong>Help → Audit dialog layout</strong> verifies that no text is truncated in the Options dialog for the active language. A quality tool primarily useful for development.</p>
