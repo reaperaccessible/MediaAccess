@@ -499,6 +499,12 @@ bool MPVLoadFile(const wchar_t* path)
     const char* cmd[] = {"loadfile", utf8.c_str(), nullptr};
     g_mpvEofReached.store(false);
     g_mpvIdle.store(false);
+    // Force pause off before loadfile: mpv's `pause` property is process-
+    // wide and persists across loadfile calls. If the previous media was
+    // paused (user pressed Space, opened a different file, etc.), the new
+    // media would silently load and stay paused. Always start fresh.
+    int flag = 0;
+    fn_mpv_set_property(g_mpv, "pause", MPV_FORMAT_FLAG, &flag);
     return fn_mpv_command(g_mpv, cmd) == 0;
 }
 
