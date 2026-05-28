@@ -203,7 +203,7 @@
     <li><a href="#midi">MIDI</a></li>
     <li><a href="#planificateur">Planificateur</a></li>
     <li><a href="#tray">Zone de notification</a></li>
-    <li><a href="#hotkeys">Raccourcis globaux</a></li>
+    <li><a href="#hotkeys">Actions et raccourcis</a></li>
     <li><a href="#options">Options détaillées</a></li>
     <li><a href="#accessibilite">Accessibilité</a></li>
     <li><a href="#mises-a-jour">Mises à jour</a></li>
@@ -420,6 +420,7 @@
 </tbody>
 </table>
 <p><strong>Tempo</strong> change la vitesse sans changer la hauteur ; <strong>Hauteur</strong> change la hauteur sans changer la vitesse ; <strong>Vitesse</strong> change les deux (lecture accélérée/ralentie comme un disque). Tempo et Vitesse sont désactivés pour les flux en direct (radio internet).</p>
+<p>Quand vous accélérez ou ralentissez la lecture (effet Tempo ou Vitesse), la barre d'état ainsi que les annonces <kbd>Ctrl</kbd>+<kbd>Maj</kbd>+<kbd>E</kbd>, <kbd>Ctrl</kbd>+<kbd>Maj</kbd>+<kbd>R</kbd> et <kbd>Ctrl</kbd>+<kbd>Maj</kbd>+<kbd>T</kbd> reflètent le temps d'écoute réel et non la durée brute du fichier. Un fichier de 33 minutes lu à 3× affiche par exemple 0:00 / 11:00. L'effet Hauteur seul ne modifie pas la durée et est ignoré pour ce calcul.</p>
 
 <h3>Effets DSP</h3>
 <p>Chaque effet DSP a un raccourci d'activation/désactivation et ajoute ses paramètres au curseur d'effets quand il est actif.</p>
@@ -713,8 +714,8 @@
 <p>Les fichiers <code>.mid</code>, <code>.midi</code>, <code>.rmi</code> et <code>.kar</code> sont lus via BASSMIDI.</p>
 
 <h3>SoundFont</h3>
-<p>MediaAccess est livré avec <strong>FluidR3_GM</strong> de Frank Wen (licence MIT), la référence open-source pour le General MIDI. Les fichiers MIDI sonnent bien dès l'installation, sans configuration. Le fichier est installé à <code>&lt;dossier d'installation&gt;\lib\FluidR3_GM.sf2</code>.</p>
-<p>Pour utiliser un autre SoundFont, ouvrez <strong>Options → MIDI</strong> et parcourez vers un fichier <code>.sf2</code> ou <code>.sf3</code>. Videz le champ pour revenir à FluidR3_GM inclus. Si le champ est vide et que le fichier inclus est absent (rare — uniquement pour les builds portables n'ayant pas téléchargé le SoundFont), BASSMIDI utilise son synthétiseur intégré basique.</p>
+<p>MediaAccess est livré avec <strong>FluidR3_GM</strong> de Frank Wen (licence MIT), la référence open-source pour le General MIDI, fourni dans l'installateur. Quand aucun SoundFont personnalisé n'est configuré, le SoundFont inclus est utilisé automatiquement : les fichiers MIDI sonnent professionnels dès l'installation, sans configuration. Le fichier est installé à <code>&lt;dossier d'installation&gt;\lib\FluidR3_GM.sf2</code>.</p>
+<p>Pour utiliser un autre SoundFont, ouvrez <strong>Options → MIDI</strong> et parcourez vers un fichier <code>.sf2</code> ou <code>.sf3</code>. Videz le champ pour revenir au FluidR3_GM inclus. Si le champ est vide et que le fichier inclus est absent (rare — uniquement pour les builds portables n'ayant pas téléchargé le SoundFont), BASSMIDI utilise son synthétiseur intégré basique.</p>
 
 <h3>Polyphonie</h3>
 <p>« Nombre maximum de voix » contrôle la polyphonie (1 à 1000, défaut 128). Au-delà de 512, ne change vraiment que pour des fichiers MIDI très denses.</p>
@@ -772,27 +773,38 @@
 </section>
 
 <section id="hotkeys" aria-labelledby="hotkeys-h">
-<h2 id="hotkeys-h">17. Raccourcis globaux</h2>
-<p>Les raccourcis globaux sont actifs même quand MediaAccess n'a pas le focus.</p>
+<h2 id="hotkeys-h">17. Actions et raccourcis</h2>
+<p>MediaAccess permet de réassigner librement tous les raccourcis clavier via une fenêtre <strong>Actions</strong> de style REAPER, accessible par <kbd>F4</kbd> ou via <strong>Outils → Actions</strong>.</p>
 
-<h3>Configuration</h3>
-<ol>
-  <li>Ouvrez <strong>Options → Raccourcis globaux</strong>.</li>
-  <li>Cochez « Activer les raccourcis globaux ».</li>
-  <li>Cliquez sur <strong>Ajouter</strong> et sélectionnez une action ainsi qu'une combinaison de touches (au moins une touche modificatrice Ctrl, Alt ou Maj est requise).</li>
-  <li><strong>Modifier</strong> ou <strong>Retirer</strong> agissent sur la sélection.</li>
-</ol>
+<h3>Parcourir et filtrer</h3>
+<p>La fenêtre Actions liste toutes les actions de l'application, regroupées par section dans un combo de catégorie :</p>
+<ul>
+  <li><strong>Principale</strong> : actions de la fenêtre principale (lecture, effets, navigation, etc.) ;</li>
+  <li><strong>Radio</strong> : actions du navigateur de radio ;</li>
+  <li><strong>YouTube</strong> : actions du dialogue YouTube ;</li>
+  <li><strong>Globale</strong> : raccourcis système actifs même quand MediaAccess n'a pas le focus (voir plus bas).</li>
+</ul>
+<p>Un champ <strong>Filtre</strong> en direct (correspondance partielle sur le nom d'action ou sur le raccourci) permet de retrouver rapidement une action. Le bouton <strong>Rechercher un raccourci...</strong>, à droite du filtre, ouvre une petite boîte : appuyez sur la combinaison de votre choix, puis <kbd>Tab</kbd> jusqu'à <strong>Rechercher</strong> — le focus saute sur l'action correspondante dans la section courante.</p>
+
+<h3>Affecter, modifier ou retirer un raccourci</h3>
+<p>Chaque action affiche la liste des raccourcis qui lui sont actuellement assignés. Trois boutons : <strong>Ajouter</strong>, <strong>Modifier</strong>, <strong>Supprimer</strong>. Plusieurs raccourcis par action sont supportés (à la manière de REAPER).</p>
+<p>Si la combinaison que vous essayez d'affecter est déjà utilisée par une autre action, un dialogue propose trois choix : <strong>Remplacer</strong> (retire l'ancienne assignation), <strong>Annuler</strong> ou <strong>Affecter quand même</strong> (les deux actions partagent alors le même raccourci, la première rencontrée dans le code l'emporte).</p>
+
+<h3>Keymaps régionaux et personnalisés</h3>
+<p>L'installateur fournit trois keymaps prêts à l'emploi : <strong>USA</strong>, <strong>FR-CA</strong> (français canadien) et <strong>FR-FR</strong> (français de France). Au premier lancement, MediaAccess détecte automatiquement votre disposition de clavier Windows et choisit le keymap approprié.</p>
+<p>Les boutons <strong>Charger...</strong>, <strong>Enregistrer sous...</strong> et <strong>Réinitialiser</strong> en bas de la fenêtre Actions permettent de gérer vos propres keymaps. Les fichiers sont des fichiers texte <code>.MediaAccessKeyMap</code> stockés dans <code>%APPDATA%\MediaAccess\KeyMaps\</code>, faciles à partager.</p>
+<p>Les libellés de raccourci affichés dans les menus se mettent à jour automatiquement pour correspondre au keymap actif.</p>
+
+<h3>Section Globale</h3>
+<p>La section <strong>Globale</strong> est dédiée aux raccourcis système, actifs même quand MediaAccess n'a pas le focus (implémentés via <code>RegisterHotKey</code> de Windows). Au moins un modificateur (Ctrl, Alt, Maj ou Win) est requis pour ces raccourcis.</p>
 
 <h3>Touches multimédias</h3>
-<p>Les touches multimédias dédiées (Lecture/Pause, Arrêt, Précédent, Suivant) sont toujours actives globalement, indépendamment de vos raccourcis personnalisés.</p>
-
-<h3>Actions disponibles</h3>
-<p>Plus de 35 actions disponibles : Lecture, Pause, Arrêt, Suivant, Précédent, Reculer, Avancer, Volume +/-, Activer/Désactiver muet, Énoncer temps écoulé/restant/total/morceau en cours, Activer/Désactiver chaque effet, Activer/Désactiver enregistrement, Afficher/Masquer la fenêtre, Ouvrir YouTube, Activer/Désactiver lecture aléatoire, etc.</p>
+<p>Les touches multimédias dédiées du clavier (Lecture/Pause, Arrêt, Précédent, Suivant) sont toujours actives globalement, indépendamment de vos raccourcis personnalisés et du keymap chargé.</p>
 </section>
 
 <section id="options" aria-labelledby="options-h">
 <h2 id="options-h">18. Options détaillées</h2>
-<p><kbd>Ctrl</kbd>+<kbd>,</kbd> ou <strong>Fichier → Options</strong> ouvre les préférences. Treize onglets.</p>
+<p><kbd>Ctrl</kbd>+<kbd>,</kbd> ou <strong>Fichier → Options</strong> ouvre les préférences. Douze onglets. (Les raccourcis clavier ne sont plus configurés ici : utilisez <kbd>F4</kbd> ou <strong>Outils → Actions</strong>, voir <a href="#hotkeys">section 17</a>.)</p>
 
 <h3>Onglet Lecture</h3>
 <ul>
@@ -833,9 +845,6 @@
 
 <h3>Onglet Déplacement</h3>
 <p>Cases à cocher pour activer chaque unité de déplacement : 1 s, 5 s, 10 s, 30 s, 1 min, 5 min, 10 min, 30 min, 1 h, 1 piste, 5 pistes, 10 pistes, 1 chapitre. Par défaut, seul 5 s est activé.</p>
-
-<h3>Onglet Raccourcis globaux</h3>
-<p>Voir <a href="#hotkeys">section 17</a>.</p>
 
 <h3>Onglet Effets</h3>
 <p>Cases pour ajouter Volume, Hauteur, Tempo, Vitesse au curseur d'effets, choix du pas de vitesse (0,01× ou demi-ton), cases pour activer chaque effet DSP, sélection de l'algorithme de réverbération, et chemin du fichier d'impulsion pour la réverbération à convolution.</p>
@@ -1098,6 +1107,15 @@
 <tr><td><kbd>9</kbd></td><td>Durée</td></tr>
 <tr><td><kbd>0</kbd></td><td>Nom de fichier</td></tr>
 <tr><td><kbd>Maj</kbd>+chiffre</td><td>Afficher la même étiquette dans une fenêtre</td></tr>
+</tbody>
+</table>
+
+<h3>Outils</h3>
+<table>
+<caption>Menu Outils</caption>
+<thead><tr><th>Raccourci</th><th>Action</th></tr></thead>
+<tbody>
+<tr><td><kbd>F4</kbd></td><td>Ouvrir la fenêtre Actions (raccourcis/keymaps)</td></tr>
 </tbody>
 </table>
 

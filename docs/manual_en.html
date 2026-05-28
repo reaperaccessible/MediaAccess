@@ -203,7 +203,7 @@
     <li><a href="#midi">MIDI</a></li>
     <li><a href="#scheduler">Scheduler</a></li>
     <li><a href="#tray">System tray</a></li>
-    <li><a href="#hotkeys">Global hotkeys</a></li>
+    <li><a href="#hotkeys">Actions and keyboard shortcuts</a></li>
     <li><a href="#options">Options reference</a></li>
     <li><a href="#accessibility">Accessibility</a></li>
     <li><a href="#updates">Updates</a></li>
@@ -420,6 +420,7 @@
 </tbody>
 </table>
 <p><strong>Tempo</strong> changes speed without changing pitch; <strong>Pitch</strong> changes pitch without changing speed; <strong>Rate</strong> changes both (sped-up/slowed-down like a vinyl). Tempo and Rate are disabled for live streams (internet radio).</p>
+<p>When you speed up or slow down playback (Tempo or Rate effect), the status bar and the <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>E</kbd>, <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>R</kbd>, and <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>T</kbd> announcements reflect the real wall-clock listening time rather than the raw source duration. A 33-minute file played at 3× shows 0:00 / 11:00, for example. Pitch alone does not change duration and is ignored for this calculation.</p>
 
 <h3>DSP effects</h3>
 <p>Each DSP effect has a toggle shortcut and adds its parameters to the effects slider when active.</p>
@@ -713,7 +714,7 @@
 <p>Files <code>.mid</code>, <code>.midi</code>, <code>.rmi</code>, and <code>.kar</code> play via BASSMIDI.</p>
 
 <h3>SoundFont</h3>
-<p>MediaAccess ships with <strong>FluidR3_GM</strong> by Frank Wen (MIT license), the open-source General MIDI gold standard, so MIDI files sound great out of the box with no setup. The bundled file is installed at <code>&lt;install dir&gt;\lib\FluidR3_GM.sf2</code>.</p>
+<p>MediaAccess ships with <strong>FluidR3_GM</strong> by Frank Wen (MIT license), the open-source General MIDI gold standard, bundled in the installer. When no custom SoundFont is configured, the bundled SoundFont is used automatically, so MIDI files sound pro out of the box with no setup. The bundled file is installed at <code>&lt;install dir&gt;\lib\FluidR3_GM.sf2</code>.</p>
 <p>To use a different SoundFont, open <strong>Options → MIDI</strong> and browse to a <code>.sf2</code> or <code>.sf3</code> file. Clear the field to go back to the bundled FluidR3_GM. If both the field is empty and the bundled file is missing (rare — only happens for portable builds that skipped the SoundFont download), BASSMIDI falls back to its built-in basic synth.</p>
 
 <h3>Polyphony</h3>
@@ -772,27 +773,38 @@
 </section>
 
 <section id="hotkeys" aria-labelledby="hotkeys-h">
-<h2 id="hotkeys-h">17. Global hotkeys</h2>
-<p>Global hotkeys are active even when MediaAccess doesn't have focus.</p>
+<h2 id="hotkeys-h">17. Actions and keyboard shortcuts</h2>
+<p>Every keyboard shortcut in MediaAccess can be remapped through a REAPER-style <strong>Actions</strong> window, opened with <kbd>F4</kbd> or via <strong>Tools → Actions</strong>.</p>
 
-<h3>Configuration</h3>
-<ol>
-  <li>Open <strong>Options → Global Hotkeys</strong>.</li>
-  <li>Check "Enable global hotkeys".</li>
-  <li>Click <strong>Add</strong> and select an action plus a key combination (at least one Ctrl, Alt, or Shift modifier is required).</li>
-  <li><strong>Edit</strong> or <strong>Remove</strong> act on the selection.</li>
-</ol>
+<h3>Browsing and filtering</h3>
+<p>The Actions window lists every action in the application, grouped into sections via a category combo:</p>
+<ul>
+  <li><strong>Main</strong>: actions of the main window (playback, effects, navigation, etc.);</li>
+  <li><strong>Radio</strong>: actions inside the radio browser;</li>
+  <li><strong>YouTube</strong>: actions inside the YouTube dialog;</li>
+  <li><strong>Global</strong>: system-wide shortcuts that work even when MediaAccess doesn't have focus (see below).</li>
+</ul>
+<p>A live <strong>Filter</strong> field (substring match on action name or assigned shortcut) lets you locate an action quickly. The <strong>Find shortcut...</strong> button to the right of the filter opens a small dialog: press the combination you're curious about, then <kbd>Tab</kbd> to <strong>Search</strong> — focus jumps to the matching action in the current section.</p>
+
+<h3>Assign, edit, or remove a shortcut</h3>
+<p>Each action shows the list of shortcuts currently bound to it. Three buttons: <strong>Add</strong>, <strong>Edit</strong>, <strong>Delete</strong>. Multiple shortcuts per action are supported (REAPER-style).</p>
+<p>If the combination you try to assign is already used by another action, a prompt offers three choices: <strong>Replace</strong> (removes the prior binding), <strong>Cancel</strong>, or <strong>Assign anyway</strong> (both actions then share the same shortcut; the first one encountered in code wins).</p>
+
+<h3>Regional and custom keymaps</h3>
+<p>The installer ships three ready-to-use keymaps: <strong>USA</strong>, <strong>FR-CA</strong> (Canadian French), and <strong>FR-FR</strong> (France French). On first launch MediaAccess auto-detects your Windows keyboard layout and picks the matching keymap.</p>
+<p>The <strong>Load...</strong>, <strong>Save as...</strong>, and <strong>Reset to defaults</strong> buttons at the bottom of the Actions window manage your own keymaps. Files are plain-text <code>.MediaAccessKeyMap</code> files stored under <code>%APPDATA%\MediaAccess\KeyMaps\</code>, easy to share.</p>
+<p>Shortcut hints shown in menus auto-update to match the active keymap.</p>
+
+<h3>Global section</h3>
+<p>The <strong>Global</strong> section is reserved for system-wide shortcuts that fire even when MediaAccess doesn't have focus (implemented via Windows <code>RegisterHotKey</code>). At least one modifier (Ctrl, Alt, Shift, or Win) is required for these shortcuts.</p>
 
 <h3>Media keys</h3>
-<p>Dedicated media keys (Play/Pause, Stop, Previous, Next) are always globally active, regardless of your custom hotkeys.</p>
-
-<h3>Available actions</h3>
-<p>Over 35 actions available: Play, Pause, Stop, Next, Previous, Seek Backward/Forward, Volume Up/Down, Toggle Mute, Speak Elapsed/Remaining/Total/Now Playing, Toggle each effect, Toggle Recording, Show/Hide Window, Open YouTube, Toggle Shuffle, etc.</p>
+<p>Dedicated keyboard media keys (Play/Pause, Stop, Previous, Next) are always globally active, regardless of your custom shortcuts and of the loaded keymap.</p>
 </section>
 
 <section id="options" aria-labelledby="options-h">
 <h2 id="options-h">18. Options reference</h2>
-<p><kbd>Ctrl</kbd>+<kbd>,</kbd> or <strong>File → Options</strong> opens preferences. Thirteen tabs.</p>
+<p><kbd>Ctrl</kbd>+<kbd>,</kbd> or <strong>File → Options</strong> opens preferences. Twelve tabs. (Keyboard shortcuts are no longer configured here: use <kbd>F4</kbd> or <strong>Tools → Actions</strong>, see <a href="#hotkeys">section 17</a>.)</p>
 
 <h3>Playback tab</h3>
 <ul>
@@ -833,9 +845,6 @@
 
 <h3>Movement tab</h3>
 <p>Checkboxes to enable each movement unit: 1 s, 5 s, 10 s, 30 s, 1 min, 5 min, 10 min, 30 min, 1 h, 1 track, 5 tracks, 10 tracks, 1 chapter. By default, only 5 s is enabled.</p>
-
-<h3>Global Hotkeys tab</h3>
-<p>See <a href="#hotkeys">section 17</a>.</p>
 
 <h3>Effects tab</h3>
 <p>Checkboxes to add Volume, Pitch, Tempo, Rate to the effects slider, choice of rate step (0.01× or semitone), checkboxes to enable each DSP effect, reverb algorithm selection, and impulse response file path for convolution reverb.</p>
@@ -1098,6 +1107,15 @@
 <tr><td><kbd>9</kbd></td><td>Duration</td></tr>
 <tr><td><kbd>0</kbd></td><td>Filename</td></tr>
 <tr><td><kbd>Shift</kbd>+digit</td><td>Show the same tag in a window</td></tr>
+</tbody>
+</table>
+
+<h3>Tools</h3>
+<table>
+<caption>Tools menu</caption>
+<thead><tr><th>Shortcut</th><th>Action</th></tr></thead>
+<tbody>
+<tr><td><kbd>F4</kbd></td><td>Open the Actions window (shortcuts/keymaps)</td></tr>
 </tbody>
 </table>
 
