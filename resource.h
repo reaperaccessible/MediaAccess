@@ -519,5 +519,13 @@
 #define IDC_LABEL_SHORTCUT_PROMPT           1432
 #define IDC_LABEL_SHORTCUT_CURRENT          1433
 
+// Find-by-shortcut dialog (press a shortcut, jump to the matching action)
+#define IDC_ACTIONS_FIND_SHORTCUT           1440
+#define IDD_FIND_SHORTCUT                   1441
+#define IDC_FIND_SHORTCUT_DISPLAY           1442
+#define IDC_LABEL_FIND_SHORTCUT_PROMPT      1443
+#define IDC_LABEL_FIND_SHORTCUT_HINT        1444
+#define IDC_FIND_SHORTCUT_SEARCH            1445
+
 #define IDOK                1
 #define IDCANCEL            2

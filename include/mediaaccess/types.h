@@ -31,7 +31,8 @@ struct GlobalHotkey {
     int id;         // Unique ID for RegisterHotKey
     UINT modifiers; // MOD_ALT, MOD_CONTROL, MOD_SHIFT, MOD_WIN
     UINT vk;        // Virtual key code
-    int actionIdx;  // Index into g_hotkeyActions
+    int actionIdx;  // Index into g_hotkeyActions (legacy path; -1 when commandId is used)
+    int commandId;  // IDM_* dispatched on WM_HOTKEY (preferred when non-zero)
 };
 
 // Hotkey dialog data

@@ -77,7 +77,6 @@ extern bool g_isRecording;
 extern std::wstring GetFileName(const std::wstring& path);
 extern std::wstring FormatTime(double seconds);
 extern void SaveSettings();
-extern void SaveHotkeys();
 extern bool ReinitBass(int device);
 extern void SetVolume(float vol);
 extern void RegisterGlobalHotkeys();
@@ -85,8 +84,6 @@ extern void UnregisterGlobalHotkeys();
 // PlayTrack is already declared in player.h (included above)
 extern void SaveFilePosition(const std::wstring& filePath);
 extern double LoadFilePosition(const std::wstring& filePath);
-extern INT_PTR CALLBACK HotkeyDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
-extern std::wstring FormatHotkey(UINT modifiers, UINT vk);
 
 // Constants shared across UI modules
 extern const wchar_t* const APP_NAME_INTERNAL;

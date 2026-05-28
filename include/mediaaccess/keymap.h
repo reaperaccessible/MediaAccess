@@ -137,6 +137,23 @@ void LoadActiveKeyMapAtStartup();
 // No-op if there's no main window yet.
 void RefreshMenuAcceleratorHints();
 
+// =============================================================================
+// Global hotkey integration
+// =============================================================================
+// Walks the active keymap's Global category and rebuilds the legacy
+// g_hotkeys vector + re-registers every entry via RegisterHotKey() so
+// keymap-defined global shortcuts actually fire while MediaAccess is in
+// the background. Safe to call before g_hwnd exists — it just populates
+// the vector and skips the registration step.
+void SyncGlobalHotkeysFromKeymap();
+
+// One-shot migration of pre-v1.41 [Hotkeys] INI entries (already loaded
+// into g_hotkeys by LoadHotkeys) into the active keymap's Global category.
+// Erases the [Hotkeys] INI section so it runs at most once. Must be called
+// AFTER LoadActiveKeyMapAtStartup() and LoadHotkeys(), and BEFORE
+// SyncGlobalHotkeysFromKeymap().
+void MigrateLegacyHotkeysIfPresent();
+
 } // namespace mediaaccess
 
 #endif // MEDIAACCESS_KEYMAP_H

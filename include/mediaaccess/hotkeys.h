@@ -3,20 +3,14 @@
 #define MEDIAACCESS_HOTKEYS_H
 
 #include <windows.h>
-#include <string>
 
-// Hotkey registration
+// System-wide hotkey registration. Walks g_hotkeys + always-on media keys.
 void RegisterGlobalHotkeys();
 void UnregisterGlobalHotkeys();
 
-// Hotkey persistence
+// Read legacy [Hotkeys] section from MediaAccess.ini into g_hotkeys.
+// In v1.41+ the keymap immediately overwrites this; kept for boot-time
+// initialization of g_hotkeysEnabled.
 void LoadHotkeys();
-void SaveHotkeys();
-
-// Hotkey formatting
-std::wstring FormatHotkey(UINT modifiers, UINT vk);
-
-// Hotkey dialog
-INT_PTR CALLBACK HotkeyDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
 #endif // MEDIAACCESS_HOTKEYS_H

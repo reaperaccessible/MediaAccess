@@ -337,10 +337,15 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
                     return 0;
             }
 
-            // Handle user-defined hotkeys
+            // Handle user-defined hotkeys. Prefer commandId (set by the
+            // keymap-driven global sync); fall back to the legacy actionIdx
+            // path for hotkeys that came in from the old [Hotkeys] INI.
             for (const auto& hk : g_hotkeys) {
                 if (hk.id == hotkeyId) {
-                    PostMessage(hwnd, WM_COMMAND, g_hotkeyActions[hk.actionIdx].commandId, 0);
+                    int cmd = (hk.commandId != 0)
+                                ? hk.commandId
+                                : g_hotkeyActions[hk.actionIdx].commandId;
+                    PostMessage(hwnd, WM_COMMAND, cmd, 0);
                     break;
                 }
             }
@@ -1021,7 +1026,13 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLi
     if (g_registerFileTypes) {
         RegisterAllFileTypes();
     }
-    LoadHotkeys();
+    LoadHotkeys();  // Legacy [Hotkeys] INI. Migrated to the keymap below.
+    // One-shot migration: pre-v1.41 global hotkeys are injected into the
+    // active keymap's Global category, the [Hotkeys] section is erased,
+    // and the keymap file is rewritten. Subsequent launches find g_hotkeys
+    // empty after LoadHotkeys() and this is a no-op.
+    mediaaccess::MigrateLegacyHotkeysIfPresent();
+    mediaaccess::SyncGlobalHotkeysFromKeymap();
     YouTubeCleanup();  // Clean up any leftover temp files from previous sessions
     // Enforce user-configured cache size cap (0 = unlimited, no-op).
     // Runs at startup so the user notices the cache shrinking when they

@@ -921,4 +921,134 @@ void RegisterRcTranslations() {
 
     AddTranslation("en", "Preparing download...", L"Preparing download...");
     AddTranslation("fr", "Preparing download...", L"Préparation du téléchargement...");
+
+    // ===================================================================
+    // MENU: &Tools (added in v1.41 for the Actions/Keymap system)
+    // ===================================================================
+    AddTranslation("en", "&Tools", L"&Tools");
+    AddTranslation("fr", "&Tools", L"&Outils");
+
+    AddTranslation("en", "&Actions...\tF4", L"&Actions...\tF4");
+    AddTranslation("fr", "&Actions...\tF4", L"&Actions...\tF4");
+
+    // ===================================================================
+    // DIALOG: IDD_ACTIONS - "Actions" (the F4 keymap editor)
+    // ===================================================================
+    AddTranslation("en", "Actions", L"Actions");
+    AddTranslation("fr", "Actions", L"Actions");
+
+    AddTranslation("en", "Section:", L"Section:");
+    AddTranslation("fr", "Section:", L"Section :");
+
+    AddTranslation("en", "Filter:", L"Filter:");
+    AddTranslation("fr", "Filter:", L"Filtre :");
+
+    AddTranslation("en", "Actions:", L"Actions:");
+    AddTranslation("fr", "Actions:", L"Actions :");
+
+    AddTranslation("en", "Shortcuts for selected action:", L"Shortcuts for selected action:");
+    AddTranslation("fr", "Shortcuts for selected action:", L"Raccourcis pour l'action sélectionnée :");
+
+    AddTranslation("en", "&Add...", L"&Add...");
+    AddTranslation("fr", "&Add...", L"&Ajouter...");
+
+    AddTranslation("en", "&Edit...", L"&Edit...");
+    AddTranslation("fr", "&Edit...", L"&Modifier...");
+
+    AddTranslation("en", "&Delete", L"&Delete");
+    AddTranslation("fr", "&Delete", L"&Supprimer");
+
+    AddTranslation("en", "Current keymap:", L"Current keymap:");
+    AddTranslation("fr", "Current keymap:", L"Keymap actuel :");
+
+    AddTranslation("en", "&Load...", L"&Load...");
+    AddTranslation("fr", "&Load...", L"&Charger...");
+
+    AddTranslation("en", "&Save as...", L"&Save as...");
+    AddTranslation("fr", "&Save as...", L"&Enregistrer sous...");
+
+    AddTranslation("en", "&Reset to defaults", L"&Reset to defaults");
+    AddTranslation("fr", "&Reset to defaults", L"&Réinitialiser aux défauts");
+
+    AddTranslation("en", "Close", L"Close");
+    AddTranslation("fr", "Close", L"Fermer");
+
+    // ===================================================================
+    // DIALOG: IDD_SHORTCUT_ASSIGN - "Assign shortcut"
+    // ===================================================================
+    AddTranslation("en", "Assign shortcut", L"Assign shortcut");
+    AddTranslation("fr", "Assign shortcut", L"Assigner un raccourci");
+
+    AddTranslation("en", "Press the key combination you want to assign:",
+                   L"Press the key combination you want to assign:");
+    AddTranslation("fr", "Press the key combination you want to assign:",
+                   L"Appuyez sur la combinaison de touches à assigner :");
+
+    AddTranslation("en", "Press Backspace alone to clear.",
+                   L"Press Backspace alone to clear.");
+    AddTranslation("fr", "Press Backspace alone to clear.",
+                   L"Appuyez sur Retour arrière seul pour effacer.");
+
+    // ===================================================================
+    // Ts() strings used in code (src/actions_window.cpp + src/keymap.cpp +
+    // src/keyboard_help.cpp). The English source IS the lookup key.
+    // ===================================================================
+    AddTranslation("en", "This shortcut is already assigned to",
+                   L"This shortcut is already assigned to");
+    AddTranslation("fr", "This shortcut is already assigned to",
+                   L"Ce raccourci est déjà assigné à");
+
+    AddTranslation("en", "Replace the existing assignment?",
+                   L"Replace the existing assignment?");
+    AddTranslation("fr", "Replace the existing assignment?",
+                   L"Remplacer l'assignation existante ?");
+
+    AddTranslation("en", "This shortcut is already assigned. Replace it?",
+                   L"This shortcut is already assigned. Replace it?");
+    AddTranslation("fr", "This shortcut is already assigned. Replace it?",
+                   L"Ce raccourci est déjà assigné. Le remplacer ?");
+
+    AddTranslation("en", "Shortcut conflict", L"Shortcut conflict");
+    AddTranslation("fr", "Shortcut conflict", L"Conflit de raccourci");
+
+    AddTranslation("en", "Could not load keymap", L"Could not load keymap");
+    AddTranslation("fr", "Could not load keymap", L"Impossible de charger le keymap");
+
+    AddTranslation("en", "Could not save keymap", L"Could not save keymap");
+    AddTranslation("fr", "Could not save keymap", L"Impossible d'enregistrer le keymap");
+
+    AddTranslation("en", "Reset all shortcuts to the regional default for this keyboard layout?",
+                   L"Reset all shortcuts to the regional default for this keyboard layout?");
+    AddTranslation("fr", "Reset all shortcuts to the regional default for this keyboard layout?",
+                   L"Réinitialiser tous les raccourcis au défaut régional pour votre clavier ?");
+
+    AddTranslation("en", "no action assigned", L"no action assigned");
+    AddTranslation("fr", "no action assigned", L"aucune action assignée");
+
+    // -------------------------------------------------------------------
+    // Find-by-shortcut dialog (IDD_FIND_SHORTCUT + the trigger button)
+    // -------------------------------------------------------------------
+    AddTranslation("en", "Find &shortcut...", L"Find &shortcut...");
+    AddTranslation("fr", "Find &shortcut...", L"Rechercher un &raccourci...");
+
+    AddTranslation("en", "Find shortcut", L"Find shortcut");
+    AddTranslation("fr", "Find shortcut", L"Rechercher un raccourci");
+
+    AddTranslation("en", "Press the shortcut you want to find:",
+                   L"Press the shortcut you want to find:");
+    AddTranslation("fr", "Press the shortcut you want to find:",
+                   L"Appuyez sur le raccourci à rechercher :");
+
+    AddTranslation("en", "Then press Tab to the Search button.",
+                   L"Then press Tab to the Search button.");
+    AddTranslation("fr", "Then press Tab to the Search button.",
+                   L"Puis appuyez sur Tab pour atteindre le bouton Rechercher.");
+
+    AddTranslation("en", "&Search", L"&Search");
+    AddTranslation("fr", "&Search", L"&Rechercher");
+
+    AddTranslation("en", "No action is assigned to this shortcut in this section.",
+                   L"No action is assigned to this shortcut in this section.");
+    AddTranslation("fr", "No action is assigned to this shortcut in this section.",
+                   L"Aucune action n'est assignée à ce raccourci dans cette section.");
 }

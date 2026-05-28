@@ -163,14 +163,10 @@ BEGIN
     AUTOCHECKBOX    "10 trac&ks", IDC_SEEK_10T, 80, 165, 60, 10
     AUTOCHECKBOX    "1 c&hapter (if available)", IDC_CHAPTER_SEEK, 150, 165, 110, 10
 
-    // Global Hotkeys tab controls (shown when tab 5 selected)
-    AUTOCHECKBOX    "&Enable global hotkeys", IDC_HOTKEY_ENABLED, 17, 30, 140, 10
-    LISTBOX         IDC_HOTKEY_LIST, 17, 45, 246, 105, LBS_NOTIFY | WS_VSCROLL | WS_TABSTOP
-    PUSHBUTTON      "&Add...", IDC_HOTKEY_ADD, 17, 158, 50, 14
-    PUSHBUTTON      "&Edit...", IDC_HOTKEY_EDIT, 72, 158, 50, 14
-    PUSHBUTTON      "&Remove", IDC_HOTKEY_REMOVE, 127, 158, 50, 14
+    // (Global Hotkeys tab removed in v1.41 — global hotkeys are now managed
+    // exclusively from Tools → Actions, Global category.)
 
-    // Effects tab controls (shown when tab 6 selected)
+    // Effects tab controls (shown when tab 5 selected)
     LTEXT           "Stream effects ([ ] to cycle, Up/Down to adjust):", IDC_LABEL_EFFECTS_DESCRIPTION, 17, 30, 280, 10
     AUTOCHECKBOX    "&Volume (0-400%)", IDC_EFFECT_VOLUME, 17, 45, 100, 10
     AUTOCHECKBOX    "&Pitch (-12 to +12 semitones)", IDC_EFFECT_PITCH, 17, 60, 140, 10
@@ -269,18 +265,8 @@ BEGIN
     PUSHBUTTON      "Cancel", IDCANCEL, 283, 240, 50, 14
 END
 
-IDD_HOTKEY DIALOGEX 0, 0, 220, 80
-STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU
-CAPTION "Assign Global Hotkey"
-FONT 8, "MS Shell Dlg"
-BEGIN
-    LTEXT           "&Action:", -1, 7, 10, 30, 10
-    COMBOBOX        IDC_HOTKEY_ACTION, 45, 8, 168, 120, CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
-    LTEXT           "&Hotkey:", -1, 7, 30, 30, 10
-    CONTROL         "", IDC_HOTKEY_KEY, "msctls_hotkey32", WS_TABSTOP, 45, 28, 168, 14
-    DEFPUSHBUTTON   "OK", IDOK, 108, 55, 50, 14
-    PUSHBUTTON      "Cancel", IDCANCEL, 163, 55, 50, 14
-END
+// IDD_HOTKEY (legacy add/edit global-hotkey dialog) removed in v1.41 —
+// global hotkeys are now managed from Tools → Actions, Global category.
 
 IDD_URL DIALOGEX 0, 0, 300, 70
 STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU
@@ -546,7 +532,8 @@ BEGIN
     COMBOBOX        IDC_ACTIONS_CATEGORY, 65, 8, 110, 100, CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
 
     LTEXT           "Filter:", IDC_LABEL_ACTIONS_SEARCH, 190, 10, 30, 10
-    EDITTEXT        IDC_ACTIONS_SEARCH, 220, 8, 250, 12, ES_AUTOHSCROLL
+    EDITTEXT        IDC_ACTIONS_SEARCH, 220, 8, 160, 12, ES_AUTOHSCROLL
+    PUSHBUTTON      "Find &shortcut...", IDC_ACTIONS_FIND_SHORTCUT, 385, 7, 85, 14
 
     LTEXT           "Actions:", IDC_LABEL_ACTIONS_LIST, 10, 28, 60, 10
     LISTBOX         IDC_ACTIONS_LIST, 10, 40, 290, 220, LBS_NOTIFY | LBS_USETABSTOPS | WS_VSCROLL | WS_TABSTOP | WS_BORDER
@@ -582,4 +569,21 @@ BEGIN
 
     DEFPUSHBUTTON   "OK",     IDOK,     145, 75, 50, 14
     PUSHBUTTON      "Cancel", IDCANCEL, 200, 75, 50, 14
+END
+
+// =========================================================================
+// Find-by-shortcut dialog — press a shortcut, press Tab to Search, jump to
+// the matching action in the Actions window.
+// =========================================================================
+IDD_FIND_SHORTCUT DIALOGEX 0, 0, 280, 105
+STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "Find shortcut"
+FONT 9, "MS Shell Dlg"
+BEGIN
+    LTEXT           "Press the shortcut you want to find:", IDC_LABEL_FIND_SHORTCUT_PROMPT, 10, 10, 260, 10
+    EDITTEXT        IDC_FIND_SHORTCUT_DISPLAY, 10, 25, 260, 14, ES_AUTOHSCROLL | ES_READONLY
+    LTEXT           "Then press Tab to the Search button.", IDC_LABEL_FIND_SHORTCUT_HINT, 10, 45, 260, 10
+
+    DEFPUSHBUTTON   "&Search", IDC_FIND_SHORTCUT_SEARCH, 160, 80, 55, 14
+    PUSHBUTTON      "Cancel",  IDCANCEL,                 220, 80, 50, 14
 END

@@ -15,6 +15,7 @@
 #include "mediaaccess/actions.h"
 #include "mediaaccess/keymap.h"
 #include "mediaaccess/translations.h"
+#include "mediaaccess/accessibility.h"  // Speak()
 #include "resource.h"
 
 #include <windows.h>
@@ -85,14 +86,23 @@ struct AssignState {
 };
 static AssignState* s_assign = nullptr;
 
-static void UpdateAssignDisplay(HWND dlg)
+static void UpdateAssignDisplay(HWND /*dlg*/)
 {
-    if (!s_assign) return;
+    if (!s_assign || !s_assign->editHwnd) return;
+    std::string utf8;
     std::wstring text;
     if (s_assign->captured.valid()) {
-        text = U8ToW(ShortcutToDisplay(s_assign->captured));
+        utf8 = ShortcutToDisplay(s_assign->captured);
+        text = U8ToW(utf8);
     }
-    SetDlgItemTextW(dlg, IDC_SHORTCUT_DISPLAY, text.c_str());
+    // Write to the captured edit control directly so both the assign and
+    // the find dialogs share the same update path.
+    SetWindowTextW(s_assign->editHwnd, text.c_str());
+    // Read-only edits don't fire UIA value-changed events for screen readers
+    // when set programmatically, so the user hears nothing when they capture
+    // a key. Speak it explicitly so NVDA / JAWS / Narrator announce the
+    // capture in real time instead of forcing the user to Tab to OK first.
+    if (!utf8.empty()) Speak(utf8);
 }
 
 static bool IsModifierVK(UINT vk)
@@ -185,6 +195,60 @@ static bool PromptForShortcut(HWND owner, Shortcut* out)
     s_assign = nullptr;
     return ok;
 }
+
+// =============================================================================
+// Find-by-shortcut sub-dialog
+//
+// Same key-capture mechanic as PromptForShortcut, but a different dialog
+// template and a "Search" default button instead of OK. The user captures
+// a shortcut, Tabs to Search (or presses Enter), and we jump to the matching
+// action in the Actions window.
+// =============================================================================
+
+static INT_PTR CALLBACK FindShortcutDlgProc(HWND dlg, UINT msg, WPARAM wp, LPARAM lp)
+{
+    switch (msg) {
+        case WM_INITDIALOG: {
+            LocalizeDialog(dlg);
+            if (!s_assign) return TRUE;
+            s_assign->editHwnd = GetDlgItem(dlg, IDC_FIND_SHORTCUT_DISPLAY);
+            s_assign->origEditProc = (WNDPROC)SetWindowLongPtrW(
+                s_assign->editHwnd, GWLP_WNDPROC, (LONG_PTR)AssignEditProc);
+            // Reuse the same display-update helper — but it looks up
+            // IDC_SHORTCUT_DISPLAY by name. We inline the equivalent for
+            // IDC_FIND_SHORTCUT_DISPLAY here.
+            SetDlgItemTextW(dlg, IDC_FIND_SHORTCUT_DISPLAY, L"");
+            SetFocus(s_assign->editHwnd);
+            return FALSE;
+        }
+        case WM_COMMAND:
+            if (LOWORD(wp) == IDC_FIND_SHORTCUT_SEARCH) {
+                EndDialog(dlg, IDC_FIND_SHORTCUT_SEARCH);
+                return TRUE;
+            }
+            if (LOWORD(wp) == IDCANCEL) {
+                EndDialog(dlg, IDCANCEL);
+                return TRUE;
+            }
+            break;
+        case WM_CLOSE:
+            EndDialog(dlg, IDCANCEL);
+            return TRUE;
+    }
+    return FALSE;
+}
+
+// We need a version of UpdateAssignDisplay that targets IDC_FIND_SHORTCUT_DISPLAY.
+// Easiest: patch UpdateAssignDisplay to write to whatever editHwnd is set, by
+// SetWindowText on the captured edit handle directly.
+//
+// AssignEditProc currently calls UpdateAssignDisplay(GetParent(hwnd)) which
+// expects IDC_SHORTCUT_DISPLAY. To make the find dialog work without
+// duplicating the edit subclass, we tweak UpdateAssignDisplay to write
+// to the registered editHwnd directly.
+//
+// (This change applies retroactively to PromptForShortcut too — same
+// behavior, just routed through the handle instead of the dialog control ID.)
 
 // =============================================================================
 // Population helpers
@@ -464,6 +528,53 @@ static void OnSaveAs(HWND dlg)
     UpdateKeymapLabel(dlg);
 }
 
+static void OnFindShortcut(HWND dlg)
+{
+    // Open the find-by-shortcut dialog. Captures a Shortcut; on Search,
+    // locates the matching action in the active keymap across all
+    // categories, switches to that category, refreshes the list, and
+    // selects the matched row.
+    AssignState st;
+    s_assign = &st;
+    INT_PTR r = DialogBoxW(GetModuleHandleW(nullptr),
+                           MAKEINTRESOURCEW(IDD_FIND_SHORTCUT), dlg, FindShortcutDlgProc);
+    Shortcut sc = st.captured;
+    s_assign = nullptr;
+
+    if (r != IDC_FIND_SHORTCUT_SEARCH) return;
+    if (!sc.valid()) return;
+
+    // Search ONLY within the currently selected category. The user picks
+    // a section first, then asks "is this shortcut bound here?" — the
+    // answer must be scoped to that section so a Main-shortcut doesn't
+    // surface while the user is browsing Radio actions.
+    const KeyMap& km = GetActiveKeyMap();
+    std::string foundId = km.FindActionFor(sc, s_state->currentCategory);
+
+    if (foundId.empty()) {
+        std::wstring msg = U8ToW(Ts("No action is assigned to this shortcut in this section."));
+        MessageBoxW(dlg, msg.c_str(), L"MediaAccess", MB_OK | MB_ICONINFORMATION);
+        return;
+    }
+
+    // Clear filter so the matched row is guaranteed to be visible.
+    s_state->searchText.clear();
+    SetDlgItemTextW(dlg, IDC_ACTIONS_SEARCH, L"");
+    PopulateActionsList(dlg);
+
+    // Select the matched action in the listbox.
+    HWND list = GetDlgItem(dlg, IDC_ACTIONS_LIST);
+    for (size_t i = 0; i < s_state->visibleActions.size(); ++i) {
+        if (s_state->visibleActions[i]->stringId == foundId) {
+            SendMessageW(list, LB_SETCURSEL, (WPARAM)(int)i, 0);
+            PopulateShortcutsList(dlg);
+            break;
+        }
+    }
+    // Move focus to the action list so the user is right where they need to be.
+    SetFocus(list);
+}
+
 static void OnReset(HWND dlg)
 {
     std::wstring prompt = U8ToW(Ts(
@@ -476,9 +587,14 @@ static void OnReset(HWND dlg)
     if      (region == "FR-CA") km = BuildDefaultFrCaKeyMap();
     else if (region == "FR-FR") km = BuildDefaultFrFrKeyMap();
     else                        km = BuildDefaultUsaKeyMap();
-    // Save into the shipped path so reload works after restart.
+    // Try the shipped path first, then fall back to the user dir if the
+    // install dir isn't writable (typical for admin-installed builds running
+    // as a normal user, where Program Files\...\KeyMaps\ is read-only).
     km.path = GetShippedKeyMapPath(km.name);
-    SaveKeyMap(km.path, km, nullptr);
+    if (!SaveKeyMap(km.path, km, nullptr)) {
+        km.path = GetUserKeyMapPath(km.name);
+        SaveKeyMap(km.path, km, nullptr);
+    }
     SetActiveKeyMap(km);
 
     UpdateKeymapLabel(dlg);
@@ -529,12 +645,13 @@ static INT_PTR CALLBACK ActionsDlgProc(HWND dlg, UINT msg, WPARAM wp, LPARAM lp)
                 case IDC_ACTIONS_LIST:
                     if (code == LBN_SELCHANGE) PopulateShortcutsList(dlg);
                     return TRUE;
-                case IDC_ACTIONS_ADD:     OnAdd(dlg);     return TRUE;
-                case IDC_ACTIONS_EDIT:    OnEdit(dlg);    return TRUE;
-                case IDC_ACTIONS_DELETE:  OnDelete(dlg);  return TRUE;
-                case IDC_ACTIONS_LOAD:    OnLoad(dlg);    return TRUE;
-                case IDC_ACTIONS_SAVE_AS: OnSaveAs(dlg);  return TRUE;
-                case IDC_ACTIONS_RESET:   OnReset(dlg);   return TRUE;
+                case IDC_ACTIONS_ADD:           OnAdd(dlg);           return TRUE;
+                case IDC_ACTIONS_EDIT:          OnEdit(dlg);          return TRUE;
+                case IDC_ACTIONS_DELETE:        OnDelete(dlg);        return TRUE;
+                case IDC_ACTIONS_LOAD:          OnLoad(dlg);          return TRUE;
+                case IDC_ACTIONS_SAVE_AS:       OnSaveAs(dlg);        return TRUE;
+                case IDC_ACTIONS_RESET:         OnReset(dlg);         return TRUE;
+                case IDC_ACTIONS_FIND_SHORTCUT: OnFindShortcut(dlg);  return TRUE;
                 case IDOK:
                 case IDCANCEL:
                     EndDialog(dlg, 0);

@@ -5,6 +5,8 @@
 #include "mediaaccess/keymap.h"
 #include "mediaaccess/actions.h"
 #include "mediaaccess/globals.h"
+#include "mediaaccess/hotkeys.h"  // RegisterGlobalHotkeys / UnregisterGlobalHotkeys
+#include "mediaaccess/types.h"    // GlobalHotkey
 #include "mediaaccess/updater.h"  // IsInstalledMode
 
 #include <windows.h>
@@ -20,6 +22,11 @@
 // Externs from the rest of MediaAccess (global namespace).
 extern std::wstring g_configPath;
 extern HWND         g_hwnd;
+extern std::vector<GlobalHotkey> g_hotkeys;
+extern int          g_nextHotkeyId;
+extern bool         g_hotkeysEnabled;
+extern const HotkeyAction g_hotkeyActions[];
+extern const int          g_hotkeyActionCount;
 
 namespace mediaaccess {
 
@@ -453,6 +460,7 @@ void SetActiveKeyMap(const KeyMap& km)
     g_activeKeymap = km;
     WriteCurrentKeyMapNameToIni(km.name);
     RefreshMenuAcceleratorHints();
+    SyncGlobalHotkeysFromKeymap();
 }
 
 void NotifyKeymapChanged()
@@ -462,6 +470,9 @@ void NotifyKeymapChanged()
         SaveKeyMap(g_activeKeymap.path, g_activeKeymap, nullptr);
     }
     RefreshMenuAcceleratorHints();
+    // Edits to Global category bindings need to re-register with Windows
+    // immediately so they take effect without restarting.
+    SyncGlobalHotkeysFromKeymap();
 }
 
 // =============================================================================
@@ -519,14 +530,21 @@ void LoadActiveKeyMapAtStartup()
     }
 
     KeyMap km;
+    bool loadedFromFile = false;
     if (GetFileAttributesW(path.c_str()) != INVALID_FILE_ATTRIBUTES) {
         km = LoadKeyMap(path, nullptr);
+        loadedFromFile = !km.bindings.empty();
     }
     if (km.bindings.empty()) {
         km = BuildDefaultUsaKeyMap();
     }
     g_activeKeymap = km;
-    WriteCurrentKeyMapNameToIni(km.name);
+    // Only persist the choice if we actually loaded the user's selection.
+    // A transient failure (file locked by antivirus, OneDrive sync, etc.)
+    // must NOT overwrite the user's saved keymap name.
+    if (loadedFromFile) {
+        WriteCurrentKeyMapNameToIni(km.name);
+    }
     // RefreshMenuAcceleratorHints will be called once the main menu exists.
 }
 
@@ -585,6 +603,110 @@ static void RefreshMenuRecursive(HMENU menu)
         set.dwTypeData = (LPWSTR)rebuilt.c_str();
         SetMenuItemInfoW(menu, i, TRUE, &set);
     }
+}
+
+// =============================================================================
+// Legacy [Hotkeys] migration — runs once, then clears the legacy section
+// =============================================================================
+//
+// MediaAccess <1.41 stored global hotkeys in MediaAccess.ini under [Hotkeys]
+// as (modifiers, vk, actionIdx) tuples. The new keymap system replaces this.
+// On first launch after upgrading, walk any legacy entries in g_hotkeys
+// (already loaded by LoadHotkeys()), inject equivalent bindings into the
+// active keymap's Global category, save the keymap to disk, and erase
+// the [Hotkeys] section so the migration only runs once.
+//
+// Called from main.cpp between LoadHotkeys() and SyncGlobalHotkeysFromKeymap().
+// -----------------------------------------------------------------------------
+
+void MigrateLegacyHotkeysIfPresent()
+{
+    if (::g_hotkeys.empty()) return;
+
+    // For each legacy entry, find the matching Action in our Global category
+    // (matched by commandId) and inject the Shortcut.
+    std::vector<const Action*> globals = ActionsInCategory(ActionCategory::Global);
+    bool migratedAny = false;
+    for (const auto& hk : ::g_hotkeys) {
+        if (hk.commandId != 0) continue;  // Already a keymap-sourced entry.
+        if (hk.actionIdx < 0 || hk.actionIdx >= ::g_hotkeyActionCount) continue;
+        int cmd = ::g_hotkeyActions[hk.actionIdx].commandId;
+
+        const Action* match = nullptr;
+        for (const Action* a : globals) {
+            if (a->commandId == cmd) { match = a; break; }
+        }
+        if (!match) continue;
+
+        Shortcut sc;
+        sc.vk    = hk.vk;
+        sc.ctrl  = (hk.modifiers & MOD_CONTROL) != 0;
+        sc.shift = (hk.modifiers & MOD_SHIFT)   != 0;
+        sc.alt   = (hk.modifiers & MOD_ALT)     != 0;
+        g_activeKeymap.AddShortcut(match->stringId, sc);
+        migratedAny = true;
+    }
+
+    if (migratedAny && !g_activeKeymap.path.empty()) {
+        SaveKeyMap(g_activeKeymap.path, g_activeKeymap, nullptr);
+    }
+
+    // Wipe the legacy [Hotkeys] section so this only runs once and old
+    // entries can't reappear on later launches.
+    if (!::g_configPath.empty()) {
+        WritePrivateProfileStringW(L"Hotkeys", nullptr, nullptr, ::g_configPath.c_str());
+    }
+}
+
+// =============================================================================
+// Global hotkey sync — keymap "Global" category → g_hotkeys → RegisterHotKey
+// =============================================================================
+//
+// The legacy code path (hotkeys.cpp + g_hotkeys + g_hotkeyActions) registers
+// system-wide hotkeys via RegisterHotKey(). The new Actions/Keymap window
+// stores bindings in the keymap's Global category. SyncGlobalHotkeysFromKeymap
+// is the bridge: it rebuilds g_hotkeys from the keymap and re-registers them.
+//
+// Called:
+//   - From wWinMain after LoadActiveKeyMapAtStartup() so g_hotkeys is populated
+//     before WM_CREATE fires RegisterGlobalHotkeys().
+//   - From NotifyKeymapChanged() after the user edits bindings in the Actions
+//     window, so changes take effect without restarting.
+// -----------------------------------------------------------------------------
+
+void SyncGlobalHotkeysFromKeymap()
+{
+    // 1) Unregister currently active hotkeys so we can rebuild the table.
+    //    Safe even if g_hwnd is null (UnregisterGlobalHotkeys is a no-op then).
+    UnregisterGlobalHotkeys();
+
+    // 2) Clear the legacy vector; we own it entirely from the keymap now.
+    ::g_hotkeys.clear();
+
+    // 3) Walk the Global category in the active keymap and produce
+    //    GlobalHotkey entries.
+    std::vector<const Action*> globals = ActionsInCategory(ActionCategory::Global);
+    for (const Action* a : globals) {
+        auto it = g_activeKeymap.bindings.find(a->stringId);
+        if (it == g_activeKeymap.bindings.end()) continue;
+        for (const Shortcut& sc : it->second) {
+            if (!sc.valid()) continue;
+            GlobalHotkey hk{};
+            hk.id        = ::g_nextHotkeyId++;
+            hk.modifiers = 0;
+            if (sc.ctrl)  hk.modifiers |= MOD_CONTROL;
+            if (sc.shift) hk.modifiers |= MOD_SHIFT;
+            if (sc.alt)   hk.modifiers |= MOD_ALT;
+            hk.vk        = sc.vk;
+            hk.actionIdx = -1;             // unused — commandId is authoritative
+            hk.commandId = a->commandId;
+            ::g_hotkeys.push_back(hk);
+        }
+    }
+
+    // 4) Re-register. No-op if g_hwnd is null (early startup); WM_CREATE will
+    //    call RegisterGlobalHotkeys() itself when the window exists.
+    if (::g_hwnd) RegisterGlobalHotkeys();
 }
 
 void RefreshMenuAcceleratorHints()

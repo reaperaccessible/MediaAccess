@@ -4,8 +4,9 @@
 
 // Helper to show/hide tab controls
 void ShowTabControls(HWND hwnd, int tab) {
-    // Tab indices: 0=Playback, 1=Recording, 2=Downloads, 3=Speech, 4=Movement, 5=Global Hotkeys,
-    //              6=Effects, 7=Advanced, 8=YouTube, 9=SoundTouch, 10=Speedy, 11=Signalsmith, 12=MIDI
+    // Tab indices: 0=Playback, 1=Recording, 2=Downloads, 3=Speech, 4=Movement,
+    //              5=Effects, 6=Advanced, 7=YouTube, 8=SoundTouch, 9=Speedy, 10=Signalsmith, 11=MIDI
+    // (Global Hotkeys tab removed in v1.41 — see Tools → Actions instead.)
 
     // Playback tab controls (tab 0)
     int playbackCtrls[] = {IDC_SOUNDCARD, IDC_ALLOW_AMPLIFY, IDC_REMEMBER_STATE, IDC_REMEMBER_POS, IDC_BRING_TO_FRONT, IDC_LOAD_FOLDER, IDC_MINIMIZE_TO_TRAY, IDC_VOLUME_STEP, IDC_SHOW_TITLE, IDC_AUTO_ADVANCE, IDC_PLAYLIST_FOLLOW, IDC_CHECK_UPDATES, IDC_MULTI_INSTANCE, IDC_REGISTER_FILE_TYPES, IDC_DOWNLOAD_PATH, IDC_DOWNLOAD_BROWSE, IDC_REWIND_ON_PAUSE, IDC_REWIND_LABEL,
@@ -24,9 +25,7 @@ void ShowTabControls(HWND hwnd, int tab) {
     int movementCtrls[] = {IDC_SEEK_1S, IDC_SEEK_5S, IDC_SEEK_10S, IDC_SEEK_30S, IDC_SEEK_1M, IDC_SEEK_5M, IDC_SEEK_10M,
                            IDC_SEEK_30M, IDC_SEEK_1H, IDC_SEEK_1T, IDC_SEEK_5T, IDC_SEEK_10T, IDC_CHAPTER_SEEK,
                            IDC_LABEL_MOVEMENT_DESCRIPTION};
-    // Global Hotkeys tab controls (tab 5)
-    int hotkeyCtrls[] = {IDC_HOTKEY_ENABLED, IDC_HOTKEY_LIST, IDC_HOTKEY_ADD, IDC_HOTKEY_EDIT, IDC_HOTKEY_REMOVE};
-    // Effects tab controls (tab 6)
+    // Effects tab controls (tab 5)
     int effectCtrls[] = {IDC_EFFECT_VOLUME, IDC_EFFECT_PITCH, IDC_EFFECT_TEMPO, IDC_EFFECT_RATE, IDC_RATE_STEP_MODE,
                          IDC_DSP_REVERB, IDC_DSP_ECHO, IDC_DSP_EQ, IDC_DSP_COMPRESSOR, IDC_DSP_STEREOWIDTH,
                          IDC_DSP_CENTERCANCEL, IDC_DSP_SPATIAL, IDC_DSP_CONVOLUTION, IDC_CONV_IR, IDC_CONV_BROWSE,
@@ -80,44 +79,39 @@ void ShowTabControls(HWND hwnd, int tab) {
         ShowWindow(GetDlgItem(hwnd, id), tab == 4 ? SW_SHOW : SW_HIDE);
     }
 
-    // Show/hide hotkey controls
-    for (int id : hotkeyCtrls) {
-        ShowWindow(GetDlgItem(hwnd, id), tab == 5 ? SW_SHOW : SW_HIDE);
-    }
-
     // Show/hide effect controls
     for (int id : effectCtrls) {
-        ShowWindow(GetDlgItem(hwnd, id), tab == 6 ? SW_SHOW : SW_HIDE);
+        ShowWindow(GetDlgItem(hwnd, id), tab == 5 ? SW_SHOW : SW_HIDE);
     }
 
     // Show/hide advanced controls
     for (int id : advancedCtrls) {
-        ShowWindow(GetDlgItem(hwnd, id), tab == 7 ? SW_SHOW : SW_HIDE);
+        ShowWindow(GetDlgItem(hwnd, id), tab == 6 ? SW_SHOW : SW_HIDE);
     }
 
     // Show/hide YouTube controls
     for (int id : youtubeCtrls) {
-        ShowWindow(GetDlgItem(hwnd, id), tab == 8 ? SW_SHOW : SW_HIDE);
+        ShowWindow(GetDlgItem(hwnd, id), tab == 7 ? SW_SHOW : SW_HIDE);
     }
 
     // Show/hide SoundTouch controls
     for (int id : soundtouchCtrls) {
-        ShowWindow(GetDlgItem(hwnd, id), tab == 9 ? SW_SHOW : SW_HIDE);
+        ShowWindow(GetDlgItem(hwnd, id), tab == 8 ? SW_SHOW : SW_HIDE);
     }
 
     // Show/hide Speedy controls
     for (int id : speedyCtrls) {
-        ShowWindow(GetDlgItem(hwnd, id), tab == 10 ? SW_SHOW : SW_HIDE);
+        ShowWindow(GetDlgItem(hwnd, id), tab == 9 ? SW_SHOW : SW_HIDE);
     }
 
     // Show/hide Signalsmith controls
     for (int id : signalsmithCtrls) {
-        ShowWindow(GetDlgItem(hwnd, id), tab == 11 ? SW_SHOW : SW_HIDE);
+        ShowWindow(GetDlgItem(hwnd, id), tab == 10 ? SW_SHOW : SW_HIDE);
     }
 
     // Show/hide MIDI controls
     for (int id : midiCtrls) {
-        ShowWindow(GetDlgItem(hwnd, id), tab == 12 ? SW_SHOW : SW_HIDE);
+        ShowWindow(GetDlgItem(hwnd, id), tab == 11 ? SW_SHOW : SW_HIDE);
     }
 
 
@@ -142,32 +136,24 @@ INT_PTR CALLBACK OptionsDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
             TabCtrl_InsertItem(hTab, 3, &tie);
             tie.pszText = const_cast<LPWSTR>(T("Movement"));
             TabCtrl_InsertItem(hTab, 4, &tie);
-            tie.pszText = const_cast<LPWSTR>(T("Global Hotkeys"));
-            TabCtrl_InsertItem(hTab, 5, &tie);
             tie.pszText = const_cast<LPWSTR>(T("Effects"));
-            TabCtrl_InsertItem(hTab, 6, &tie);
+            TabCtrl_InsertItem(hTab, 5, &tie);
             tie.pszText = const_cast<LPWSTR>(T("Advanced"));
-            TabCtrl_InsertItem(hTab, 7, &tie);
+            TabCtrl_InsertItem(hTab, 6, &tie);
             tie.pszText = const_cast<LPWSTR>(T("YouTube"));
-            TabCtrl_InsertItem(hTab, 8, &tie);
+            TabCtrl_InsertItem(hTab, 7, &tie);
             tie.pszText = const_cast<LPWSTR>(T("SoundTouch"));
-            TabCtrl_InsertItem(hTab, 9, &tie);
+            TabCtrl_InsertItem(hTab, 8, &tie);
             tie.pszText = const_cast<LPWSTR>(T("Speedy"));
-            TabCtrl_InsertItem(hTab, 10, &tie);
+            TabCtrl_InsertItem(hTab, 9, &tie);
             tie.pszText = const_cast<LPWSTR>(T("Signalsmith"));
-            TabCtrl_InsertItem(hTab, 11, &tie);
+            TabCtrl_InsertItem(hTab, 10, &tie);
             tie.pszText = const_cast<LPWSTR>(T("MIDI"));
-            TabCtrl_InsertItem(hTab, 12, &tie);
+            TabCtrl_InsertItem(hTab, 11, &tie);
 
 
 
-            // Populate hotkey list and set enabled checkbox
-            CheckDlgButton(hwnd, IDC_HOTKEY_ENABLED, g_hotkeysEnabled ? BST_CHECKED : BST_UNCHECKED);
-            HWND hList = GetDlgItem(hwnd, IDC_HOTKEY_LIST);
-            for (const auto& hk : g_hotkeys) {
-                std::wstring item = FormatHotkey(hk.modifiers, hk.vk) + L" - " + g_hotkeyActions[hk.actionIdx].name;
-                SendMessageW(hList, LB_ADDSTRING, 0, reinterpret_cast<LPARAM>(item.c_str()));
-            }
+            // (Global Hotkeys tab removed in v1.41 — see Tools → Actions.)
 
             // Populate sound card combo box
             HWND hCombo = GetDlgItem(hwnd, IDC_SOUNDCARD);
@@ -944,95 +930,8 @@ INT_PTR CALLBACK OptionsDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
                     return TRUE;
                 }
 
-                case IDC_HOTKEY_ADD: {
-                    HotkeyDlgData data = {0, 0, 0, false};
-                    if (DialogBoxParamW(GetModuleHandle(nullptr), MAKEINTRESOURCEW(IDD_HOTKEY), hwnd, HotkeyDlgProc, reinterpret_cast<LPARAM>(&data)) == IDOK) {
-                        // Add new hotkey
-                        GlobalHotkey hk;
-                        hk.id = g_nextHotkeyId++;
-                        hk.modifiers = data.modifiers;
-                        hk.vk = data.vk;
-                        hk.actionIdx = data.actionIdx;
-                        g_hotkeys.push_back(hk);
-
-                        // Update list
-                        HWND hList = GetDlgItem(hwnd, IDC_HOTKEY_LIST);
-                        std::wstring item = FormatHotkey(hk.modifiers, hk.vk) + L" - " + g_hotkeyActions[hk.actionIdx].name;
-                        SendMessageW(hList, LB_ADDSTRING, 0, reinterpret_cast<LPARAM>(item.c_str()));
-
-                        // Re-register hotkeys
-                        UnregisterGlobalHotkeys();
-                        RegisterGlobalHotkeys();
-                        SaveHotkeys();
-                    }
-                    return TRUE;
-                }
-
-                case IDC_HOTKEY_EDIT: {
-                    HWND hList = GetDlgItem(hwnd, IDC_HOTKEY_LIST);
-                    int sel = static_cast<int>(SendMessageW(hList, LB_GETCURSEL, 0, 0));
-                    if (sel >= 0 && sel < static_cast<int>(g_hotkeys.size())) {
-                        HotkeyDlgData data;
-                        data.actionIdx = g_hotkeys[sel].actionIdx;
-                        data.modifiers = g_hotkeys[sel].modifiers;
-                        data.vk = g_hotkeys[sel].vk;
-                        data.isEdit = true;
-
-                        if (DialogBoxParamW(GetModuleHandle(nullptr), MAKEINTRESOURCEW(IDD_HOTKEY), hwnd, HotkeyDlgProc, reinterpret_cast<LPARAM>(&data)) == IDOK) {
-                            // Update hotkey
-                            UnregisterHotKey(g_hwnd, g_hotkeys[sel].id);
-                            g_hotkeys[sel].modifiers = data.modifiers;
-                            g_hotkeys[sel].vk = data.vk;
-                            g_hotkeys[sel].actionIdx = data.actionIdx;
-                            RegisterHotKey(g_hwnd, g_hotkeys[sel].id, g_hotkeys[sel].modifiers, g_hotkeys[sel].vk);
-
-                            // Update list item
-                            SendMessageW(hList, LB_DELETESTRING, sel, 0);
-                            std::wstring item = FormatHotkey(g_hotkeys[sel].modifiers, g_hotkeys[sel].vk) + L" - " + g_hotkeyActions[g_hotkeys[sel].actionIdx].name;
-                            SendMessageW(hList, LB_INSERTSTRING, sel, reinterpret_cast<LPARAM>(item.c_str()));
-                            SendMessageW(hList, LB_SETCURSEL, sel, 0);
-
-                            SaveHotkeys();
-                        }
-                    }
-                    return TRUE;
-                }
-
-                case IDC_HOTKEY_REMOVE: {
-                    HWND hList = GetDlgItem(hwnd, IDC_HOTKEY_LIST);
-                    int sel = static_cast<int>(SendMessageW(hList, LB_GETCURSEL, 0, 0));
-                    if (sel >= 0 && sel < static_cast<int>(g_hotkeys.size())) {
-                        // Unregister and remove
-                        UnregisterHotKey(g_hwnd, g_hotkeys[sel].id);
-                        g_hotkeys.erase(g_hotkeys.begin() + sel);
-                        SendMessageW(hList, LB_DELETESTRING, sel, 0);
-
-                        // Select next item or previous
-                        if (sel >= static_cast<int>(g_hotkeys.size())) {
-                            sel = static_cast<int>(g_hotkeys.size()) - 1;
-                        }
-                        if (sel >= 0) {
-                            SendMessageW(hList, LB_SETCURSEL, sel, 0);
-                        }
-
-                        SaveHotkeys();
-                    }
-                    return TRUE;
-                }
-
-                case IDC_HOTKEY_ENABLED: {
-                    bool newEnabled = (IsDlgButtonChecked(hwnd, IDC_HOTKEY_ENABLED) == BST_CHECKED);
-                    if (newEnabled != g_hotkeysEnabled) {
-                        g_hotkeysEnabled = newEnabled;
-                        if (g_hotkeysEnabled) {
-                            RegisterGlobalHotkeys();
-                        } else {
-                            UnregisterGlobalHotkeys();
-                        }
-                        SaveHotkeys();
-                    }
-                    return TRUE;
-                }
+                // (IDC_HOTKEY_* button handlers removed in v1.41 — global
+                // hotkeys are now managed from Tools → Actions, Global category.)
             }
             break;
     }
