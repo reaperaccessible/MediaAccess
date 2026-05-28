@@ -155,7 +155,8 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
             // excluded so the user can always toggle the mode off.
             // -----------------------------------------------------------
             if (g_keyboardHelpMode && wParam != VK_F12) {
-                Speak(DescribeKey(wParam, lParam));
+                std::string desc = DescribeKey(wParam, lParam);
+                if (!desc.empty()) Speak(desc);
                 return 0;
             }
             if (wParam == VK_F11 && g_isVideoPlaying) {

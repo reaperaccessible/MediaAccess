@@ -212,6 +212,19 @@ std::string DescribeKey(WPARAM wParam, LPARAM lParam)
     UINT vk   = (UINT)wParam;
     UINT scan = (UINT)((lParam >> 16) & 0xFF);
 
+    // Stay silent when the pressed key IS a modifier alone (Ctrl, Shift,
+    // Alt, Windows). The user wants modifiers to be announced only when
+    // they're held while another key is pressed (e.g. "Ctrl+O"); pressing
+    // Ctrl on its own should not say "Ctrl".
+    switch (vk) {
+        case VK_CONTROL:  case VK_LCONTROL: case VK_RCONTROL:
+        case VK_SHIFT:    case VK_LSHIFT:   case VK_RSHIFT:
+        case VK_MENU:     case VK_LMENU:    case VK_RMENU:
+        case VK_LWIN:     case VK_RWIN:
+        case VK_CAPITAL:  case VK_NUMLOCK:  case VK_SCROLL:
+            return std::string();
+    }
+
     std::string prefix = FormatModifierPrefix(ctrl, shift, alt);
 
     // 1) No-modifier physical-position bindings first.
