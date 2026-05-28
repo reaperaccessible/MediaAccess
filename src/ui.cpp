@@ -99,13 +99,16 @@ void UpdateStatusBar() {
         int bitrate = GetCurrentBitrate();
         if (bitrate > 0) {
             if (!stateText.empty()) stateText += L" | ";
-            wchar_t brBuf[48];
-            // Check if VBR
+            wchar_t brBuf[64];
+            // Check if VBR. Format strings routed through T() so the status
+            // bar (read aloud by NVDA) stays in the active UI language.
+            // "kbps" and "VBR" are universal abbreviations; only the number
+            // format differs.
             float vbr = 0;
             if (g_sourceStream && BASS_ChannelGetAttribute(g_sourceStream, BASS_ATTRIB_VBR, &vbr) && vbr > 0) {
-                swprintf(brBuf, 48, L"~%d kbps VBR", bitrate);
+                swprintf(brBuf, 64, T("~%d kbps VBR"), bitrate);
             } else {
-                swprintf(brBuf, 48, L"%d kbps", bitrate);
+                swprintf(brBuf, 64, T("%d kbps"), bitrate);
             }
             stateText += brBuf;
         }

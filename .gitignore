@@ -24,6 +24,9 @@ include/prism.h
 
 # Dependencies (downloaded/external)
 lib/*.dll
+lib/FluidR3_GM.sf2
+lib/*.sf2
+lib/*.sf3
 deps/
 src/sqlite3.c
 

@@ -555,6 +555,21 @@ void RegisterRcTranslations() {
     AddTranslation("en", "&SoundFont (.sf2/.sf3):", L"&SoundFont (.sf2/.sf3):");
     AddTranslation("fr", "&SoundFont (.sf2/.sf3):", L"&SoundFont (.sf2/.sf3) :");
 
+    AddTranslation("en", "&SoundFont (.sf2/.sf3) — leave empty to use bundled FluidR3_GM:",
+                   L"&SoundFont (.sf2/.sf3) — leave empty to use bundled FluidR3_GM:");
+    AddTranslation("fr", "&SoundFont (.sf2/.sf3) — leave empty to use bundled FluidR3_GM:",
+                   L"&SoundFont (.sf2/.sf3) — laisser vide pour utiliser FluidR3_GM inclus :");
+
+    AddTranslation("en", "Using bundled FluidR3_GM (Frank Wen, MIT license).",
+                   L"Using bundled FluidR3_GM (Frank Wen, MIT license).");
+    AddTranslation("fr", "Using bundled FluidR3_GM (Frank Wen, MIT license).",
+                   L"Utilisation de FluidR3_GM inclus (Frank Wen, licence MIT).");
+
+    AddTranslation("en", "Using BASSMIDI built-in synth (basic sound).",
+                   L"Using BASSMIDI built-in synth (basic sound).");
+    AddTranslation("fr", "Using BASSMIDI built-in synth (basic sound).",
+                   L"Utilisation du synthétiseur intégré BASSMIDI (son basique).");
+
     AddTranslation("en", "Ma&x voices (polyphony):", L"Ma&x voices (polyphony):");
     AddTranslation("fr", "Ma&x voices (polyphony):", L"Nb ma&x de voix (polyphonie) :");
 

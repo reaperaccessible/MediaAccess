@@ -2,6 +2,39 @@
 #include "mediaaccess/translations.h"
 #include "mediaaccess/youtube.h"  // ClearYouTubeCache, GetYouTubeCacheSize
 
+// Update the small hint under the SoundFont path field that tells the user
+// what will actually be used when the field is empty. Three cases:
+//   - User typed a path: hide the hint (empty label)
+//   - Field empty, bundled FluidR3_GM.sf2 exists: show "Using bundled FluidR3_GM..."
+//   - Field empty, no bundled SF: show "Using BASSMIDI built-in synth"
+static void UpdateMidiBundledLabel(HWND hwnd) {
+    wchar_t cur[MAX_PATH] = {0};
+    GetDlgItemTextW(hwnd, IDC_MIDI_SOUNDFONT, cur, MAX_PATH);
+    if (cur[0] != L'\0') {
+        SetDlgItemTextW(hwnd, IDC_LABEL_MIDI_SF_BUNDLED, L"");
+        return;
+    }
+    // Field is empty — figure out which fallback will actually fire
+    wchar_t exePath[MAX_PATH];
+    bool haveBundled = false;
+    if (GetModuleFileNameW(nullptr, exePath, MAX_PATH) > 0) {
+        wchar_t* lastSlash = wcsrchr(exePath, L'\\');
+        if (lastSlash) {
+            *(lastSlash + 1) = L'\0';
+            std::wstring bundled = std::wstring(exePath) + L"lib\\FluidR3_GM.sf2";
+            DWORD attrs = GetFileAttributesW(bundled.c_str());
+            haveBundled = (attrs != INVALID_FILE_ATTRIBUTES && !(attrs & FILE_ATTRIBUTE_DIRECTORY));
+        }
+    }
+    if (haveBundled) {
+        SetDlgItemTextW(hwnd, IDC_LABEL_MIDI_SF_BUNDLED,
+                        T("Using bundled FluidR3_GM (Frank Wen, MIT license)."));
+    } else {
+        SetDlgItemTextW(hwnd, IDC_LABEL_MIDI_SF_BUNDLED,
+                        T("Using BASSMIDI built-in synth (basic sound)."));
+    }
+}
+
 // Helper to show/hide tab controls
 void ShowTabControls(HWND hwnd, int tab) {
     // Tab indices: 0=Playback, 1=Recording, 2=Downloads, 3=Speech, 4=Movement,
@@ -50,7 +83,8 @@ void ShowTabControls(HWND hwnd, int tab) {
                               IDC_LABEL_SIGNALSMITH_DESCRIPTION, IDC_LABEL_SIGNALSMITH_QUALITY, IDC_LABEL_SIGNALSMITH_TONALITY, IDC_LABEL_SIGNALSMITH_HARMONICS, IDC_LABEL_SIGNALSMITH_VALUES};
     // MIDI tab controls (tab 12)
     int midiCtrls[] = {IDC_MIDI_SOUNDFONT, IDC_MIDI_SF_BROWSE, IDC_MIDI_VOICES, IDC_MIDI_SINC,
-                       IDC_LABEL_MIDI_DESCRIPTION, IDC_LABEL_MIDI_SOUNDFONT, IDC_LABEL_MIDI_VOICES, IDC_LABEL_MIDI_VOICES_RANGE};
+                       IDC_LABEL_MIDI_DESCRIPTION, IDC_LABEL_MIDI_SOUNDFONT, IDC_LABEL_MIDI_VOICES, IDC_LABEL_MIDI_VOICES_RANGE,
+                       IDC_LABEL_MIDI_SF_BUNDLED};
 
 
 
@@ -463,6 +497,9 @@ INT_PTR CALLBACK OptionsDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
                 SetDlgItemTextW(hwnd, IDC_MIDI_VOICES, buf);
 
                 CheckDlgButton(hwnd, IDC_MIDI_SINC, g_midiSincInterp ? BST_CHECKED : BST_UNCHECKED);
+
+                // Show "(Using bundled FluidR3_GM)" hint when path empty
+                UpdateMidiBundledLabel(hwnd);
             }
 
             // Populate language combo
@@ -889,9 +926,18 @@ INT_PTR CALLBACK OptionsDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
                     ofn.Flags = OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST;
                     if (GetOpenFileNameW(&ofn)) {
                         SetDlgItemTextW(hwnd, IDC_MIDI_SOUNDFONT, filePath);
+                        UpdateMidiBundledLabel(hwnd);
                     }
                     return TRUE;
                 }
+
+                case IDC_MIDI_SOUNDFONT:
+                    // Live refresh the "Using bundled FluidR3_GM" hint as the
+                    // user types or clears the path.
+                    if (HIWORD(wParam) == EN_CHANGE) {
+                        UpdateMidiBundledLabel(hwnd);
+                    }
+                    return TRUE;
 
                 case IDC_CONV_BROWSE: {
                     wchar_t filePath[MAX_PATH] = {0};
@@ -1035,7 +1081,7 @@ void AuditOptionsLayout() {
                                    MAKEINTRESOURCEW(IDD_OPTIONS),
                                    g_hwnd, OptionsDlgProc, 0);
     if (!hDlg) {
-        MessageBoxW(g_hwnd, L"Could not create Options dialog for audit.",
+        MessageBoxW(g_hwnd, T("Could not create Options dialog for audit."),
                     T("Layout audit"), MB_OK | MB_ICONERROR);
         return;
     }

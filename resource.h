@@ -482,6 +482,7 @@
 #define IDC_LABEL_MIDI_SOUNDFONT            1111
 #define IDC_LABEL_MIDI_VOICES               1112
 #define IDC_LABEL_MIDI_VOICES_RANGE         1113
+#define IDC_LABEL_MIDI_SF_BUNDLED           1114
 
 // Language selector (placed on Playback tab)
 #define IDC_LANGUAGE_COMBO                  1310

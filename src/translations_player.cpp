@@ -1035,4 +1035,174 @@ void RegisterPlayerTranslations() {
 
     AddTranslation("en", "I3DL2 Reverb", L"I3DL2 Reverb");
     AddTranslation("fr", "I3DL2 Reverb", L"Réverbération I3DL2");
+
+    // -------------------------------------------------------------------
+    // Effect parameter names — spoken by AnnounceCurrentParam() when the
+    // user cycles with [ / ] or adjusts with Up / Down / Backspace /
+    // Ctrl+Home / Ctrl+End. Volume / Pitch / Tempo / Rate / Stereo Width /
+    // Center Cancel already registered above.
+    // -------------------------------------------------------------------
+    AddTranslation("en", "Reverb Mix",   L"Reverb Mix");
+    AddTranslation("fr", "Reverb Mix",   L"Mixage de réverbération");
+
+    AddTranslation("en", "Reverb Room",  L"Reverb Room");
+    AddTranslation("fr", "Reverb Room",  L"Taille de la pièce");
+
+    AddTranslation("en", "Reverb Damp",  L"Reverb Damp");
+    AddTranslation("fr", "Reverb Damp",  L"Amortissement de la réverbération");
+
+    AddTranslation("en", "DX8 Reverb Time", L"DX8 Reverb Time");
+    AddTranslation("fr", "DX8 Reverb Time", L"DX8 Temps de réverbération");
+
+    AddTranslation("en", "DX8 HF Ratio",    L"DX8 HF Ratio");
+    AddTranslation("fr", "DX8 HF Ratio",    L"DX8 Ratio hautes fréquences");
+
+    AddTranslation("en", "DX8 Reverb Mix",  L"DX8 Reverb Mix");
+    AddTranslation("fr", "DX8 Reverb Mix",  L"DX8 Mixage de réverbération");
+
+    AddTranslation("en", "I3DL2 Room",      L"I3DL2 Room");
+    AddTranslation("fr", "I3DL2 Room",      L"I3DL2 Pièce");
+
+    AddTranslation("en", "I3DL2 Decay",     L"I3DL2 Decay");
+    AddTranslation("fr", "I3DL2 Decay",     L"I3DL2 Déclin");
+
+    AddTranslation("en", "I3DL2 Diffusion", L"I3DL2 Diffusion");
+    AddTranslation("fr", "I3DL2 Diffusion", L"I3DL2 Diffusion");
+
+    AddTranslation("en", "I3DL2 Density",   L"I3DL2 Density");
+    AddTranslation("fr", "I3DL2 Density",   L"I3DL2 Densité");
+
+    AddTranslation("en", "Echo Delay",      L"Echo Delay");
+    AddTranslation("fr", "Echo Delay",      L"Délai d'écho");
+
+    AddTranslation("en", "Echo Feedback",   L"Echo Feedback");
+    AddTranslation("fr", "Echo Feedback",   L"Retour d'écho");
+
+    AddTranslation("en", "Echo Mix",        L"Echo Mix");
+    AddTranslation("fr", "Echo Mix",        L"Mixage d'écho");
+
+    AddTranslation("en", "EQ Preamp", L"EQ Preamp");
+    AddTranslation("fr", "EQ Preamp", L"Préampli égaliseur");
+
+    AddTranslation("en", "EQ Bass",   L"EQ Bass");
+    AddTranslation("fr", "EQ Bass",   L"Égaliseur basses");
+
+    AddTranslation("en", "EQ Mid",    L"EQ Mid");
+    AddTranslation("fr", "EQ Mid",    L"Égaliseur médiums");
+
+    AddTranslation("en", "EQ Treble", L"EQ Treble");
+    AddTranslation("fr", "EQ Treble", L"Égaliseur aigus");
+
+    AddTranslation("en", "Comp Threshold", L"Comp Threshold");
+    AddTranslation("fr", "Comp Threshold", L"Compresseur seuil");
+
+    AddTranslation("en", "Comp Ratio",     L"Comp Ratio");
+    AddTranslation("fr", "Comp Ratio",     L"Compresseur ratio");
+
+    AddTranslation("en", "Comp Attack",    L"Comp Attack");
+    AddTranslation("fr", "Comp Attack",    L"Compresseur attaque");
+
+    AddTranslation("en", "Comp Release",   L"Comp Release");
+    AddTranslation("fr", "Comp Release",   L"Compresseur relâchement");
+
+    AddTranslation("en", "Comp Gain",      L"Comp Gain");
+    AddTranslation("fr", "Comp Gain",      L"Compresseur gain");
+
+    AddTranslation("en", "Conv Mix",  L"Conv Mix");
+    AddTranslation("fr", "Conv Mix",  L"Mixage de convolution");
+
+    AddTranslation("en", "Conv Gain", L"Conv Gain");
+    AddTranslation("fr", "Conv Gain", L"Gain de convolution");
+
+    AddTranslation("en", "3D Blend",        L"3D Blend");
+    AddTranslation("fr", "3D Blend",        L"Mélange 3D");
+
+    AddTranslation("en", "3D Width",        L"3D Width");
+    AddTranslation("fr", "3D Width",        L"Largeur 3D");
+
+    AddTranslation("en", "3D Rotation",     L"3D Rotation");
+    AddTranslation("fr", "3D Rotation",     L"Rotation 3D");
+
+    AddTranslation("en", "3D Mode",         L"3D Mode");
+    AddTranslation("fr", "3D Mode",         L"Mode 3D");
+
+    AddTranslation("en", "3D Rear Speaker", L"3D Rear Speaker");
+    AddTranslation("fr", "3D Rear Speaker", L"Haut-parleur arrière 3D");
+
+    AddTranslation("en", "3D Listener X",   L"3D Listener X");
+    AddTranslation("fr", "3D Listener X",   L"Position auditeur X");
+
+    AddTranslation("en", "3D Listener Y",   L"3D Listener Y");
+    AddTranslation("fr", "3D Listener Y",   L"Position auditeur Y");
+
+    AddTranslation("en", "3D Listener Z",   L"3D Listener Z");
+    AddTranslation("fr", "3D Listener Z",   L"Position auditeur Z");
+
+    // 3D Mode / Rear Speaker value words
+    AddTranslation("en", "5.1 Surround", L"5.1 Surround");
+    AddTranslation("fr", "5.1 Surround", L"Surround 5.1");
+
+    AddTranslation("en", "Binaural", L"Binaural");
+    AddTranslation("fr", "Binaural", L"Binaural");
+
+    AddTranslation("en", "On", L"On");
+    AddTranslation("fr", "On", L"Activé");
+
+    // Unit suffix (leading space preserved — the announce code appends it
+    // straight after the number). "%", "x", ":1", "ms", "dB", "Hz", "mB",
+    // "s" are universal abbreviations and don't need a French form (Ts()
+    // falls back to the source string).
+    AddTranslation("en", " semitones", L" semitones");
+    AddTranslation("fr", " semitones", L" demi-tons");
+
+    AddTranslation("en", " deg", L" deg");
+    AddTranslation("fr", " deg", L" degrés");
+
+    // Status messages already wrapped at the call site
+    AddTranslation("en", "No parameters available", L"No parameters available");
+    AddTranslation("fr", "No parameters available", L"Aucun paramètre disponible");
+
+    AddTranslation("en", "Not available for live streams", L"Not available for live streams");
+    AddTranslation("fr", "Not available for live streams", L"Indisponible pour les flux en direct");
+
+    // -------------------------------------------------------------------
+    // Download manager announcements (download_manager.cpp:306-313)
+    // -------------------------------------------------------------------
+    AddTranslation("en", "Download complete", L"Download complete");
+    AddTranslation("fr", "Download complete", L"Téléchargement terminé");
+
+    AddTranslation("en", "downloads complete", L"downloads complete");
+    AddTranslation("fr", "downloads complete", L"téléchargements terminés");
+
+    AddTranslation("en", "complete", L"complete");
+    AddTranslation("fr", "complete", L"terminés");
+
+    AddTranslation("en", "failed", L"failed");
+    AddTranslation("fr", "failed", L"échoués");
+
+    // -------------------------------------------------------------------
+    // Effect preset apply / delete announcements (main.cpp)
+    // -------------------------------------------------------------------
+    AddTranslation("en", "Loaded preset ", L"Loaded preset ");
+    AddTranslation("fr", "Loaded preset ", L"Préréglage chargé : ");
+
+    AddTranslation("en", "Deleted preset ", L"Deleted preset ");
+    AddTranslation("fr", "Deleted preset ", L"Préréglage supprimé : ");
+
+    // -------------------------------------------------------------------
+    // Status-bar bitrate text (ui.cpp UpdateStatusBar)
+    // -------------------------------------------------------------------
+    AddTranslation("en", "%d kbps",       L"%d kbps");
+    AddTranslation("fr", "%d kbps",       L"%d kbps");
+
+    AddTranslation("en", "~%d kbps VBR",  L"~%d kbps VBR");
+    AddTranslation("fr", "~%d kbps VBR",  L"~%d kbps VBR");
+
+    // -------------------------------------------------------------------
+    // Layout-audit error (ui_options.cpp)
+    // -------------------------------------------------------------------
+    AddTranslation("en", "Could not create Options dialog for audit.",
+                   L"Could not create Options dialog for audit.");
+    AddTranslation("fr", "Could not create Options dialog for audit.",
+                   L"Impossible de créer la fenêtre Options pour l'audit.");
 }

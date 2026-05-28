@@ -713,7 +713,8 @@
 <p>Les fichiers <code>.mid</code>, <code>.midi</code>, <code>.rmi</code> et <code>.kar</code> sont lus via BASSMIDI.</p>
 
 <h3>SoundFont</h3>
-<p>Dans <strong>Options → MIDI</strong>, indiquez le chemin d'un fichier SoundFont (.sf2 ou .sf3). Sans SoundFont, BASSMIDI utilise son synthétiseur par défaut.</p>
+<p>MediaAccess est livré avec <strong>FluidR3_GM</strong> de Frank Wen (licence MIT), la référence open-source pour le General MIDI. Les fichiers MIDI sonnent bien dès l'installation, sans configuration. Le fichier est installé à <code>&lt;dossier d'installation&gt;\lib\FluidR3_GM.sf2</code>.</p>
+<p>Pour utiliser un autre SoundFont, ouvrez <strong>Options → MIDI</strong> et parcourez vers un fichier <code>.sf2</code> ou <code>.sf3</code>. Videz le champ pour revenir à FluidR3_GM inclus. Si le champ est vide et que le fichier inclus est absent (rare — uniquement pour les builds portables n'ayant pas téléchargé le SoundFont), BASSMIDI utilise son synthétiseur intégré basique.</p>
 
 <h3>Polyphonie</h3>
 <p>« Nombre maximum de voix » contrôle la polyphonie (1 à 1000, défaut 128). Au-delà de 512, ne change vraiment que pour des fichiers MIDI très denses.</p>

@@ -256,6 +256,15 @@ static bool IsMidiFile(const wchar_t* path) {
 }
 
 // Apply MIDI settings (SoundFont, max voices)
+//
+// SoundFont resolution order:
+//   1. User-configured path (g_midiSoundFont, set in Options → MIDI)
+//   2. Bundled FluidR3_GM.sf2 at <exe dir>\lib\FluidR3_GM.sf2 (installed
+//      by default; downloaded by download-deps.bat for dev builds)
+//   3. BASSMIDI built-in synth (last resort — sounds basic but plays)
+//
+// The fallback runs at apply time (not save time), so a user can clear
+// their custom SoundFont in Options and silently fall back to FluidR3.
 void ApplyMidiSettings() {
     // Free previous SoundFont if any
     if (g_hSoundFont) {
@@ -266,9 +275,29 @@ void ApplyMidiSettings() {
     // Set max voices for MIDI playback
     BASS_SetConfig(BASS_CONFIG_MIDI_VOICES, g_midiMaxVoices);
 
-    // Load SoundFont if configured
-    if (!g_midiSoundFont.empty()) {
-        g_hSoundFont = BASS_MIDI_FontInit(g_midiSoundFont.c_str(), 0);
+    // Decide which SoundFont path to load
+    std::wstring sfPath = g_midiSoundFont;
+    if (sfPath.empty()) {
+        // No user-configured SoundFont — look for bundled FluidR3_GM.sf2
+        wchar_t exePath[MAX_PATH];
+        if (GetModuleFileNameW(nullptr, exePath, MAX_PATH) > 0) {
+            wchar_t* lastSlash = wcsrchr(exePath, L'\\');
+            if (lastSlash) {
+                *(lastSlash + 1) = L'\0';
+                std::wstring bundled = std::wstring(exePath) + L"lib\\FluidR3_GM.sf2";
+                // Only use the bundled file if it actually exists; otherwise
+                // we leave sfPath empty and BASSMIDI uses its built-in synth.
+                DWORD attrs = GetFileAttributesW(bundled.c_str());
+                if (attrs != INVALID_FILE_ATTRIBUTES && !(attrs & FILE_ATTRIBUTE_DIRECTORY)) {
+                    sfPath = bundled;
+                }
+            }
+        }
+    }
+
+    // Load SoundFont if we have a path
+    if (!sfPath.empty()) {
+        g_hSoundFont = BASS_MIDI_FontInit(sfPath.c_str(), 0);
         if (g_hSoundFont) {
             // Set as default SoundFont for all MIDI streams
             BASS_MIDI_FONT font;
@@ -277,6 +306,9 @@ void ApplyMidiSettings() {
             font.bank = 0;
             BASS_MIDI_StreamSetFonts(0, &font, 1);  // 0 = set default
         }
+        // If BASS_MIDI_FontInit failed (corrupt file etc.), g_hSoundFont stays
+        // 0 and BASSMIDI silently uses its built-in synth. No error popup —
+        // we never block playback over a SoundFont issue.
     }
 }
 

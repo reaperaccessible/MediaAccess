@@ -851,7 +851,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
                             auto names = GetEffectPresetNames();
                             size_t idx = cmdId - IDM_PRESET_BASE;
                             if (idx < names.size() && LoadEffectPreset(names[idx])) {
-                                std::wstring msg = L"Loaded preset " + names[idx];
+                                std::wstring msg = std::wstring(T("Loaded preset ")) + names[idx];
                                 SpeakW(msg);
                             }
                         }
@@ -862,7 +862,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
                             if (idx < names.size()) {
                                 std::wstring n = names[idx];
                                 if (DeleteEffectPreset(n)) {
-                                    std::wstring msg = L"Deleted preset " + n;
+                                    std::wstring msg = std::wstring(T("Deleted preset ")) + n;
                                     SpeakW(msg);
                                 }
                             }

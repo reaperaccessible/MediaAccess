@@ -1,6 +1,7 @@
 #include "download_manager.h"
 #include "globals.h"
 #include "accessibility.h"
+#include "translations.h"
 #include <wininet.h>
 #include <cstdio>
 
@@ -298,18 +299,26 @@ void DownloadManager::ProcessCompletion(int id, bool success) {
         onQueueChanged();
     }
 
-    // Speak progress when all downloads complete
+    // Speak progress when all downloads complete. All literals route
+    // through Ts() so French users hear the announcement in French.
     if (allDone && batchTotal > 0) {
-        char msg[128];
+        char msg[160];
         if (batchTotal == 1) {
             // Single download
-            Speak(success ? "Download complete" : "Download failed");
+            Speak(Ts(success ? "Download complete" : "Download failed"));
         } else {
             // Batch download
+            char num[24];
             if (batchFailed == 0) {
-                snprintf(msg, sizeof(msg), "%d downloads complete", batchSuccess);
+                snprintf(num, sizeof(num), "%d", batchSuccess);
+                snprintf(msg, sizeof(msg), "%s %s", num, Ts("downloads complete").c_str());
             } else {
-                snprintf(msg, sizeof(msg), "%d complete, %d failed", batchSuccess, batchFailed);
+                char num2[24];
+                snprintf(num,  sizeof(num),  "%d", batchSuccess);
+                snprintf(num2, sizeof(num2), "%d", batchFailed);
+                snprintf(msg, sizeof(msg), "%s %s, %s %s",
+                         num,  Ts("complete").c_str(),
+                         num2, Ts("failed").c_str());
             }
             Speak(msg);
         }

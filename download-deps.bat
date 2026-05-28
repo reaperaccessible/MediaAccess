@@ -284,6 +284,42 @@ if exist "lib\libmpv-2.dll" (
 echo.
 
 REM ============================================================
+REM FluidR3_GM SoundFont (bundled so MIDI files sound great out of the box)
+REM
+REM License: MIT (Frank Wen, 2002). The Internet Archive item "fluidr3-gm-gs"
+REM hosts the GM+GS variant (151 MB), which is a strict superset of the
+REM GM-only build — fine for everything MediaAccess does with MIDI. We save
+REM it locally as FluidR3_GM.sf2 because that's what player.cpp probes for.
+REM
+REM URL stability: Internet Archive items don't move, and IA serves stable
+REM 302 redirects to mirrors. If this ever breaks, alternative mirrors:
+REM   - https://musical-artifacts.com/artifacts/738 (manual download page)
+REM   - https://member.keymusician.com/Member/FluidR3_GM/index.html
+REM ============================================================
+echo.
+echo ===== FluidR3_GM SoundFont (for MIDI playback) =====
+if exist "lib\FluidR3_GM.sf2" (
+    echo lib\FluidR3_GM.sf2 already present, skipping download.
+) else (
+    echo Downloading FluidR3_GM.sf2 ^(~144 MB, this may take a few minutes^)...
+    powershell -NoProfile -ExecutionPolicy Bypass -Command ^
+        "$ErrorActionPreference='Stop';" ^
+        "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12;" ^
+        "$tmp = 'lib\FluidR3_GM.sf2.part';" ^
+        "Invoke-WebRequest -Uri 'https://archive.org/download/fluidr3-gm-gs/FluidR3_GM_GS.sf2' -OutFile $tmp -UseBasicParsing;" ^
+        "$sz = (Get-Item $tmp).Length;" ^
+        "if ($sz -lt 100000000) { Remove-Item $tmp -Force; throw ('Downloaded file too small (' + $sz + ' bytes) — likely an HTML error page. Aborting.') }" ^
+        "Move-Item -Force $tmp 'lib\FluidR3_GM.sf2';" ^
+        "Write-Host ('FluidR3_GM.sf2 installed in lib\ (' + [math]::Round($sz/1MB,1) + ' MB)') -ForegroundColor Green;"
+    if errorlevel 1 (
+        echo WARNING: FluidR3_GM.sf2 download failed. MIDI files will fall back
+        echo to the BASSMIDI built-in synth ^(basic sound^). You can manually
+        echo place a SoundFont at lib\FluidR3_GM.sf2 or set the SoundFont path
+        echo in MediaAccess Options ^> MIDI.
+    )
+)
+
+REM ============================================================
 REM yt-dlp.exe (YouTube downloader, bundled with installer)
 REM ============================================================
 echo.

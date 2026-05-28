@@ -33,7 +33,8 @@ FEATURES
 * Podcasts: subscription manager with RSS, Podcast 2.0 chapters, automatic
   episode downloads.
 * Recording: capture audio output to WAV, MP3, OGG, or FLAC.
-* MIDI playback with SoundFont support.
+* MIDI playback with SoundFont support — bundled with FluidR3_GM by Frank Wen
+  (MIT license) so .mid/.midi/.rmi/.kar files sound great out of the box.
 * Global hotkeys, fully configurable.
 * Remember playback position per file.
 * French and English UI, auto-detected from Windows display language.

@@ -66,6 +66,11 @@ copy /y "lib\bassenc_flac.dll" "dist_temp\lib\" 2>&1
 copy /y "lib\bassmix.dll" "dist_temp\lib\" 2>&1
 copy /y "lib\phonon.dll" "dist_temp\lib\" 2>&1
 
+REM Bundled FluidR3_GM SoundFont (~144 MB) — silent if not yet downloaded.
+REM Run download-deps.bat to fetch it. Without it, MIDI falls back to the
+REM BASSMIDI built-in synth.
+if exist "lib\FluidR3_GM.sf2" copy /y "lib\FluidR3_GM.sf2" "dist_temp\lib\" 2>&1
+
 REM Create zip using PowerShell
 echo Creating %ZIPNAME%...
 powershell -NoProfile -Command "Compress-Archive -Path 'dist_temp\*' -DestinationPath '%ZIPNAME%' -Force"

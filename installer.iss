@@ -80,6 +80,10 @@ Source: "{#SourceDir}\MediaAccess.ini"; DestDir: "{app}"; Flags: ignoreversion s
 Source: "{#SourceDir}\lib\*.dll"; DestDir: "{app}\lib"; Flags: ignoreversion
 ; Bundle yt-dlp.exe for YouTube support (auto-detected by the app)
 Source: "{#SourceDir}\lib\yt-dlp.exe"; DestDir: "{app}\lib"; Flags: ignoreversion skipifsourcedoesntexist
+; Bundle FluidR3_GM SoundFont so MIDI files sound great out of the box.
+; ApplyMidiSettings() auto-loads this when no user SoundFont is set.
+; skipifsourcedoesntexist so an installer can still be built without it.
+Source: "{#SourceDir}\lib\FluidR3_GM.sf2"; DestDir: "{app}\lib"; Flags: ignoreversion skipifsourcedoesntexist
 ; Install documentation
 Source: "{#SourceDir}\docs\readme.txt"; DestDir: "{app}\docs"; Flags: ignoreversion
 Source: "{#SourceDir}\docs\changelog.txt"; DestDir: "{app}\docs"; Flags: ignoreversion

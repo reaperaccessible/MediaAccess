@@ -1199,26 +1199,45 @@ void AnnounceCurrentParam() {
     if (!def) return;
 
     float val = GetParamValue(id);
-    char buf[64];
 
-    // Format based on parameter type
+    // String-valued special cases: route every label and every choice word
+    // through Ts() so a French user hears "Mode 3D : Binaural" instead of
+    // "3D Mode: Binaural".
     if (id == ParamId::SpatialMode) {
-        snprintf(buf, sizeof(buf), "3D Mode: %s", val >= 0.5f ? "5.1 Surround" : "Binaural");
-    } else if (id == ParamId::SpatialRearCenter) {
-        snprintf(buf, sizeof(buf), "3D Rear Speaker: %s", val >= 0.5f ? "On" : "Off");
-    } else if (id == ParamId::Volume) {
-        snprintf(buf, sizeof(buf), "%s %d%s", def->name, (int)(val * 100 + 0.5f), def->unit);
-    } else if (id == ParamId::Rate) {
-        snprintf(buf, sizeof(buf), "%s %.2f%s", def->name, val, def->unit);
-    } else if (id == ParamId::Pitch || id == ParamId::EQBass || id == ParamId::EQMid || id == ParamId::EQTreble) {
-        snprintf(buf, sizeof(buf), "%s %+.0f%s", def->name, val, def->unit);
-    } else if (id == ParamId::EchoDelay) {
-        snprintf(buf, sizeof(buf), "%s %.0f%s", def->name, val, def->unit);
-    } else {
-        snprintf(buf, sizeof(buf), "%s %.0f%s", def->name, val, def->unit);
+        std::string mode = val >= 0.5f ? Ts("5.1 Surround") : Ts("Binaural");
+        Speak(Ts(def->name) + ": " + mode);
+        return;
+    }
+    if (id == ParamId::SpatialRearCenter) {
+        std::string state = val >= 0.5f ? Ts("On") : Ts("Off");
+        Speak(Ts(def->name) + ": " + state);
+        return;
     }
 
-    Speak(buf);
+    // Numeric value formatted separately from name/unit so name and unit can
+    // be looked up through Ts(). Number format is locale-neutral; we keep
+    // the same precision rules as before.
+    char numBuf[32];
+    if (id == ParamId::Volume) {
+        snprintf(numBuf, sizeof(numBuf), "%d", (int)(val * 100 + 0.5f));
+    } else if (id == ParamId::Rate) {
+        snprintf(numBuf, sizeof(numBuf), "%.2f", val);
+    } else if (id == ParamId::Pitch || id == ParamId::EQBass || id == ParamId::EQMid || id == ParamId::EQTreble) {
+        snprintf(numBuf, sizeof(numBuf), "%+.0f", val);
+    } else {
+        snprintf(numBuf, sizeof(numBuf), "%.0f", val);
+    }
+
+    std::string msg = Ts(def->name) + " " + numBuf;
+    if (def->unit && def->unit[0] != '\0') {
+        // Units like "%", "x", ":1", "ms", "Hz", "dB" are universal; the
+        // Ts() fallback returns the source string when no translation is
+        // registered, so this also works for those. Units that DO translate
+        // (" semitones" → " demi-tons", " deg" → " degrés") are registered
+        // in translations_player.cpp with their leading space preserved.
+        msg += Ts(def->unit);
+    }
+    Speak(msg);
 }
 
 void ResetEffects() {

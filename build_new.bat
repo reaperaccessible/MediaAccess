@@ -110,6 +110,7 @@ set "ISCC="
 for %%V in (7 6) do (
     if not defined ISCC if exist "%ProgramFiles(x86)%\Inno Setup %%V\ISCC.exe" set "ISCC=%ProgramFiles(x86)%\Inno Setup %%V\ISCC.exe"
     if not defined ISCC if exist "%ProgramFiles%\Inno Setup %%V\ISCC.exe" set "ISCC=%ProgramFiles%\Inno Setup %%V\ISCC.exe"
+    if not defined ISCC if exist "%LOCALAPPDATA%\Programs\Inno Setup %%V\ISCC.exe" set "ISCC=%LOCALAPPDATA%\Programs\Inno Setup %%V\ISCC.exe"
 )
 
 if defined ISCC (
@@ -118,10 +119,19 @@ if defined ISCC (
     if exist "dist_temp" rmdir /s /q "dist_temp"
     mkdir "dist_temp"
     copy /y "MediaAccess.exe" "dist_temp\" >nul
+    copy /y "MediaAccess.ico" "dist_temp\" >nul 2>&1
     mkdir "dist_temp\docs" 2>nul
     xcopy /y /e "docs\*" "dist_temp\docs\" >nul 2>&1
     mkdir "dist_temp\lib" 2>nul
     for %%f in (lib\*.dll) do copy /y "%%f" "dist_temp\lib\" >nul 2>&1
+    REM Bundle yt-dlp.exe (YouTube) and FluidR3_GM.sf2 (MIDI) if present
+    if exist "lib\yt-dlp.exe" copy /y "lib\yt-dlp.exe" "dist_temp\lib\" >nul 2>&1
+    if exist "lib\FluidR3_GM.sf2" copy /y "lib\FluidR3_GM.sf2" "dist_temp\lib\" >nul 2>&1
+    REM Regional default keymaps
+    if exist "KeyMaps\*.MediaAccessKeyMap" (
+        mkdir "dist_temp\KeyMaps" 2>nul
+        copy /y "KeyMaps\*.MediaAccessKeyMap" "dist_temp\KeyMaps\" >nul 2>&1
+    )
     "%ISCC%" /DMyAppVersion=%APP_VERSION% /DSourceDir=dist_temp /DOutputDir=. installer.iss
     if errorlevel 1 (
         echo Installer build failed!
