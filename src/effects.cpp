@@ -181,9 +181,11 @@ void ToggleStreamEffect(int effectIndex) {
 
     g_effectEnabled[effectIndex] = !g_effectEnabled[effectIndex];
 
+    // Bilingual: each effect name and the state word go through Ts() so the
+    // announcement matches the active MediaAccess UI language.
     const char* names[] = {"Volume", "Pitch", "Tempo", "Rate"};
-    std::string msg = std::string(names[effectIndex]) +
-                      (g_effectEnabled[effectIndex] ? " enabled" : " disabled");
+    std::string msg = Ts(names[effectIndex]) + " " +
+                      Ts(g_effectEnabled[effectIndex] ? "enabled" : "disabled");
     Speak(msg);
 }
 
@@ -202,7 +204,7 @@ void ToggleDSPEffect(DSPEffectType type) {
         int newAlgo = (g_reverbAlgorithm + 1) % 4;
         SetReverbAlgorithm(newAlgo);
         const char* algoNames[] = {"Off", "Freeverb", "DX8 Reverb", "I3DL2 Reverb"};
-        Speak(std::string("Reverb: ") + algoNames[newAlgo]);
+        Speak(Ts("Reverb") + ": " + Ts(algoNames[newAlgo]));
         return;
     }
 
@@ -210,8 +212,8 @@ void ToggleDSPEffect(DSPEffectType type) {
     EnableDSPEffect(type, newState);
 
     const char* names[] = {"Reverb", "Echo", "EQ", "Compressor", "Stereo Width", "Center Cancel", "Convolution", "3D Audio"};
-    std::string msg = std::string(names[(int)type]) +
-                      (newState ? " enabled" : " disabled");
+    std::string msg = Ts(names[(int)type]) + " " +
+                      Ts(newState ? "enabled" : "disabled");
     Speak(msg);
 }
 

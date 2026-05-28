@@ -976,4 +976,63 @@ void RegisterPlayerTranslations() {
 
     AddTranslation("en", "Effects activated", L"Effects activated");
     AddTranslation("fr", "Effects activated", L"Effets activés");
+
+    // -------------------------------------------------------------------
+    // Effect-toggle announcements (Ctrl+1..0 / Ctrl+- / Ctrl+=)
+    // Used by effects.cpp ToggleStreamEffect / ToggleDSPEffect via Ts().
+    // -------------------------------------------------------------------
+    AddTranslation("en", "Volume", L"Volume");
+    AddTranslation("fr", "Volume", L"Volume");
+
+    AddTranslation("en", "Pitch", L"Pitch");
+    AddTranslation("fr", "Pitch", L"Tonalité");
+
+    AddTranslation("en", "Tempo", L"Tempo");
+    AddTranslation("fr", "Tempo", L"Tempo");
+
+    AddTranslation("en", "Rate", L"Rate");
+    AddTranslation("fr", "Rate", L"Vitesse");
+
+    AddTranslation("en", "Reverb", L"Reverb");
+    AddTranslation("fr", "Reverb", L"Réverbération");
+
+    AddTranslation("en", "Echo", L"Echo");
+    AddTranslation("fr", "Echo", L"Écho");
+
+    AddTranslation("en", "EQ", L"EQ");
+    AddTranslation("fr", "EQ", L"Égaliseur");
+
+    AddTranslation("en", "Compressor", L"Compressor");
+    AddTranslation("fr", "Compressor", L"Compresseur");
+
+    AddTranslation("en", "Stereo Width", L"Stereo Width");
+    AddTranslation("fr", "Stereo Width", L"Largeur stéréo");
+
+    AddTranslation("en", "Center Cancel", L"Center Cancel");
+    AddTranslation("fr", "Center Cancel", L"Annulation centrale");
+
+    AddTranslation("en", "Convolution", L"Convolution");
+    AddTranslation("fr", "Convolution", L"Convolution");
+
+    AddTranslation("en", "3D Audio", L"3D Audio");
+    AddTranslation("fr", "3D Audio", L"Audio 3D");
+
+    AddTranslation("en", "enabled", L"enabled");
+    AddTranslation("fr", "enabled", L"activé");
+
+    AddTranslation("en", "disabled", L"disabled");
+    AddTranslation("fr", "disabled", L"désactivé");
+
+    // Reverb algorithm names (Ctrl+5 cycles)
+    AddTranslation("en", "Off", L"Off");
+    AddTranslation("fr", "Off", L"Désactivé");
+
+    AddTranslation("en", "Freeverb", L"Freeverb");
+    AddTranslation("fr", "Freeverb", L"Freeverb");
+
+    AddTranslation("en", "DX8 Reverb", L"DX8 Reverb");
+    AddTranslation("fr", "DX8 Reverb", L"Réverbération DX8");
+
+    AddTranslation("en", "I3DL2 Reverb", L"I3DL2 Reverb");
+    AddTranslation("fr", "I3DL2 Reverb", L"Réverbération I3DL2");
 }
