@@ -112,4 +112,12 @@ bool IsCurrentlyPlaying();
 bool IsCurrentlyPaused();
 bool IsCurrentlyStopped();
 
+// Effective playback-speed multiplier combining tempo and rate effects.
+// Returns 1.0 when both are at default. Used by time displays to convert
+// nominal source-content seconds into real wall-clock seconds — a 33-min
+// file played at 3.0 reports 11 min total / position / remaining.
+// Pitch alone does not affect duration and is ignored. Always >= 0.01 to
+// avoid divide-by-zero when the user inches tempo toward -100%.
+double GetEffectivePlaybackSpeed();
+
 #endif // MEDIAACCESS_PLAYER_H

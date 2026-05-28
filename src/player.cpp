@@ -1552,35 +1552,50 @@ void ToggleMute() {
     UpdateStatusBar();
 }
 
-// Speak elapsed time
+// Combined tempo + rate multiplier. BASS tempo is a ±% (e.g. +100 = 2x
+// faster, -50 = half speed) and BASS rate is a direct multiplier on the
+// sample rate. The effective speed at which audio actually plays is the
+// product of the two. Clamped to a small positive minimum so callers can
+// safely divide by it without checking for zero.
+double GetEffectivePlaybackSpeed() {
+    double tempoFactor = 1.0 + (double)g_tempo / 100.0;
+    double speed = tempoFactor * (double)g_rate;
+    if (speed < 0.01) speed = 0.01;
+    return speed;
+}
+
+// Speak elapsed time — reported in real wall-clock seconds (divides the
+// source-content position by the effective playback speed).
 void SpeakElapsed() {
     if (!g_fxStream) return;
     TempoProcessor* processor = GetTempoProcessor();
     if (!processor || !processor->IsActive()) return;
-    double pos = processor->GetPosition();
+    double pos = processor->GetPosition() / GetEffectivePlaybackSpeed();
     std::wstring posStr = FormatTime(pos);
     Speak(WideToUtf8(posStr));
 }
 
-// Speak remaining time
+// Speak remaining time — adjusted for current playback speed.
 void SpeakRemaining() {
     if (!g_fxStream) return;
     TempoProcessor* processor = GetTempoProcessor();
     if (!processor || !processor->IsActive()) return;
-    double pos = processor->GetPosition();
-    double len = processor->GetLength();
+    double speed = GetEffectivePlaybackSpeed();
+    double pos = processor->GetPosition() / speed;
+    double len = processor->GetLength()  / speed;
     double remaining = len - pos;
     if (remaining < 0) remaining = 0;
     std::wstring remStr = FormatTime(remaining);
     Speak(WideToUtf8(remStr));
 }
 
-// Speak total time
+// Speak total time — adjusted for current playback speed, so a 33-min
+// file at 3x is announced as 11 min.
 void SpeakTotal() {
     if (!g_fxStream) return;
     TempoProcessor* processor = GetTempoProcessor();
     if (!processor || !processor->IsActive()) return;
-    double len = processor->GetLength();
+    double len = processor->GetLength() / GetEffectivePlaybackSpeed();
     std::wstring lenStr = FormatTime(len);
     Speak(WideToUtf8(lenStr));
 }

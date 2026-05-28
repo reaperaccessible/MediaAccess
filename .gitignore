@@ -55,3 +55,6 @@ Thumbs.db
 
 Tools/
 MediaAccess.exe.manifest
+
+dist_temp/
+MediaAccessInstaller_*.exe

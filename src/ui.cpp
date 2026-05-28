@@ -50,10 +50,13 @@ void UpdateStatusBar() {
     std::wstring posText = L"--:-- / --:--";
     std::wstring stateText;
 
-    // MPV active: query video engine for position/state
+    // MPV active: query video engine for position/state. Times are scaled
+    // by the effective playback speed so a 2x-faster video shows half the
+    // total / position (matches Arnaud's VoiceDream-style request).
     if (g_activeEngine == PlaybackEngine::MPV) {
-        double pos = MPVGetPosition();
-        double len = MPVGetLength();
+        double speed = GetEffectivePlaybackSpeed();
+        double pos = MPVGetPosition() / speed;
+        double len = MPVGetLength()   / speed;
         if (len > 0) posText = FormatTime(pos) + L" / " + FormatTime(len);
         if (MPVIsPlaying()) stateText = T("Playing");
         else if (MPVIsPaused()) stateText = T("Paused");
@@ -71,11 +74,14 @@ void UpdateStatusBar() {
     }
 
     if (g_fxStream) {
-        // Use tempo processor to get position and length
+        // Use tempo processor to get position and length. Both are scaled
+        // by the effective tempo×rate so that the status bar reports real
+        // wall-clock time. A 33-minute file played at 3x shows 0:00 / 11:00.
         TempoProcessor* processor = GetTempoProcessor();
         if (processor && processor->IsActive()) {
-            double pos = processor->GetPosition();
-            double len = processor->GetLength();
+            double speed = GetEffectivePlaybackSpeed();
+            double pos = processor->GetPosition() / speed;
+            double len = processor->GetLength()  / speed;
             if (len > 0) {
                 posText = FormatTime(pos) + L" / " + FormatTime(len);
             }
