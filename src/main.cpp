@@ -941,17 +941,15 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLi
         SetDllDirectoryW(exePath);
     }
 
-    // Build config path early to read multi-instance setting
-    wchar_t configPath[MAX_PATH];
-    GetModuleFileNameW(nullptr, configPath, MAX_PATH);
-    wchar_t* configSlash = wcsrchr(configPath, L'\\');
-    if (configSlash) {
-        *(configSlash + 1) = L'\0';
-        wcscat_s(configPath, MAX_PATH, L"MediaAccess.ini");
-    }
+    // Resolve the real config path (AppData in installed mode, exe-dir in
+    // portable mode). Without this, the multi-instance flag read below
+    // would always come from <exe-dir>\MediaAccess.ini even when Options
+    // saved it to %APPDATA%\MediaAccess\MediaAccess.ini — i.e. the
+    // checkbox would never appear to take effect after install.
+    InitConfigPath();
 
     // Check if multiple instances are allowed
-    bool allowMultiple = GetPrivateProfileIntW(L"Playback", L"AllowMultipleInstances", 0, configPath) != 0;
+    bool allowMultiple = GetPrivateProfileIntW(L"Playback", L"AllowMultipleInstances", 0, g_configPath.c_str()) != 0;
 
     // Check if we have file arguments
     bool hasFileArgs = false;
