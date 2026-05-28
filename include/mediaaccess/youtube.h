@@ -77,6 +77,11 @@ bool YouTubePlayById(const std::wstring& videoId);
 // Swap from the streaming libmpv engine to BASS at the current position.
 void YouTubeOnHybridDownloadReady(const std::wstring& videoId);
 
+// Cancel any pending hybrid swap. Call before loading non-YouTube media so a
+// late-arriving download from a previously-started hybrid playback does not
+// clobber the new track the user just opened.
+void YouTubeCancelHybrid();
+
 // Start streaming - downloads and returns path when complete (blocking)
 bool YouTubeStartStream(const std::wstring& videoId, std::wstring& filePath);
 

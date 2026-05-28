@@ -8,6 +8,10 @@
 #include "database.h"
 #include "resource.h"
 #include "mediaaccess/video_engine.h"
+#include "mediaaccess/youtube.h"  // YouTubeCancelHybrid()
+
+// Forward declaration so LoadURL (earlier in the file) can call it.
+static void TeardownMpvBeforeLoad();
 #include "mediaaccess/translations.h"
 #include "bass_fx.h"
 #include "bass_aac.h"
@@ -350,6 +354,12 @@ bool LoadURL(const wchar_t* url, bool silentOnFail) {
     }
 
     g_isLoading = true;
+
+    // Same dual-engine safety as LoadFile: if mpv is currently playing a
+    // video, stop it before opening a BASS URL stream (radio, podcast,
+    // arbitrary HTTP audio). Without this the video keeps running on top
+    // of the new audio stream.
+    TeardownMpvBeforeLoad();
 
     // Free existing streams safely
     if (g_fxStream) {
@@ -891,6 +901,28 @@ static bool LoadVideoURL(const wchar_t* url) {
     return true;
 }
 
+// Tear down the MPV engine before loading non-video media.
+//
+// MediaAccess has two playback engines (BASS for audio, libmpv for video).
+// LoadFile/LoadURL historically freed only BASS — if MPV was playing a video
+// and the user opened an audio file (Ctrl+O, Ctrl+V, Enter in playlist,
+// double-click, radio, podcast, YouTube cache hit, etc.), the video kept
+// running on top of the new audio. This helper centralizes the cleanup so
+// every entry point that loads new audio explicitly stops MPV first.
+//
+// Also cancels any pending YouTube hybrid swap so a background download
+// that finishes seconds after a manual load doesn't clobber the user's
+// chosen track.
+static void TeardownMpvBeforeLoad() {
+    YouTubeCancelHybrid();
+    if (g_activeEngine == PlaybackEngine::MPV) {
+        MPVStop();
+        if (g_videoHwnd) ShowWindow(g_videoHwnd, SW_HIDE);
+        g_isVideoPlaying = false;
+        g_activeEngine = PlaybackEngine::None;
+    }
+}
+
 // Check if extension is a known video format (regardless of mpv availability)
 static bool IsVideoExtension(const wchar_t* path) {
     if (!path) return false;
@@ -937,6 +969,11 @@ bool LoadFile(const wchar_t* path) {
     }
     g_isLoading = true;
     g_isLiveStream = false;  // Local files are always seekable
+
+    // If a video is currently playing via mpv, stop it before starting BASS.
+    // Without this, mpv keeps playing the video while BASS starts the audio
+    // — two media playing simultaneously, which is exactly what we don't want.
+    TeardownMpvBeforeLoad();
 
     // Free existing streams safely
     if (g_fxStream) {
@@ -1153,12 +1190,15 @@ void PlayPause() {
 
 // Free current stream (used when stopping live streams)
 void FreeCurrentStream() {
+    // Always tear MPV down if it's active. Removed an early-return that used
+    // to skip the BASS cleanup below — after the dual-engine teardown was
+    // added to LoadFile/LoadURL, both engines should never be live at the
+    // same time, but FreeCurrentStream should still be honest and clean both.
     if (g_activeEngine == PlaybackEngine::MPV) {
         MPVStop();
         if (g_videoHwnd) ShowWindow(g_videoHwnd, SW_HIDE);
         g_isVideoPlaying = false;
         g_activeEngine = PlaybackEngine::None;
-        return;
     }
     if (g_fxStream) {
         if (g_endSync) {

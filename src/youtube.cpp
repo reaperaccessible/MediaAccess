@@ -874,6 +874,13 @@ void YouTubeOnHybridDownloadReady(const std::wstring& videoId) {
     if (g_speechYTHybrid) Speak(Ts("Effects activated"));
 }
 
+// Public: drop the pending hybrid swap. Used by LoadFile/LoadURL in
+// player.cpp so a non-YouTube load isn't clobbered seconds later by a
+// hybrid download that finished in the background.
+void YouTubeCancelHybrid() {
+    g_ytHybrid.active.store(false);
+}
+
 bool YouTubePlayById(const std::wstring& videoId) {
     CleanupYouTubeTempFiles();
 
