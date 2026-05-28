@@ -492,6 +492,26 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
                 case IDM_HELP_UPDATES:
                     ShowCheckForUpdatesDialog(hwnd, false);
                     break;
+                case IDM_HELP_SET_DEFAULT: {
+                    // Open the Windows "Default apps" Settings page, deep-
+                    // linked to MediaAccess if the OS supports it. The
+                    // installer registers MediaAccess under
+                    // HKLM\SOFTWARE\RegisteredApplications\MediaAccess, so
+                    // the query string sends Windows 11 directly to our
+                    // section. Older Windows versions ignore the query and
+                    // just open the unfiltered Default apps page, which is
+                    // still the right destination.
+                    //
+                    // Microsoft removed programmatic "set as default" APIs
+                    // years ago for security reasons; the user must confirm
+                    // the change inside the Settings UI. We Speak() a hint
+                    // so screen-reader users know what just happened.
+                    ShellExecuteW(hwnd, L"open",
+                                  L"ms-settings:defaultapps?registeredAppMachine=MediaAccess",
+                                  nullptr, nullptr, SW_SHOWNORMAL);
+                    Speak(Ts("Opening Windows default-apps settings"));
+                    break;
+                }
                 case IDM_HELP_AUDIT_LAYOUT:
                     AuditOptionsLayout();
                     break;

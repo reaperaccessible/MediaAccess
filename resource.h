@@ -271,6 +271,7 @@
 #define IDM_HELP_AUDIT_LAYOUT   120
 #define IDM_HELP_MANUAL         121
 #define IDM_KEYBOARD_HELP_TOGGLE 123
+#define IDM_HELP_SET_DEFAULT     124
 
 // Progress dialog (for updates)
 #define IDD_PROGRESS        995

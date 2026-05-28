@@ -80,6 +80,8 @@ BEGIN
         MENUITEM "&Readme", IDM_HELP_README
         MENUITEM "Check for &Updates...", IDM_HELP_UPDATES
         MENUITEM SEPARATOR
+        MENUITEM "Set as &default media player...", IDM_HELP_SET_DEFAULT
+        MENUITEM SEPARATOR
         MENUITEM "&Audio formats...", IDM_HELP_PLUGINS
         MENUITEM SEPARATOR
         MENUITEM "&Test YouTube playback", IDM_HELP_TEST_YOUTUBE

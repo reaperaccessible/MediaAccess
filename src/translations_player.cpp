@@ -1205,4 +1205,17 @@ void RegisterPlayerTranslations() {
                    L"Could not create Options dialog for audit.");
     AddTranslation("fr", "Could not create Options dialog for audit.",
                    L"Impossible de créer la fenêtre Options pour l'audit.");
+
+    // -------------------------------------------------------------------
+    // Help > Set as default media player...  (v1.46)
+    // -------------------------------------------------------------------
+    AddTranslation("en", "Set as &default media player...",
+                   L"Set as &default media player...");
+    AddTranslation("fr", "Set as &default media player...",
+                   L"Définir comme lecteur par &défaut...");
+
+    AddTranslation("en", "Opening Windows default-apps settings",
+                   L"Opening Windows default-apps settings");
+    AddTranslation("fr", "Opening Windows default-apps settings",
+                   L"Ouverture des paramètres d'applications par défaut de Windows");
 }
