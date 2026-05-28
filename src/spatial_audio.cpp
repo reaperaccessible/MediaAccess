@@ -200,8 +200,8 @@ bool SpatialAudio::Initialize(int sampleRate) {
         m_queueCount = 0;
     }
     if (!EnsurePhononLoaded()) {
-        wcscpy_s(m_lastError, L"Failed to load phonon.dll from lib\\ folder. "
-                 L"Make sure phonon.dll is in the lib subfolder next to MediaAccess.exe.");
+        // Autonomy rule: no DLL names or paths in user-facing strings.
+        wcscpy_s(m_lastError, L"3D audio could not be initialized. Please reinstall MediaAccess.");
         LeaveCriticalSection(&m_cs);
         return false;
     }
@@ -214,14 +214,8 @@ bool SpatialAudio::Initialize(int sampleRate) {
     cs.simdLevel = IPL_SIMDLEVEL_AVX2;
     IPLerror err = p_iplContextCreate(&cs, &m_context);
     if (err != IPL_STATUS_SUCCESS) {
-        if (g_phononLog[0]) {
-            wchar_t logW[512];
-            MultiByteToWideChar(CP_UTF8, 0, g_phononLog, -1, logW, 512);
-            swprintf(m_lastError, 256, L"Steam Audio context creation failed (error %d): %s", (int)err, logW);
-        } else {
-            swprintf(m_lastError, 256, L"Steam Audio context creation failed (error %d). "
-                     L"phonon.dll may be corrupt or incompatible.", (int)err);
-        }
+        // User-facing: single neutral message. Detail goes to the log.
+        wcscpy_s(m_lastError, L"3D audio could not be initialized.");
         LeaveCriticalSection(&m_cs);
         return false;
     }
@@ -236,14 +230,7 @@ bool SpatialAudio::Initialize(int sampleRate) {
     g_phononLog[0] = '\0';
     err = p_iplHRTFCreate(m_context, &as, &hs, &m_hrtf);
     if (err != IPL_STATUS_SUCCESS) {
-        if (g_phononLog[0]) {
-            wchar_t logW[512];
-            MultiByteToWideChar(CP_UTF8, 0, g_phononLog, -1, logW, 512);
-            swprintf(m_lastError, 256, L"HRTF creation failed (error %d): %s", (int)err, logW);
-        } else {
-            swprintf(m_lastError, 256, L"HRTF creation failed (error %d, sample rate %d Hz). "
-                     L"The audio format may be unsupported.", (int)err, sampleRate);
-        }
+        wcscpy_s(m_lastError, L"3D audio could not be initialized for this audio format.");
         LeaveCriticalSection(&m_cs);
         Shutdown();
         return false;
@@ -257,26 +244,24 @@ bool SpatialAudio::Initialize(int sampleRate) {
     if (m_mode == SpatialMode::Binaural) {
         err = p_iplBinauralEffectCreate(m_context, &as, &bs, &m_effectL);
         if (err != IPL_STATUS_SUCCESS) {
-            swprintf(m_lastError, 256, L"Binaural effect (L) creation failed (error %d).", (int)err);
+            wcscpy_s(m_lastError, L"3D audio could not be initialized.");
             LeaveCriticalSection(&m_cs);
             Shutdown();
             return false;
         }
         err = p_iplBinauralEffectCreate(m_context, &as, &bs, &m_effectR);
         if (err != IPL_STATUS_SUCCESS) {
-            swprintf(m_lastError, 256, L"Binaural effect (R) creation failed (error %d).", (int)err);
+            wcscpy_s(m_lastError, L"3D audio could not be initialized.");
             LeaveCriticalSection(&m_cs);
             Shutdown();
             return false;
         }
     } else {
-        const wchar_t* names[] = {L"FL", L"FR", L"C", L"SL", L"SR", L"RC"};
         IPLBinauralEffect* effects[] = {&m_effectFL, &m_effectFR, &m_effectC, &m_effectSL, &m_effectSR, &m_effectRC};
         for (int i = 0; i < 6; i++) {
             err = p_iplBinauralEffectCreate(m_context, &as, &bs, effects[i]);
             if (err != IPL_STATUS_SUCCESS) {
-                swprintf(m_lastError, 256, L"%s mode: binaural effect (%s) creation failed (error %d).",
-                         modeName, names[i], (int)err);
+                wcscpy_s(m_lastError, L"3D audio could not be initialized for surround mode.");
                 LeaveCriticalSection(&m_cs);
                 Shutdown();
                 return false;
@@ -324,19 +309,12 @@ bool SpatialAudio::Initialize(int sampleRate) {
         }
 
         if (!testOk) {
-            if (exCode == 0xC0000005) {
-                swprintf(m_lastError, 256, L"Steam Audio crashed with an access violation (0x%08X) during processing. "
-                         L"phonon.dll may be incompatible with this system.", exCode);
-            } else if (exCode == 0xC000001D || exCode == 0xC000001E) {
-                swprintf(m_lastError, 256, L"Steam Audio crashed with an illegal instruction (0x%08X). "
-                         L"Your CPU may not support the required instruction set.", exCode);
-            } else if ((exCode & 0xFFFF0000) == 0xC06D0000) {
-                // Delay-load failure (module not found or proc not found)
-                swprintf(m_lastError, 256, L"Steam Audio failed to load a required DLL (0x%08X). "
-                         L"phonon.dll may have missing dependencies.", exCode);
+            // User-facing message stays neutral; technical exception code
+            // goes only to the log (autonomy rule).
+            if (exCode == 0xC000001D || exCode == 0xC000001E) {
+                wcscpy_s(m_lastError, L"3D audio is not compatible with your CPU. The effect has been disabled.");
             } else {
-                swprintf(m_lastError, 256, L"Steam Audio crashed during processing (exception 0x%08X). "
-                         L"phonon.dll may be incompatible or corrupt.", exCode);
+                wcscpy_s(m_lastError, L"3D audio is not compatible with your system. The effect has been disabled.");
             }
             LeaveCriticalSection(&m_cs);
             Shutdown();

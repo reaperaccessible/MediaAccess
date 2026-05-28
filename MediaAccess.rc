@@ -76,7 +76,7 @@ BEGIN
         MENUITEM "&Readme", IDM_HELP_README
         MENUITEM "Check for &Updates...", IDM_HELP_UPDATES
         MENUITEM SEPARATOR
-        MENUITEM "&Loaded Plugins...", IDM_HELP_PLUGINS
+        MENUITEM "&Audio formats...", IDM_HELP_PLUGINS
         MENUITEM SEPARATOR
         MENUITEM "&Test YouTube playback", IDM_HELP_TEST_YOUTUBE
         MENUITEM "C&lear YouTube cache...", IDM_HELP_CLEAR_YT_CACHE

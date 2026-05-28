@@ -9,6 +9,7 @@
 #include "resource.h"
 #include "mediaaccess/video_engine.h"
 #include "mediaaccess/youtube.h"  // YouTubeCancelHybrid()
+#include "mediaaccess/logger.h"   // LogF
 
 // Forward declaration so LoadURL (earlier in the file) can call it.
 static void TeardownMpvBeforeLoad();
@@ -85,22 +86,40 @@ void LoadBassPlugins() {
     }
 }
 
-// Get list of loaded plugins (for debugging)
+// Map a bundled plugin filename to the user-friendly audio format it adds.
+// Used by the Help → Loaded modules diagnostic so we never surface DLL
+// filenames in the UI (autonomy rule: no implementation detail).
+static const wchar_t* PluginFriendlyName(const std::wstring& dll) {
+    if (dll == L"bassflac.dll")  return L"FLAC";
+    if (dll == L"bassopus.dll")  return L"Opus";
+    if (dll == L"basswma.dll")   return L"Windows Media Audio";
+    if (dll == L"basswv.dll")    return L"WavPack";
+    if (dll == L"bassape.dll")   return L"Monkey's Audio (APE)";
+    if (dll == L"bassalac.dll")  return L"Apple Lossless (ALAC)";
+    if (dll == L"bassmidi.dll")  return L"MIDI";
+    if (dll == L"basscd.dll")    return L"CD audio";
+    if (dll == L"bassdsd.dll")   return L"DSD";
+    if (dll == L"basshls.dll")   return L"HLS streams";
+    if (dll == L"bassmix.dll")   return L"mixer";
+    if (dll == L"bass_aac.dll")  return L"AAC / M4A";
+    return dll.c_str();
+}
+
+// Get list of supported audio formats. Friendly names only — no DLL paths
+// or filenames. Shown by Help → Loaded modules so users can verify their
+// install is complete.
 std::wstring GetLoadedPluginsInfo() {
-    std::wstring info = L"Loaded: ";
-    for (size_t i = 0; i < g_loadedPlugins.size(); i++) {
-        if (i > 0) info += L", ";
-        info += g_loadedPlugins[i];
+    std::wstring info = T("Audio format support:");
+    info += L"\n\n";
+    for (const auto& p : g_loadedPlugins) {
+        info += L"\xE2\x9C\x93 ";  // checkmark
+        info += PluginFriendlyName(p);
+        info += L"\n";
     }
-    if (g_loadedPlugins.empty()) info += L"(none)";
-
-    info += L"\nFailed: ";
-    for (size_t i = 0; i < g_failedPlugins.size(); i++) {
-        if (i > 0) info += L", ";
-        info += g_failedPlugins[i];
+    if (!g_failedPlugins.empty()) {
+        info += L"\n";
+        info += T("Some audio format modules failed to load. Please reinstall MediaAccess.");
     }
-    if (g_failedPlugins.empty()) info += L"(none)";
-
     return info;
 }
 
@@ -285,7 +304,7 @@ bool InitBass(HWND hwnd) {
                 return false;
             }
         } else {
-            MessageBoxW(hwnd, L"Failed to initialize BASS audio library.", APP_NAME, MB_ICONERROR);
+            MessageBoxW(hwnd, T("Failed to initialize BASS audio library."), APP_NAME, MB_ICONERROR);
             return false;
         }
     }
@@ -305,13 +324,18 @@ bool InitBass(HWND hwnd) {
     return true;
 }
 
-// Free BASS resources
+// Free BASS resources.
+// Always BASS_ChannelStop() before BASS_StreamFree() — without the explicit
+// stop, freeing a still-playing stream is racy: BASS may continue producing
+// samples from its internal buffer briefly. Belt-and-suspenders.
 void FreeBass() {
     if (g_fxStream) {
+        BASS_ChannelStop(g_fxStream);
         BASS_StreamFree(g_fxStream);
         g_fxStream = 0;
     }
     if (g_stream) {
+        BASS_ChannelStop(g_stream);
         BASS_StreamFree(g_stream);
         g_stream = 0;
     }
@@ -417,7 +441,7 @@ bool LoadURL(const wchar_t* url, bool silentOnFail) {
         switch (error) {
             case BASS_ERROR_NONET:    errorMsg = T("No internet connection."); break;
             case BASS_ERROR_FILEOPEN: errorMsg = T("Could not connect to URL."); break;
-            case BASS_ERROR_FILEFORM: errorMsg = T("Unsupported stream format. Check bass_aac.dll is in lib folder."); break;
+            case BASS_ERROR_FILEFORM: errorMsg = T("Unsupported stream format."); break;
             case BASS_ERROR_CODEC:    errorMsg = T("Required codec is not available."); break;
             case BASS_ERROR_FORMAT:   errorMsg = T("Unsupported sample format."); break;
             case BASS_ERROR_TIMEOUT:  errorMsg = T("Connection timed out."); break;
@@ -433,12 +457,10 @@ bool LoadURL(const wchar_t* url, bool silentOnFail) {
         msg += L"\n";
         msg += displayUrl;
         msg += L"\n\n";
-        msg += T("Error: ");
         msg += errorMsg;
-        msg += L" (";
-        msg += T("code ");
-        msg += std::to_wstring(error);
-        msg += L")";
+        // Internal BASS error code is logged but never shown to the user
+        // (autonomy rule: never surface implementation detail).
+        LogF("BASS", "URL load failed: code=%d", error);
         if (!silentOnFail) MessageBoxW(GetMessageBoxOwner(), msg.c_str(), APP_NAME, MB_ICONERROR);
         return false;
     }
@@ -956,13 +978,14 @@ bool LoadFile(const wchar_t* path) {
         msg += GetFileName(path);
         msg += L"\n\n";
         msg += T("The video playback engine could not be loaded. Please reinstall MediaAccess.");
-        // Append low-level reason so users can paste it back for diagnosis.
-        // Pure diagnostic — no fix instructions (autonomy rule: never tell
-        // users to download anything).
+        // Technical detail is written to the log file but never shown to
+        // the user (autonomy rule: never surface DLL names, paths, or
+        // implementation details in a user-facing message).
         if (!g_lastMpvLoadError.empty()) {
-            msg += L"\n\n(Technical detail: ";
-            msg += g_lastMpvLoadError;
-            msg += L")";
+            int n = WideCharToMultiByte(CP_UTF8, 0, g_lastMpvLoadError.c_str(), -1, nullptr, 0, nullptr, nullptr);
+            std::string utf8(n > 0 ? n - 1 : 0, '\0');
+            if (n > 0) WideCharToMultiByte(CP_UTF8, 0, g_lastMpvLoadError.c_str(), -1, &utf8[0], n, nullptr, nullptr);
+            LogF("MPV", "video load failure detail: %s", utf8.c_str());
         }
         MessageBoxW(GetMessageBoxOwner(), msg.c_str(), APP_NAME, MB_ICONWARNING);
         return false;

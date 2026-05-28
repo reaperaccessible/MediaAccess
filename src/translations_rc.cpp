@@ -156,8 +156,8 @@ void RegisterRcTranslations() {
     AddTranslation("en", "Check for &Updates...", L"Check for &Updates...");
     AddTranslation("fr", "Check for &Updates...", L"Rechercher des &mises à jour...");
 
-    AddTranslation("en", "&Loaded Plugins...", L"&Loaded Plugins...");
-    AddTranslation("fr", "&Loaded Plugins...", L"&Modules chargés...");
+    AddTranslation("en", "&Audio formats...", L"&Audio formats...");
+    AddTranslation("fr", "&Audio formats...", L"Formats &audio...");
 
     // ===================================================================
     // DIALOG: IDD_OPTIONS - "Options"

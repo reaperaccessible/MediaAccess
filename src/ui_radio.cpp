@@ -562,16 +562,23 @@ static bool SearchTuneIn(const std::wstring& query, std::vector<RadioSearchResul
     std::wstring xml = RadioHttpGet(url);
     if (xml.empty()) return false;
 
-    // Parse OPML - look for <outline> elements with type="audio"
+    // Parse OPML - look for <outline> elements with type="audio".
+    //
+    // We must scope each <outline ...> match to ONLY the opening tag, not to
+    // the next `/>` we find — TuneIn often wraps stations in container
+    // outlines (`<outline type="link" text="Stations"> ... <outline type="audio"
+    // .../> ... </outline>`). Using `find("/>")` from the parent's opening
+    // position used to capture the FIRST child's self-closing tag, leaking
+    // the child's `type="audio"` into the parent and emitting a phantom row
+    // labelled "Search results" or similar that wasn't a real station.
+    // Finding the next plain `>` correctly bounds the opening tag and the
+    // existing `type="audio"` filter naturally rejects container outlines.
     size_t pos = 0;
     while ((pos = xml.find(L"<outline", pos)) != std::wstring::npos) {
-        size_t endPos = xml.find(L"/>", pos);
-        if (endPos == std::wstring::npos) {
-            endPos = xml.find(L"</outline>", pos);
-            if (endPos == std::wstring::npos) break;
-        }
+        size_t endPos = xml.find(L'>', pos);
+        if (endPos == std::wstring::npos) break;
 
-        std::wstring elem = xml.substr(pos, endPos - pos + 2);
+        std::wstring elem = xml.substr(pos, endPos - pos + 1);
 
         // Check if it's an audio type (station)
         if (elem.find(L"type=\"audio\"") != std::wstring::npos) {

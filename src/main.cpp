@@ -888,6 +888,22 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
             return 0;
 
         case WM_DESTROY:
+            // -----------------------------------------------------------
+            // Kill audio IMMEDIATELY before doing anything else.
+            // Otherwise the BASS device keeps producing sound for the
+            // multi-second duration of the save/cleanup chain below
+            // (settings flush, YouTube temp wipe, FreeMPV's 3-second
+            // thread-join wait, etc.) — the user hears playback continue
+            // after the window has already disappeared.
+            //
+            // BASS_Pause() suspends the output device synchronously; the
+            // individual streams get freed properly later inside
+            // FreeBass(). This pair guarantees silence on the first line
+            // of shutdown no matter how slow the rest of the chain is.
+            // -----------------------------------------------------------
+            if (g_fxStream) BASS_ChannelStop(g_fxStream);
+            if (g_stream)   BASS_ChannelStop(g_stream);
+            BASS_Pause();
             KillTimer(hwnd, IDT_UPDATE_TITLE);
             KillTimer(hwnd, IDT_SCHEDULER);
             KillTimer(hwnd, IDT_SCHED_DURATION);

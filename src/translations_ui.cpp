@@ -464,12 +464,12 @@ void RegisterUiTranslations() {
     // ============================================================
     // main.cpp
     // ============================================================
-    AddTranslation("en", "Loaded Plugins",                          L"Loaded Plugins");
-    AddTranslation("fr", "Loaded Plugins",                          L"Modules chargés");
+    AddTranslation("en", "Loaded Plugins",                          L"Audio formats");
+    AddTranslation("fr", "Loaded Plugins",                          L"Formats audio");
     AddTranslation("en", "Could not open readme.txt. Make sure the docs folder is present alongside MediaAccess.exe.",
-                         L"Could not open readme.txt. Make sure the docs folder is present alongside MediaAccess.exe.");
+                         L"The readme could not be opened. Please reinstall MediaAccess.");
     AddTranslation("fr", "Could not open readme.txt. Make sure the docs folder is present alongside MediaAccess.exe.",
-                         L"Impossible d'ouvrir readme.txt. Vérifiez que le dossier docs est présent à côté de MediaAccess.exe.");
+                         L"Le fichier d'aide n'a pas pu être ouvert. Veuillez réinstaller MediaAccess.");
     AddTranslation("en", "Readme",                                  L"Readme");
     AddTranslation("fr", "Readme",                                  L"Lisez-moi");
     AddTranslation("en", "Bookmark added",                          L"Bookmark added");

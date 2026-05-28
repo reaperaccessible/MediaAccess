@@ -18,8 +18,8 @@ void RegisterPlayerTranslations() {
     AddTranslation("en", "Failed to switch audio device", L"Failed to switch audio device");
     AddTranslation("fr", "Failed to switch audio device", L"Impossible de changer de périphérique audio");
 
-    AddTranslation("en", "Failed to initialize BASS audio library.", L"Failed to initialize BASS audio library.");
-    AddTranslation("fr", "Failed to initialize BASS audio library.", L"Impossible d'initialiser la bibliothèque audio BASS.");
+    AddTranslation("en", "Failed to initialize BASS audio library.", L"Audio could not be initialized. Please reinstall MediaAccess.");
+    AddTranslation("fr", "Failed to initialize BASS audio library.", L"L'audio n'a pas pu être initialisé. Veuillez réinstaller MediaAccess.");
 
     AddTranslation("en", "Only http:// and https:// URLs are supported.", L"Only http:// and https:// URLs are supported.");
     AddTranslation("fr", "Only http:// and https:// URLs are supported.", L"Seules les URL http:// et https:// sont prises en charge.");
@@ -40,8 +40,16 @@ void RegisterPlayerTranslations() {
     AddTranslation("en", "Could not connect to URL.", L"Could not connect to URL.");
     AddTranslation("fr", "Could not connect to URL.", L"Impossible de se connecter à l'URL.");
 
-    AddTranslation("en", "Unsupported stream format. Check bass_aac.dll is in lib folder.", L"Unsupported stream format. Check bass_aac.dll is in lib folder.");
-    AddTranslation("fr", "Unsupported stream format. Check bass_aac.dll is in lib folder.", L"Format de flux non pris en charge. Vérifiez que bass_aac.dll est dans le dossier lib.");
+    AddTranslation("en", "Unsupported stream format.", L"Unsupported stream format.");
+    AddTranslation("fr", "Unsupported stream format.", L"Format de flux non pris en charge.");
+
+    AddTranslation("en", "Audio format support:", L"Audio format support:");
+    AddTranslation("fr", "Audio format support:", L"Formats audio pris en charge :");
+
+    AddTranslation("en", "Some audio format modules failed to load. Please reinstall MediaAccess.",
+                   L"Some audio format modules failed to load. Please reinstall MediaAccess.");
+    AddTranslation("fr", "Some audio format modules failed to load. Please reinstall MediaAccess.",
+                   L"Certains modules de format audio n'ont pas pu être chargés. Veuillez réinstaller MediaAccess.");
 
     AddTranslation("en", "Required codec is not available.", L"Required codec is not available.");
     AddTranslation("fr", "Required codec is not available.", L"Le codec requis n'est pas disponible.");
@@ -399,9 +407,9 @@ void RegisterPlayerTranslations() {
     AddTranslation("en", "Manual", L"Manual");
     AddTranslation("fr", "Manual", L"Manuel");
     AddTranslation("en", "Could not open the manual. Make sure the docs folder is present alongside MediaAccess.exe.",
-                   L"Could not open the manual. Make sure the docs folder is present alongside MediaAccess.exe.");
+                   L"The manual could not be opened. Please reinstall MediaAccess.");
     AddTranslation("fr", "Could not open the manual. Make sure the docs folder is present alongside MediaAccess.exe.",
-                   L"Impossible d'ouvrir le manuel. Vérifiez que le dossier docs est présent à côté de MediaAccess.exe.");
+                   L"Le manuel n'a pas pu être ouvert. Veuillez réinstaller MediaAccess.");
 
     // Video window right-click context menu (main.cpp WM_RBUTTONUP)
     AddTranslation("en", "Fullscreen\tF11",       L"Fullscreen\tF11");
@@ -589,8 +597,8 @@ void RegisterPlayerTranslations() {
     AddTranslation("fr", "FLAC encoding failed.\nFalling back to WAV format.",
                    L"L'encodage FLAC a échoué.\nRetour au format WAV.");
 
-    AddTranslation("en", "Failed to start recording (error %d)", L"Failed to start recording (error %d)");
-    AddTranslation("fr", "Failed to start recording (error %d)", L"Impossible de démarrer l'enregistrement (erreur %d)");
+    AddTranslation("en", "Failed to start recording (error %d)", L"Recording could not be started.");
+    AddTranslation("fr", "Failed to start recording (error %d)", L"L'enregistrement n'a pas pu démarrer.");
 
     // --------------------------------------------------------------
     // video_engine.cpp - mpv playback
