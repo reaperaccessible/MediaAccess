@@ -35,6 +35,12 @@ copy /y "MediaAccess.exe" "dist_temp\"
 mkdir "dist_temp\docs"
 xcopy /y /e "docs\*" "dist_temp\docs\" >nul
 
+REM Copy regional default keymaps (USA, FR-CA, FR-FR)
+if exist "KeyMaps\*.MediaAccessKeyMap" (
+    mkdir "dist_temp\KeyMaps"
+    copy /y "KeyMaps\*.MediaAccessKeyMap" "dist_temp\KeyMaps\" >nul
+)
+
 REM Create lib subfolder and copy all DLLs
 echo Copying DLLs to lib folder...
 mkdir "dist_temp\lib"
