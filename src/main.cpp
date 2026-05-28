@@ -1083,7 +1083,18 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLi
 
         // Only process accelerators if YouTube dialog doesn't have focus
         bool ytHasFocus = ytDlg && (GetForegroundWindow() == ytDlg || IsChild(ytDlg, GetFocus()));
-        if (ytHasFocus || !TranslateAcceleratorW(hwnd, hAccel, &msg)) {
+
+        // Skip accelerators when keyboard help is on, so the WM_KEYDOWN
+        // describe-the-key path receives Space, arrows, and every other
+        // accelerator-bound key. F12 still needs to pass through so the
+        // user can toggle the mode back off; we let it reach the
+        // accelerator translator unconditionally.
+        bool kbHelpBlock = g_keyboardHelpMode &&
+                           msg.hwnd == hwnd &&
+                           (msg.message == WM_KEYDOWN || msg.message == WM_SYSKEYDOWN) &&
+                           msg.wParam != VK_F12;
+
+        if (ytHasFocus || kbHelpBlock || !TranslateAcceleratorW(hwnd, hAccel, &msg)) {
             TranslateMessage(&msg);
             DispatchMessageW(&msg);
         }
