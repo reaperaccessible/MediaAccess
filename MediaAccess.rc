@@ -524,39 +524,25 @@ BEGIN
     VK_DOWN,        IDM_EFFECT_DOWN,    VIRTKEY
     VK_UP,          IDM_PLAY_VOLUP,     VIRTKEY, CONTROL
     VK_DOWN,        IDM_PLAY_VOLDOWN,   VIRTKEY, CONTROL
-    VK_OEM_COMMA,   IDM_SEEK_DECREASE,  VIRTKEY
-    VK_OEM_PERIOD,  IDM_SEEK_INCREASE,  VIRTKEY
     "E",            IDM_PLAY_ELAPSED,   VIRTKEY, CONTROL, SHIFT
     "R",            IDM_PLAY_REMAINING, VIRTKEY, CONTROL, SHIFT
     "T",            IDM_PLAY_TOTAL,     VIRTKEY, CONTROL, SHIFT
-    // Winamp-style shortcuts
-    "Z",            IDM_PLAY_PREV,      VIRTKEY
-    "X",            IDM_PLAY_PLAY,      VIRTKEY
-    "C",            IDM_PLAY_PAUSE,     VIRTKEY
-    "V",            IDM_PLAY_STOP,      VIRTKEY
-    "B",            IDM_PLAY_NEXT,      VIRTKEY
-    "H",            IDM_PLAY_SHUFFLE,   VIRTKEY
-    "E",            IDM_PLAY_REPEAT_TOGGLE, VIRTKEY
-    "P",            IDM_EFFECT_PRESETS, VIRTKEY
+    // Modifier-free playback / movement / bookmark / record / mute / effect / audio shortcuts
+    // are NOT listed here on purpose — they are dispatched by physical scan code in
+    // src/main.cpp WM_KEYDOWN so the same physical key triggers the same action on
+    // any keyboard layout (QWERTY, AZERTY, QWERTZ, Bépo, Dvorak, etc.).
+    // Letter+modifier accelerators (Ctrl+M, Ctrl+P, Ctrl+H, …) stay VK-based below
+    // because users associate them with letter mnemonics, not physical position.
     VK_HOME,        IDM_PLAY_BEGINNING, VIRTKEY
-    "J",            IDM_PLAY_JUMPTOTIME, VIRTKEY
-    // Bookmarks
-    "M",            IDM_BOOKMARK_ADD,   VIRTKEY
+    // Bookmarks — Ctrl+M stays VK (letter mnemonic)
     "M",            IDM_BOOKMARK_LIST,  VIRTKEY, CONTROL
-    // Recording
-    "R",            IDM_RECORD_TOGGLE,  VIRTKEY
-    // Mute (recording still works)
-    "U",            IDM_PLAY_MUTE,      VIRTKEY
-    // Effect controls ([ and ] to cycle, Up/Down to adjust, Backspace to reset)
-    VK_OEM_4,       IDM_EFFECT_PREV,    VIRTKEY          // [ key
-    VK_OEM_6,       IDM_EFFECT_NEXT,    VIRTKEY          // ] key
+    // Effect controls — Backspace/Ctrl+Home/Ctrl+End are position-neutral
     VK_BACK,        IDM_EFFECT_RESET,   VIRTKEY          // Backspace key
     VK_HOME,        IDM_EFFECT_MIN,     VIRTKEY, CONTROL // Ctrl+Home = min value
     VK_END,         IDM_EFFECT_MAX,     VIRTKEY, CONTROL // Ctrl+End = max value
-    // Audio device selection
-    "A",            IDM_SHOW_AUDIO_DEVICES, VIRTKEY      // A = show audio devices menu
     // Video controls
     VK_F1,          IDM_HELP_MANUAL,    VIRTKEY                // F1 = open manual
+    VK_F12,         IDM_KEYBOARD_HELP_TOGGLE, VIRTKEY          // F12 = toggle keyboard help mode
     "V",            IDM_FILE_PASTE,     VIRTKEY, CONTROL       // Ctrl+V = paste media from clipboard
     VK_F11,         IDM_VIDEO_FULLSCREEN, VIRTKEY        // F11 = toggle fullscreen
     "T",            IDM_VIDEO_SUB_CYCLE,  VIRTKEY, CONTROL, SHIFT  // Ctrl+Shift+T = cycle subtitles

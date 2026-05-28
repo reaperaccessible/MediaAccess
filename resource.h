@@ -270,6 +270,7 @@
 #define IDM_HELP_TEST_YOUTUBE   118
 #define IDM_HELP_AUDIT_LAYOUT   120
 #define IDM_HELP_MANUAL         121
+#define IDM_KEYBOARD_HELP_TOGGLE 123
 
 // Progress dialog (for updates)
 #define IDD_PROGRESS        995

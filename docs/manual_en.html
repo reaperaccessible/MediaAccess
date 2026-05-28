@@ -218,6 +218,13 @@
 <h2 id="intro-h">1. Introduction</h2>
 <p>MediaAccess is a complete, accessible audio and video player for Windows. It is designed for screen-reader users (NVDA, JAWS, Windows Narrator) while remaining pleasant for sighted users. It combines a small footprint with a deep professional effects chain (EQ, reverb, echo, tempo, pitch, stereo width, 3D audio, convolution reverb, and more), all adjustable in real time.</p>
 <p>This help is available at any time via <kbd>F1</kbd> or via <strong>Help → Manual</strong>.</p>
+
+<div class="note">
+<p><strong>About keyboard shortcuts and your layout</strong></p>
+<p>MediaAccess uses the <strong>physical key positions</strong> rather than the characters those keys produce. The shortcuts in this manual are labeled with QWERTY characters (for example <kbd>Z</kbd>, <kbd>X</kbd>, <kbd>C</kbd>, <kbd>V</kbd>, <kbd>B</kbd> for the playback transport row).</p>
+<p>On a <strong>French or Belgian AZERTY keyboard</strong>, use the same physical positions (so <kbd>W</kbd>, <kbd>X</kbd>, <kbd>C</kbd>, <kbd>V</kbd>, <kbd>N</kbd> for the transport row). Same for <strong>German QWERTZ</strong> keyboards (<kbd>Y</kbd>, <kbd>X</kbd>, <kbd>C</kbd>, <kbd>V</kbd>, <kbd>B</kbd>), <strong>Bépo</strong>, <strong>Dvorak</strong>, <strong>Cyrillic</strong> layouts, etc.</p>
+<p>No configuration is needed: MediaAccess detects the physical key, not the letter. Modifier-based shortcuts (<kbd>Ctrl</kbd>+<kbd>O</kbd>, <kbd>Ctrl</kbd>+<kbd>S</kbd>, etc.) remain letter-based mnemonics, like in every Windows application.</p>
+</div>
 </section>
 
 <section id="getting-started" aria-labelledby="getting-started-h">
@@ -913,6 +920,17 @@
 
 <h3>Automatic bilingualism</h3>
 <p>The interface adapts to the Windows language on first launch. You can change it manually in <strong>Options → Playback → Language</strong>. All dialogs, menus, error messages, and speech announcements are available in English and French.</p>
+
+<h3>Keyboard help (<kbd>F12</kbd>)</h3>
+<p>Keyboard help mode lets you explore shortcuts without executing the action. Ideal for discovering the app or memorizing shortcuts without risking an unintended action.</p>
+<ul>
+  <li>Press <kbd>F12</kbd>: MediaAccess announces "Keyboard help on".</li>
+  <li>Press any key, for example <kbd>Z</kbd>: "Z: Previous track". The action is NOT executed.</li>
+  <li>Press <kbd>Ctrl</kbd>+<kbd>O</kbd>: "Ctrl+O: Open file".</li>
+  <li>If the key has no assigned action: "K: no action assigned".</li>
+  <li>Press <kbd>F12</kbd> again to return to normal mode: "Keyboard help off".</li>
+</ul>
+<p>Keyboard help mode only operates in the main window. In dialogs (Options, YouTube search, etc.), keys retain their normal behavior so you can type text.</p>
 </section>
 
 <section id="updates" aria-labelledby="updates-h">

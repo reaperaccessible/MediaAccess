@@ -206,6 +206,7 @@ extern bool g_speechEffect;             // Speak effect value when adjusted
 extern bool g_speechYTHybrid;           // Announce "Effects activated" after YouTube hybrid swap
 extern bool g_clearYtCacheOnExit;       // Wipe YouTube cache on exit
 extern int  g_ytCacheLimitMB;           // Cache size cap in MB (0 = unlimited)
+extern bool g_keyboardHelpMode;         // F12-toggled describe-key mode
 
 // Shuffle and auto-advance
 extern bool g_shuffle;                  // Shuffle playback order

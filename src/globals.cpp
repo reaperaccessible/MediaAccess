@@ -316,6 +316,7 @@ bool g_speechEffect = true;                         // Speak effect value when a
 bool g_speechYTHybrid = true;                       // Announce "Effects activated" when YouTube hybrid swap completes (default on)
 bool g_clearYtCacheOnExit = false;                  // Wipe YouTube cache on app exit (default off)
 int  g_ytCacheLimitMB = 0;                          // Cap on cache size in MB (0 = unlimited, default 0)
+bool g_keyboardHelpMode = false;                    // F12-toggled describe-key mode (no actions executed)
 
 // Shuffle and auto-advance
 bool g_shuffle = false;                             // Shuffle playback order

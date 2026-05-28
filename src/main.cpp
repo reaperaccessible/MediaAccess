@@ -27,6 +27,7 @@
 #include "resource.h"
 #include "video_engine.h"
 #include "mediaaccess/logger.h"
+#include "mediaaccess/keyboard_help.h"
 #include <utility>  // for std::pair
 
 #pragma comment(lib, "bass.lib")
@@ -146,6 +147,17 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
             return 0;
 
         case WM_KEYDOWN:
+            // -----------------------------------------------------------
+            // Keyboard help (F12-toggled "describe key" mode)
+            //
+            // When g_keyboardHelpMode is on, every keypress in the main
+            // window is announced instead of executed. F12 itself is
+            // excluded so the user can always toggle the mode off.
+            // -----------------------------------------------------------
+            if (g_keyboardHelpMode && wParam != VK_F12) {
+                Speak(DescribeKey(wParam, lParam));
+                return 0;
+            }
             if (wParam == VK_F11 && g_isVideoPlaying) {
                 PostMessageW(hwnd, WM_COMMAND, 1200, 0);
                 return 0;
@@ -153,6 +165,64 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
             if (wParam == VK_ESCAPE && g_isFullscreen) {
                 PostMessageW(hwnd, WM_COMMAND, 1200, 0);
                 return 0;
+            }
+            // -----------------------------------------------------------
+            // Physical scan-code shortcuts (layout-independent)
+            //
+            // These keys are dispatched by their PHYSICAL POSITION on the
+            // keyboard rather than the character they happen to produce.
+            // That way the Winamp-style "ZXCVB" transport row, the
+            // movement-unit slider (`,` `.`) and the effect slider (`[`
+            // `]`) work identically on QWERTY, AZERTY, QWERTZ, Bépo,
+            // Dvorak, Cyrillic, Greek… without any user-visible
+            // configuration. See user manual for the explanation.
+            //
+            // Scan codes are the Set 1 IBM PC values (bits 16-23 of the
+            // WM_KEYDOWN LPARAM). Reference:
+            //   Q W E R T Y U I O P [ ]   = 0x10..0x1B
+            //   A S D F G H J K L ; '     = 0x1E..0x28
+            //   Z X C V B N M , . /       = 0x2C..0x35
+            //
+            // Modifier-bearing shortcuts (Ctrl+letter, Ctrl+Shift+letter)
+            // remain VK-based via the accelerator table because users
+            // think of them as letter mnemonics, not key positions.
+            // -----------------------------------------------------------
+            {
+                BOOL ctrl  = (GetKeyState(VK_CONTROL) & 0x8000) != 0;
+                BOOL alt   = (GetKeyState(VK_MENU)    & 0x8000) != 0;
+                // Shift is allowed only for the IDM_VIEW_TAG_* entries
+                // which are number-row based and remain VK-driven; the
+                // letter / OEM shortcuts below all require no modifier.
+                BOOL shift = (GetKeyState(VK_SHIFT)   & 0x8000) != 0;
+                if (!ctrl && !alt && !shift) {
+                    UINT scan = (UINT)((lParam >> 16) & 0xFF);
+                    int cmd = 0;
+                    switch (scan) {
+                        // Winamp transport row (bottom row of letters)
+                        case 0x2C: cmd = IDM_PLAY_PREV;          break; // physical Z
+                        case 0x2D: cmd = IDM_PLAY_PLAY;          break; // physical X
+                        case 0x2E: cmd = IDM_PLAY_PAUSE;         break; // physical C
+                        case 0x2F: cmd = IDM_PLAY_STOP;          break; // physical V
+                        case 0x30: cmd = IDM_PLAY_NEXT;          break; // physical B
+                        case 0x32: cmd = IDM_BOOKMARK_ADD;       break; // physical M
+                        case 0x33: cmd = IDM_SEEK_DECREASE;      break; // physical ,
+                        case 0x34: cmd = IDM_SEEK_INCREASE;      break; // physical .
+                        // Other modifier-free letters
+                        case 0x12: cmd = IDM_PLAY_REPEAT_TOGGLE; break; // physical E
+                        case 0x13: cmd = IDM_RECORD_TOGGLE;      break; // physical R
+                        case 0x16: cmd = IDM_PLAY_MUTE;          break; // physical U
+                        case 0x19: cmd = IDM_EFFECT_PRESETS;     break; // physical P
+                        case 0x1A: cmd = IDM_EFFECT_PREV;        break; // physical [
+                        case 0x1B: cmd = IDM_EFFECT_NEXT;        break; // physical ]
+                        case 0x1E: cmd = IDM_SHOW_AUDIO_DEVICES; break; // physical A
+                        case 0x23: cmd = IDM_PLAY_SHUFFLE;       break; // physical H
+                        case 0x24: cmd = IDM_PLAY_JUMPTOTIME;    break; // physical J
+                    }
+                    if (cmd != 0) {
+                        PostMessageW(hwnd, WM_COMMAND, cmd, 0);
+                        return 0;
+                    }
+                }
             }
             break;
 
@@ -437,6 +507,11 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
                     break;
                 case IDM_HELP_AUDIT_LAYOUT:
                     AuditOptionsLayout();
+                    break;
+                case IDM_KEYBOARD_HELP_TOGGLE:
+                    g_keyboardHelpMode = !g_keyboardHelpMode;
+                    Speak(Ts(g_keyboardHelpMode ? "Keyboard help on"
+                                                : "Keyboard help off"));
                     break;
                 case IDM_HELP_MANUAL: {
                     // Open the bilingual HTML manual in the user's default browser.

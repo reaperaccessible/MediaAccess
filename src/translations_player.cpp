@@ -194,6 +194,205 @@ void RegisterPlayerTranslations() {
     AddTranslation("en", "items pasted", L"items pasted");
     AddTranslation("fr", "items pasted", L"éléments collés");
 
+    // Keyboard help mode (F12) — describe-key strings.
+    // Each command name is translated; the keyboard_help.cpp formatter
+    // composes "Modifier+Key: Action" automatically.
+    AddTranslation("en", "Keyboard help on",  L"Keyboard help on");
+    AddTranslation("fr", "Keyboard help on",  L"Aide clavier activée");
+    AddTranslation("en", "Keyboard help off", L"Keyboard help off");
+    AddTranslation("fr", "Keyboard help off", L"Aide clavier désactivée");
+
+    AddTranslation("en", "KEY_MOD_CTRL",  L"Ctrl");
+    AddTranslation("fr", "KEY_MOD_CTRL",  L"Ctrl");
+    AddTranslation("en", "KEY_MOD_SHIFT", L"Shift");
+    AddTranslation("fr", "KEY_MOD_SHIFT", L"Maj");
+    AddTranslation("en", "KEY_MOD_ALT",   L"Alt");
+    AddTranslation("fr", "KEY_MOD_ALT",   L"Alt");
+
+    AddTranslation("en", "no action assigned", L"no action assigned");
+    AddTranslation("fr", "no action assigned", L"aucune action assignée");
+
+    // Command descriptions
+    AddTranslation("en", "Previous track", L"Previous track");
+    AddTranslation("fr", "Previous track", L"Piste précédente");
+    AddTranslation("en", "Next track", L"Next track");
+    AddTranslation("fr", "Next track", L"Piste suivante");
+    AddTranslation("en", "Play", L"Play");
+    AddTranslation("fr", "Play", L"Lecture");
+    AddTranslation("en", "Pause", L"Pause");
+    AddTranslation("fr", "Pause", L"Pause");
+    AddTranslation("en", "Stop", L"Stop");
+    AddTranslation("fr", "Stop", L"Arrêter");
+    AddTranslation("en", "Play/Pause", L"Play/Pause");
+    AddTranslation("fr", "Play/Pause", L"Lecture/Pause");
+    AddTranslation("en", "Beginning of track", L"Beginning of track");
+    AddTranslation("fr", "Beginning of track", L"Début de la piste");
+    AddTranslation("en", "Seek backward", L"Seek backward");
+    AddTranslation("fr", "Seek backward", L"Reculer");
+    AddTranslation("en", "Seek forward", L"Seek forward");
+    AddTranslation("fr", "Seek forward", L"Avancer");
+    AddTranslation("en", "Decrease seek unit", L"Decrease seek unit");
+    AddTranslation("fr", "Decrease seek unit", L"Unité de déplacement précédente");
+    AddTranslation("fr", "Increase seek unit", L"Unité de déplacement suivante");
+    AddTranslation("en", "Increase seek unit", L"Increase seek unit");
+    AddTranslation("en", "Cycle repeat mode", L"Cycle repeat mode");
+    AddTranslation("fr", "Cycle repeat mode", L"Changer le mode de répétition");
+    AddTranslation("en", "Toggle shuffle", L"Toggle shuffle");
+    AddTranslation("fr", "Toggle shuffle", L"Activer/désactiver la lecture aléatoire");
+    AddTranslation("en", "Toggle mute", L"Toggle mute");
+    AddTranslation("fr", "Toggle mute", L"Activer/désactiver le muet");
+    AddTranslation("en", "Toggle recording", L"Toggle recording");
+    AddTranslation("fr", "Toggle recording", L"Démarrer/arrêter l'enregistrement");
+    AddTranslation("en", "Volume up", L"Volume up");
+    AddTranslation("fr", "Volume up", L"Augmenter le volume");
+    AddTranslation("en", "Volume down", L"Volume down");
+    AddTranslation("fr", "Volume down", L"Diminuer le volume");
+    AddTranslation("en", "Add bookmark", L"Add bookmark");
+    AddTranslation("fr", "Add bookmark", L"Ajouter un signet");
+    AddTranslation("en", "Bookmarks manager", L"Bookmarks manager");
+    AddTranslation("fr", "Bookmarks manager", L"Gestionnaire de signets");
+    AddTranslation("en", "Jump to time", L"Jump to time");
+    AddTranslation("fr", "Jump to time", L"Aller à un instant");
+    AddTranslation("en", "Effect presets menu", L"Effect presets menu");
+    AddTranslation("fr", "Effect presets menu", L"Menu des préréglages d'effets");
+    AddTranslation("en", "Audio device menu", L"Audio device menu");
+    AddTranslation("fr", "Audio device menu", L"Menu des périphériques audio");
+    AddTranslation("en", "Previous effect parameter", L"Previous effect parameter");
+    AddTranslation("fr", "Previous effect parameter", L"Paramètre d'effet précédent");
+    AddTranslation("en", "Next effect parameter", L"Next effect parameter");
+    AddTranslation("fr", "Next effect parameter", L"Paramètre d'effet suivant");
+    AddTranslation("en", "Increase current parameter", L"Increase current parameter");
+    AddTranslation("fr", "Increase current parameter", L"Augmenter le paramètre courant");
+    AddTranslation("en", "Decrease current parameter", L"Decrease current parameter");
+    AddTranslation("fr", "Decrease current parameter", L"Diminuer le paramètre courant");
+    AddTranslation("en", "Reset effect to default", L"Reset effect to default");
+    AddTranslation("fr", "Reset effect to default", L"Réinitialiser l'effet à sa valeur par défaut");
+    AddTranslation("en", "Set effect to minimum", L"Set effect to minimum");
+    AddTranslation("fr", "Set effect to minimum", L"Régler l'effet au minimum");
+    AddTranslation("en", "Set effect to maximum", L"Set effect to maximum");
+    AddTranslation("fr", "Set effect to maximum", L"Régler l'effet au maximum");
+
+    // File menu
+    AddTranslation("en", "Open file", L"Open file");
+    AddTranslation("fr", "Open file", L"Ouvrir un fichier");
+    AddTranslation("en", "Add folder", L"Add folder");
+    AddTranslation("fr", "Add folder", L"Ajouter un dossier");
+    AddTranslation("en", "Playlist", L"Playlist");
+    AddTranslation("fr", "Playlist", L"Liste de lecture");
+    AddTranslation("en", "Open URL", L"Open URL");
+    AddTranslation("fr", "Open URL", L"Ouvrir une URL");
+    AddTranslation("en", "Add stream to favorites", L"Add stream to favorites");
+    AddTranslation("fr", "Add stream to favorites", L"Ajouter le flux aux favoris");
+    AddTranslation("en", "Podcasts", L"Podcasts");
+    AddTranslation("fr", "Podcasts", L"Podcasts");
+    AddTranslation("en", "Schedule", L"Schedule");
+    AddTranslation("fr", "Schedule", L"Planificateur");
+    AddTranslation("en", "Hide to tray", L"Hide to tray");
+    AddTranslation("fr", "Hide to tray", L"Réduire dans la zone de notification");
+    AddTranslation("en", "Song history", L"Song history");
+    AddTranslation("fr", "Song history", L"Historique des morceaux");
+    AddTranslation("en", "Options", L"Options");
+    AddTranslation("fr", "Options", L"Options");
+    AddTranslation("en", "Paste from clipboard", L"Paste from clipboard");
+    AddTranslation("fr", "Paste from clipboard", L"Coller depuis le presse-papiers");
+    AddTranslation("en", "Radio", L"Radio");
+    AddTranslation("fr", "Radio", L"Radio");
+    AddTranslation("en", "YouTube", L"YouTube");
+
+    // Speech
+    AddTranslation("en", "Speak elapsed time", L"Speak elapsed time");
+    AddTranslation("fr", "Speak elapsed time", L"Énoncer le temps écoulé");
+    AddTranslation("en", "Speak remaining time", L"Speak remaining time");
+    AddTranslation("fr", "Speak remaining time", L"Énoncer le temps restant");
+    AddTranslation("en", "Speak total duration", L"Speak total duration");
+    AddTranslation("fr", "Speak total duration", L"Énoncer la durée totale");
+
+    // Effect toggles (Ctrl+1..0, Ctrl+-, Ctrl+=)
+    AddTranslation("en", "Toggle Volume", L"Toggle Volume");
+    AddTranslation("fr", "Toggle Volume", L"Activer/désactiver le volume");
+    AddTranslation("en", "Toggle Pitch", L"Toggle Pitch");
+    AddTranslation("fr", "Toggle Pitch", L"Activer/désactiver la hauteur");
+    AddTranslation("en", "Toggle Tempo", L"Toggle Tempo");
+    AddTranslation("fr", "Toggle Tempo", L"Activer/désactiver le tempo");
+    AddTranslation("en", "Toggle Rate", L"Toggle Rate");
+    AddTranslation("fr", "Toggle Rate", L"Activer/désactiver la vitesse");
+    AddTranslation("en", "Cycle Reverb algorithm", L"Cycle Reverb algorithm");
+    AddTranslation("fr", "Cycle Reverb algorithm", L"Changer d'algorithme de réverbération");
+    AddTranslation("en", "Toggle Echo", L"Toggle Echo");
+    AddTranslation("fr", "Toggle Echo", L"Activer/désactiver l'écho");
+    AddTranslation("en", "Toggle Equalizer", L"Toggle Equalizer");
+    AddTranslation("fr", "Toggle Equalizer", L"Activer/désactiver l'égaliseur");
+    AddTranslation("en", "Toggle Compressor", L"Toggle Compressor");
+    AddTranslation("fr", "Toggle Compressor", L"Activer/désactiver le compresseur");
+    AddTranslation("en", "Toggle Stereo Width", L"Toggle Stereo Width");
+    AddTranslation("fr", "Toggle Stereo Width", L"Activer/désactiver la largeur stéréo");
+    AddTranslation("en", "Toggle Center Cancel", L"Toggle Center Cancel");
+    AddTranslation("fr", "Toggle Center Cancel", L"Activer/désactiver la suppression du centre");
+    AddTranslation("en", "Toggle Convolution Reverb", L"Toggle Convolution Reverb");
+    AddTranslation("fr", "Toggle Convolution Reverb", L"Activer/désactiver la réverbération à convolution");
+    AddTranslation("en", "Toggle 3D Audio", L"Toggle 3D Audio");
+    AddTranslation("fr", "Toggle 3D Audio", L"Activer/désactiver l'audio 3D");
+
+    // Tag reading (1-0)
+    AddTranslation("en", "Speak title tag", L"Speak title tag");
+    AddTranslation("fr", "Speak title tag", L"Énoncer le titre");
+    AddTranslation("en", "Speak artist tag", L"Speak artist tag");
+    AddTranslation("fr", "Speak artist tag", L"Énoncer l'artiste");
+    AddTranslation("en", "Speak album tag", L"Speak album tag");
+    AddTranslation("fr", "Speak album tag", L"Énoncer l'album");
+    AddTranslation("en", "Speak year tag", L"Speak year tag");
+    AddTranslation("fr", "Speak year tag", L"Énoncer l'année");
+    AddTranslation("en", "Speak track number tag", L"Speak track number tag");
+    AddTranslation("fr", "Speak track number tag", L"Énoncer le numéro de piste");
+    AddTranslation("en", "Speak genre tag", L"Speak genre tag");
+    AddTranslation("fr", "Speak genre tag", L"Énoncer le genre");
+    AddTranslation("en", "Speak comment tag", L"Speak comment tag");
+    AddTranslation("fr", "Speak comment tag", L"Énoncer le commentaire");
+    AddTranslation("en", "Speak bitrate tag", L"Speak bitrate tag");
+    AddTranslation("fr", "Speak bitrate tag", L"Énoncer le débit");
+    AddTranslation("en", "Speak duration tag", L"Speak duration tag");
+    AddTranslation("fr", "Speak duration tag", L"Énoncer la durée");
+    AddTranslation("en", "Speak filename", L"Speak filename");
+    AddTranslation("fr", "Speak filename", L"Énoncer le nom de fichier");
+
+    // Tag display (Shift+1-0)
+    AddTranslation("en", "Show title in window", L"Show title in window");
+    AddTranslation("fr", "Show title in window", L"Afficher le titre");
+    AddTranslation("en", "Show artist in window", L"Show artist in window");
+    AddTranslation("fr", "Show artist in window", L"Afficher l'artiste");
+    AddTranslation("en", "Show album in window", L"Show album in window");
+    AddTranslation("fr", "Show album in window", L"Afficher l'album");
+    AddTranslation("en", "Show year in window", L"Show year in window");
+    AddTranslation("fr", "Show year in window", L"Afficher l'année");
+    AddTranslation("en", "Show track number in window", L"Show track number in window");
+    AddTranslation("fr", "Show track number in window", L"Afficher le numéro de piste");
+    AddTranslation("en", "Show genre in window", L"Show genre in window");
+    AddTranslation("fr", "Show genre in window", L"Afficher le genre");
+    AddTranslation("en", "Show comment in window", L"Show comment in window");
+    AddTranslation("fr", "Show comment in window", L"Afficher le commentaire");
+    AddTranslation("en", "Show bitrate in window", L"Show bitrate in window");
+    AddTranslation("fr", "Show bitrate in window", L"Afficher le débit");
+    AddTranslation("en", "Show duration in window", L"Show duration in window");
+    AddTranslation("fr", "Show duration in window", L"Afficher la durée");
+    AddTranslation("en", "Show filename in window", L"Show filename in window");
+    AddTranslation("fr", "Show filename in window", L"Afficher le nom de fichier");
+
+    // Video
+    AddTranslation("en", "Toggle fullscreen", L"Toggle fullscreen");
+    AddTranslation("fr", "Toggle fullscreen", L"Activer/désactiver le plein écran");
+    AddTranslation("en", "Cycle subtitles", L"Cycle subtitles");
+    AddTranslation("fr", "Cycle subtitles", L"Changer de sous-titres");
+    AddTranslation("en", "Cycle audio track", L"Cycle audio track");
+    AddTranslation("fr", "Cycle audio track", L"Changer de piste audio");
+    AddTranslation("en", "Take screenshot", L"Take screenshot");
+    AddTranslation("fr", "Take screenshot", L"Capture d'écran");
+
+    // Help
+    AddTranslation("en", "Open manual", L"Open manual");
+    AddTranslation("fr", "Open manual", L"Ouvrir le manuel");
+    AddTranslation("en", "Toggle keyboard help", L"Toggle keyboard help");
+    AddTranslation("fr", "Toggle keyboard help", L"Activer/désactiver l'aide clavier");
+
     // Help menu — Manual (F1) opens the bilingual HTML manual
     AddTranslation("en", "&Manual\tF1", L"&Manual\tF1");
     AddTranslation("fr", "&Manual\tF1", L"&Manuel\tF1");
