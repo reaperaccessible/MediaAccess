@@ -85,6 +85,10 @@ Source: "{#SourceDir}\docs\readme.txt"; DestDir: "{app}\docs"; Flags: ignorevers
 Source: "{#SourceDir}\docs\changelog.txt"; DestDir: "{app}\docs"; Flags: ignoreversion
 Source: "{#SourceDir}\docs\manual_fr.html"; DestDir: "{app}\docs"; Flags: ignoreversion
 Source: "{#SourceDir}\docs\manual_en.html"; DestDir: "{app}\docs"; Flags: ignoreversion
+; Install regional default keymaps (USA / FR-CA / FR-FR). The app also
+; regenerates these on first run if missing, so this entry is safe to skip
+; when building from a fresh tree before the binaries have run once.
+Source: "{#SourceDir}\KeyMaps\*.MediaAccessKeyMap"; DestDir: "{app}\KeyMaps"; Flags: ignoreversion skipifsourcedoesntexist
 ; Create installed marker file
 Source: "{#SourceDir}\MediaAccess.exe"; DestDir: "{app}"; AfterInstall: CreateInstalledMarker; Flags: ignoreversion
 

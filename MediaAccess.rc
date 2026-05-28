@@ -70,6 +70,10 @@ BEGIN
         MENUITEM SEPARATOR
         MENUITEM "Take Scr&eenshot",                IDM_VIDEO_SCREENSHOT
     END
+    POPUP "&Tools"
+    BEGIN
+        MENUITEM "&Actions...\tF4",                 IDM_TOOLS_ACTIONS
+    END
     POPUP "&Help"
     BEGIN
         MENUITEM "&Manual\tF1", IDM_HELP_MANUAL
@@ -503,86 +507,20 @@ BEGIN
     PUSHBUTTON      "Cancel", IDCANCEL, 243, 80, 50, 14
 END
 
+// =========================================================================
+// Accelerator table — intentionally empty.
+//
+// All keyboard shortcuts are now dispatched by the keymap system at runtime
+// (see src/keymap.cpp + the WM_KEYDOWN handler in src/main.cpp). Each user
+// has a regional keymap (USA / FR-CA / FR-FR) shipped in <install>\KeyMaps\,
+// and can fully customize it via Tools → Actions (F4).
+//
+// We keep one harmless entry here because some RC compilers reject an empty
+// ACCELERATORS block. VK_F24 is essentially never present on real keyboards.
+// =========================================================================
 IDA_ACCEL ACCELERATORS
 BEGIN
-    "O",            IDM_FILE_OPEN,      VIRTKEY, CONTROL
-    "O",            IDM_FILE_ADD_FOLDER, VIRTKEY, CONTROL, SHIFT
-    "P",            IDM_FILE_PLAYLIST,  VIRTKEY, CONTROL
-    "U",            IDM_FILE_OPEN_URL,  VIRTKEY, CONTROL
-    "Y",            IDM_FILE_YOUTUBE,   VIRTKEY, CONTROL
-    "R",            IDM_FILE_RADIO,     VIRTKEY, CONTROL
-    "D",            IDM_FILE_ADD_TO_FAVORITES, VIRTKEY, CONTROL
-    "P",            IDM_FILE_PODCAST,   VIRTKEY, CONTROL, SHIFT
-    "S",            IDM_FILE_SCHEDULE,  VIRTKEY, CONTROL
-    "H",            IDM_FILE_HIDE_TRAY, VIRTKEY, CONTROL
-    "H",            IDM_VIEW_SONG_HISTORY, VIRTKEY, CONTROL, SHIFT
-    VK_OEM_COMMA,   IDM_TOOLS_OPTIONS,  VIRTKEY, CONTROL
-    VK_SPACE,       IDM_PLAY_PLAYPAUSE, VIRTKEY
-    VK_LEFT,        IDM_PLAY_SEEKBACK,  VIRTKEY
-    VK_RIGHT,       IDM_PLAY_SEEKFWD,   VIRTKEY
-    VK_UP,          IDM_EFFECT_UP,      VIRTKEY
-    VK_DOWN,        IDM_EFFECT_DOWN,    VIRTKEY
-    VK_UP,          IDM_PLAY_VOLUP,     VIRTKEY, CONTROL
-    VK_DOWN,        IDM_PLAY_VOLDOWN,   VIRTKEY, CONTROL
-    "E",            IDM_PLAY_ELAPSED,   VIRTKEY, CONTROL, SHIFT
-    "R",            IDM_PLAY_REMAINING, VIRTKEY, CONTROL, SHIFT
-    "T",            IDM_PLAY_TOTAL,     VIRTKEY, CONTROL, SHIFT
-    // Modifier-free playback / movement / bookmark / record / mute / effect / audio shortcuts
-    // are NOT listed here on purpose — they are dispatched by physical scan code in
-    // src/main.cpp WM_KEYDOWN so the same physical key triggers the same action on
-    // any keyboard layout (QWERTY, AZERTY, QWERTZ, Bépo, Dvorak, etc.).
-    // Letter+modifier accelerators (Ctrl+M, Ctrl+P, Ctrl+H, …) stay VK-based below
-    // because users associate them with letter mnemonics, not physical position.
-    VK_HOME,        IDM_PLAY_BEGINNING, VIRTKEY
-    // Bookmarks — Ctrl+M stays VK (letter mnemonic)
-    "M",            IDM_BOOKMARK_LIST,  VIRTKEY, CONTROL
-    // Effect controls — Backspace/Ctrl+Home/Ctrl+End are position-neutral
-    VK_BACK,        IDM_EFFECT_RESET,   VIRTKEY          // Backspace key
-    VK_HOME,        IDM_EFFECT_MIN,     VIRTKEY, CONTROL // Ctrl+Home = min value
-    VK_END,         IDM_EFFECT_MAX,     VIRTKEY, CONTROL // Ctrl+End = max value
-    // Video controls
-    VK_F1,          IDM_HELP_MANUAL,    VIRTKEY                // F1 = open manual
-    VK_F12,         IDM_KEYBOARD_HELP_TOGGLE, VIRTKEY          // F12 = toggle keyboard help mode
-    "V",            IDM_FILE_PASTE,     VIRTKEY, CONTROL       // Ctrl+V = paste media from clipboard
-    VK_F11,         IDM_VIDEO_FULLSCREEN, VIRTKEY        // F11 = toggle fullscreen
-    "T",            IDM_VIDEO_SUB_CYCLE,  VIRTKEY, CONTROL, SHIFT  // Ctrl+Shift+T = cycle subtitles
-    "A",            IDM_VIDEO_AUDIO_CYCLE, VIRTKEY, CONTROL, SHIFT // Ctrl+Shift+A = cycle audio tracks
-    "S",            IDM_VIDEO_SCREENSHOT, VIRTKEY, CONTROL, SHIFT  // Ctrl+Shift+S = take screenshot
-    // Tag reading (1-0 keys)
-    "1",            IDM_TOGGLE_VOLUME,      VIRTKEY, CONTROL
-    "2",            IDM_TOGGLE_PITCH,       VIRTKEY, CONTROL
-    "3",            IDM_TOGGLE_TEMPO,       VIRTKEY, CONTROL
-    "4",            IDM_TOGGLE_RATE,        VIRTKEY, CONTROL
-    "5",            IDM_TOGGLE_REVERB,      VIRTKEY, CONTROL
-    "6",            IDM_TOGGLE_ECHO,        VIRTKEY, CONTROL
-    "7",            IDM_TOGGLE_EQ,          VIRTKEY, CONTROL
-    "8",            IDM_TOGGLE_COMPRESSOR,  VIRTKEY, CONTROL
-    "9",            IDM_TOGGLE_STEREOWIDTH, VIRTKEY, CONTROL
-    "0",            IDM_TOGGLE_CENTERCANCEL, VIRTKEY, CONTROL
-    VK_OEM_MINUS,   IDM_TOGGLE_CONVOLUTION, VIRTKEY, CONTROL
-    VK_OEM_PLUS,    IDM_TOGGLE_SPATIAL,     VIRTKEY, CONTROL
-    "1",            IDM_READ_TAG_TITLE,     VIRTKEY
-    "2",            IDM_READ_TAG_ARTIST,    VIRTKEY
-    "3",            IDM_READ_TAG_ALBUM,     VIRTKEY
-    "4",            IDM_READ_TAG_YEAR,      VIRTKEY
-    "5",            IDM_READ_TAG_TRACK,     VIRTKEY
-    "6",            IDM_READ_TAG_GENRE,     VIRTKEY
-    "7",            IDM_READ_TAG_COMMENT,   VIRTKEY
-    "8",            IDM_READ_TAG_BITRATE,   VIRTKEY
-    "9",            IDM_READ_TAG_DURATION,  VIRTKEY
-    "0",            IDM_READ_TAG_FILENAME,  VIRTKEY
-
-    // View tags in dialog (Shift+1-0)
-    "1",            IDM_VIEW_TAG_TITLE,     VIRTKEY, SHIFT
-    "2",            IDM_VIEW_TAG_ARTIST,    VIRTKEY, SHIFT
-    "3",            IDM_VIEW_TAG_ALBUM,     VIRTKEY, SHIFT
-    "4",            IDM_VIEW_TAG_YEAR,      VIRTKEY, SHIFT
-    "5",            IDM_VIEW_TAG_TRACK,     VIRTKEY, SHIFT
-    "6",            IDM_VIEW_TAG_GENRE,     VIRTKEY, SHIFT
-    "7",            IDM_VIEW_TAG_COMMENT,   VIRTKEY, SHIFT
-    "8",            IDM_VIEW_TAG_BITRATE,   VIRTKEY, SHIFT
-    "9",            IDM_VIEW_TAG_DURATION,  VIRTKEY, SHIFT
-    "0",            IDM_VIEW_TAG_FILENAME,  VIRTKEY, SHIFT
+    VK_F24,         IDM_TOOLS_ACTIONS,  VIRTKEY
 END
 
 // Progress dialog (for downloads/updates)
@@ -594,4 +532,54 @@ BEGIN
     CONTROL         "", IDC_PROGRESS_BAR, "msctls_progress32", WS_BORDER, 14, 20, 222, 14
     LTEXT           "Preparing download...", IDC_PROGRESS_TEXT, 14, 40, 222, 10
     PUSHBUTTON      "Cancel", IDCANCEL, 100, 52, 50, 14
+END
+
+// =========================================================================
+// Actions / Keymap window — REAPER-style customizable shortcuts (Tools→Actions, F4)
+// =========================================================================
+IDD_ACTIONS DIALOGEX 0, 0, 480, 320
+STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "Actions"
+FONT 9, "MS Shell Dlg"
+BEGIN
+    LTEXT           "Section:", IDC_LABEL_ACTIONS_CATEGORY, 10, 10, 50, 10
+    COMBOBOX        IDC_ACTIONS_CATEGORY, 65, 8, 110, 100, CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+
+    LTEXT           "Filter:", IDC_LABEL_ACTIONS_SEARCH, 190, 10, 30, 10
+    EDITTEXT        IDC_ACTIONS_SEARCH, 220, 8, 250, 12, ES_AUTOHSCROLL
+
+    LTEXT           "Actions:", IDC_LABEL_ACTIONS_LIST, 10, 28, 60, 10
+    LISTBOX         IDC_ACTIONS_LIST, 10, 40, 290, 220, LBS_NOTIFY | LBS_USETABSTOPS | WS_VSCROLL | WS_TABSTOP | WS_BORDER
+
+    LTEXT           "Shortcuts for selected action:", IDC_LABEL_ACTIONS_SHORTCUTS, 310, 28, 160, 10
+    LISTBOX         IDC_ACTIONS_SHORTCUTS, 310, 40, 160, 110, LBS_NOTIFY | WS_VSCROLL | WS_TABSTOP | WS_BORDER
+
+    PUSHBUTTON      "&Add...",    IDC_ACTIONS_ADD,    310, 158, 50, 14
+    PUSHBUTTON      "&Edit...",   IDC_ACTIONS_EDIT,   365, 158, 50, 14
+    PUSHBUTTON      "&Delete",    IDC_ACTIONS_DELETE, 420, 158, 50, 14
+
+    LTEXT           "Current keymap:", IDC_LABEL_ACTIONS_KEYMAP, 10, 272, 70, 10
+    LTEXT           "USA",        IDC_ACTIONS_KEYMAP_NAME, 82, 272, 150, 10
+
+    PUSHBUTTON      "&Load...",         IDC_ACTIONS_LOAD,    10, 288, 65, 14
+    PUSHBUTTON      "&Save as...",      IDC_ACTIONS_SAVE_AS, 80, 288, 65, 14
+    PUSHBUTTON      "&Reset to defaults", IDC_ACTIONS_RESET, 150, 288, 100, 14
+
+    DEFPUSHBUTTON   "Close", IDOK, 420, 300, 50, 14
+END
+
+// =========================================================================
+// Shortcut-assignment dialog — press a key to capture it
+// =========================================================================
+IDD_SHORTCUT_ASSIGN DIALOGEX 0, 0, 260, 100
+STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "Assign shortcut"
+FONT 9, "MS Shell Dlg"
+BEGIN
+    LTEXT           "Press the key combination you want to assign:", IDC_LABEL_SHORTCUT_PROMPT, 10, 10, 240, 10
+    EDITTEXT        IDC_SHORTCUT_DISPLAY, 10, 25, 240, 14, ES_AUTOHSCROLL | ES_READONLY
+    LTEXT           "Press Backspace alone to clear.", IDC_LABEL_SHORTCUT_CURRENT, 10, 45, 240, 10
+
+    DEFPUSHBUTTON   "OK",     IDOK,     145, 75, 50, 14
+    PUSHBUTTON      "Cancel", IDCANCEL, 200, 75, 50, 14
 END

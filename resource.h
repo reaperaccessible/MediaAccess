@@ -487,5 +487,37 @@
 #define IDC_LANGUAGE_COMBO                  1310
 #define IDC_LABEL_LANGUAGE                  1311
 
+// =========================================================================
+// Actions / Keymap system (REAPER-style)
+// =========================================================================
+// Menu command for Tools → Actions...
+#define IDM_TOOLS_ACTIONS                   1400
+
+// Actions dialog (the F4 window)
+#define IDD_ACTIONS                         1410
+#define IDC_ACTIONS_CATEGORY                1411
+#define IDC_ACTIONS_SEARCH                  1412
+#define IDC_ACTIONS_LIST                    1413
+#define IDC_ACTIONS_SHORTCUTS               1414
+#define IDC_ACTIONS_ADD                     1415
+#define IDC_ACTIONS_DELETE                  1416
+#define IDC_ACTIONS_EDIT                    1417
+#define IDC_ACTIONS_LOAD                    1418
+#define IDC_ACTIONS_SAVE_AS                 1419
+#define IDC_ACTIONS_RESET                   1420
+#define IDC_ACTIONS_GLOBAL_CHECK            1421
+#define IDC_LABEL_ACTIONS_CATEGORY          1422
+#define IDC_LABEL_ACTIONS_SEARCH            1423
+#define IDC_LABEL_ACTIONS_LIST              1424
+#define IDC_LABEL_ACTIONS_SHORTCUTS         1425
+#define IDC_LABEL_ACTIONS_KEYMAP            1426
+#define IDC_ACTIONS_KEYMAP_NAME             1427
+
+// Shortcut assignment dialog (press a key to learn it)
+#define IDD_SHORTCUT_ASSIGN                 1430
+#define IDC_SHORTCUT_DISPLAY                1431
+#define IDC_LABEL_SHORTCUT_PROMPT           1432
+#define IDC_LABEL_SHORTCUT_CURRENT          1433
+
 #define IDOK                1
 #define IDCANCEL            2

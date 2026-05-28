@@ -28,6 +28,9 @@
 #include "video_engine.h"
 #include "mediaaccess/logger.h"
 #include "mediaaccess/keyboard_help.h"
+#include "mediaaccess/actions.h"
+#include "mediaaccess/keymap.h"
+#include "mediaaccess/actions_window.h"
 #include <utility>  // for std::pair
 
 #pragma comment(lib, "bass.lib")
@@ -168,61 +171,39 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
                 return 0;
             }
             // -----------------------------------------------------------
-            // Physical scan-code shortcuts (layout-independent)
+            // Keymap dispatcher (REAPER-style)
             //
-            // These keys are dispatched by their PHYSICAL POSITION on the
-            // keyboard rather than the character they happen to produce.
-            // That way the Winamp-style "ZXCVB" transport row, the
-            // movement-unit slider (`,` `.`) and the effect slider (`[`
-            // `]`) work identically on QWERTY, AZERTY, QWERTZ, Bépo,
-            // Dvorak, Cyrillic, Greek… without any user-visible
-            // configuration. See user manual for the explanation.
+            // Build a Shortcut struct from the current VK + modifier state
+            // and look it up in the active keymap. The keymap maps to an
+            // action's IDM command, which we post via WM_COMMAND.
             //
-            // Scan codes are the Set 1 IBM PC values (bits 16-23 of the
-            // WM_KEYDOWN LPARAM). Reference:
-            //   Q W E R T Y U I O P [ ]   = 0x10..0x1B
-            //   A S D F G H J K L ; '     = 0x1E..0x28
-            //   Z X C V B N M , . /       = 0x2C..0x35
+            // Users customize bindings via Tools → Actions (F4). Regional
+            // defaults live in <install>\KeyMaps\USA|FR-CA|FR-FR.MediaAccessKeyMap
+            // and are auto-detected at first launch.
             //
-            // Modifier-bearing shortcuts (Ctrl+letter, Ctrl+Shift+letter)
-            // remain VK-based via the accelerator table because users
-            // think of them as letter mnemonics, not key positions.
+            // Pure modifier presses (Ctrl/Shift/Alt/Win alone) are skipped
+            // so they don't generate spurious lookups.
             // -----------------------------------------------------------
-            {
-                BOOL ctrl  = (GetKeyState(VK_CONTROL) & 0x8000) != 0;
-                BOOL alt   = (GetKeyState(VK_MENU)    & 0x8000) != 0;
-                // Shift is allowed only for the IDM_VIEW_TAG_* entries
-                // which are number-row based and remain VK-driven; the
-                // letter / OEM shortcuts below all require no modifier.
-                BOOL shift = (GetKeyState(VK_SHIFT)   & 0x8000) != 0;
-                if (!ctrl && !alt && !shift) {
-                    UINT scan = (UINT)((lParam >> 16) & 0xFF);
-                    int cmd = 0;
-                    switch (scan) {
-                        // Winamp transport row (bottom row of letters)
-                        case 0x2C: cmd = IDM_PLAY_PREV;          break; // physical Z
-                        case 0x2D: cmd = IDM_PLAY_PLAY;          break; // physical X
-                        case 0x2E: cmd = IDM_PLAY_PAUSE;         break; // physical C
-                        case 0x2F: cmd = IDM_PLAY_STOP;          break; // physical V
-                        case 0x30: cmd = IDM_PLAY_NEXT;          break; // physical B
-                        case 0x32: cmd = IDM_BOOKMARK_ADD;       break; // physical M
-                        case 0x33: cmd = IDM_SEEK_DECREASE;      break; // physical ,
-                        case 0x34: cmd = IDM_SEEK_INCREASE;      break; // physical .
-                        // Other modifier-free letters
-                        case 0x12: cmd = IDM_PLAY_REPEAT_TOGGLE; break; // physical E
-                        case 0x13: cmd = IDM_RECORD_TOGGLE;      break; // physical R
-                        case 0x16: cmd = IDM_PLAY_MUTE;          break; // physical U
-                        case 0x19: cmd = IDM_EFFECT_PRESETS;     break; // physical P
-                        case 0x1A: cmd = IDM_EFFECT_PREV;        break; // physical [
-                        case 0x1B: cmd = IDM_EFFECT_NEXT;        break; // physical ]
-                        case 0x1E: cmd = IDM_SHOW_AUDIO_DEVICES; break; // physical A
-                        case 0x23: cmd = IDM_PLAY_SHUFFLE;       break; // physical H
-                        case 0x24: cmd = IDM_PLAY_JUMPTOTIME;    break; // physical J
-                    }
+            switch ((UINT)wParam) {
+                case VK_CONTROL: case VK_LCONTROL: case VK_RCONTROL:
+                case VK_SHIFT:   case VK_LSHIFT:   case VK_RSHIFT:
+                case VK_MENU:    case VK_LMENU:    case VK_RMENU:
+                case VK_LWIN:    case VK_RWIN:
+                case VK_CAPITAL: case VK_NUMLOCK:  case VK_SCROLL:
+                    break;  // fall through to default break below
+                default: {
+                    mediaaccess::Shortcut sc;
+                    sc.vk    = (UINT)wParam;
+                    sc.ctrl  = (GetKeyState(VK_CONTROL) & 0x8000) != 0;
+                    sc.shift = (GetKeyState(VK_SHIFT)   & 0x8000) != 0;
+                    sc.alt   = (GetKeyState(VK_MENU)    & 0x8000) != 0;
+                    int cmd = mediaaccess::GetActiveKeyMap()
+                                .FindCommandFor(sc, mediaaccess::ActionCategory::Main);
                     if (cmd != 0) {
                         PostMessageW(hwnd, WM_COMMAND, cmd, 0);
                         return 0;
                     }
+                    break;
                 }
             }
             break;
@@ -513,6 +494,9 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
                     g_keyboardHelpMode = !g_keyboardHelpMode;
                     Speak(Ts(g_keyboardHelpMode ? "Keyboard help on"
                                                 : "Keyboard help off"));
+                    break;
+                case IDM_TOOLS_ACTIONS:
+                    mediaaccess::ShowActionsWindow(hwnd);
                     break;
                 case IDM_HELP_MANUAL: {
                     // Open the bilingual HTML manual in the user's default browser.
@@ -1029,6 +1013,11 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLi
     // uses the correct language.
     InitTranslations();
     LoadSettings();
+    // Load the active keymap (and ship USA/FR-CA/FR-FR defaults if missing).
+    // Must happen AFTER LoadSettings (which reads the language preference) so
+    // the keymap dispatcher sees the right active keymap from the very first
+    // WM_KEYDOWN, and the bilingual action names display in the right tongue.
+    mediaaccess::LoadActiveKeyMapAtStartup();
     if (g_registerFileTypes) {
         RegisterAllFileTypes();
     }
@@ -1079,6 +1068,9 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLi
 
     // Localize the main menu now that it has been attached to the window
     LocalizeMenu(GetMenu(hwnd));
+    // Rewrite each menu item's accelerator hint to match the active keymap.
+    // Must come after LocalizeMenu (which may rewrite the text portion).
+    mediaaccess::RefreshMenuAcceleratorHints();
     DrawMenuBar(hwnd);
 
     ShowWindow(hwnd, nCmdShow);
