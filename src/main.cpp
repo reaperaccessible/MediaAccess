@@ -493,23 +493,31 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
                     ShowCheckForUpdatesDialog(hwnd, false);
                     break;
                 case IDM_HELP_SET_DEFAULT: {
-                    // Open the Windows "Default apps" Settings page, deep-
-                    // linked to MediaAccess if the OS supports it. The
-                    // installer registers MediaAccess under
-                    // HKLM\SOFTWARE\RegisteredApplications\MediaAccess, so
-                    // the query string sends Windows 11 directly to our
-                    // section. Older Windows versions ignore the query and
-                    // just open the unfiltered Default apps page, which is
-                    // still the right destination.
+                    // Microsoft removed the programmatic "set as default"
+                    // APIs in Windows 8+ to prevent app hijacking. Every
+                    // media player (VLC, foobar2000, …) has the same
+                    // limitation. The best we can do is take the user
+                    // straight to the right Settings page and tell them
+                    // exactly which buttons to click.
                     //
-                    // Microsoft removed programmatic "set as default" APIs
-                    // years ago for security reasons; the user must confirm
-                    // the change inside the Settings UI. We Speak() a hint
-                    // so screen-reader users know what just happened.
+                    // Show a clear instruction dialog first (also read
+                    // aloud by NVDA / JAWS / Narrator when focused), then
+                    // open Settings deep-linked to MediaAccess.
+                    MessageBoxW(hwnd,
+                        T("Windows does not allow any application to set itself as the default "
+                          "automatically — this is a security restriction Microsoft added in "
+                          "Windows 8.\n\n"
+                          "When you click OK, Windows will open the Default apps page on the "
+                          "MediaAccess entry. From there, click each file type (.mp3, .mp4, "
+                          ".mkv, .flac, .mid, etc.) and choose MediaAccess to make it the "
+                          "default. On Windows 11 you can also use the \"Set default\" button "
+                          "near the top of the MediaAccess page to assign all supported types "
+                          "at once."),
+                        T("Set as default media player"),
+                        MB_OK | MB_ICONINFORMATION);
                     ShellExecuteW(hwnd, L"open",
                                   L"ms-settings:defaultapps?registeredAppMachine=MediaAccess",
                                   nullptr, nullptr, SW_SHOWNORMAL);
-                    Speak(Ts("Opening Windows default-apps settings"));
                     break;
                 }
                 case IDM_HELP_AUDIT_LAYOUT:
@@ -609,6 +617,18 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
                 case IDM_PLAY_BEGINNING:
                     SeekToPosition(0);
                     break;
+                case IDM_PLAY_NEAR_END: {
+                    // Jump to 30 seconds before the end of the track (or
+                    // to the very beginning for tracks shorter than 30 s).
+                    // Useful for previewing endings, skipping bonus tracks,
+                    // or finding where an audiobook chapter wraps up.
+                    double len = GetTrackLength();
+                    if (len <= 0.0) break;  // length unknown (e.g. live stream)
+                    double target = len - 30.0;
+                    if (target < 0.0) target = 0.0;
+                    SeekToPosition(target);
+                    break;
+                }
                 case IDM_PLAY_JUMPTOTIME:
                     ShowJumpToTimeDialog();
                     break;

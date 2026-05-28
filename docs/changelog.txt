@@ -1,3 +1,9 @@
+1.48
+New action: Jump 30 seconds before end (default Shift+End). Useful for previewing the last 30 seconds of a track, skipping bonus tracks, or catching the wrap-up of an audiobook chapter. Reachable from Tools > Actions and rebindable like any other shortcut. No-op on live streams where the total length is unknown. Suggested by an end user.
+
+1.47
+Help > Set as default media player... now opens with an explanation dialog first, so users understand why Windows requires them to confirm the choice in Settings (Microsoft removed the programmatic "set as default" APIs in Windows 8 for security reasons — no media player can bypass this). The dialog explains exactly which buttons to click on Windows 10 vs Windows 11.
+
 1.46
 Add Help > Set as default media player... — opens the Windows Default apps Settings page deep-linked to MediaAccess on Windows 11 (older versions open the unfiltered page). Microsoft removed programmatic "set as default" APIs years ago for security reasons; the user still confirms inside Settings.
 
