@@ -52,6 +52,28 @@ SetupIconFile={#SourceDir}\MediaAccess.ico
 UninstallDisplayIcon={app}\{#MyAppExeName}
 UninstallDisplayName={#MyAppName}
 
+; ============================================================
+; Auto-close running MediaAccess before file copy
+; ------------------------------------------------------------
+; Without this, upgrading while MediaAccess.exe is running silently
+; FAILS to overwrite the running .exe (Windows file lock). The
+; installer reports success, but on the next launch the user is
+; still on the previous version — and the in-app update checker
+; offers the same update again. Infinite loop.
+;
+; CloseApplications=yes makes Inno Setup use Restart Manager to
+; gracefully close MediaAccess before copying files. The AppMutex
+; lets Inno detect the running instance even when it doesn't hold a
+; visible window (e.g. minimized to tray) — the name must match the
+; one passed to CreateMutexW in src/main.cpp (currently
+; "MediaAccessSingleInstance", defined as MUTEX_NAME in
+; src/globals.cpp). Works in silent install mode too, so the in-app
+; auto-update path is covered.
+; ============================================================
+CloseApplications=yes
+RestartApplications=no
+AppMutex=MediaAccessSingleInstance
+
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"
 Name: "french"; MessagesFile: "compiler:Languages\French.isl"

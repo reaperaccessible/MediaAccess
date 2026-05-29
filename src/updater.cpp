@@ -530,12 +530,35 @@ void ApplyUpdate() {
             return;
         }
 
-        HINSTANCE result = ShellExecuteW(NULL, L"open", installerPath.c_str(), L"/SILENT", NULL, SW_SHOWNORMAL);
-        if (reinterpret_cast<intptr_t>(result) <= 32) {
+        // Launch the installer via cmd.exe so we can insert a 2-second
+        // delay BEFORE the installer starts. That delay gives MediaAccess
+        // time to fully exit (we post WM_CLOSE right after, then return
+        // here, then wWinMain unwinds) so the installer doesn't hit a
+        // locked .exe.
+        //
+        // Belt-and-suspenders: the installer itself also has
+        // CloseApplications=yes + AppMutex=MediaAccessSingleInstance in
+        // installer.iss, so even if the timing slips, Inno's Restart
+        // Manager integration will close us gracefully before overwriting
+        // files. Either mechanism alone fixes the lock-failure loop;
+        // both together makes it robust regardless of update-checker age.
+        std::wstring cmdArgs = L"/c timeout /t 2 /nobreak >nul && start \"\" \"" +
+                               installerPath + L"\" /SILENT";
+        STARTUPINFOW si{};
+        si.cb = sizeof(si);
+        si.dwFlags = STARTF_USESHOWWINDOW;
+        si.wShowWindow = SW_HIDE;
+        PROCESS_INFORMATION pi{};
+        std::wstring cmdLine = L"cmd.exe " + cmdArgs;
+        if (!CreateProcessW(nullptr, &cmdLine[0], nullptr, nullptr, FALSE,
+                            CREATE_NO_WINDOW | DETACHED_PROCESS,
+                            nullptr, nullptr, &si, &pi)) {
             MessageBoxW(GetMessageBoxOwner(), T("Failed to launch installer."),
                 T("Update Error"), MB_OK | MB_ICONERROR);
             return;
         }
+        CloseHandle(pi.hProcess);
+        CloseHandle(pi.hThread);
         PostMessageW(g_hwnd, WM_CLOSE, 0, 0);
     } else {
         std::wstring appDir = GetAppDirectory();
