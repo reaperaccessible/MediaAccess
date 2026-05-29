@@ -201,7 +201,8 @@ bool SaveKeyMap(const std::wstring& path, const KeyMap& km, std::string* errorOu
     // Group bindings by category so the file is human-browsable.
     static const ActionCategory kCats[] = {
         ActionCategory::Main, ActionCategory::Radio,
-        ActionCategory::YouTube, ActionCategory::Global
+        ActionCategory::YouTube, ActionCategory::Global,
+        ActionCategory::Books
     };
     for (ActionCategory cat : kCats) {
         std::vector<const Action*> acts = ActionsInCategory(cat);
@@ -214,6 +215,7 @@ bool SaveKeyMap(const std::wstring& path, const KeyMap& km, std::string* errorOu
             case ActionCategory::Radio:   catName = "Radio";   break;
             case ActionCategory::YouTube: catName = "YouTube"; break;
             case ActionCategory::Global:  catName = "Global";  break;
+            case ActionCategory::Books:   catName = "Books";   break;
             default: break;
         }
         oss << "# ----- " << catName << " -----\r\n";
@@ -538,6 +540,31 @@ void LoadActiveKeyMapAtStartup()
     if (km.bindings.empty()) {
         km = BuildDefaultUsaKeyMap();
     }
+
+    // Merge new defaults: for each registered action with a defaultUsa shortcut,
+    // if the user's keymap doesn't have ANY binding for that action AND the
+    // default shortcut isn't already claimed by another action, add it. This
+    // lets new actions added by future updates (e.g. the Books category in
+    // v1.49) receive their default bindings automatically without the user
+    // having to click "Reset to defaults" — and without disturbing any of
+    // their existing custom assignments.
+    {
+        int total = ActionCount();
+        bool changed = false;
+        for (int i = 0; i < total; ++i) {
+            const Action* a = ActionAt(i);
+            if (!a || !a->defaultUsa.valid()) continue;
+            if (km.bindings.find(a->stringId) != km.bindings.end()) continue;
+            // Don't steal a shortcut already bound to something else (same cat).
+            if (!km.FindActionFor(a->defaultUsa, a->category).empty()) continue;
+            km.AddShortcut(a->stringId, a->defaultUsa);
+            changed = true;
+        }
+        if (changed && !km.path.empty()) {
+            SaveKeyMap(km.path, km, nullptr);
+        }
+    }
+
     g_activeKeymap = km;
     // Only persist the choice if we actually loaded the user's selection.
     // A transient failure (file locked by antivirus, OneDrive sync, etc.)

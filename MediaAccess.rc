@@ -20,6 +20,8 @@ BEGIN
         MENUITEM "&Schedule...\tCtrl+S", IDM_FILE_SCHEDULE
         MENUITEM "Song &History...\tCtrl+Shift+H", IDM_VIEW_SONG_HISTORY
         MENUITEM SEPARATOR
+        MENUITEM "Open &book...",                  IDM_FILE_OPEN_BOOK
+        MENUITEM SEPARATOR
         POPUP "Recent &Files"
         BEGIN
             MENUITEM "(Empty)", 0, GRAYED
@@ -73,6 +75,7 @@ BEGIN
     POPUP "&Tools"
     BEGIN
         MENUITEM "&Actions...\tF4",                 IDM_TOOLS_ACTIONS
+        MENUITEM "&Book library...",                IDM_TOOLS_BOOK_LIBRARY
     END
     POPUP "&Help"
     BEGIN
@@ -263,6 +266,13 @@ BEGIN
     EDITTEXT        IDC_MIDI_VOICES, 145, 90, 40, 14, ES_AUTOHSCROLL | ES_NUMBER
     LTEXT           "(1-1000, default 128)", IDC_LABEL_MIDI_VOICES_RANGE, 190, 92, 105, 10
     AUTOCHECKBOX    "Use s&inc interpolation (higher quality, more CPU)", IDC_MIDI_SINC, 17, 110, 260, 10
+
+    // Books tab controls (shown when tab 12 selected) — v1.49 Phase 1
+    LTEXT           "Library folders (scanned for DAISY and EPUB books):", IDC_LABEL_BOOK_FOLDERS, 17, 30, 290, 10
+    LISTBOX         IDC_BOOK_FOLDERS_LIST, 17, 44, 305, 130, LBS_NOTIFY | WS_VSCROLL | WS_TABSTOP | WS_BORDER
+    PUSHBUTTON      "&Add folder...",     IDC_BOOK_FOLDER_ADD,    17, 180, 80, 14
+    PUSHBUTTON      "&Remove folder",     IDC_BOOK_FOLDER_REMOVE, 100, 180, 80, 14
+    PUSHBUTTON      "Re&scan now",        IDC_BOOK_RESCAN,        185, 180, 80, 14
 
     DEFPUSHBUTTON   "OK", IDOK, 229, 240, 50, 14
     PUSHBUTTON      "Cancel", IDCANCEL, 283, 240, 50, 14
@@ -589,4 +599,51 @@ BEGIN
 
     DEFPUSHBUTTON   "&Search", IDC_FIND_SHORTCUT_SEARCH, 160, 80, 55, 14
     PUSHBUTTON      "Cancel",  IDCANCEL,                 220, 80, 50, 14
+END
+
+// =========================================================================
+// Book library window (Tools > Book library) — v1.49 Phase 1
+// =========================================================================
+IDD_BOOK_LIBRARY DIALOGEX 0, 0, 380, 240
+STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "Book library"
+FONT 9, "MS Shell Dlg"
+BEGIN
+    LTEXT           "Books in your library:", IDC_LABEL_BOOK_LIST, 10, 8, 200, 10
+    LISTBOX         IDC_BOOK_LIST, 10, 22, 360, 175, LBS_NOTIFY | LBS_USETABSTOPS | WS_VSCROLL | WS_TABSTOP | WS_BORDER
+
+    DEFPUSHBUTTON   "&Open",      IDC_BOOK_OPEN_SELECTED,   10, 208, 60, 16
+    PUSHBUTTON      "&Remove",    IDC_BOOK_REMOVE_SELECTED, 75, 208, 60, 16
+    PUSHBUTTON      "Re&scan",    IDC_BOOK_RESCAN,         140, 208, 60, 16
+    PUSHBUTTON      "Close",      IDCANCEL,                 320, 208, 50, 16
+END
+
+// =========================================================================
+// Bookmark-with-note input — v1.49 Phase 1
+// =========================================================================
+IDD_BOOK_BOOKMARK_NOTE DIALOGEX 0, 0, 280, 110
+STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "Add bookmark"
+FONT 9, "MS Shell Dlg"
+BEGIN
+    LTEXT           "Optional note for this bookmark:", IDC_LABEL_BOOK_BOOKMARK_PROMPT, 10, 10, 260, 10
+    EDITTEXT        IDC_BOOK_BOOKMARK_NOTE_EDIT, 10, 25, 260, 60, ES_AUTOVSCROLL | ES_MULTILINE | WS_VSCROLL
+
+    DEFPUSHBUTTON   "OK",     IDOK,     165, 88, 50, 14
+    PUSHBUTTON      "Cancel", IDCANCEL, 220, 88, 50, 14
+END
+
+// =========================================================================
+// Go to page (G key inside a book) — v1.49 Phase 1
+// =========================================================================
+IDD_BOOK_GO_TO_PAGE DIALOGEX 0, 0, 220, 80
+STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "Go to page"
+FONT 9, "MS Shell Dlg"
+BEGIN
+    LTEXT           "Page number:", IDC_LABEL_BOOK_GO_TO_PAGE, 10, 10, 80, 10
+    EDITTEXT        IDC_BOOK_GO_TO_PAGE_EDIT, 95, 8, 115, 14, ES_AUTOHSCROLL
+
+    DEFPUSHBUTTON   "OK",     IDOK,     105, 50, 50, 14
+    PUSHBUTTON      "Cancel", IDCANCEL, 160, 50, 50, 14
 END

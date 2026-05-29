@@ -1263,4 +1263,149 @@ void RegisterPlayerTranslations() {
         L"par défaut. Sur Windows 11, vous pouvez aussi utiliser le "
         L"bouton « Définir par défaut » en haut de la page MediaAccess "
         L"pour assigner d'un coup tous les formats pris en charge.");
+
+    // -------------------------------------------------------------------
+    // DAISY / EPUB reader (v1.49 Phase 1)
+    // -------------------------------------------------------------------
+    AddTranslation("en", "Open &book...", L"Open &book...");
+    AddTranslation("fr", "Open &book...", L"Ouvrir un &livre...");
+
+    AddTranslation("en", "&Book library...", L"&Book library...");
+    AddTranslation("fr", "&Book library...", L"&Bibliothèque de livres...");
+
+    AddTranslation("en", "Book library", L"Book library");
+    AddTranslation("fr", "Book library", L"Bibliothèque de livres");
+
+    AddTranslation("en", "Books in your library:", L"Books in your library:");
+    AddTranslation("fr", "Books in your library:", L"Livres dans votre bibliothèque :");
+
+    AddTranslation("en", "&Open",   L"&Open");
+    AddTranslation("fr", "&Open",   L"&Ouvrir");
+
+    AddTranslation("en", "&Remove", L"&Remove");
+    AddTranslation("fr", "&Remove", L"&Retirer");
+
+    AddTranslation("en", "Re&scan", L"Re&scan");
+    AddTranslation("fr", "Re&scan", L"Re&scanner");
+
+    AddTranslation("en", "in progress", L"in progress");
+    AddTranslation("fr", "in progress", L"en cours");
+
+    AddTranslation("en", "Add bookmark", L"Add bookmark");
+    AddTranslation("fr", "Add bookmark", L"Ajouter un signet");
+
+    AddTranslation("en", "Optional note for this bookmark:",
+                   L"Optional note for this bookmark:");
+    AddTranslation("fr", "Optional note for this bookmark:",
+                   L"Note optionnelle pour ce signet :");
+
+    AddTranslation("en", "Go to page", L"Go to page");
+    AddTranslation("fr", "Go to page", L"Aller à la page");
+
+    AddTranslation("en", "Page number:", L"Page number:");
+    AddTranslation("fr", "Page number:", L"Numéro de page :");
+
+    AddTranslation("en", "Page not found:", L"Page not found:");
+    AddTranslation("fr", "Page not found:", L"Page introuvable :");
+
+    AddTranslation("en", "Could not open book.", L"Could not open book.");
+    AddTranslation("fr", "Could not open book.", L"Impossible d'ouvrir le livre.");
+
+    AddTranslation("en", "Could not register book in library.",
+                   L"Could not register book in library.");
+    AddTranslation("fr", "Could not register book in library.",
+                   L"Impossible d'enregistrer le livre dans la bibliothèque.");
+
+    AddTranslation("en", "Could not start book playback.",
+                   L"Could not start book playback.");
+    AddTranslation("fr", "Could not start book playback.",
+                   L"Impossible de démarrer la lecture du livre.");
+
+    AddTranslation("en", "Book opened", L"Book opened");
+    AddTranslation("fr", "Book opened", L"Livre ouvert");
+
+    AddTranslation("en", "Bookmark added", L"Bookmark added");
+    AddTranslation("fr", "Bookmark added", L"Signet ajouté");
+
+    AddTranslation("en", "End of book", L"End of book");
+    AddTranslation("fr", "End of book", L"Fin du livre");
+
+    AddTranslation("en", "Beginning of book", L"Beginning of book");
+    AddTranslation("fr", "Beginning of book", L"Début du livre");
+
+    AddTranslation("en", "Navigation level", L"Navigation level");
+    AddTranslation("fr", "Navigation level", L"Niveau de navigation");
+
+    AddTranslation("en", "Heading level 1", L"Heading level 1");
+    AddTranslation("fr", "Heading level 1", L"Titre de niveau 1");
+    AddTranslation("en", "Heading level 2", L"Heading level 2");
+    AddTranslation("fr", "Heading level 2", L"Titre de niveau 2");
+    AddTranslation("en", "Heading level 3", L"Heading level 3");
+    AddTranslation("fr", "Heading level 3", L"Titre de niveau 3");
+    AddTranslation("en", "Heading level 4", L"Heading level 4");
+    AddTranslation("fr", "Heading level 4", L"Titre de niveau 4");
+    AddTranslation("en", "Heading level 5", L"Heading level 5");
+    AddTranslation("fr", "Heading level 5", L"Titre de niveau 5");
+    AddTranslation("en", "Heading level 6", L"Heading level 6");
+    AddTranslation("fr", "Heading level 6", L"Titre de niveau 6");
+
+    AddTranslation("en", "Page", L"Page");
+    AddTranslation("fr", "Page", L"Page");
+
+    AddTranslation("en", "Phrase", L"Phrase");
+    AddTranslation("fr", "Phrase", L"Phrase");
+
+    AddTranslation("en", "item",  L"item");
+    AddTranslation("fr", "item",  L"élément");
+    AddTranslation("en", "items", L"items");
+    AddTranslation("fr", "items", L"éléments");
+
+    // Books preferences tab labels and tab title
+    AddTranslation("en", "Books", L"Books");
+    AddTranslation("fr", "Books", L"Livres");
+
+    AddTranslation("en", "Library folders (scanned for DAISY and EPUB books):",
+                   L"Library folders (scanned for DAISY and EPUB books):");
+    AddTranslation("fr", "Library folders (scanned for DAISY and EPUB books):",
+                   L"Dossiers de la bibliothèque (scannés pour livres DAISY et EPUB) :");
+
+    AddTranslation("en", "&Add folder...",    L"&Add folder...");
+    AddTranslation("fr", "&Add folder...",    L"&Ajouter un dossier...");
+
+    AddTranslation("en", "&Remove folder",    L"&Remove folder");
+    AddTranslation("fr", "&Remove folder",    L"&Retirer le dossier");
+
+    AddTranslation("en", "Re&scan now",       L"Re&scan now");
+    AddTranslation("fr", "Re&scan now",       L"Re&scanner maintenant");
+
+    AddTranslation("en", "Select a folder containing DAISY or EPUB books",
+                   L"Select a folder containing DAISY or EPUB books");
+    AddTranslation("fr", "Select a folder containing DAISY or EPUB books",
+                   L"Sélectionnez un dossier contenant des livres DAISY ou EPUB");
+
+    AddTranslation("en", "Remove this book from the library? The file on disk is kept.",
+                   L"Remove this book from the library? The file on disk is kept.");
+    AddTranslation("fr", "Remove this book from the library? The file on disk is kept.",
+                   L"Retirer ce livre de la bibliothèque ? Le fichier sur le disque est conservé.");
+
+    AddTranslation("en", "Scan complete: %d book(s) added or updated.",
+                   L"Scan complete: %d book(s) added or updated.");
+    AddTranslation("fr", "Scan complete: %d book(s) added or updated.",
+                   L"Scan terminé : %d livre(s) ajouté(s) ou mis à jour.");
+
+    AddTranslation("en",
+        "This book has no recorded audio and no synthesized speech support yet. "
+        "It has been added to your library — full text-to-speech playback "
+        "for EPUB and text-only DAISY books will arrive in a future update.",
+        L"This book has no recorded audio and no synthesized speech support yet. "
+        L"It has been added to your library — full text-to-speech playback "
+        L"for EPUB and text-only DAISY books will arrive in a future update.");
+    AddTranslation("fr",
+        "This book has no recorded audio and no synthesized speech support yet. "
+        "It has been added to your library — full text-to-speech playback "
+        "for EPUB and text-only DAISY books will arrive in a future update.",
+        L"Ce livre n'a pas d'audio enregistré et la synthèse vocale n'est pas "
+        L"encore prise en charge. Il a été ajouté à votre bibliothèque — la "
+        L"lecture vocale complète des livres EPUB et DAISY texte-seul "
+        L"arrivera dans une prochaine mise à jour.");
 }

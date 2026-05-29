@@ -155,4 +155,54 @@ void AddSongHistoryEntry(const std::wstring& title);
 std::vector<SongHistoryEntry> GetSongHistory();
 void ClearSongHistory();
 
+// =============================================================================
+// Book library (DAISY / EPUB reader — Phase 1)
+// =============================================================================
+
+struct BookEntry {
+    int          id = 0;             // 0 means "not found"
+    std::wstring path;
+    std::wstring title;
+    std::wstring author;
+    std::wstring format;             // "daisy202" / "daisy3" / "epub3"
+    double       totalDuration = 0;  // seconds
+    int64_t      lastOpened = 0;     // unix timestamp
+    int          positionClip = 0;
+    double       positionOffset = 0;
+};
+
+struct BookBookmark {
+    int          id = 0;
+    int          bookId = 0;
+    int          clipIndex = 0;
+    double       offsetSeconds = 0;
+    std::wstring note;
+    int64_t      created = 0;
+};
+
+// Insert a book if its path is new, or update title/author/format/totalDuration
+// if it already exists. Position fields are NOT touched (so re-scanning the
+// library doesn't lose the user's last-read position). Returns the book id.
+int UpsertBook(const std::wstring& path, const std::wstring& title,
+               const std::wstring& author, const std::wstring& format,
+               double totalDuration);
+
+bool UpdateBookPosition(int bookId, int clipIndex, double offsetSeconds);
+bool MarkBookOpened(int bookId);          // Touch last_opened to now
+bool RemoveBook(int bookId);              // Also removes its bookmarks
+
+BookEntry GetBookByPath(const std::wstring& path);  // id=0 if not found
+BookEntry GetBookById(int bookId);                  // id=0 if not found
+std::vector<BookEntry> GetAllBooks();               // Sorted by last_opened DESC
+
+int  AddBookBookmark(int bookId, int clipIndex, double offsetSeconds,
+                     const std::wstring& note);
+bool RemoveBookBookmark(int bookmarkId);
+bool UpdateBookBookmarkNote(int bookmarkId, const std::wstring& note);
+std::vector<BookBookmark> GetBookBookmarks(int bookId);
+
+bool AddBookLibraryFolder(const std::wstring& path);
+bool RemoveBookLibraryFolder(const std::wstring& path);
+std::vector<std::wstring> GetBookLibraryFolders();
+
 #endif // MEDIAACCESS_DATABASE_H

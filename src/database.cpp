@@ -163,6 +163,42 @@ bool InitDatabase() {
         ");";
     sqlite3_exec(g_db, songHistorySql, nullptr, nullptr, nullptr);
 
+    // -------------------------------------------------------------------
+    // Book library tables (DAISY / EPUB reader — Phase 1)
+    // -------------------------------------------------------------------
+    const char* booksSql =
+        "CREATE TABLE IF NOT EXISTS books ("
+        "  id INTEGER PRIMARY KEY AUTOINCREMENT,"
+        "  path TEXT UNIQUE NOT NULL,"
+        "  title TEXT,"
+        "  author TEXT,"
+        "  format TEXT,"               // 'daisy202' / 'daisy3' / 'epub3'
+        "  total_duration REAL DEFAULT 0,"   // seconds
+        "  last_opened INTEGER DEFAULT 0,"   // unix timestamp
+        "  position_clip INTEGER DEFAULT 0,"
+        "  position_offset REAL DEFAULT 0"
+        ");";
+    sqlite3_exec(g_db, booksSql, nullptr, nullptr, nullptr);
+
+    const char* bookBookmarksSql =
+        "CREATE TABLE IF NOT EXISTS book_bookmarks ("
+        "  id INTEGER PRIMARY KEY AUTOINCREMENT,"
+        "  book_id INTEGER NOT NULL,"
+        "  clip_index INTEGER NOT NULL,"
+        "  offset_seconds REAL NOT NULL,"
+        "  note TEXT,"
+        "  created INTEGER NOT NULL"
+        ");";
+    sqlite3_exec(g_db, bookBookmarksSql, nullptr, nullptr, nullptr);
+    sqlite3_exec(g_db, "CREATE INDEX IF NOT EXISTS idx_book_bookmarks_book ON book_bookmarks(book_id);",
+                 nullptr, nullptr, nullptr);
+
+    const char* bookFoldersSql =
+        "CREATE TABLE IF NOT EXISTS book_library_folders ("
+        "  path TEXT PRIMARY KEY"
+        ");";
+    sqlite3_exec(g_db, bookFoldersSql, nullptr, nullptr, nullptr);
+
     return true;
 }
 
@@ -921,4 +957,279 @@ std::vector<SongHistoryEntry> GetSongHistory() {
 void ClearSongHistory() {
     if (!g_db) return;
     sqlite3_exec(g_db, "DELETE FROM song_history;", nullptr, nullptr, nullptr);
+}
+
+// =============================================================================
+// Book library implementation (DAISY / EPUB reader — Phase 1)
+// =============================================================================
+
+static int64_t NowUnix() {
+    return (int64_t)time(nullptr);
+}
+
+int UpsertBook(const std::wstring& path, const std::wstring& title,
+               const std::wstring& author, const std::wstring& format,
+               double totalDuration) {
+    if (!g_db || path.empty()) return 0;
+
+    std::string pathU8   = WideToUtf8(path);
+    std::string titleU8  = WideToUtf8(title);
+    std::string authorU8 = WideToUtf8(author);
+    std::string fmtU8    = WideToUtf8(format);
+
+    // Try to find existing by path first.
+    int existingId = 0;
+    {
+        sqlite3_stmt* st = nullptr;
+        if (sqlite3_prepare_v2(g_db, "SELECT id FROM books WHERE path=? LIMIT 1;",
+                               -1, &st, nullptr) == SQLITE_OK) {
+            sqlite3_bind_text(st, 1, pathU8.c_str(), -1, SQLITE_TRANSIENT);
+            if (sqlite3_step(st) == SQLITE_ROW) existingId = sqlite3_column_int(st, 0);
+            sqlite3_finalize(st);
+        }
+    }
+
+    if (existingId != 0) {
+        // Update metadata; leave position fields alone.
+        sqlite3_stmt* st = nullptr;
+        if (sqlite3_prepare_v2(g_db,
+            "UPDATE books SET title=?, author=?, format=?, total_duration=? WHERE id=?;",
+            -1, &st, nullptr) == SQLITE_OK) {
+            sqlite3_bind_text  (st, 1, titleU8.c_str(),  -1, SQLITE_TRANSIENT);
+            sqlite3_bind_text  (st, 2, authorU8.c_str(), -1, SQLITE_TRANSIENT);
+            sqlite3_bind_text  (st, 3, fmtU8.c_str(),    -1, SQLITE_TRANSIENT);
+            sqlite3_bind_double(st, 4, totalDuration);
+            sqlite3_bind_int   (st, 5, existingId);
+            sqlite3_step(st);
+            sqlite3_finalize(st);
+        }
+        return existingId;
+    }
+
+    // Insert new
+    sqlite3_stmt* st = nullptr;
+    if (sqlite3_prepare_v2(g_db,
+        "INSERT INTO books(path,title,author,format,total_duration,last_opened,position_clip,position_offset)"
+        " VALUES(?,?,?,?,?,0,0,0);",
+        -1, &st, nullptr) != SQLITE_OK) return 0;
+    sqlite3_bind_text  (st, 1, pathU8.c_str(),   -1, SQLITE_TRANSIENT);
+    sqlite3_bind_text  (st, 2, titleU8.c_str(),  -1, SQLITE_TRANSIENT);
+    sqlite3_bind_text  (st, 3, authorU8.c_str(), -1, SQLITE_TRANSIENT);
+    sqlite3_bind_text  (st, 4, fmtU8.c_str(),    -1, SQLITE_TRANSIENT);
+    sqlite3_bind_double(st, 5, totalDuration);
+    int rc = sqlite3_step(st);
+    sqlite3_finalize(st);
+    if (rc != SQLITE_DONE) return 0;
+    return (int)sqlite3_last_insert_rowid(g_db);
+}
+
+bool UpdateBookPosition(int bookId, int clipIndex, double offsetSeconds) {
+    if (!g_db || bookId <= 0) return false;
+    sqlite3_stmt* st = nullptr;
+    if (sqlite3_prepare_v2(g_db,
+        "UPDATE books SET position_clip=?, position_offset=? WHERE id=?;",
+        -1, &st, nullptr) != SQLITE_OK) return false;
+    sqlite3_bind_int   (st, 1, clipIndex);
+    sqlite3_bind_double(st, 2, offsetSeconds);
+    sqlite3_bind_int   (st, 3, bookId);
+    int rc = sqlite3_step(st);
+    sqlite3_finalize(st);
+    return rc == SQLITE_DONE;
+}
+
+bool MarkBookOpened(int bookId) {
+    if (!g_db || bookId <= 0) return false;
+    sqlite3_stmt* st = nullptr;
+    if (sqlite3_prepare_v2(g_db, "UPDATE books SET last_opened=? WHERE id=?;",
+                           -1, &st, nullptr) != SQLITE_OK) return false;
+    sqlite3_bind_int64(st, 1, NowUnix());
+    sqlite3_bind_int  (st, 2, bookId);
+    int rc = sqlite3_step(st);
+    sqlite3_finalize(st);
+    return rc == SQLITE_DONE;
+}
+
+bool RemoveBook(int bookId) {
+    if (!g_db || bookId <= 0) return false;
+    sqlite3_stmt* st = nullptr;
+    if (sqlite3_prepare_v2(g_db, "DELETE FROM book_bookmarks WHERE book_id=?;",
+                           -1, &st, nullptr) == SQLITE_OK) {
+        sqlite3_bind_int(st, 1, bookId);
+        sqlite3_step(st);
+        sqlite3_finalize(st);
+    }
+    if (sqlite3_prepare_v2(g_db, "DELETE FROM books WHERE id=?;",
+                           -1, &st, nullptr) != SQLITE_OK) return false;
+    sqlite3_bind_int(st, 1, bookId);
+    int rc = sqlite3_step(st);
+    sqlite3_finalize(st);
+    return rc == SQLITE_DONE;
+}
+
+// Fill a BookEntry from the current row of a SELECT statement that returns
+// (id, path, title, author, format, total_duration, last_opened, position_clip, position_offset)
+static BookEntry RowToBookEntry(sqlite3_stmt* st) {
+    BookEntry b;
+    b.id            = sqlite3_column_int   (st, 0);
+    const char* p   = (const char*)sqlite3_column_text(st, 1); if (p) b.path   = Utf8ToWide(p);
+    const char* t   = (const char*)sqlite3_column_text(st, 2); if (t) b.title  = Utf8ToWide(t);
+    const char* a   = (const char*)sqlite3_column_text(st, 3); if (a) b.author = Utf8ToWide(a);
+    const char* f   = (const char*)sqlite3_column_text(st, 4); if (f) b.format = Utf8ToWide(f);
+    b.totalDuration = sqlite3_column_double(st, 5);
+    b.lastOpened    = sqlite3_column_int64 (st, 6);
+    b.positionClip  = sqlite3_column_int   (st, 7);
+    b.positionOffset= sqlite3_column_double(st, 8);
+    return b;
+}
+
+BookEntry GetBookByPath(const std::wstring& path) {
+    BookEntry b;
+    if (!g_db || path.empty()) return b;
+    std::string pathU8 = WideToUtf8(path);
+    sqlite3_stmt* st = nullptr;
+    if (sqlite3_prepare_v2(g_db,
+        "SELECT id,path,title,author,format,total_duration,last_opened,position_clip,position_offset"
+        " FROM books WHERE path=? LIMIT 1;", -1, &st, nullptr) == SQLITE_OK) {
+        sqlite3_bind_text(st, 1, pathU8.c_str(), -1, SQLITE_TRANSIENT);
+        if (sqlite3_step(st) == SQLITE_ROW) b = RowToBookEntry(st);
+        sqlite3_finalize(st);
+    }
+    return b;
+}
+
+BookEntry GetBookById(int bookId) {
+    BookEntry b;
+    if (!g_db || bookId <= 0) return b;
+    sqlite3_stmt* st = nullptr;
+    if (sqlite3_prepare_v2(g_db,
+        "SELECT id,path,title,author,format,total_duration,last_opened,position_clip,position_offset"
+        " FROM books WHERE id=? LIMIT 1;", -1, &st, nullptr) == SQLITE_OK) {
+        sqlite3_bind_int(st, 1, bookId);
+        if (sqlite3_step(st) == SQLITE_ROW) b = RowToBookEntry(st);
+        sqlite3_finalize(st);
+    }
+    return b;
+}
+
+std::vector<BookEntry> GetAllBooks() {
+    std::vector<BookEntry> out;
+    if (!g_db) return out;
+    sqlite3_stmt* st = nullptr;
+    if (sqlite3_prepare_v2(g_db,
+        "SELECT id,path,title,author,format,total_duration,last_opened,position_clip,position_offset"
+        " FROM books ORDER BY last_opened DESC, title COLLATE NOCASE ASC;",
+        -1, &st, nullptr) == SQLITE_OK) {
+        while (sqlite3_step(st) == SQLITE_ROW) out.push_back(RowToBookEntry(st));
+        sqlite3_finalize(st);
+    }
+    return out;
+}
+
+int AddBookBookmark(int bookId, int clipIndex, double offsetSeconds,
+                    const std::wstring& note) {
+    if (!g_db || bookId <= 0) return 0;
+    std::string noteU8 = WideToUtf8(note);
+    sqlite3_stmt* st = nullptr;
+    if (sqlite3_prepare_v2(g_db,
+        "INSERT INTO book_bookmarks(book_id,clip_index,offset_seconds,note,created) VALUES(?,?,?,?,?);",
+        -1, &st, nullptr) != SQLITE_OK) return 0;
+    sqlite3_bind_int   (st, 1, bookId);
+    sqlite3_bind_int   (st, 2, clipIndex);
+    sqlite3_bind_double(st, 3, offsetSeconds);
+    sqlite3_bind_text  (st, 4, noteU8.c_str(), -1, SQLITE_TRANSIENT);
+    sqlite3_bind_int64 (st, 5, NowUnix());
+    int rc = sqlite3_step(st);
+    sqlite3_finalize(st);
+    if (rc != SQLITE_DONE) return 0;
+    return (int)sqlite3_last_insert_rowid(g_db);
+}
+
+bool RemoveBookBookmark(int bookmarkId) {
+    if (!g_db || bookmarkId <= 0) return false;
+    sqlite3_stmt* st = nullptr;
+    if (sqlite3_prepare_v2(g_db, "DELETE FROM book_bookmarks WHERE id=?;",
+                           -1, &st, nullptr) != SQLITE_OK) return false;
+    sqlite3_bind_int(st, 1, bookmarkId);
+    int rc = sqlite3_step(st);
+    sqlite3_finalize(st);
+    return rc == SQLITE_DONE;
+}
+
+bool UpdateBookBookmarkNote(int bookmarkId, const std::wstring& note) {
+    if (!g_db || bookmarkId <= 0) return false;
+    std::string noteU8 = WideToUtf8(note);
+    sqlite3_stmt* st = nullptr;
+    if (sqlite3_prepare_v2(g_db, "UPDATE book_bookmarks SET note=? WHERE id=?;",
+                           -1, &st, nullptr) != SQLITE_OK) return false;
+    sqlite3_bind_text(st, 1, noteU8.c_str(), -1, SQLITE_TRANSIENT);
+    sqlite3_bind_int (st, 2, bookmarkId);
+    int rc = sqlite3_step(st);
+    sqlite3_finalize(st);
+    return rc == SQLITE_DONE;
+}
+
+std::vector<BookBookmark> GetBookBookmarks(int bookId) {
+    std::vector<BookBookmark> out;
+    if (!g_db || bookId <= 0) return out;
+    sqlite3_stmt* st = nullptr;
+    if (sqlite3_prepare_v2(g_db,
+        "SELECT id,book_id,clip_index,offset_seconds,note,created FROM book_bookmarks "
+        "WHERE book_id=? ORDER BY clip_index ASC, offset_seconds ASC;",
+        -1, &st, nullptr) == SQLITE_OK) {
+        sqlite3_bind_int(st, 1, bookId);
+        while (sqlite3_step(st) == SQLITE_ROW) {
+            BookBookmark bm;
+            bm.id            = sqlite3_column_int   (st, 0);
+            bm.bookId        = sqlite3_column_int   (st, 1);
+            bm.clipIndex     = sqlite3_column_int   (st, 2);
+            bm.offsetSeconds = sqlite3_column_double(st, 3);
+            const char* n    = (const char*)sqlite3_column_text(st, 4);
+            if (n) bm.note   = Utf8ToWide(n);
+            bm.created       = sqlite3_column_int64 (st, 5);
+            out.push_back(bm);
+        }
+        sqlite3_finalize(st);
+    }
+    return out;
+}
+
+bool AddBookLibraryFolder(const std::wstring& path) {
+    if (!g_db || path.empty()) return false;
+    std::string pathU8 = WideToUtf8(path);
+    sqlite3_stmt* st = nullptr;
+    if (sqlite3_prepare_v2(g_db,
+        "INSERT OR IGNORE INTO book_library_folders(path) VALUES(?);",
+        -1, &st, nullptr) != SQLITE_OK) return false;
+    sqlite3_bind_text(st, 1, pathU8.c_str(), -1, SQLITE_TRANSIENT);
+    int rc = sqlite3_step(st);
+    sqlite3_finalize(st);
+    return rc == SQLITE_DONE;
+}
+
+bool RemoveBookLibraryFolder(const std::wstring& path) {
+    if (!g_db || path.empty()) return false;
+    std::string pathU8 = WideToUtf8(path);
+    sqlite3_stmt* st = nullptr;
+    if (sqlite3_prepare_v2(g_db, "DELETE FROM book_library_folders WHERE path=?;",
+                           -1, &st, nullptr) != SQLITE_OK) return false;
+    sqlite3_bind_text(st, 1, pathU8.c_str(), -1, SQLITE_TRANSIENT);
+    int rc = sqlite3_step(st);
+    sqlite3_finalize(st);
+    return rc == SQLITE_DONE;
+}
+
+std::vector<std::wstring> GetBookLibraryFolders() {
+    std::vector<std::wstring> out;
+    if (!g_db) return out;
+    sqlite3_stmt* st = nullptr;
+    if (sqlite3_prepare_v2(g_db,
+        "SELECT path FROM book_library_folders ORDER BY path COLLATE NOCASE ASC;",
+        -1, &st, nullptr) == SQLITE_OK) {
+        while (sqlite3_step(st) == SQLITE_ROW) {
+            const char* p = (const char*)sqlite3_column_text(st, 0);
+            if (p) out.push_back(Utf8ToWide(p));
+        }
+        sqlite3_finalize(st);
+    }
+    return out;
 }

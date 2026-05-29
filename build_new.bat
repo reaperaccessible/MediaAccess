@@ -77,7 +77,7 @@ set "SOURCES=src\main.cpp src\globals.cpp src\utils.cpp src\player.cpp"
 set "SOURCES=%SOURCES% src\settings.cpp src\hotkeys.cpp src\tray.cpp src\translations.cpp src\translations_rc.cpp src\translations_ui.cpp src\translations_player.cpp"
 set "SOURCES=%SOURCES% src\accessibility.cpp src\ui.cpp src\ui_options.cpp src\ui_playlist.cpp src\ui_radio.cpp src\ui_podcast.cpp src\ui_scheduler.cpp src\ui_bookmarks.cpp src\ui_tags.cpp src\effects.cpp"
 set "SOURCES=%SOURCES% src\database.cpp src\sqlite3.c"
-set "SOURCES=%SOURCES% src\tempo_processor.cpp src\youtube.cpp src\center_cancel.cpp src\convolution.cpp src\download_manager.cpp src\updater.cpp src\spatial_audio.cpp src\video_engine.cpp src\ytdlp_updater.cpp src\logger.cpp src\keyboard_help.cpp src\actions.cpp src\keymap.cpp src\actions_window.cpp"
+set "SOURCES=%SOURCES% src\tempo_processor.cpp src\youtube.cpp src\center_cancel.cpp src\convolution.cpp src\download_manager.cpp src\updater.cpp src\spatial_audio.cpp src\video_engine.cpp src\ytdlp_updater.cpp src\logger.cpp src\keyboard_help.cpp src\actions.cpp src\keymap.cpp src\actions_window.cpp src\daisy_book.cpp src\daisy_player.cpp src\books_dialog.cpp"
 
 REM Add Speedy source if enabled
 if defined SPEEDY_SRC set "SOURCES=%SOURCES% %SPEEDY_SRC%"

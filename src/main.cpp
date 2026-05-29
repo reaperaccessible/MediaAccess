@@ -31,7 +31,14 @@
 #include "mediaaccess/actions.h"
 #include "mediaaccess/keymap.h"
 #include "mediaaccess/actions_window.h"
+#include "mediaaccess/daisy_book.h"
+#include "mediaaccess/daisy_player.h"
+#include "mediaaccess/books_dialog.h"
 #include <utility>  // for std::pair
+
+// Custom message posted from daisy_player.cpp BASS sync (worker thread).
+#define WM_DAISY_NEXT_CLIP_LOCAL (WM_USER + 50)
+extern "C" void DaisyOnClipEnded(int endedClipIndex);
 
 #pragma comment(lib, "bass.lib")
 #pragma comment(lib, "user32.lib")
@@ -197,8 +204,19 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
                     sc.ctrl  = (GetKeyState(VK_CONTROL) & 0x8000) != 0;
                     sc.shift = (GetKeyState(VK_SHIFT)   & 0x8000) != 0;
                     sc.alt   = (GetKeyState(VK_MENU)    & 0x8000) != 0;
-                    int cmd = mediaaccess::GetActiveKeyMap()
+                    // When a DAISY book is loaded, Books-category bindings
+                    // take precedence over Main-category bindings so the
+                    // navigation keys (Shift+arrows, G, Shift+L, Shift+B)
+                    // do the right thing for book reading.
+                    int cmd = 0;
+                    if (mediaaccess::DaisyIsActive()) {
+                        cmd = mediaaccess::GetActiveKeyMap()
+                                .FindCommandFor(sc, mediaaccess::ActionCategory::Books);
+                    }
+                    if (cmd == 0) {
+                        cmd = mediaaccess::GetActiveKeyMap()
                                 .FindCommandFor(sc, mediaaccess::ActionCategory::Main);
+                    }
                     if (cmd != 0) {
                         PostMessageW(hwnd, WM_COMMAND, cmd, 0);
                         return 0;
@@ -316,6 +334,12 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
         case WM_USER + 201:
             // Apply downloaded update
             ApplyUpdate();
+            return 0;
+
+        case WM_DAISY_NEXT_CLIP_LOCAL:
+            // BASS worker thread told us a clip finished — advance on the
+            // main thread where we can safely free streams.
+            DaisyOnClipEnded((int)wParam);
             return 0;
 
         case WM_HOTKEY: {
@@ -531,6 +555,36 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
                 case IDM_TOOLS_ACTIONS:
                     mediaaccess::ShowActionsWindow(hwnd);
                     break;
+                // -----------------------------------------------------------
+                // DAISY / EPUB book reader (v1.49 Phase 1)
+                // -----------------------------------------------------------
+                case IDM_FILE_OPEN_BOOK:
+                    mediaaccess::OpenBookFromDialog(hwnd);
+                    break;
+                case IDM_TOOLS_BOOK_LIBRARY:
+                    mediaaccess::ShowBookLibrary(hwnd);
+                    break;
+                case IDM_BOOK_NAV_LEVEL_UP:
+                    if (mediaaccess::DaisyIsActive()) mediaaccess::DaisyCycleNavLevel(+1);
+                    break;
+                case IDM_BOOK_NAV_LEVEL_DOWN:
+                    if (mediaaccess::DaisyIsActive()) mediaaccess::DaisyCycleNavLevel(-1);
+                    break;
+                case IDM_BOOK_NAV_FORWARD:
+                    if (mediaaccess::DaisyIsActive()) mediaaccess::DaisyNavigateForward();
+                    break;
+                case IDM_BOOK_NAV_BACKWARD:
+                    if (mediaaccess::DaisyIsActive()) mediaaccess::DaisyNavigateBackward();
+                    break;
+                case IDM_BOOK_ANNOUNCE_LOCATION:
+                    if (mediaaccess::DaisyIsActive()) mediaaccess::DaisyAnnounceCurrentLocation();
+                    break;
+                case IDM_BOOK_ADD_BOOKMARK_WITH_NOTE:
+                    if (mediaaccess::DaisyIsActive()) mediaaccess::PromptAddBookmark(hwnd);
+                    break;
+                case IDM_BOOK_GO_TO_PAGE:
+                    if (mediaaccess::DaisyIsActive()) mediaaccess::PromptGoToPage(hwnd);
+                    break;
                 case IDM_HELP_MANUAL: {
                     // Open the bilingual HTML manual in the user's default browser.
                     // We pick the file matching the current app language; user can
@@ -584,15 +638,21 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
                     ShowSongHistoryDialog();
                     break;
                 case IDM_PLAY_PLAYPAUSE:
+                    // When a DAISY book is loaded, route transport to the
+                    // book player instead of the audio file engine.
+                    if (mediaaccess::DaisyIsActive()) { mediaaccess::DaisyPlayPause(); break; }
                     PlayPause();
                     break;
                 case IDM_PLAY_PLAY:
+                    if (mediaaccess::DaisyIsActive()) { mediaaccess::DaisyPlay(); break; }
                     Play();
                     break;
                 case IDM_PLAY_PAUSE:
+                    if (mediaaccess::DaisyIsActive()) { mediaaccess::DaisyPause(); break; }
                     Pause();
                     break;
                 case IDM_PLAY_STOP:
+                    if (mediaaccess::DaisyIsActive()) { mediaaccess::DaisyStop(); break; }
                     Stop();
                     break;
                 case IDM_PLAY_PREV:
@@ -633,6 +693,10 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
                     ShowJumpToTimeDialog();
                     break;
                 case IDM_PLAY_SEEKBACK:
+                    if (mediaaccess::DaisyIsActive()) {
+                        mediaaccess::DaisySeekRelative(-GetCurrentSeekAmount());
+                        break;
+                    }
                     if (g_currentSeekIndex == 12) {
                         // Chapter seeking
                         if (!g_chapters.empty()) {
@@ -652,6 +716,10 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
                     }
                     break;
                 case IDM_PLAY_SEEKFWD:
+                    if (mediaaccess::DaisyIsActive()) {
+                        mediaaccess::DaisySeekRelative(GetCurrentSeekAmount());
+                        break;
+                    }
                     if (g_currentSeekIndex == 12) {
                         // Chapter seeking
                         if (!g_chapters.empty()) {
@@ -930,6 +998,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
             // FreeBass(). This pair guarantees silence on the first line
             // of shutdown no matter how slow the rest of the chain is.
             // -----------------------------------------------------------
+            mediaaccess::DaisyClose();  // Save book position + free book stream first
             if (g_fxStream) BASS_ChannelStop(g_fxStream);
             if (g_stream)   BASS_ChannelStop(g_stream);
             BASS_Pause();

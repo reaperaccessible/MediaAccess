@@ -274,6 +274,46 @@
 #define IDM_KEYBOARD_HELP_TOGGLE 123
 #define IDM_HELP_SET_DEFAULT     124
 
+// =========================================================================
+// DAISY / EPUB book reader (v1.49 — Phase 1)
+// =========================================================================
+// Menu commands
+#define IDM_FILE_OPEN_BOOK              1500
+#define IDM_TOOLS_BOOK_LIBRARY          1501
+
+// Book actions (bound via the keymap)
+#define IDM_BOOK_NAV_LEVEL_UP           1510   // Shift+Up   — cycle nav level up
+#define IDM_BOOK_NAV_LEVEL_DOWN         1511   // Shift+Down — cycle nav level down
+#define IDM_BOOK_NAV_FORWARD            1512   // Shift+Right — jump to next nav point
+#define IDM_BOOK_NAV_BACKWARD           1513   // Shift+Left  — jump to previous nav point
+#define IDM_BOOK_ANNOUNCE_LOCATION      1514   // Announce current chapter / page
+#define IDM_BOOK_ADD_BOOKMARK_WITH_NOTE 1515   // Bookmark with optional note
+#define IDM_BOOK_GO_TO_PAGE             1516   // G — jump to a specific page
+
+// Books library dialog
+#define IDD_BOOK_LIBRARY                1520
+#define IDC_BOOK_LIST                   1521
+#define IDC_BOOK_OPEN_SELECTED          1522
+#define IDC_BOOK_REMOVE_SELECTED        1523
+#define IDC_BOOK_RESCAN                 1524
+#define IDC_LABEL_BOOK_LIST             1525
+
+// Bookmark-note input dialog
+#define IDD_BOOK_BOOKMARK_NOTE          1530
+#define IDC_BOOK_BOOKMARK_NOTE_EDIT     1531
+#define IDC_LABEL_BOOK_BOOKMARK_PROMPT  1532
+
+// Go-to-page dialog
+#define IDD_BOOK_GO_TO_PAGE             1540
+#define IDC_BOOK_GO_TO_PAGE_EDIT        1541
+#define IDC_LABEL_BOOK_GO_TO_PAGE       1542
+
+// Books preferences tab controls
+#define IDC_BOOK_FOLDERS_LIST           1550
+#define IDC_BOOK_FOLDER_ADD             1551
+#define IDC_BOOK_FOLDER_REMOVE          1552
+#define IDC_LABEL_BOOK_FOLDERS          1553
+
 // Progress dialog (for updates)
 #define IDD_PROGRESS        995
 #define IDC_PROGRESS_BAR    996

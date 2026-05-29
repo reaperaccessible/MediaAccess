@@ -266,6 +266,8 @@ static void PopulateCategoryCombo(HWND dlg)
         (LPARAM)U8ToW(CategoryDisplayName(ActionCategory::YouTube)).c_str());
     SendMessageW(combo, CB_ADDSTRING, 0,
         (LPARAM)U8ToW(CategoryDisplayName(ActionCategory::Global)).c_str());
+    SendMessageW(combo, CB_ADDSTRING, 0,
+        (LPARAM)U8ToW(CategoryDisplayName(ActionCategory::Books)).c_str());
     SendMessageW(combo, CB_SETCURSEL, (WPARAM)(int)s_state->currentCategory, 0);
 }
 

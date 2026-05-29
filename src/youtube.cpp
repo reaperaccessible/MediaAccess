@@ -113,7 +113,77 @@ static std::wstring HttpGet(const std::wstring& url) {
     return result;
 }
 
-// Simple JSON string value parser (not a full JSON parser)
+// Full JSON string unescape — handles every escape sequence in the JSON spec:
+// \" \\ \/ \b \f \n \r \t \uXXXX (with surrogate-pair handling for codepoints
+// above U+FFFF). The previous version only handled \n and \" which meant
+// YouTube titles like "Chaîne 1" were displayed with the literal six
+// characters î instead of being decoded to "Chaîne 1".
+static std::wstring JsonUnescape(const std::wstring& s) {
+    std::wstring out;
+    out.reserve(s.size());
+    size_t i = 0;
+    while (i < s.size()) {
+        wchar_t c = s[i];
+        if (c != L'\\' || i + 1 >= s.size()) { out.push_back(c); ++i; continue; }
+        wchar_t n = s[i + 1];
+        switch (n) {
+            case L'"':  out.push_back(L'"');  i += 2; break;
+            case L'\\': out.push_back(L'\\'); i += 2; break;
+            case L'/':  out.push_back(L'/');  i += 2; break;
+            case L'b':  out.push_back(L'\b'); i += 2; break;
+            case L'f':  out.push_back(L'\f'); i += 2; break;
+            case L'n':  out.push_back(L' ');  i += 2; break;  // newlines→space in titles
+            case L'r':  out.push_back(L' ');  i += 2; break;
+            case L't':  out.push_back(L' ');  i += 2; break;
+            case L'u': {
+                if (i + 5 >= s.size()) { out.push_back(c); ++i; break; }
+                unsigned int cp = 0;
+                bool ok = true;
+                for (int k = 0; k < 4; ++k) {
+                    wchar_t h = s[i + 2 + k];
+                    cp <<= 4;
+                    if      (h >= L'0' && h <= L'9') cp |= (unsigned)(h - L'0');
+                    else if (h >= L'a' && h <= L'f') cp |= (unsigned)(h - L'a' + 10);
+                    else if (h >= L'A' && h <= L'F') cp |= (unsigned)(h - L'A' + 10);
+                    else { ok = false; break; }
+                }
+                if (!ok) { out.push_back(c); ++i; break; }
+                i += 6;
+                // High surrogate? Look for a following \uXXXX low surrogate.
+                if (cp >= 0xD800 && cp <= 0xDBFF
+                    && i + 5 < s.size() && s[i] == L'\\' && s[i + 1] == L'u') {
+                    unsigned int low = 0;
+                    bool okLow = true;
+                    for (int k = 0; k < 4; ++k) {
+                        wchar_t h = s[i + 2 + k];
+                        low <<= 4;
+                        if      (h >= L'0' && h <= L'9') low |= (unsigned)(h - L'0');
+                        else if (h >= L'a' && h <= L'f') low |= (unsigned)(h - L'a' + 10);
+                        else if (h >= L'A' && h <= L'F') low |= (unsigned)(h - L'A' + 10);
+                        else { okLow = false; break; }
+                    }
+                    if (okLow && low >= 0xDC00 && low <= 0xDFFF) {
+                        // wchar_t on Windows is UTF-16 — push both halves.
+                        out.push_back((wchar_t)cp);
+                        out.push_back((wchar_t)low);
+                        i += 6;
+                        break;
+                    }
+                }
+                out.push_back((wchar_t)cp);
+                break;
+            }
+            default:
+                out.push_back(c);
+                ++i;
+                break;
+        }
+    }
+    return out;
+}
+
+// Simple JSON string value parser (not a full JSON parser, but it handles
+// every escape sequence correctly).
 static std::wstring ParseJsonString(const std::wstring& json, const std::wstring& key) {
     std::wstring searchKey = L"\"" + key + L"\"";
     size_t keyPos = json.find(searchKey);
@@ -131,17 +201,7 @@ static std::wstring ParseJsonString(const std::wstring& json, const std::wstring
         endQuote++;
     }
 
-    std::wstring value = json.substr(startQuote + 1, endQuote - startQuote - 1);
-    // Unescape basic sequences
-    size_t pos = 0;
-    while ((pos = value.find(L"\\n", pos)) != std::wstring::npos) {
-        value.replace(pos, 2, L" ");
-    }
-    pos = 0;
-    while ((pos = value.find(L"\\\"", pos)) != std::wstring::npos) {
-        value.replace(pos, 2, L"\"");
-    }
-    return value;
+    return JsonUnescape(json.substr(startQuote + 1, endQuote - startQuote - 1));
 }
 
 // Run yt-dlp and capture output

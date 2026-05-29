@@ -208,6 +208,7 @@
     <li><a href="#accessibility">Accessibility</a></li>
     <li><a href="#updates">Updates</a></li>
     <li><a href="#troubleshooting">Troubleshooting</a></li>
+    <li><a href="#books">DAISY book playback</a></li>
     <li><a href="#shortcuts">Keyboard shortcuts reference</a></li>
   </ol>
 </nav>
@@ -997,8 +998,74 @@
 <p>If MediaAccess shows "The video playback engine could not be loaded", reinstall MediaAccess. The message includes a technical detail in parentheses useful for diagnosis.</p>
 </section>
 
+<section id="books" aria-labelledby="books-h">
+<h2 id="books-h">22. DAISY book playback</h2>
+
+<p>MediaAccess includes a built-in reader for DAISY accessible audiobooks, comparable to dedicated apps such as Victor Reader or VoiceDream. Books can be opened individually or organized in a library, and all the usual MediaAccess transport, tempo, pitch, EQ, and announcement shortcuts apply during reading.</p>
+
+<h3>Supported formats</h3>
+<ul>
+  <li><strong>DAISY 2.02</strong> — the most widely distributed format, used by most public libraries and accessible-book services. The book is a folder containing an <code>ncc.html</code> table of contents, SMIL files, and audio files (typically MP3).</li>
+  <li><strong>DAISY 3</strong> (ANSI/NISO Z39.86) — newer specification based on an <code>.opf</code> package and an NCX navigation file.</li>
+  <li><strong>EPUB 3</strong> metadata — recognized for library cataloging.</li>
+</ul>
+
+<h3>Opening a book</h3>
+<ul>
+  <li><strong>File → Open book</strong> (<kbd>Ctrl</kbd>+<kbd>B</kbd>): pick an <code>.opf</code> file, an <code>.epub</code> file, or any file inside a DAISY folder (typically <code>ncc.html</code>). MediaAccess identifies the book and starts playback from the beginning, or from the last-read position if the book has been opened before.</li>
+  <li><strong>Tools → Book library</strong> (<kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>B</kbd>): the library lists every registered book with its title, author, and last-read position. <kbd>Enter</kbd> reopens the selected book and resumes where you left off.</li>
+</ul>
+
+<h3>Configuring the library</h3>
+<p>Open <strong>File → Options</strong> (<kbd>Ctrl</kbd>+<kbd>,</kbd>) and go to the <strong>Books</strong> tab. The tab lets you:</p>
+<ul>
+  <li><strong>Add folder</strong> — point MediaAccess to a folder that contains your books. Each subfolder identified as a valid DAISY book is added to the library automatically.</li>
+  <li><strong>Remove folder</strong> — stop watching a folder. Books in that folder disappear from the library but are not deleted from disk.</li>
+  <li><strong>Rescan now</strong> — re-walk all configured folders, useful after copying new books.</li>
+</ul>
+
+<h3>Playback controls</h3>
+<p>Every transport key used for regular audio also works during a book:</p>
+<ul>
+  <li><kbd>Space</kbd>, <kbd>X</kbd>, <kbd>C</kbd>, <kbd>V</kbd> — play, pause, stop;</li>
+  <li><kbd>U</kbd> — mute;</li>
+  <li><kbd>Ctrl</kbd>+<kbd>↑</kbd> / <kbd>Ctrl</kbd>+<kbd>↓</kbd> — volume;</li>
+  <li><kbd>←</kbd> / <kbd>→</kbd> — seek by the active seek unit (1 s, 5 s, 30 s, etc., chosen from the movement slider);</li>
+  <li><kbd>Home</kbd> — beginning of the book;</li>
+  <li><kbd>Shift</kbd>+<kbd>End</kbd> — 30 seconds before the end of the book.</li>
+</ul>
+<p>Tempo, pitch, and rate effects all work during a book. The elapsed, remaining, and total time announcements reflect the real listening time at the chosen speed (a 10-hour book played at 1.5× shows about 6 h 40 min total).</p>
+
+<h3>Structural navigation</h3>
+<p>A DAISY book exposes a tree of headings (typically chapters, sections, sub-sections), pages, and individual phrases. MediaAccess lets you choose which level to step through:</p>
+<ul>
+  <li><kbd>Shift</kbd>+<kbd>↑</kbd> / <kbd>Shift</kbd>+<kbd>↓</kbd> — cycle through navigation levels: Heading 1, Heading 2, ..., Heading 6, Page, Phrase. Each announcement includes the number of items at that level, so you can deduce its meaning (24 entries at level 2 most likely means chapters).</li>
+  <li><kbd>Shift</kbd>+<kbd>→</kbd> / <kbd>Shift</kbd>+<kbd>←</kbd> — jump to the next or previous item at the active level.</li>
+  <li><kbd>G</kbd> — jump to a specific page by typing its label.</li>
+  <li><kbd>Shift</kbd>+<kbd>L</kbd> — announce the current location ("Chapter 3, page 47").</li>
+  <li><kbd>Shift</kbd>+<kbd>B</kbd> — add a bookmark at the current position, optionally with a note.</li>
+</ul>
+
+<h3>Position memory</h3>
+<p>MediaAccess saves your position in every book you open. Reopening a book from the library — or simply via <kbd>Ctrl</kbd>+<kbd>B</kbd> — resumes exactly where you left off, including the active navigation level.</p>
+
+<h3>Speech announcements</h3>
+<p><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>E</kbd> (elapsed), <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>R</kbd> (remaining), and <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>T</kbd> (total) work as usual during a book and follow tempo/rate adjustments.</p>
+
+<div class="note">
+<p><strong>Volume difference with music files:</strong> DAISY books are typically mastered at a moderate level (around -23 LUFS, the broadcast standard) and will sound noticeably quieter than commercial music MP3s. If you want a louder playback for a book, enable <strong>Allow volume above 100%</strong> in <strong>Options → Playback</strong> and raise the volume past 100%.</p>
+</div>
+
+<div class="note">
+<p><strong>Text-only books:</strong> DAISY books that contain no recorded audio, as well as EPUB files without an audio track, are recognized and added to the library, but TTS playback for them is planned for a later update. Audio DAISY books play normally today.</p>
+</div>
+
+<h3>Remapping the shortcuts</h3>
+<p>Every DAISY shortcut listed above is rebindable via <strong>Tools → Actions</strong> (<kbd>F4</kbd>), section <strong>Books</strong>.</p>
+</section>
+
 <section id="shortcuts" aria-labelledby="shortcuts-h">
-<h2 id="shortcuts-h">22. Keyboard shortcuts reference</h2>
+<h2 id="shortcuts-h">23. Keyboard shortcuts reference</h2>
 
 <h3>File</h3>
 <table>
@@ -1007,6 +1074,7 @@
 <tbody>
 <tr><td><kbd>Ctrl</kbd>+<kbd>O</kbd></td><td>Open file</td></tr>
 <tr><td><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>O</kbd></td><td>Add folder</td></tr>
+<tr><td><kbd>Ctrl</kbd>+<kbd>B</kbd></td><td>Open book (DAISY / EPUB)</td></tr>
 <tr><td><kbd>Ctrl</kbd>+<kbd>P</kbd></td><td>Playlist</td></tr>
 <tr><td><kbd>Ctrl</kbd>+<kbd>U</kbd></td><td>Open URL</td></tr>
 <tr><td><kbd>Ctrl</kbd>+<kbd>Y</kbd></td><td>YouTube</td></tr>
@@ -1119,12 +1187,28 @@
 </tbody>
 </table>
 
+<h3>Books</h3>
+<table>
+<caption>DAISY book shortcuts</caption>
+<thead><tr><th>Shortcut</th><th>Action</th></tr></thead>
+<tbody>
+<tr><td><kbd>Ctrl</kbd>+<kbd>B</kbd></td><td>Open book</td></tr>
+<tr><td><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>B</kbd></td><td>Open book library</td></tr>
+<tr><td><kbd>Shift</kbd>+<kbd>↑</kbd> / <kbd>Shift</kbd>+<kbd>↓</kbd></td><td>Previous / Next navigation level (Heading 1...6, Page, Phrase)</td></tr>
+<tr><td><kbd>Shift</kbd>+<kbd>→</kbd> / <kbd>Shift</kbd>+<kbd>←</kbd></td><td>Next / Previous item at the active level</td></tr>
+<tr><td><kbd>G</kbd></td><td>Jump to a specific page</td></tr>
+<tr><td><kbd>Shift</kbd>+<kbd>L</kbd></td><td>Announce current location</td></tr>
+<tr><td><kbd>Shift</kbd>+<kbd>B</kbd></td><td>Add a bookmark</td></tr>
+</tbody>
+</table>
+
 <h3>Tools</h3>
 <table>
 <caption>Tools menu</caption>
 <thead><tr><th>Shortcut</th><th>Action</th></tr></thead>
 <tbody>
 <tr><td><kbd>F4</kbd></td><td>Open the Actions window (shortcuts/keymaps)</td></tr>
+<tr><td><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>B</kbd></td><td>Book library</td></tr>
 </tbody>
 </table>
 

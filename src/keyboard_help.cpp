@@ -19,6 +19,7 @@
 #include "mediaaccess/keyboard_help.h"
 #include "mediaaccess/actions.h"
 #include "mediaaccess/keymap.h"
+#include "mediaaccess/daisy_player.h"
 #include "mediaaccess/translations.h"
 
 #include <windows.h>
@@ -74,8 +75,18 @@ std::string DescribeKey(WPARAM wParam, LPARAM lParam)
     if (label.empty()) label = KeyNameFromVK(vk);
     if (label.empty()) label = "?";
 
-    std::string actionId = mediaaccess::GetActiveKeyMap()
-        .FindActionFor(sc, mediaaccess::ActionCategory::Main);
+    // Mirror the dispatcher's priority: when a DAISY book is loaded, Books
+    // category bindings take precedence so the description matches what
+    // would actually happen if the user pressed the key.
+    std::string actionId;
+    if (mediaaccess::DaisyIsActive()) {
+        actionId = mediaaccess::GetActiveKeyMap()
+            .FindActionFor(sc, mediaaccess::ActionCategory::Books);
+    }
+    if (actionId.empty()) {
+        actionId = mediaaccess::GetActiveKeyMap()
+            .FindActionFor(sc, mediaaccess::ActionCategory::Main);
+    }
     if (actionId.empty()) {
         return label + " : " + Ts("no action assigned");
     }

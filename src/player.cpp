@@ -10,6 +10,7 @@
 #include "mediaaccess/video_engine.h"
 #include "mediaaccess/youtube.h"  // YouTubeCancelHybrid()
 #include "mediaaccess/logger.h"   // LogF
+#include "mediaaccess/daisy_player.h"  // DaisyClose() when loading other media
 
 // Forward declaration so LoadURL (earlier in the file) can call it.
 static void TeardownMpvBeforeLoad();
@@ -992,6 +993,9 @@ static bool IsVideoExtension(const wchar_t* path) {
 }
 
 bool LoadFile(const wchar_t* path) {
+    // Loading any other media unloads the current DAISY book first so the
+    // user doesn't end up with overlapping audio streams.
+    mediaaccess::DaisyClose();
     // Check if this is a URL
     if (IsURL(path)) {
         return LoadURL(path);
@@ -1542,6 +1546,11 @@ void SetVolume(float vol) {
         MPVSetVolume(g_volume);
     }
 
+    // Propagate to DAISY book stream if a book is loaded
+    if (mediaaccess::DaisyIsActive()) {
+        mediaaccess::DaisyApplyVolume();
+    }
+
     // In legacy mode, use BASS_ATTRIB_VOL (faster but affects recordings)
     // In normal mode, volume DSP automatically uses updated g_volume
     if (g_legacyVolume && g_fxStream) {
@@ -1567,6 +1576,11 @@ void ToggleMute() {
     // Propagate to MPV if active
     if (g_activeEngine == PlaybackEngine::MPV) {
         MPVSetMute(g_muted);
+    }
+
+    // Propagate to DAISY book stream if a book is loaded
+    if (mediaaccess::DaisyIsActive()) {
+        mediaaccess::DaisyApplyVolume();
     }
 
     // In legacy mode, use BASS_ATTRIB_VOL

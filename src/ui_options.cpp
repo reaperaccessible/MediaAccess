@@ -1,6 +1,8 @@
 #include "ui_internal.h"
 #include "mediaaccess/translations.h"
 #include "mediaaccess/youtube.h"  // ClearYouTubeCache, GetYouTubeCacheSize
+#include "mediaaccess/database.h"     // book library folders
+#include "mediaaccess/books_dialog.h" // RescanBookLibrary
 
 // Update the small hint under the SoundFont path field that tells the user
 // what will actually be used when the field is empty. Three cases:
@@ -38,7 +40,8 @@ static void UpdateMidiBundledLabel(HWND hwnd) {
 // Helper to show/hide tab controls
 void ShowTabControls(HWND hwnd, int tab) {
     // Tab indices: 0=Playback, 1=Recording, 2=Downloads, 3=Speech, 4=Movement,
-    //              5=Effects, 6=Advanced, 7=YouTube, 8=SoundTouch, 9=Speedy, 10=Signalsmith, 11=MIDI
+    //              5=Effects, 6=Advanced, 7=YouTube, 8=SoundTouch, 9=Speedy,
+    //              10=Signalsmith, 11=MIDI, 12=Books
     // (Global Hotkeys tab removed in v1.41 — see Tools → Actions instead.)
 
     // Playback tab controls (tab 0)
@@ -81,10 +84,13 @@ void ShowTabControls(HWND hwnd, int tab) {
     // Signalsmith tab controls (tab 11)
     int signalsmithCtrls[] = {IDC_SS_PRESET, IDC_SS_TONALITY,
                               IDC_LABEL_SIGNALSMITH_DESCRIPTION, IDC_LABEL_SIGNALSMITH_QUALITY, IDC_LABEL_SIGNALSMITH_TONALITY, IDC_LABEL_SIGNALSMITH_HARMONICS, IDC_LABEL_SIGNALSMITH_VALUES};
-    // MIDI tab controls (tab 12)
+    // MIDI tab controls (tab 11)
     int midiCtrls[] = {IDC_MIDI_SOUNDFONT, IDC_MIDI_SF_BROWSE, IDC_MIDI_VOICES, IDC_MIDI_SINC,
                        IDC_LABEL_MIDI_DESCRIPTION, IDC_LABEL_MIDI_SOUNDFONT, IDC_LABEL_MIDI_VOICES, IDC_LABEL_MIDI_VOICES_RANGE,
                        IDC_LABEL_MIDI_SF_BUNDLED};
+    // Books tab controls (tab 12) — DAISY / EPUB library folders
+    int booksCtrls[] = {IDC_BOOK_FOLDERS_LIST, IDC_BOOK_FOLDER_ADD, IDC_BOOK_FOLDER_REMOVE,
+                        IDC_BOOK_RESCAN, IDC_LABEL_BOOK_FOLDERS};
 
 
 
@@ -148,8 +154,10 @@ void ShowTabControls(HWND hwnd, int tab) {
         ShowWindow(GetDlgItem(hwnd, id), tab == 11 ? SW_SHOW : SW_HIDE);
     }
 
-
-
+    // Show/hide Books library controls
+    for (int id : booksCtrls) {
+        ShowWindow(GetDlgItem(hwnd, id), tab == 12 ? SW_SHOW : SW_HIDE);
+    }
 }
 
 // Options dialog procedure
@@ -184,8 +192,17 @@ INT_PTR CALLBACK OptionsDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
             TabCtrl_InsertItem(hTab, 10, &tie);
             tie.pszText = const_cast<LPWSTR>(T("MIDI"));
             TabCtrl_InsertItem(hTab, 11, &tie);
+            tie.pszText = const_cast<LPWSTR>(T("Books"));
+            TabCtrl_InsertItem(hTab, 12, &tie);
 
-
+            // Populate Books library folders list
+            {
+                HWND hList = GetDlgItem(hwnd, IDC_BOOK_FOLDERS_LIST);
+                SendMessageW(hList, LB_RESETCONTENT, 0, 0);
+                for (const auto& f : GetBookLibraryFolders()) {
+                    SendMessageW(hList, LB_ADDSTRING, 0, (LPARAM)f.c_str());
+                }
+            }
 
             // (Global Hotkeys tab removed in v1.41 — see Tools → Actions.)
 
@@ -903,6 +920,63 @@ INT_PTR CALLBACK OptionsDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
                         }
                         CoTaskMemFree(pidl);
                     }
+                    return TRUE;
+                }
+
+                // -----------------------------------------------------------
+                // Books library tab (v1.49 Phase 1)
+                // -----------------------------------------------------------
+                case IDC_BOOK_FOLDER_ADD: {
+                    BROWSEINFOW bi = {0};
+                    bi.hwndOwner = hwnd;
+                    bi.lpszTitle = T("Select a folder containing DAISY or EPUB books");
+                    bi.ulFlags = BIF_RETURNONLYFSDIRS | BIF_NEWDIALOGSTYLE;
+                    LPITEMIDLIST pidl = SHBrowseForFolderW(&bi);
+                    if (pidl) {
+                        wchar_t folderPath[MAX_PATH];
+                        if (SHGetPathFromIDListW(pidl, folderPath)) {
+                            AddBookLibraryFolder(folderPath);
+                            // Repopulate the list from DB
+                            HWND hList = GetDlgItem(hwnd, IDC_BOOK_FOLDERS_LIST);
+                            SendMessageW(hList, LB_RESETCONTENT, 0, 0);
+                            for (const auto& f : GetBookLibraryFolders()) {
+                                SendMessageW(hList, LB_ADDSTRING, 0, (LPARAM)f.c_str());
+                            }
+                            // Auto-scan the new folder so the library populates
+                            // immediately without forcing the user to click Rescan.
+                            int added = mediaaccess::RescanBookLibrary();
+                            wchar_t buf[128];
+                            swprintf(buf, 128,
+                                T("Scan complete: %d book(s) added or updated."), added);
+                            SpeakW(buf);
+                        }
+                        CoTaskMemFree(pidl);
+                    }
+                    return TRUE;
+                }
+
+                case IDC_BOOK_FOLDER_REMOVE: {
+                    HWND hList = GetDlgItem(hwnd, IDC_BOOK_FOLDERS_LIST);
+                    int sel = (int)SendMessageW(hList, LB_GETCURSEL, 0, 0);
+                    if (sel < 0) return TRUE;
+                    int len = (int)SendMessageW(hList, LB_GETTEXTLEN, sel, 0);
+                    if (len < 0) return TRUE;
+                    std::wstring path(len + 1, L'\0');
+                    SendMessageW(hList, LB_GETTEXT, sel, (LPARAM)path.data());
+                    path.resize(wcslen(path.c_str()));
+                    RemoveBookLibraryFolder(path);
+                    SendMessageW(hList, LB_DELETESTRING, sel, 0);
+                    if (sel >= (int)SendMessageW(hList, LB_GETCOUNT, 0, 0)) sel--;
+                    if (sel >= 0) SendMessageW(hList, LB_SETCURSEL, sel, 0);
+                    return TRUE;
+                }
+
+                case IDC_BOOK_RESCAN: {
+                    int added = mediaaccess::RescanBookLibrary();
+                    wchar_t buf[128];
+                    swprintf(buf, 128,
+                        T("Scan complete: %d book(s) added or updated."), added);
+                    SpeakW(buf);
                     return TRUE;
                 }
 

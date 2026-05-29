@@ -208,6 +208,7 @@
     <li><a href="#accessibilite">Accessibilité</a></li>
     <li><a href="#mises-a-jour">Mises à jour</a></li>
     <li><a href="#depannage">Dépannage</a></li>
+    <li><a href="#livres">Lecture de livres DAISY</a></li>
     <li><a href="#raccourcis">Référence des raccourcis</a></li>
   </ol>
 </nav>
@@ -997,8 +998,74 @@
 <p>Si MediaAccess affiche « Le moteur de lecture vidéo n'a pas pu être chargé », réinstallez MediaAccess. Le message inclut un détail technique entre parenthèses utile au diagnostic.</p>
 </section>
 
+<section id="livres" aria-labelledby="livres-h">
+<h2 id="livres-h">22. Lecture de livres DAISY</h2>
+
+<p>MediaAccess intègre un lecteur de livres audio accessibles au format DAISY, comparable à des applications dédiées comme Victor Reader ou VoiceDream. Les livres peuvent être ouverts un à un ou organisés dans une bibliothèque, et tous les raccourcis habituels de transport, tempo, hauteur, égaliseur et annonces vocales s'appliquent pendant la lecture.</p>
+
+<h3>Formats pris en charge</h3>
+<ul>
+  <li><strong>DAISY 2.02</strong> — le format le plus diffusé, utilisé par la plupart des bibliothèques publiques et des services de livres accessibles. Le livre est un dossier contenant un fichier <code>ncc.html</code> servant de table des matières, des fichiers SMIL et des fichiers audio (typiquement MP3).</li>
+  <li><strong>DAISY 3</strong> (ANSI/NISO Z39.86) — spécification plus récente reposant sur un fichier package <code>.opf</code> et un fichier de navigation NCX.</li>
+  <li><strong>Métadonnées EPUB 3</strong> — reconnues pour le catalogage en bibliothèque.</li>
+</ul>
+
+<h3>Ouvrir un livre</h3>
+<ul>
+  <li><strong>Fichier → Ouvrir un livre</strong> (<kbd>Ctrl</kbd>+<kbd>B</kbd>) : choisissez un fichier <code>.opf</code>, un fichier <code>.epub</code> ou n'importe quel fichier situé dans un dossier DAISY (typiquement <code>ncc.html</code>). MediaAccess identifie le livre et démarre la lecture au début, ou à la dernière position connue si le livre a déjà été ouvert.</li>
+  <li><strong>Outils → Bibliothèque de livres</strong> (<kbd>Ctrl</kbd>+<kbd>Maj</kbd>+<kbd>B</kbd>) : la bibliothèque liste chaque livre enregistré avec son titre, son auteur et sa dernière position de lecture. <kbd>Entrée</kbd> rouvre le livre sélectionné et reprend là où vous vous étiez arrêté.</li>
+</ul>
+
+<h3>Configurer la bibliothèque</h3>
+<p>Ouvrez <strong>Fichier → Options</strong> (<kbd>Ctrl</kbd>+<kbd>,</kbd>) et rendez-vous dans l'onglet <strong>Livres</strong>. Cet onglet vous permet de :</p>
+<ul>
+  <li><strong>Ajouter un dossier</strong> — indiquer à MediaAccess un dossier qui contient vos livres. Chaque sous-dossier identifié comme un livre DAISY valide est ajouté automatiquement à la bibliothèque.</li>
+  <li><strong>Supprimer un dossier</strong> — cesser de surveiller un dossier. Les livres qu'il contient disparaissent de la bibliothèque mais ne sont pas effacés du disque.</li>
+  <li><strong>Réanalyser maintenant</strong> — reparcourir tous les dossiers configurés, utile après avoir copié de nouveaux livres.</li>
+</ul>
+
+<h3>Contrôles de lecture</h3>
+<p>Toutes les touches de transport utilisées pour l'audio normal fonctionnent pendant un livre :</p>
+<ul>
+  <li><kbd>Espace</kbd>, <kbd>X</kbd>, <kbd>C</kbd>, <kbd>V</kbd> — lecture, pause, arrêt ;</li>
+  <li><kbd>U</kbd> — muet ;</li>
+  <li><kbd>Ctrl</kbd>+<kbd>↑</kbd> / <kbd>Ctrl</kbd>+<kbd>↓</kbd> — volume ;</li>
+  <li><kbd>←</kbd> / <kbd>→</kbd> — déplacer selon l'unité active (1 s, 5 s, 30 s, etc., choisie via le curseur de déplacement) ;</li>
+  <li><kbd>Origine</kbd> — début du livre ;</li>
+  <li><kbd>Maj</kbd>+<kbd>Fin</kbd> — 30 secondes avant la fin du livre.</li>
+</ul>
+<p>Les effets de tempo, hauteur et vitesse fonctionnent tous pendant un livre. Les annonces de temps écoulé, restant et total reflètent la durée réelle d'écoute à la vitesse choisie (un livre de 10 heures lu à 1,5× affiche un total d'environ 6 h 40).</p>
+
+<h3>Navigation structurelle</h3>
+<p>Un livre DAISY expose un arbre de titres (typiquement chapitres, sections, sous-sections), de pages et de phrases individuelles. MediaAccess vous laisse choisir le niveau sur lequel naviguer :</p>
+<ul>
+  <li><kbd>Maj</kbd>+<kbd>↑</kbd> / <kbd>Maj</kbd>+<kbd>↓</kbd> — parcourir les niveaux de navigation : Titre 1, Titre 2, ..., Titre 6, Page, Phrase. Chaque annonce inclut le nombre d'éléments à ce niveau, ce qui permet d'en déduire la signification (24 éléments au niveau 2 désigne très probablement les chapitres).</li>
+  <li><kbd>Maj</kbd>+<kbd>→</kbd> / <kbd>Maj</kbd>+<kbd>←</kbd> — aller à l'élément suivant ou précédent au niveau actif.</li>
+  <li><kbd>G</kbd> — aller à une page précise en saisissant son libellé.</li>
+  <li><kbd>Maj</kbd>+<kbd>L</kbd> — annoncer la position actuelle (« Chapitre 3, page 47 »).</li>
+  <li><kbd>Maj</kbd>+<kbd>B</kbd> — ajouter un signet à la position courante, éventuellement accompagné d'une note.</li>
+</ul>
+
+<h3>Mémoire de position</h3>
+<p>MediaAccess sauvegarde votre position dans chaque livre que vous ouvrez. Le fait de rouvrir un livre depuis la bibliothèque — ou simplement via <kbd>Ctrl</kbd>+<kbd>B</kbd> — reprend exactement là où vous vous étiez arrêté, niveau de navigation actif compris.</p>
+
+<h3>Annonces vocales</h3>
+<p><kbd>Ctrl</kbd>+<kbd>Maj</kbd>+<kbd>E</kbd> (temps écoulé), <kbd>Ctrl</kbd>+<kbd>Maj</kbd>+<kbd>R</kbd> (temps restant) et <kbd>Ctrl</kbd>+<kbd>Maj</kbd>+<kbd>T</kbd> (durée totale) fonctionnent comme à l'habitude pendant un livre et tiennent compte des réglages de tempo et de vitesse.</p>
+
+<div class="note">
+<p><strong>Différence de volume avec les fichiers de musique :</strong> les livres DAISY sont généralement masterisés à un niveau modéré (autour de -23 LUFS, le standard broadcast) et sonnent nettement moins fort que les MP3 du commerce. Si vous souhaitez une lecture plus forte pour un livre, activez <strong>Autoriser le volume au-dessus de 100 %</strong> dans <strong>Options → Lecture</strong> et remontez le volume au-dessus de 100 %.</p>
+</div>
+
+<div class="note">
+<p><strong>Livres texte seul :</strong> les livres DAISY qui ne contiennent aucun audio enregistré, tout comme les EPUB sans piste audio, sont reconnus et ajoutés à la bibliothèque, mais leur lecture par synthèse vocale est prévue pour une mise à jour ultérieure. Les livres DAISY audio sont entièrement lus dès aujourd'hui.</p>
+</div>
+
+<h3>Réaffecter les raccourcis</h3>
+<p>Chaque raccourci DAISY listé ci-dessus est réaffectable via <strong>Outils → Actions</strong> (<kbd>F4</kbd>), section <strong>Livres</strong>.</p>
+</section>
+
 <section id="raccourcis" aria-labelledby="raccourcis-h">
-<h2 id="raccourcis-h">22. Référence des raccourcis</h2>
+<h2 id="raccourcis-h">23. Référence des raccourcis</h2>
 
 <h3>Fichier</h3>
 <table>
@@ -1007,6 +1074,7 @@
 <tbody>
 <tr><td><kbd>Ctrl</kbd>+<kbd>O</kbd></td><td>Ouvrir un fichier</td></tr>
 <tr><td><kbd>Ctrl</kbd>+<kbd>Maj</kbd>+<kbd>O</kbd></td><td>Ajouter un dossier</td></tr>
+<tr><td><kbd>Ctrl</kbd>+<kbd>B</kbd></td><td>Ouvrir un livre (DAISY / EPUB)</td></tr>
 <tr><td><kbd>Ctrl</kbd>+<kbd>P</kbd></td><td>Liste de lecture</td></tr>
 <tr><td><kbd>Ctrl</kbd>+<kbd>U</kbd></td><td>Ouvrir une URL</td></tr>
 <tr><td><kbd>Ctrl</kbd>+<kbd>Y</kbd></td><td>YouTube</td></tr>
@@ -1119,12 +1187,28 @@
 </tbody>
 </table>
 
+<h3>Livres</h3>
+<table>
+<caption>Raccourcis pour les livres DAISY</caption>
+<thead><tr><th>Raccourci</th><th>Action</th></tr></thead>
+<tbody>
+<tr><td><kbd>Ctrl</kbd>+<kbd>B</kbd></td><td>Ouvrir un livre</td></tr>
+<tr><td><kbd>Ctrl</kbd>+<kbd>Maj</kbd>+<kbd>B</kbd></td><td>Ouvrir la bibliothèque de livres</td></tr>
+<tr><td><kbd>Maj</kbd>+<kbd>↑</kbd> / <kbd>Maj</kbd>+<kbd>↓</kbd></td><td>Niveau de navigation précédent / suivant (Titre 1...6, Page, Phrase)</td></tr>
+<tr><td><kbd>Maj</kbd>+<kbd>→</kbd> / <kbd>Maj</kbd>+<kbd>←</kbd></td><td>Élément suivant / précédent au niveau actif</td></tr>
+<tr><td><kbd>G</kbd></td><td>Aller à une page précise</td></tr>
+<tr><td><kbd>Maj</kbd>+<kbd>L</kbd></td><td>Annoncer la position actuelle</td></tr>
+<tr><td><kbd>Maj</kbd>+<kbd>B</kbd></td><td>Ajouter un signet</td></tr>
+</tbody>
+</table>
+
 <h3>Outils</h3>
 <table>
 <caption>Menu Outils</caption>
 <thead><tr><th>Raccourci</th><th>Action</th></tr></thead>
 <tbody>
 <tr><td><kbd>F4</kbd></td><td>Ouvrir la fenêtre Actions (raccourcis/keymaps)</td></tr>
+<tr><td><kbd>Ctrl</kbd>+<kbd>Maj</kbd>+<kbd>B</kbd></td><td>Bibliothèque de livres</td></tr>
 </tbody>
 </table>
 

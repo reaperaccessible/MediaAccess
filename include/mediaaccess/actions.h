@@ -32,6 +32,7 @@ enum class ActionCategory {
     Radio   = 1,   // Radio search / favorites dialog
     YouTube = 2,   // YouTube search dialog
     Global  = 3,   // System-wide hotkeys (active even when MediaAccess has no focus)
+    Books   = 4,   // DAISY / EPUB reader actions
     Count
 };
 

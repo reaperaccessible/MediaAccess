@@ -370,6 +370,37 @@ static const Action g_actions[] = {
       "YouTube search (global)",      "Recherche YouTube (global)", {} },
 
     // ========================================================================
+    // CATEGORY: Books — DAISY / EPUB reader (v1.49 Phase 1)
+    // ========================================================================
+    { "BOOK_OPEN",                IDM_FILE_OPEN_BOOK,         ActionCategory::Books,
+      "Open book...",                 "Ouvrir un livre...",
+      { 'B', true, false, false } },           // Ctrl+B
+    { "BOOK_LIBRARY",             IDM_TOOLS_BOOK_LIBRARY,     ActionCategory::Books,
+      "Book library...",              "Bibliothèque de livres...",
+      { 'B', true, true,  false } },           // Ctrl+Shift+B
+    { "BOOK_NAV_LEVEL_UP",        IDM_BOOK_NAV_LEVEL_UP,      ActionCategory::Books,
+      "Next navigation level",        "Niveau de navigation suivant",
+      { VK_UP, false, true, false } },        // Shift+Up
+    { "BOOK_NAV_LEVEL_DOWN",      IDM_BOOK_NAV_LEVEL_DOWN,    ActionCategory::Books,
+      "Previous navigation level",    "Niveau de navigation précédent",
+      { VK_DOWN, false, true, false } },      // Shift+Down
+    { "BOOK_NAV_FORWARD",         IDM_BOOK_NAV_FORWARD,       ActionCategory::Books,
+      "Jump to next nav point",       "Aller au point de navigation suivant",
+      { VK_RIGHT, false, true, false } },     // Shift+Right
+    { "BOOK_NAV_BACKWARD",        IDM_BOOK_NAV_BACKWARD,      ActionCategory::Books,
+      "Jump to previous nav point",   "Aller au point de navigation précédent",
+      { VK_LEFT, false, true, false } },      // Shift+Left
+    { "BOOK_ANNOUNCE_LOCATION",   IDM_BOOK_ANNOUNCE_LOCATION, ActionCategory::Books,
+      "Announce current location",    "Annoncer la position actuelle",
+      { 'L', false, true, false } },          // Shift+L
+    { "BOOK_ADD_BOOKMARK_NOTE",   IDM_BOOK_ADD_BOOKMARK_WITH_NOTE, ActionCategory::Books,
+      "Add bookmark with note",       "Ajouter un signet avec note",
+      { 'B', false, true, false } },          // Shift+B
+    { "BOOK_GO_TO_PAGE",          IDM_BOOK_GO_TO_PAGE,        ActionCategory::Books,
+      "Go to page...",                "Aller à la page...",
+      { 'G', false, false, false } },         // G
+
+    // ========================================================================
     // CATEGORY: Radio — placeholder for future actions
     // CATEGORY: YouTube — placeholder for future actions
     // (No entries yet; categories appear empty in the Actions dialog until
@@ -436,6 +467,7 @@ std::string CategoryDisplayName(ActionCategory cat)
         case ActionCategory::Radio:   return fr ? "Radio"      : "Radio";
         case ActionCategory::YouTube: return fr ? "YouTube"    : "YouTube";
         case ActionCategory::Global:  return fr ? "Globale"    : "Global";
+        case ActionCategory::Books:   return fr ? "Livres"     : "Books";
         default:                      return "";
     }
 }

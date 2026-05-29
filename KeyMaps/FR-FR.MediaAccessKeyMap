@@ -94,3 +94,14 @@ TOOLS_ACTIONS = F4
 
 # ----- Global -----
 
+# ----- Books -----
+BOOK_OPEN = Ctrl+B
+BOOK_LIBRARY = Ctrl+Shift+B
+BOOK_NAV_LEVEL_UP = Shift+Up
+BOOK_NAV_LEVEL_DOWN = Shift+Down
+BOOK_NAV_FORWARD = Shift+Right
+BOOK_NAV_BACKWARD = Shift+Left
+BOOK_ANNOUNCE_LOCATION = Shift+L
+BOOK_ADD_BOOKMARK_NOTE = Shift+B
+BOOK_GO_TO_PAGE = G
+
