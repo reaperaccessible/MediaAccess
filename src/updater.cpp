@@ -483,23 +483,19 @@ UpdateInfo CheckForUpdates() {
     info.installerUrl = assets.installerUrl;
     info.releaseNotes = body;
 
-    // Never offer a downgrade. Only prompt when the remote version is
-    // strictly newer than what's installed. Commit SHA is used only as a
-    // tiebreaker when versions are equal (e.g. same-version rebuild that
-    // shipped a real fix).
+    // Only offer the update when the remote version is strictly newer than
+    // what's installed. We previously also offered an update when versions
+    // matched but commit SHAs differed (to ship same-version hotfix rebuilds),
+    // but that fired false positives whenever the installer was built from
+    // a parent commit and shipped under a release tag pointing at the next
+    // commit. The simple rule below is what users expect: bump the version
+    // to ship a release. No commit-tiebreaker, no surprise prompts.
     //
     // ParseVersionParts handles both old "1.0.X" and new "1.X" schemes by
     // zero-padding the shorter version, so "1.24" > "1.0.23" correctly:
     // {1,24,0} vs {1,0,23} -> second component 24 > 0 -> remote newer.
-    std::string localCommit = BUILD_COMMIT;
     std::string localVersion = APP_VERSION;
-
-    bool versionNewer = IsRemoteNewer(info.latestVersion, localVersion);
-    bool versionEqual = !versionNewer &&
-                        !IsRemoteNewer(localVersion, info.latestVersion);
-    bool commitDiffers = !info.latestCommit.empty() && !localCommit.empty() &&
-                         info.latestCommit.substr(0, 7) != localCommit.substr(0, 7);
-    info.available = versionNewer || (versionEqual && commitDiffers);
+    info.available = IsRemoteNewer(info.latestVersion, localVersion);
 
     return info;
 }
