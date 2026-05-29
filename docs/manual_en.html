@@ -209,6 +209,7 @@
     <li><a href="#updates">Updates</a></li>
     <li><a href="#troubleshooting">Troubleshooting</a></li>
     <li><a href="#books">DAISY book playback</a></li>
+    <li><a href="#sleep-timer">Sleep timer</a></li>
     <li><a href="#shortcuts">Keyboard shortcuts reference</a></li>
   </ol>
 </nav>
@@ -828,6 +829,7 @@
   <li><strong>Register all supported file types</strong></li>
   <li><strong>Rewind on pause (ms)</strong></li>
   <li><strong>Volume step</strong>: 1 / 2 / 5 / 10 / 15 / 20 / 25%</li>
+  <li><strong>Fade out at end of sleep timer (last 30 seconds)</strong></li>
   <li><strong>Language</strong>: English / Français (applies on restart)</li>
 </ul>
 
@@ -1007,7 +1009,7 @@
 <ul>
   <li><strong>DAISY 2.02</strong> — the most widely distributed format, used by most public libraries and accessible-book services. The book is a folder containing an <code>ncc.html</code> table of contents, SMIL files, and audio files (typically MP3).</li>
   <li><strong>DAISY 3</strong> (ANSI/NISO Z39.86) — newer specification based on an <code>.opf</code> package and an NCX navigation file.</li>
-  <li><strong>EPUB</strong> — every EPUB file is readable, regardless of internal compression. Text-only EPUBs are read aloud through Windows text-to-speech (see below). EPUBs that embed recorded audio via Media Overlays are partially supported today; full coverage will land in a future update.</li>
+  <li><strong>EPUB</strong> — every EPUB file is readable, regardless of internal compression. Text-only EPUBs are read aloud through Windows text-to-speech (see below). EPUBs that embed recorded audio via Media Overlays play as full audio books (see below).</li>
 </ul>
 
 <h3>Opening a book</h3>
@@ -1046,6 +1048,24 @@
   <li><kbd>Shift</kbd>+<kbd>B</kbd> — add a bookmark at the current position, optionally with a note.</li>
   <li><kbd>M</kbd> — open the bookmarks manager for the current book (see below).</li>
 </ul>
+<p>Structural navigation now works for EPUBs as well. EPUB 3 files typically include a <em>Navigation Document</em> that exposes the heading hierarchy: MediaAccess reads it directly to drive <kbd>Shift</kbd>+<kbd>↑</kbd> / <kbd>Shift</kbd>+<kbd>↓</kbd> and <kbd>Shift</kbd>+<kbd>→</kbd> / <kbd>Shift</kbd>+<kbd>←</kbd>. EPUBs that don't ship a Navigation Document fall back to the <code>&lt;h1&gt;</code>–<code>&lt;h6&gt;</code> tags found in the text. Either way, you step through chapters, sections, and sub-sections exactly as on a DAISY book, instead of being limited to paragraph-by-paragraph movement.</p>
+
+<h3>Reading progress announcement</h3>
+<p>Press <kbd>Shift</kbd>+<kbd>P</kbd> while a book is open to hear your progress: percentage read, current chapter, current page, and estimated remaining time. A typical announcement sounds like: "47 percent, Chapter 3, page 47, about 2 hours 15 minutes remaining."</p>
+<p>The remaining-time estimate takes your effective listening speed into account. For audio books, it is computed from the duration of the remaining fragments and the active tempo / rate. For text-only books read by speech synthesis, it is computed from the number of remaining paragraphs and the chosen SAPI rate; slowing down or speeding up the voice updates the estimate immediately.</p>
+
+<h3>Skip content during reading</h3>
+<p>DAISY and EPUB books often mark certain elements as "skippable" because they can interrupt the reading flow: page numbers, producer notes, sidebars, footnotes, and so on. The <strong>Books</strong> tab of <strong>File → Options</strong> now offers six checkboxes to filter these out during continuous playback:</p>
+<ul>
+  <li><strong>Skip page numbers</strong>;</li>
+  <li><strong>Skip notes</strong>;</li>
+  <li><strong>Skip sidebars</strong>;</li>
+  <li><strong>Skip producer notes</strong> (prodnotes);</li>
+  <li><strong>Skip footnotes</strong>;</li>
+  <li><strong>Skip references</strong>.</li>
+</ul>
+<p>MediaAccess recognizes the standard DAISY 2.02 classes (<code>page-normal</code>, <code>optional-prodnote</code>, etc.), the DAISY 3 SMIL classes carried by parent <code>&lt;seq&gt;</code> elements, and EPUB 3 types (<code>epub:type</code> values such as <code>pagebreak</code>, <code>footnote</code>, <code>sidebar</code>, <code>noteref</code>, etc.). When a fragment matches a ticked category, it is automatically stepped over during continuous reading; manual navigation (<kbd>Shift</kbd>+<kbd>→</kbd> / <kbd>Shift</kbd>+<kbd>←</kbd>, go to page) is still free to reach it.</p>
+<p>To toggle the filter quickly without opening Options, press <kbd>Shift</kbd>+<kbd>S</kbd> while a book is playing: this temporarily enables or disables content skipping for the current session. The temporary override is reset the next time you open a book, and the Options checkboxes take over again.</p>
 
 <h3>Position memory</h3>
 <p>MediaAccess saves your position in every book you open. Reopening a book from the library — or simply via <kbd>Ctrl</kbd>+<kbd>B</kbd> — resumes exactly where you left off, including the active navigation level.</p>
@@ -1091,8 +1111,29 @@
 <p>Every DAISY shortcut listed above is rebindable via <strong>Tools → Actions</strong> (<kbd>F4</kbd>), section <strong>Books</strong>.</p>
 </section>
 
+<section id="sleep-timer" aria-labelledby="sleep-timer-h">
+<h2 id="sleep-timer-h">23. Sleep timer</h2>
+
+<p>The sleep timer automatically stops playback after a duration you choose — useful for falling asleep to an audiobook, a podcast, a radio stream, or a movie without having to get back up to turn the sound off. It works with any active playback engine: BASS (audio), libmpv (video), the DAISY/EPUB book player, and the SAPI text-to-speech engine for text-only books.</p>
+
+<h3>Starting the timer</h3>
+<p>The <strong>Tools → Sleep timer</strong> menu opens a submenu with preset durations: <strong>15</strong>, <strong>30</strong>, <strong>45</strong>, <strong>60</strong>, <strong>90</strong>, and <strong>120 minutes</strong>, plus a <strong>Custom duration…</strong> entry that opens an input box for any value in minutes. Three shortcuts are also bound by default:</p>
+<ul>
+  <li><kbd>F8</kbd> — start the timer (cycles through the common presets on repeated presses);</li>
+  <li><kbd>Shift</kbd>+<kbd>F8</kbd> — announce the remaining time;</li>
+  <li><kbd>Ctrl</kbd>+<kbd>F8</kbd> — cancel a running timer.</li>
+</ul>
+<p>While the timer is running, the remaining time can be queried at any moment with <kbd>Shift</kbd>+<kbd>F8</kbd>. When it fires, MediaAccess stops whichever engine is currently playing — whether you are listening to music, watching a video, reading a book, or tuned to a radio.</p>
+
+<h3>Optional fade-out</h3>
+<p>For a softer transition, you can enable a fade-out over the <strong>last 30 seconds</strong> before the stop. The option lives in <strong>File → Options</strong> (<kbd>Ctrl</kbd>+<kbd>,</kbd>), tab <strong>Playback</strong>, checkbox <strong>Fade out at end of sleep timer (last 30 seconds)</strong>. Without the fade-out, the stop is instant.</p>
+
+<h3>Remapping the shortcuts</h3>
+<p>All three shortcuts <kbd>F8</kbd>, <kbd>Shift</kbd>+<kbd>F8</kbd> and <kbd>Ctrl</kbd>+<kbd>F8</kbd> are rebindable via <strong>Tools → Actions</strong> (<kbd>F4</kbd>), section <strong>Tools</strong>.</p>
+</section>
+
 <section id="shortcuts" aria-labelledby="shortcuts-h">
-<h2 id="shortcuts-h">23. Keyboard shortcuts reference</h2>
+<h2 id="shortcuts-h">24. Keyboard shortcuts reference</h2>
 
 <h3>File</h3>
 <table>
@@ -1225,10 +1266,12 @@
 <tr><td><kbd>Shift</kbd>+<kbd>→</kbd> / <kbd>Shift</kbd>+<kbd>←</kbd></td><td>Next / Previous item at the active level (or paragraph in text-only TTS mode)</td></tr>
 <tr><td><kbd>G</kbd></td><td>Jump to a specific page</td></tr>
 <tr><td><kbd>Shift</kbd>+<kbd>L</kbd></td><td>Announce current location</td></tr>
+<tr><td><kbd>Shift</kbd>+<kbd>P</kbd></td><td>Announce reading progress (percentage, chapter, page, estimated remaining time)</td></tr>
 <tr><td><kbd>Shift</kbd>+<kbd>B</kbd></td><td>Add a bookmark</td></tr>
 <tr><td><kbd>M</kbd></td><td>Open the book's bookmark manager</td></tr>
 <tr><td><kbd>Ctrl</kbd>+<kbd>T</kbd></td><td>Show / hide text window</td></tr>
 <tr><td><kbd>F3</kbd></td><td>Search in book</td></tr>
+<tr><td><kbd>Shift</kbd>+<kbd>S</kbd></td><td>Temporarily toggle content skipping for the current session</td></tr>
 </tbody>
 </table>
 
@@ -1239,6 +1282,9 @@
 <tbody>
 <tr><td><kbd>F4</kbd></td><td>Open the Actions window (shortcuts/keymaps)</td></tr>
 <tr><td><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>B</kbd></td><td>Book library</td></tr>
+<tr><td><kbd>F8</kbd></td><td>Start sleep timer</td></tr>
+<tr><td><kbd>Shift</kbd>+<kbd>F8</kbd></td><td>Announce sleep timer remaining time</td></tr>
+<tr><td><kbd>Ctrl</kbd>+<kbd>F8</kbd></td><td>Cancel sleep timer</td></tr>
 </tbody>
 </table>
 

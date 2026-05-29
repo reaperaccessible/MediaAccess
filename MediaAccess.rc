@@ -76,6 +76,20 @@ BEGIN
     BEGIN
         MENUITEM "&Actions...\tF4",                 IDM_TOOLS_ACTIONS
         MENUITEM "&Book library...",                IDM_TOOLS_BOOK_LIBRARY
+        MENUITEM SEPARATOR
+        POPUP "Sleep &timer"
+        BEGIN
+            MENUITEM "&15 minutes",              7300
+            MENUITEM "&30 minutes",              7301
+            MENUITEM "&45 minutes",              7302
+            MENUITEM "&1 hour",                  7303
+            MENUITEM "1h &30",                   7304
+            MENUITEM "&2 hours",                 7305
+            MENUITEM SEPARATOR
+            MENUITEM "&Custom...\tF8",           IDM_SLEEP_TIMER_OPEN
+            MENUITEM "C&ancel timer\tShift+F8",  IDM_SLEEP_TIMER_CANCEL
+            MENUITEM "&Speak remaining\tCtrl+F8",IDM_SLEEP_TIMER_SPEAK
+        END
     END
     POPUP "&Help"
     BEGIN
@@ -97,7 +111,7 @@ BEGIN
     END
 END
 
-IDD_OPTIONS DIALOGEX 0, 0, 340, 260
+IDD_OPTIONS DIALOGEX 0, 0, 340, 290
 STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "Options"
 FONT 8, "MS Shell Dlg"
@@ -284,8 +298,18 @@ BEGIN
     AUTOCHECKBOX    "Al&ways hide text window (audio-only experience)",
                     IDC_BOOK_HIDE_TEXT_WINDOW, 17, 204, 305, 10
 
-    DEFPUSHBUTTON   "OK", IDOK, 229, 240, 50, 14
-    PUSHBUTTON      "Cancel", IDCANCEL, 283, 240, 50, 14
+    // Phase 4 — skippable-content checkboxes (Sk&ip during reading group)
+    LTEXT           "S&kip these during continuous reading:",
+                    IDC_LABEL_BOOK_SKIP_GROUP, 17, 222, 305, 10
+    AUTOCHECKBOX    "&Page numbers",    IDC_BOOK_SKIP_PAGES,      17, 236, 100, 10
+    AUTOCHECKBOX    "&Notes",           IDC_BOOK_SKIP_NOTES,     125, 236, 100, 10
+    AUTOCHECKBOX    "Side&bars",        IDC_BOOK_SKIP_SIDEBARS,  225, 236, 100, 10
+    AUTOCHECKBOX    "Pro&ducer notes",  IDC_BOOK_SKIP_PRODNOTES,  17, 250, 100, 10
+    AUTOCHECKBOX    "&Footnotes",       IDC_BOOK_SKIP_FOOTNOTES, 125, 250, 100, 10
+    AUTOCHECKBOX    "&References",      IDC_BOOK_SKIP_REFERENCES,225, 250, 100, 10
+
+    DEFPUSHBUTTON   "OK", IDOK, 229, 270, 50, 14
+    PUSHBUTTON      "Cancel", IDCANCEL, 283, 270, 50, 14
 END
 
 // IDD_HOTKEY (legacy add/edit global-hotkey dialog) removed in v1.41 —
@@ -691,6 +715,21 @@ END
 // =========================================================================
 // Bookmarks list for the current book (M key) — v1.53 Phase 3
 // =========================================================================
+// =========================================================================
+// Sleep timer custom duration — v1.55 Phase 4
+// =========================================================================
+IDD_SLEEP_TIMER DIALOGEX 0, 0, 220, 80
+STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "Sleep timer"
+FONT 9, "MS Shell Dlg"
+BEGIN
+    LTEXT           "Minutes:", IDC_LABEL_SLEEP_CUSTOM, 10, 12, 50, 10
+    EDITTEXT        IDC_SLEEP_CUSTOM_EDIT, 65, 10, 140, 14, ES_AUTOHSCROLL | ES_NUMBER
+
+    DEFPUSHBUTTON   "OK",     IDOK,     105, 50, 50, 14
+    PUSHBUTTON      "Cancel", IDCANCEL, 160, 50, 50, 14
+END
+
 IDD_BOOK_BOOKMARK_LIST DIALOGEX 0, 0, 380, 240
 STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "Bookmarks"

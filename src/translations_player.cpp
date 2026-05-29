@@ -1505,4 +1505,82 @@ void RegisterPlayerTranslations() {
     // Phase 3 — smart page navigation
     AddTranslation("en", "Nearest page:", L"Nearest page:");
     AddTranslation("fr", "Nearest page:", L"Page la plus proche :");
+
+    // Phase 4 — reading progress announcement
+    AddTranslation("en", "Announce reading progress", L"Announce reading progress");
+    AddTranslation("fr", "Announce reading progress", L"Annoncer la progression de lecture");
+
+    AddTranslation("en", "No book loaded", L"No book loaded");
+    AddTranslation("fr", "No book loaded", L"Aucun livre chargé");
+
+    AddTranslation("en", "percent",   L"percent");
+    AddTranslation("fr", "percent",   L"pour cent");
+    AddTranslation("en", "about",     L"about");
+    AddTranslation("fr", "about",     L"environ");
+    AddTranslation("en", "remaining", L"remaining");
+    AddTranslation("fr", "remaining", L"restantes");
+    AddTranslation("en", "hour",      L"hour");
+    AddTranslation("fr", "hour",      L"heure");
+    AddTranslation("en", "hours",     L"hours");
+    AddTranslation("fr", "hours",     L"heures");
+    AddTranslation("en", "minute",    L"minute");
+    AddTranslation("fr", "minute",    L"minute");
+    AddTranslation("en", "minutes",   L"minutes");
+    AddTranslation("fr", "minutes",   L"minutes");
+    AddTranslation("en", "less than a minute", L"less than a minute");
+    AddTranslation("fr", "less than a minute", L"moins d'une minute");
+
+    // Phase 4 — sleep timer
+    AddTranslation("en", "Sleep timer", L"Sleep timer");
+    AddTranslation("fr", "Sleep timer", L"Minuterie de sommeil");
+    AddTranslation("en", "Sleep timer set for", L"Sleep timer set for");
+    AddTranslation("fr", "Sleep timer set for", L"Minuterie de sommeil réglée à");
+    AddTranslation("en", "Sleep timer cancelled", L"Sleep timer cancelled");
+    AddTranslation("fr", "Sleep timer cancelled", L"Minuterie de sommeil annulée");
+    AddTranslation("en", "Sleep timer expired", L"Sleep timer expired");
+    AddTranslation("fr", "Sleep timer expired", L"Minuterie de sommeil échue");
+    AddTranslation("en", "No sleep timer active", L"No sleep timer active");
+    AddTranslation("fr", "No sleep timer active", L"Aucune minuterie de sommeil active");
+    AddTranslation("en", "Sleep timer (custom)...", L"Sleep timer (custom)...");
+    AddTranslation("fr", "Sleep timer (custom)...", L"Minuterie de sommeil (personnalisée)...");
+    AddTranslation("en", "Cancel sleep timer", L"Cancel sleep timer");
+    AddTranslation("fr", "Cancel sleep timer", L"Annuler la minuterie de sommeil");
+    AddTranslation("en", "Speak sleep-timer remaining",
+                   L"Speak sleep-timer remaining");
+    AddTranslation("fr", "Speak sleep-timer remaining",
+                   L"Annoncer le temps restant de la minuterie");
+    AddTranslation("en", "Please enter a number of minutes between 1 and 1440.",
+                   L"Please enter a number of minutes between 1 and 1440.");
+    AddTranslation("fr", "Please enter a number of minutes between 1 and 1440.",
+                   L"Veuillez saisir un nombre de minutes entre 1 et 1440.");
+    AddTranslation("en", "second",  L"second");
+    AddTranslation("fr", "second",  L"seconde");
+    AddTranslation("en", "seconds", L"seconds");
+    AddTranslation("fr", "seconds", L"secondes");
+    AddTranslation("en", "Minutes:", L"Minutes:");
+    AddTranslation("fr", "Minutes:", L"Minutes :");
+
+    // Phase 4 — skippable content
+    AddTranslation("en", "Toggle skip mode", L"Toggle skip mode");
+    AddTranslation("fr", "Toggle skip mode", L"Activer/désactiver le mode saut");
+    AddTranslation("en", "Skip filter on",  L"Skip filter on");
+    AddTranslation("fr", "Skip filter on",  L"Filtre de saut activé");
+    AddTranslation("en", "Skip filter off", L"Skip filter off");
+    AddTranslation("fr", "Skip filter off", L"Filtre de saut désactivé");
+    AddTranslation("en", "S&kip these during continuous reading:",
+                   L"S&kip these during continuous reading:");
+    AddTranslation("fr", "S&kip these during continuous reading:",
+                   L"S&auter ces éléments pendant la lecture continue :");
+    AddTranslation("en", "&Page numbers",    L"&Page numbers");
+    AddTranslation("fr", "&Page numbers",    L"&Numéros de page");
+    AddTranslation("en", "&Notes",           L"&Notes");
+    AddTranslation("fr", "&Notes",           L"&Notes");
+    AddTranslation("en", "Side&bars",        L"Side&bars");
+    AddTranslation("fr", "Side&bars",        L"&Encadrés");
+    AddTranslation("en", "Pro&ducer notes",  L"Pro&ducer notes");
+    AddTranslation("fr", "Pro&ducer notes",  L"Notes du &producteur");
+    AddTranslation("en", "&Footnotes",       L"&Footnotes");
+    AddTranslation("fr", "&Footnotes",       L"Notes de &bas de page");
+    AddTranslation("en", "&References",      L"&References");
+    AddTranslation("fr", "&References",      L"&Références");
 }

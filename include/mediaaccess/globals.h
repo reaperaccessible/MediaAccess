@@ -3,6 +3,7 @@
 #define MEDIAACCESS_GLOBALS_H
 
 #include <windows.h>
+#include <cstdint>
 #include <vector>
 #include <string>
 #include "bass.h"
@@ -87,6 +88,8 @@ extern bool g_showTitleInWindow;           // Show track name in window title (d
 extern bool g_playlistFollowPlayback;      // Auto-select current track in playlist dialog
 extern bool g_checkForUpdates;             // Check for updates on startup
 extern bool g_allowMultipleInstances;      // Allow multiple instances (new windows)
+extern uint32_t g_bookSkipMask;            // Phase 4 — skip categories bitmask
+extern bool     g_bookSkipBypass;          // Phase 4 — runtime toggle (Shift+S)
 
 // System tray
 extern NOTIFYICONDATAW g_trayIcon;

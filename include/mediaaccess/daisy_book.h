@@ -22,6 +22,19 @@
 
 namespace mediaaccess {
 
+// Categories of content that DAISY 3 / NIMAS / EPUB 3 mark as "skippable"
+// so the listener can choose to bypass them during continuous reading
+// (e.g. skip page numbers, footnotes, sidebars). Phase 4 (v1.55).
+enum class SkipKind : uint8_t {
+    None      = 0,
+    Page      = 1,   // page-number announcement
+    Note      = 2,
+    Sidebar   = 3,
+    Prodnote  = 4,   // producer's note
+    Footnote  = 5,
+    Reference = 6
+};
+
 // One playable audio clip with its position in the book's text.
 struct DaisyClip {
     std::wstring audioFile;   // Absolute path to MP3/MP2 file
@@ -32,6 +45,7 @@ struct DaisyClip {
     std::wstring textContent; // Phase 2: plain text of the XHTML element with id=textFragId.
                               //   Empty if textFile/textFragId is missing or the
                               //   fragment could not be located.
+    SkipKind     skipKind = SkipKind::None;  // Phase 4: category for skip-during-reading
 };
 
 // A heading / page / navigation target in the book's structure.
@@ -49,6 +63,7 @@ struct DaisyTextSegment {
     std::wstring textFile;      // XHTML file this came from (absolute path)
     std::string  textFragId;    // id attribute on the source element (may be empty)
     int          navLevel;      // -1 if not a heading, 1-6 for h1-h6, 0 for page numbers
+    SkipKind     skipKind = SkipKind::None;  // Phase 4
 };
 
 enum class DaisyFormat { Unknown, Daisy202, Daisy3, Epub3 };

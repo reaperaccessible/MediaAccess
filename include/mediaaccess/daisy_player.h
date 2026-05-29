@@ -82,6 +82,12 @@ void DaisyNavigateBackward();
 // Called automatically after navigation; expose for bound-to-key access too.
 void DaisyAnnounceCurrentLocation();
 
+// Phase 4 — announce reading progress: "47 percent, Chapter 3, page 47,
+// about 2 hours 15 minutes remaining". Bound to Shift+P by default.
+// Works for both audio (uses Duration / effective speed) and text-only
+// (uses segment count and a SAPI characters-per-second estimate).
+void DaisyAnnounceProgress();
+
 // =============================================================================
 // Bookmarks (with optional note)
 // =============================================================================

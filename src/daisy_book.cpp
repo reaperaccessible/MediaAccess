@@ -598,6 +598,76 @@ int HeadingLevel(const std::wstring& tag) {
     return -1;
 }
 
+// Phase 4 — SMIL <par> skippability. Walks the par's ancestor chain
+// looking for a <seq class="..."> or <par class="..."> with a known
+// skippable category. EPUB MO uses epub:type instead of class.
+//
+// Manages raw pointer AddRef/Release manually for the ancestor walk —
+// our ComPtr wrapper doesn't support adoption of a borrowed raw pointer.
+SkipKind ClassifySmilParSkipKind(IXMLDOMNode* par) {
+    if (!par) return SkipKind::None;
+    SkipKind result = SkipKind::None;
+    IXMLDOMNode* cur = par;
+    cur->AddRef();
+    for (int depth = 0; depth < 6 && cur; ++depth) {
+        std::wstring cls  = ToLowerW(AttrValue(cur, L"class"));
+        std::wstring etyp = ToLowerW(AttrAny(cur, {L"epub:type", L"type"}));
+        std::wstring combo = cls + L" " + etyp;
+        if (combo.size() > 1) {
+            if      (combo.find(L"pagebreak")         != std::wstring::npos) { result = SkipKind::Page;      break; }
+            else if (combo.find(L"page-")             != std::wstring::npos) { result = SkipKind::Page;      break; }
+            else if (combo.find(L"optional-prodnote") != std::wstring::npos) { result = SkipKind::Prodnote;  break; }
+            else if (combo.find(L"prodnote")          != std::wstring::npos) { result = SkipKind::Prodnote;  break; }
+            else if (combo.find(L"optional-sidebar")  != std::wstring::npos) { result = SkipKind::Sidebar;   break; }
+            else if (combo.find(L"sidebar")           != std::wstring::npos) { result = SkipKind::Sidebar;   break; }
+            else if (combo.find(L"footnote")          != std::wstring::npos) { result = SkipKind::Footnote;  break; }
+            else if (combo.find(L"endnote")           != std::wstring::npos) { result = SkipKind::Footnote;  break; }
+            else if (combo.find(L"noteref")           != std::wstring::npos) { result = SkipKind::Reference; break; }
+            else if (combo.find(L"annotation")        != std::wstring::npos) { result = SkipKind::Note;      break; }
+            else if (combo.find(L"note")              != std::wstring::npos) { result = SkipKind::Note;      break; }
+        }
+        IXMLDOMNode* parent = nullptr;
+        cur->get_parentNode(&parent);
+        cur->Release();
+        cur = parent;
+    }
+    if (cur) cur->Release();
+    return result;
+}
+
+// Phase 4 — classify an element's epub:type + class attributes into a
+// SkipKind so the reader can optionally bypass it during playback.
+// Returns SkipKind::None when no marker is present.
+SkipKind ClassifySkipKind(IXMLDOMNode* el, int navLevel) {
+    if (!el) return SkipKind::None;
+    // navLevel == 0 means page-number span (already detected in caller).
+    if (navLevel == 0) return SkipKind::Page;
+
+    std::wstring epubType = ToLowerW(AttrAny(el, {L"epub:type", L"type"}));
+    if (!epubType.empty()) {
+        // epub:type can be a space-separated list; look for known tokens.
+        if (epubType.find(L"pagebreak")  != std::wstring::npos) return SkipKind::Page;
+        if (epubType.find(L"footnote")   != std::wstring::npos) return SkipKind::Footnote;
+        if (epubType.find(L"endnote")    != std::wstring::npos) return SkipKind::Footnote;
+        if (epubType.find(L"noteref")    != std::wstring::npos) return SkipKind::Reference;
+        if (epubType.find(L"sidebar")    != std::wstring::npos) return SkipKind::Sidebar;
+        if (epubType.find(L"annotation") != std::wstring::npos) return SkipKind::Note;
+        if (epubType.find(L"note")       != std::wstring::npos) return SkipKind::Note;
+    }
+    std::wstring cls = ToLowerW(AttrValue(el, L"class"));
+    if (!cls.empty()) {
+        if (cls.find(L"optional-prodnote") != std::wstring::npos) return SkipKind::Prodnote;
+        if (cls.find(L"prodnote")          != std::wstring::npos) return SkipKind::Prodnote;
+        if (cls.find(L"optional-sidebar")  != std::wstring::npos) return SkipKind::Sidebar;
+        if (cls.find(L"sidebar")           != std::wstring::npos) return SkipKind::Sidebar;
+        if (cls.find(L"footnote")          != std::wstring::npos) return SkipKind::Footnote;
+        if (cls.find(L"noteref")           != std::wstring::npos) return SkipKind::Reference;
+        if (cls.find(L"note")              != std::wstring::npos) return SkipKind::Note;
+        if (cls.find(L"page-")             != std::wstring::npos) return SkipKind::Page;
+    }
+    return SkipKind::None;
+}
+
 // Recursively walk a DOM subtree, emitting one DaisyTextSegment per
 // "interesting" block element (headings, paragraphs, list items, page
 // numbers). To avoid double-counting nested blocks we skip descent once we
@@ -703,6 +773,7 @@ void WalkXhtmlForSegments(IXMLDOMNode* node,
             seg.textFile   = xhtmlFile;
             seg.textFragId = std::move(id);
             seg.navLevel   = level;
+            seg.skipKind   = ClassifySkipKind(ch.Get(), level);
             out.push_back(std::move(seg));
         }
     }
@@ -890,6 +961,7 @@ bool ParseSmilFile(const std::wstring& smilPath, SmilResult& out) {
             if (clip.clipEnd   < 0) clip.clipEnd   = 0;
             clip.textFile   = textFile;
             clip.textFragId = textFrag;
+            clip.skipKind   = ClassifySmilParSkipKind(par.Get());  // Phase 4
 
             if (!FileExists(clip.audioFile)) {
                 LogF("daisy", "skipping clip, audio not found: %s",
@@ -1715,10 +1787,199 @@ bool ParseEpubSmilFromZip(EpubZip& zip, const std::string& smilEntry,
             if (clip.clipEnd   < 0) clip.clipEnd   = 0;
             clip.textFile   = textFile;
             clip.textFragId = textFrag;
+            clip.skipKind   = ClassifySmilParSkipKind(par.Get());  // Phase 4
             outClips.push_back(clip);
         }
     }
     return !outClips.empty();
+}
+
+// =========================================================================
+// Phase 4 — EPUB Navigation Document / NCX parsing
+//
+// EPUB navigation lives in one of two places (in order of preference):
+//   1. A Navigation Document — an XHTML file with the OPF manifest
+//      `properties="nav"` attribute, containing <nav epub:type="toc">...</nav>
+//      built from nested <ol>/<li>/<a> elements (EPUB 3 standard).
+//   2. An NCX file (EPUB 2 legacy compatibility) referenced via the spine
+//      `toc` attribute or as a manifest item with media-type
+//      application/x-dtbncx+xml.
+//
+// For each TOC entry we resolve "chap1.xhtml#frag1" against either
+// textSegments (text-only EPUB, segmentIndex stored in clipIndex) or
+// clips (Media Overlays mode, true clipIndex). If neither source is
+// available we fall back to synthesising nav points from the h1-h6
+// headings already detected during the textSegments walk.
+// =========================================================================
+
+// Match originLabel format used by Phase 2 / Phase 3 segment+MO clip walks.
+inline std::wstring EpubOriginLabel(const std::wstring& epubPath,
+                                    const std::string& entryName) {
+    return epubPath + L"!/" + Utf8ToWide(entryName);
+}
+
+// Find the first segment whose textFile == originLabel AND (if fragId
+// non-empty) textFragId == fragId. Falls back to first-segment-of-file
+// match when the fragment id isn't found. Returns -1 if no match at all.
+int ResolveEpubSegment(const DaisyBook& book,
+                       const std::wstring& originLabel,
+                       const std::string& fragId) {
+    int firstInFile = -1;
+    for (size_t i = 0; i < book.textSegments.size(); ++i) {
+        const auto& s = book.textSegments[i];
+        if (s.textFile != originLabel) continue;
+        if (firstInFile < 0) firstInFile = (int)i;
+        if (fragId.empty()) return (int)i;
+        if (s.textFragId == fragId) return (int)i;
+    }
+    return firstInFile;
+}
+
+// Same but for MO clips.
+int ResolveEpubClip(const DaisyBook& book,
+                    const std::wstring& originLabel,
+                    const std::string& fragId) {
+    int firstInFile = -1;
+    for (size_t i = 0; i < book.clips.size(); ++i) {
+        const auto& c = book.clips[i];
+        if (c.textFile != originLabel) continue;
+        if (firstInFile < 0) firstInFile = (int)i;
+        if (fragId.empty()) return (int)i;
+        if (c.textFragId == fragId) return (int)i;
+    }
+    return firstInFile;
+}
+
+// Walk an <ol> recursively. Each direct <li> contributes one nav point;
+// each nested <ol> increments the heading depth. Cap depth at 6.
+void WalkEpubNavOl(IXMLDOMNode* olNode, int depth,
+                   const std::string& navEntry,
+                   const std::wstring& epubPath,
+                   const DaisyBook& book,
+                   bool useClips,
+                   std::vector<DaisyNavPoint>& out) {
+    if (!olNode) return;
+    int capDepth = (depth < 1) ? 1 : ((depth > 6) ? 6 : depth);
+
+    auto lis = SelectNodes(olNode, L"./*[local-name()='li']");
+    long n = 0; if (lis) lis->get_length(&n);
+    for (long i = 0; i < n; ++i) {
+        ComPtr<IXMLDOMNode> li;
+        lis->get_item(i, li.PutVoid());
+        if (!li) continue;
+
+        // Direct <a>: target link. May be missing for group-only headings —
+        // in which case we still recurse for the inner <ol>.
+        auto a = SelectSingleNode(li.Get(), L"./*[local-name()='a']");
+        if (a) {
+            std::wstring label = NodeText(a.Get());
+            std::wstring href  = AttrValue(a.Get(), L"href");
+            if (!label.empty() && !href.empty()) {
+                std::wstring file; std::string frag;
+                SplitFragment(UrlDecode(href), file, frag);
+                std::string resolved = ResolveZipPath(navEntry,
+                                                      WideToUtf8(file));
+                std::wstring originLabel = EpubOriginLabel(epubPath, resolved);
+                int idx = useClips
+                          ? ResolveEpubClip(book, originLabel, frag)
+                          : ResolveEpubSegment(book, originLabel, frag);
+                if (idx >= 0) {
+                    DaisyNavPoint pt;
+                    pt.level     = capDepth;
+                    pt.label     = label;
+                    pt.clipIndex = idx;
+                    pt.kind      = DaisyNavPoint::Heading;
+                    out.push_back(pt);
+                }
+            }
+        }
+
+        // Recurse: any nested <ol> inside this <li> goes one level deeper.
+        auto nestedOls = SelectNodes(li.Get(), L"./*[local-name()='ol']");
+        long m = 0; if (nestedOls) nestedOls->get_length(&m);
+        for (long j = 0; j < m; ++j) {
+            ComPtr<IXMLDOMNode> nol;
+            nestedOls->get_item(j, nol.PutVoid());
+            WalkEpubNavOl(nol.Get(), depth + 1, navEntry, epubPath,
+                          book, useClips, out);
+        }
+    }
+}
+
+// Parse the EPUB 3 Navigation Document. Returns number of nav points added.
+int ParseEpubNavDoc(EpubZip& zip,
+                    const std::string& navEntry,
+                    const std::wstring& epubPath,
+                    DaisyBook& book,
+                    bool useClips) {
+    std::vector<uint8_t> buf;
+    if (!zip.Extract(navEntry, buf)) return 0;
+    auto doc = LoadXmlFromZipEntry(buf);
+    if (!doc) return 0;
+
+    size_t before = book.navPoints.size();
+
+    // <nav epub:type="toc">. EPUB uses the epub: prefix but our XPath uses
+    // local-name() — match both qualified and unqualified type attributes.
+    auto navs = SelectNodes(doc.Get(), L"//*[local-name()='nav']");
+    long nn = 0; if (navs) navs->get_length(&nn);
+
+    auto walkNav = [&](IXMLDOMNode* navNode, bool isPageList) {
+        auto ol = SelectSingleNode(navNode, L"./*[local-name()='ol']");
+        if (!ol) return;
+        size_t startSize = book.navPoints.size();
+        WalkEpubNavOl(ol.Get(), 1, navEntry, epubPath, book, useClips,
+                      book.navPoints);
+        if (isPageList) {
+            // Rewrite the just-emitted entries as Page kind, level 0.
+            for (size_t k = startSize; k < book.navPoints.size(); ++k) {
+                book.navPoints[k].kind  = DaisyNavPoint::Page;
+                book.navPoints[k].level = 0;
+            }
+        }
+    };
+
+    for (long i = 0; i < nn; ++i) {
+        ComPtr<IXMLDOMNode> nav;
+        navs->get_item(i, nav.PutVoid());
+        if (!nav) continue;
+        std::wstring tp = AttrAny(nav.Get(), {L"epub:type", L"type"});
+        std::wstring tpLower = ToLowerW(tp);
+        // We handle 'toc' (regular nav) and 'page-list' (page numbers).
+        // Skip 'landmarks' and any other type.
+        if (tpLower == L"toc" || tpLower.empty()) {
+            walkNav(nav.Get(), /*isPageList*/false);
+        } else if (tpLower == L"page-list") {
+            walkNav(nav.Get(), /*isPageList*/true);
+        }
+    }
+
+    return (int)(book.navPoints.size() - before);
+}
+
+// Fallback: synthesise nav points from already-walked textSegments. h1-h6
+// headings become DaisyNavPoint::Heading; navLevel==0 spans become Page.
+int BuildEpubHeadingNavPoints(DaisyBook& book) {
+    size_t before = book.navPoints.size();
+    for (size_t i = 0; i < book.textSegments.size(); ++i) {
+        const auto& seg = book.textSegments[i];
+        if (seg.navLevel == 0) {
+            DaisyNavPoint pt;
+            pt.level     = 0;
+            pt.label     = seg.text;
+            pt.clipIndex = (int)i;
+            pt.kind      = DaisyNavPoint::Page;
+            book.navPoints.push_back(pt);
+        } else if (seg.navLevel >= 1 && seg.navLevel <= 6) {
+            DaisyNavPoint pt;
+            pt.level     = seg.navLevel;
+            pt.label     = seg.text;
+            pt.clipIndex = (int)i;
+            pt.kind      = DaisyNavPoint::Heading;
+            book.navPoints.push_back(pt);
+        }
+    }
+    return (int)(book.navPoints.size() - before);
 }
 
 bool ParseEpub3Metadata(const std::wstring& epubPath, DaisyBook& book) {
@@ -1774,10 +2035,14 @@ bool ParseEpub3Metadata(const std::wstring& epubPath, DaisyBook& book) {
         opfBaseUtf8 = (slash == std::string::npos) ? "" : r.substr(0, slash + 1);
     }
 
-    // Manifest: id -> (href, mediaType, mediaOverlay).
+    // Manifest: id -> (href, mediaType, mediaOverlay, properties).
     // mediaOverlay is the id of another manifest item (a SMIL file) — present
     // on EPUBs with audio sync (Phase 3 Media Overlays support).
-    struct ManifestItem { std::string href, mediaType, mediaOverlay; };
+    // properties carries the "nav" token when the item is the EPUB 3
+    // Navigation Document (Phase 4 chapter navigation).
+    struct ManifestItem {
+        std::string href, mediaType, mediaOverlay, properties;
+    };
     std::map<std::string, ManifestItem> manifest;
     auto items = SelectNodes(odoc.Get(), L"//*[local-name()='item']");
     long iCount = 0; if (items) items->get_length(&iCount);
@@ -1785,11 +2050,13 @@ bool ParseEpub3Metadata(const std::wstring& epubPath, DaisyBook& book) {
         ComPtr<IXMLDOMNode> it;
         items->get_item(i, it.PutVoid());
         if (!it) continue;
-        std::string id   = WideToUtf8(AttrValue(it.Get(), L"id"));
-        std::string href = WideToUtf8(UrlDecode(AttrValue(it.Get(), L"href")));
-        std::string mt   = WideToUtf8(AttrValue(it.Get(), L"media-type"));
-        std::string mo   = WideToUtf8(AttrValue(it.Get(), L"media-overlay"));
-        if (!id.empty() && !href.empty()) manifest[id] = { href, mt, mo };
+        std::string id    = WideToUtf8(AttrValue(it.Get(), L"id"));
+        std::string href  = WideToUtf8(UrlDecode(AttrValue(it.Get(), L"href")));
+        std::string mt    = WideToUtf8(AttrValue(it.Get(), L"media-type"));
+        std::string mo    = WideToUtf8(AttrValue(it.Get(), L"media-overlay"));
+        std::string props = WideToUtf8(AttrValue(it.Get(), L"properties"));
+        if (!id.empty() && !href.empty())
+            manifest[id] = { href, mt, mo, props };
     }
 
     // Spine
@@ -1888,6 +2155,45 @@ bool ParseEpub3Metadata(const std::wstring& epubPath, DaisyBook& book) {
                 RemoveDirectoryW(tempDir.c_str());
             }
         }
+    }
+
+    // ----------------------------------------------------------------------
+    // Phase 4 — Chapter navigation. Build navPoints from:
+    //   1. EPUB 3 Navigation Document if present (manifest item with
+    //      properties="nav") — preferred.
+    //   2. Otherwise synthesize from h1-h6 / page spans detected in the
+    //      textSegments walk (the navLevel field is already populated).
+    // Both modes (text-only TTS and Media Overlays) use the same navPoints
+    // vector; clipIndex stores either a segment index (text-only) or a
+    // clip index (MO) — see DaisyNavPoint comment in daisy_book.h.
+    // ----------------------------------------------------------------------
+    bool useClips = !book.clips.empty();
+    int  navAdded = 0;
+
+    // Look for the EPUB 3 Navigation Document.
+    for (const auto& kv : manifest) {
+        if (kv.second.properties.find("nav") == std::string::npos) continue;
+        std::string navEntry = opfBaseUtf8 + kv.second.href;
+        navAdded = ParseEpubNavDoc(zip, navEntry, epubPath, book, useClips);
+        break;
+    }
+
+    // Fallback: synthesise from h1-h6 + page spans already captured during
+    // the textSegments walk. Only useful in text-only mode (MO mode resolves
+    // by clips, which the segment walker doesn't index).
+    if (navAdded == 0 && !useClips) {
+        navAdded = BuildEpubHeadingNavPoints(book);
+    }
+
+    if (navAdded > 0) {
+        // Existing navPoint scans in daisy_player.cpp assume monotonic
+        // clipIndex ordering. Sort to guarantee that.
+        std::sort(book.navPoints.begin(), book.navPoints.end(),
+                  [](const DaisyNavPoint& a, const DaisyNavPoint& b) {
+                      return a.clipIndex < b.clipIndex;
+                  });
+        LogF("daisy", "EPUB nav: built %d nav points (%s)",
+             navAdded, useClips ? "MO clips" : "text segments");
     }
 
     return true;

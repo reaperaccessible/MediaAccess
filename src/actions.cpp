@@ -408,6 +408,25 @@ static const Action g_actions[] = {
     { "BOOK_BOOKMARK_LIST",       IDM_BOOK_BOOKMARK_LIST,     ActionCategory::Books,
       "Bookmarks...",                 "Signets...",
       { 'M', false, false, false } },         // M — list bookmarks
+    { "BOOK_ANNOUNCE_PROGRESS",   IDM_BOOK_ANNOUNCE_PROGRESS, ActionCategory::Books,
+      "Announce reading progress",    "Annoncer la progression de lecture",
+      { 'P', false, true,  false } },         // Shift+P
+    { "BOOK_TOGGLE_SKIP",         IDM_BOOK_TOGGLE_SKIP,       ActionCategory::Books,
+      "Toggle skip mode",             "Activer/désactiver le mode saut",
+      { 'S', false, true,  false } },         // Shift+S
+
+    // ========================================================================
+    // CATEGORY: Main — Sleep timer (v1.55)
+    // ========================================================================
+    { "SLEEP_TIMER_OPEN",         IDM_SLEEP_TIMER_OPEN,       ActionCategory::Main,
+      "Sleep timer (custom)...",      "Minuterie de sommeil (personnalisée)...",
+      { VK_F8, false, false, false } },       // F8
+    { "SLEEP_TIMER_CANCEL",       IDM_SLEEP_TIMER_CANCEL,     ActionCategory::Main,
+      "Cancel sleep timer",           "Annuler la minuterie de sommeil",
+      { VK_F8, false, true,  false } },       // Shift+F8
+    { "SLEEP_TIMER_SPEAK",        IDM_SLEEP_TIMER_SPEAK,      ActionCategory::Main,
+      "Speak sleep-timer remaining",  "Annoncer le temps restant de la minuterie",
+      { VK_F8, true,  false, false } },       // Ctrl+F8
 
     // ========================================================================
     // CATEGORY: Radio — placeholder for future actions

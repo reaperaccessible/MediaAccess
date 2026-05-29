@@ -34,6 +34,7 @@
 #include "mediaaccess/actions_window.h"
 #include "mediaaccess/daisy_book.h"
 #include "mediaaccess/daisy_player.h"
+#include "mediaaccess/sleep_timer.h"
 #include "mediaaccess/books_dialog.h"
 #include "mediaaccess/tts_player.h"
 #include "mediaaccess/book_text_window.h"
@@ -303,6 +304,8 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
                     GetWindowRect(hwnd, &rc);
                     if (PtInRect(&rc, pt)) while (ShowCursor(FALSE) >= 0) {}
                 }
+            } else if (wParam == IDT_SLEEP_TIMER) {
+                mediaaccess::SleepOnTick();
             }
             return 0;
 
@@ -603,6 +606,36 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
                 case IDM_BOOK_BOOKMARK_LIST:
                     if (mediaaccess::DaisyIsActive()) mediaaccess::ShowBookmarkList(hwnd);
                     break;
+                case IDM_BOOK_ANNOUNCE_PROGRESS:
+                    if (mediaaccess::DaisyIsActive()) mediaaccess::DaisyAnnounceProgress();
+                    break;
+                case IDM_BOOK_TOGGLE_SKIP:
+                    if (mediaaccess::DaisyIsActive()) {
+                        g_bookSkipBypass = !g_bookSkipBypass;
+                        Speak(g_bookSkipBypass
+                              ? Ts("Skip filter off")
+                              : Ts("Skip filter on"));
+                    }
+                    break;
+                case IDM_SLEEP_TIMER_OPEN: {
+                    int minutes = 0;
+                    if (mediaaccess::SleepPromptCustomMinutes(hwnd, minutes)) {
+                        mediaaccess::SleepStart(minutes);
+                    }
+                    break;
+                }
+                case IDM_SLEEP_TIMER_CANCEL:
+                    mediaaccess::SleepCancel();
+                    break;
+                case IDM_SLEEP_TIMER_SPEAK:
+                    mediaaccess::SleepSpeakRemaining();
+                    break;
+                case 7300: mediaaccess::SleepStart(15);  break;
+                case 7301: mediaaccess::SleepStart(30);  break;
+                case 7302: mediaaccess::SleepStart(45);  break;
+                case 7303: mediaaccess::SleepStart(60);  break;
+                case 7304: mediaaccess::SleepStart(90);  break;
+                case 7305: mediaaccess::SleepStart(120); break;
                 case IDM_BOOK_SEARCH_NEXT:
                     if (mediaaccess::DaisyIsActive()) mediaaccess::FindNextInBook();
                     break;
@@ -1065,6 +1098,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
             KillTimer(hwnd, IDT_UPDATE_TITLE);
             KillTimer(hwnd, IDT_SCHEDULER);
             KillTimer(hwnd, IDT_SCHED_DURATION);
+            mediaaccess::SleepShutdown();
             RemoveTrayIcon();
             UnregisterGlobalHotkeys();
             StopRecording();  // Stop recording on exit

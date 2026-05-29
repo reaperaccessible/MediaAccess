@@ -17,6 +17,8 @@
 #include "mediaaccess/logger.h"
 #include "mediaaccess/tts_player.h"          // Phase 2 — TTS for text-only books
 #include "mediaaccess/book_text_window.h"    // Phase 2 — text display window
+#include "mediaaccess/player.h"              // Phase 4 — GetEffectivePlaybackSpeed
+#include "mediaaccess/globals.h"             // Phase 4 — g_bookSkipMask / g_bookSkipBypass
 #include "bass.h"
 
 #include <windows.h>
@@ -251,6 +253,7 @@ void DaisyClose() {
 
 bool DaisyLoadAndPlay(std::unique_ptr<DaisyBook> book, int bookId) {
     if (!book) return false;
+    g_bookSkipBypass = false;  // Reset runtime skip-bypass on book change.
 
     // Text-only path (text-only DAISY or EPUB without Media Overlays):
     // use SAPI to speak paragraphs in sequence.
@@ -473,7 +476,9 @@ void DaisySetNavLevel(int level) {
     int count = 0;
     if (g_d.book) {
         if (level == -1) {
-            count = (int)g_d.book->clips.size();
+            count = g_d.textOnlyMode
+                    ? (int)g_d.book->textSegments.size()
+                    : (int)g_d.book->clips.size();
         } else {
             for (const auto& np : g_d.book->navPoints) {
                 if (level == 0) { if (np.kind == DaisyNavPoint::Page) ++count; }
@@ -514,14 +519,30 @@ void DaisyCycleNavLevel(int direction) {
 
 void DaisyNavigateForward() {
     if (!g_d.book) return;
-    // Text-only path — Shift+Right = next paragraph.
+    // Text-only path — Phase 4: dispatch by navLevel just like the audio
+    // path, so Shift+Right at heading-1 jumps to the next chapter.
     if (g_d.textOnlyMode) {
-        int next = g_d.currentSegment + 1;
-        if (next >= (int)g_d.book->textSegments.size()) {
-            Speak(Ts("End of book"));
+        if (g_d.navLevel == -1) {
+            // Phrase mode = next paragraph
+            int next = g_d.currentSegment + 1;
+            if (next >= (int)g_d.book->textSegments.size()) {
+                Speak(Ts("End of book")); return;
+            }
+            StartTtsSegment(next);
             return;
         }
-        StartTtsSegment(next);
+        // Find next navPoint at wantLevel with clipIndex > currentSegment.
+        for (size_t i = 0; i < g_d.book->navPoints.size(); ++i) {
+            const auto& np = g_d.book->navPoints[i];
+            if (np.clipIndex <= g_d.currentSegment) continue;
+            if (!LevelMatches(np.level,
+                              np.kind == DaisyNavPoint::Page ? 1 : 0,
+                              g_d.navLevel)) continue;
+            StartTtsSegment(np.clipIndex);
+            SpeakW(np.label);
+            return;
+        }
+        Speak(Ts("End of book"));
         return;
     }
     if (g_d.navLevel == -1) {
@@ -555,8 +576,23 @@ void DaisyNavigateForward() {
 void DaisyNavigateBackward() {
     if (!g_d.book) return;
     if (g_d.textOnlyMode) {
-        if (g_d.currentSegment <= 0) { Speak(Ts("Beginning of book")); return; }
-        StartTtsSegment(g_d.currentSegment - 1);
+        if (g_d.navLevel == -1) {
+            if (g_d.currentSegment <= 0) { Speak(Ts("Beginning of book")); return; }
+            StartTtsSegment(g_d.currentSegment - 1);
+            return;
+        }
+        int found = -1;
+        for (int i = (int)g_d.book->navPoints.size() - 1; i >= 0; --i) {
+            const auto& np = g_d.book->navPoints[i];
+            if (np.clipIndex >= g_d.currentSegment) continue;
+            if (!LevelMatches(np.level,
+                              np.kind == DaisyNavPoint::Page ? 1 : 0,
+                              g_d.navLevel)) continue;
+            found = i; break;
+        }
+        if (found < 0) { Speak(Ts("Beginning of book")); return; }
+        StartTtsSegment(g_d.book->navPoints[found].clipIndex);
+        SpeakW(g_d.book->navPoints[found].label);
         return;
     }
     if (g_d.navLevel == -1) {
@@ -585,10 +621,13 @@ void DaisyNavigateBackward() {
 
 void DaisyAnnounceCurrentLocation() {
     if (!g_d.book) return;
-    // Walk nav points and find the last heading and last page before/at current clip.
+    // Walk nav points and find the last heading and last page before/at
+    // current position. In text-only mode clipIndex stores a segment index,
+    // so compare against currentSegment instead of currentClip.
+    int cur = g_d.textOnlyMode ? g_d.currentSegment : g_d.currentClip;
     std::wstring heading, page;
     for (const auto& np : g_d.book->navPoints) {
-        if (np.clipIndex > g_d.currentClip) break;
+        if (np.clipIndex > cur) break;
         if (np.kind == DaisyNavPoint::Page)        page    = np.label;
         else if (np.level >= 1 && np.level <= 6)   heading = np.label;
     }
@@ -676,6 +715,110 @@ std::wstring DaisyLocationLabelForClip(int clipIndex) {
 
 int DaisyCurrentBookId() {
     return g_d.bookId;
+}
+
+// Phase 4 — Reading progress announcement
+//
+// Format: "<P> percent, <location label>, about <H> hours <M> minutes remaining"
+// (localized via T()/Ts()). Falls back gracefully when duration is unknown
+// (text-only mode uses segment count and a characters-per-second estimate).
+
+// Friendly duration formatter — "2 hours 15 minutes", "45 minutes",
+// "less than a minute". Returns localized text.
+static std::wstring FormatRemainingFriendly(double seconds) {
+    if (seconds < 60.0) return T("less than a minute");
+    int totalMin = (int)(seconds / 60.0);
+    int h = totalMin / 60;
+    int m = totalMin % 60;
+    wchar_t buf[128];
+    if (h > 0) {
+        if (m > 0) {
+            swprintf(buf, 128, L"%d %s %d %s", h,
+                     (h > 1) ? T("hours") : T("hour"),
+                     m, (m > 1) ? T("minutes") : T("minute"));
+        } else {
+            swprintf(buf, 128, L"%d %s", h,
+                     (h > 1) ? T("hours") : T("hour"));
+        }
+    } else {
+        swprintf(buf, 128, L"%d %s", m,
+                 (m > 1) ? T("minutes") : T("minute"));
+    }
+    return buf;
+}
+
+// Build a location label for a text segment (mirrors DaisyLocationLabelForClip).
+// Walks navPoints by their clipIndex (dual-purpose: segment in text-only mode).
+static std::wstring LocationLabelForSegment(int segIdx) {
+    if (!g_d.book) return L"";
+    std::wstring heading, page;
+    for (const auto& np : g_d.book->navPoints) {
+        if (np.clipIndex > segIdx) break;
+        if (np.kind == DaisyNavPoint::Page)        page    = np.label;
+        else if (np.level >= 1 && np.level <= 6)   heading = np.label;
+    }
+    std::wstring out;
+    if (!heading.empty()) out = heading;
+    if (!page.empty()) {
+        if (!out.empty()) out += L", ";
+        out += page;
+    }
+    return out;
+}
+
+void DaisyAnnounceProgress() {
+    if (!g_d.book) { Speak(Ts("No book loaded")); return; }
+
+    int    percent     = 0;
+    double remainSec   = 0.0;
+    bool   haveRemain  = false;
+    std::wstring loc;
+
+    if (g_d.textOnlyMode) {
+        int n = (int)g_d.book->textSegments.size();
+        if (n > 0) {
+            percent = (int)(100.0 * (g_d.currentSegment + 1) / n);
+            if (percent > 100) percent = 100;
+            loc = LocationLabelForSegment(g_d.currentSegment);
+
+            // Estimate remaining: sum chars of remaining segments / chars-per-sec.
+            // Base SAPI ~17 chars/sec at speed multiplier 1.0; scale.
+            double remainChars = 0.0;
+            for (int i = g_d.currentSegment + 1; i < n; ++i) {
+                remainChars += (double)g_d.book->textSegments[i].text.size();
+            }
+            double mult = TtsGetSpeedMultiplier();
+            if (mult < 0.1) mult = 0.1;
+            double cps = 17.0 * mult;
+            if (cps > 0.1) { remainSec = remainChars / cps; haveRemain = true; }
+        }
+    } else {
+        double dur = DaisyGetBookDuration();
+        double pos = DaisyGetBookPosition();
+        if (dur > 0.5) {
+            percent = (int)(100.0 * pos / dur);
+            if (percent < 0) percent = 0;
+            if (percent > 100) percent = 100;
+            double speed = GetEffectivePlaybackSpeed();
+            if (speed < 0.01) speed = 0.01;
+            remainSec = (dur - pos) / speed;
+            if (remainSec < 0) remainSec = 0;
+            haveRemain = true;
+        }
+        loc = DaisyLocationLabelForClip(g_d.currentClip);
+    }
+
+    // Build the announcement.
+    wchar_t pctBuf[32];
+    swprintf(pctBuf, 32, L"%d", percent);
+    std::wstring msg = std::wstring(pctBuf) + L" " + T("percent");
+    if (!loc.empty()) { msg += L", "; msg += loc; }
+    if (haveRemain) {
+        msg += L", "; msg += T("about");
+        msg += L" "; msg += FormatRemainingFriendly(remainSec);
+        msg += L" "; msg += T("remaining");
+    }
+    SpeakW(msg);
 }
 
 } // namespace mediaaccess
@@ -850,6 +993,15 @@ bool DaisyJumpToPageLabel(const std::wstring& qIn) {
 // -----------------------------------------------------------------------------
 // C-linkage hook for the WM_DAISY_NEXT_CLIP handler in main.cpp.
 // -----------------------------------------------------------------------------
+// Phase 4 — true if the user has asked to skip this category and the
+// runtime bypass isn't currently disabling the skip filter.
+static inline bool BookSkipShouldSkip(mediaaccess::SkipKind k) {
+    if (k == mediaaccess::SkipKind::None) return false;
+    if (g_bookSkipBypass)    return false;
+    uint32_t bit = 1u << (uint32_t)((uint8_t)k - 1);  // Page=bit0, Note=bit1...
+    return (g_bookSkipMask & bit) != 0;
+}
+
 extern "C" void DaisyOnClipEnded(int endedClipIndex) {
     using namespace mediaaccess;
     if (!g_d.book) return;
@@ -857,6 +1009,13 @@ extern "C" void DaisyOnClipEnded(int endedClipIndex) {
     // currently think is playing (avoids races on user-initiated skips).
     if (endedClipIndex != g_d.currentClip) return;
     int next = g_d.currentClip + 1;
+    // Phase 4 — skip categories the user has opted out of (page numbers,
+    // footnotes, etc.). Bounded to avoid infinite loops on pathological books.
+    int safety = 0;
+    while (next < (int)g_d.book->clips.size() && safety < 5000 &&
+           BookSkipShouldSkip(g_d.book->clips[next].skipKind)) {
+        ++next; ++safety;
+    }
     if (next >= (int)g_d.book->clips.size()) {
         // End of book — pause and announce.
         FreeStream();
@@ -877,6 +1036,11 @@ extern "C" void DaisyOnTtsEndOfStream() {
     if (!g_d.textOnlyMode) return;
     if (g_d.ttsPaused) return;  // User paused — don't auto-advance
     int next = g_d.currentSegment + 1;
+    int safety = 0;
+    while (next < (int)g_d.book->textSegments.size() && safety < 5000 &&
+           BookSkipShouldSkip(g_d.book->textSegments[next].skipKind)) {
+        ++next; ++safety;
+    }
     if (next >= (int)g_d.book->textSegments.size()) {
         SaveTtsPosition();
         Speak(Ts("End of book"));

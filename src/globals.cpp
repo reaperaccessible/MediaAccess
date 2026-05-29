@@ -66,6 +66,11 @@ bool g_playlistFollowPlayback = true;  // Auto-select current track in playlist 
 bool g_checkForUpdates = true;  // Check for updates on startup (default true)
 bool g_allowMultipleInstances = false;  // Allow multiple instances (default false)
 
+// Phase 4 — skippable-content mask. Bit per SkipKind (1=Page, 2=Note, 4=Sidebar,
+// 8=Prodnote, 16=Footnote, 32=Reference). Default 0 = nothing skipped.
+uint32_t g_bookSkipMask = 0;
+bool     g_bookSkipBypass = false;  // RAM-only; toggled by Shift+S in books
+
 // System tray
 NOTIFYICONDATAW g_trayIcon = {0};
 bool g_trayIconVisible = false;

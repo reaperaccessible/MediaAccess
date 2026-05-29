@@ -95,7 +95,11 @@ void ShowTabControls(HWND hwnd, int tab) {
                         IDC_BOOK_RESCAN, IDC_LABEL_BOOK_FOLDERS,
                         IDC_BOOK_TTS_VOICE, IDC_LABEL_BOOK_TTS_VOICE,
                         IDC_BOOK_TEXT_THEME, IDC_LABEL_BOOK_TEXT_THEME,
-                        IDC_BOOK_HIDE_TEXT_WINDOW};
+                        IDC_BOOK_HIDE_TEXT_WINDOW,
+                        IDC_LABEL_BOOK_SKIP_GROUP,
+                        IDC_BOOK_SKIP_PAGES, IDC_BOOK_SKIP_NOTES,
+                        IDC_BOOK_SKIP_SIDEBARS, IDC_BOOK_SKIP_PRODNOTES,
+                        IDC_BOOK_SKIP_FOOTNOTES, IDC_BOOK_SKIP_REFERENCES};
 
 
 
@@ -244,6 +248,21 @@ INT_PTR CALLBACK OptionsDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
             CheckDlgButton(hwnd, IDC_BOOK_HIDE_TEXT_WINDOW,
                            mediaaccess::BookTextWindowGetAlwaysHide()
                                ? BST_CHECKED : BST_UNCHECKED);
+
+            // Phase 4 — skip checkboxes. Bit layout: Page=bit0, Note=bit1,
+            // Sidebar=bit2, Prodnote=bit3, Footnote=bit4, Reference=bit5.
+            CheckDlgButton(hwnd, IDC_BOOK_SKIP_PAGES,
+                           (g_bookSkipMask & (1u << 0)) ? BST_CHECKED : BST_UNCHECKED);
+            CheckDlgButton(hwnd, IDC_BOOK_SKIP_NOTES,
+                           (g_bookSkipMask & (1u << 1)) ? BST_CHECKED : BST_UNCHECKED);
+            CheckDlgButton(hwnd, IDC_BOOK_SKIP_SIDEBARS,
+                           (g_bookSkipMask & (1u << 2)) ? BST_CHECKED : BST_UNCHECKED);
+            CheckDlgButton(hwnd, IDC_BOOK_SKIP_PRODNOTES,
+                           (g_bookSkipMask & (1u << 3)) ? BST_CHECKED : BST_UNCHECKED);
+            CheckDlgButton(hwnd, IDC_BOOK_SKIP_FOOTNOTES,
+                           (g_bookSkipMask & (1u << 4)) ? BST_CHECKED : BST_UNCHECKED);
+            CheckDlgButton(hwnd, IDC_BOOK_SKIP_REFERENCES,
+                           (g_bookSkipMask & (1u << 5)) ? BST_CHECKED : BST_UNCHECKED);
 
             // (Global Hotkeys tab removed in v1.41 — see Tools → Actions.)
 
@@ -900,6 +919,16 @@ INT_PTR CALLBACK OptionsDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
                             MessageBoxW(hwnd, T("Language change will fully apply after restart."), L"MediaAccess", MB_OK | MB_ICONINFORMATION);
                         }
                     }
+
+                    // Phase 4 — gather skippable-content checkboxes into the
+                    // global bitmask before persisting.
+                    g_bookSkipMask = 0;
+                    if (IsDlgButtonChecked(hwnd, IDC_BOOK_SKIP_PAGES)      == BST_CHECKED) g_bookSkipMask |= (1u << 0);
+                    if (IsDlgButtonChecked(hwnd, IDC_BOOK_SKIP_NOTES)      == BST_CHECKED) g_bookSkipMask |= (1u << 1);
+                    if (IsDlgButtonChecked(hwnd, IDC_BOOK_SKIP_SIDEBARS)   == BST_CHECKED) g_bookSkipMask |= (1u << 2);
+                    if (IsDlgButtonChecked(hwnd, IDC_BOOK_SKIP_PRODNOTES)  == BST_CHECKED) g_bookSkipMask |= (1u << 3);
+                    if (IsDlgButtonChecked(hwnd, IDC_BOOK_SKIP_FOOTNOTES)  == BST_CHECKED) g_bookSkipMask |= (1u << 4);
+                    if (IsDlgButtonChecked(hwnd, IDC_BOOK_SKIP_REFERENCES) == BST_CHECKED) g_bookSkipMask |= (1u << 5);
 
                     // Save settings
                     SaveSettings();

@@ -185,6 +185,28 @@ void RegisterRcTranslations() {
     AddTranslation("fr", "Could not open the donation page in your browser.",
                    L"Impossible d'ouvrir la page de don dans votre navigateur.");
 
+    // v1.55 — sleep-timer menu cascade
+    AddTranslation("en", "Sleep &timer", L"Sleep &timer");
+    AddTranslation("fr", "Sleep &timer", L"Minuterie de &sommeil");
+    AddTranslation("en", "&15 minutes", L"&15 minutes");
+    AddTranslation("fr", "&15 minutes", L"&15 minutes");
+    AddTranslation("en", "&30 minutes", L"&30 minutes");
+    AddTranslation("fr", "&30 minutes", L"&30 minutes");
+    AddTranslation("en", "&45 minutes", L"&45 minutes");
+    AddTranslation("fr", "&45 minutes", L"&45 minutes");
+    AddTranslation("en", "&1 hour",     L"&1 hour");
+    AddTranslation("fr", "&1 hour",     L"&1 heure");
+    AddTranslation("en", "1h &30",      L"1h &30");
+    AddTranslation("fr", "1h &30",      L"1h &30");
+    AddTranslation("en", "&2 hours",    L"&2 hours");
+    AddTranslation("fr", "&2 hours",    L"&2 heures");
+    AddTranslation("en", "&Custom...\tF8",            L"&Custom...\tF8");
+    AddTranslation("fr", "&Custom...\tF8",            L"&Personnalisée...\tF8");
+    AddTranslation("en", "C&ancel timer\tShift+F8",   L"C&ancel timer\tShift+F8");
+    AddTranslation("fr", "C&ancel timer\tShift+F8",   L"&Annuler la minuterie\tMaj+F8");
+    AddTranslation("en", "&Speak remaining\tCtrl+F8", L"&Speak remaining\tCtrl+F8");
+    AddTranslation("fr", "&Speak remaining\tCtrl+F8", L"&Annoncer le temps restant\tCtrl+F8");
+
     // ===================================================================
     // DIALOG: IDD_OPTIONS - "Options"
     // ===================================================================

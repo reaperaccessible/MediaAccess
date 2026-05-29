@@ -209,6 +209,7 @@
     <li><a href="#mises-a-jour">Mises à jour</a></li>
     <li><a href="#depannage">Dépannage</a></li>
     <li><a href="#livres">Lecture de livres DAISY</a></li>
+    <li><a href="#minuterie">Minuterie de sommeil</a></li>
     <li><a href="#raccourcis">Référence des raccourcis</a></li>
   </ol>
 </nav>
@@ -828,6 +829,7 @@
   <li><strong>Associer tous les types de fichiers pris en charge</strong></li>
   <li><strong>Recul à la pause (ms)</strong></li>
   <li><strong>Pas de volume</strong> : 1 / 2 / 5 / 10 / 15 / 20 / 25 %</li>
+  <li><strong>Fondu sortant à la fin de la minuterie de sommeil (30 dernières secondes)</strong></li>
   <li><strong>Langue</strong> : Anglais / Français (applique au redémarrage)</li>
 </ul>
 
@@ -1007,7 +1009,7 @@
 <ul>
   <li><strong>DAISY 2.02</strong> — le format le plus diffusé, utilisé par la plupart des bibliothèques publiques et des services de livres accessibles. Le livre est un dossier contenant un fichier <code>ncc.html</code> servant de table des matières, des fichiers SMIL et des fichiers audio (typiquement MP3).</li>
   <li><strong>DAISY 3</strong> (ANSI/NISO Z39.86) — spécification plus récente reposant sur un fichier package <code>.opf</code> et un fichier de navigation NCX.</li>
-  <li><strong>EPUB</strong> — tous les fichiers EPUB sont lisibles, quelle que soit leur compression interne. Les EPUB en texte seul sont lus à voix haute par la synthèse vocale de Windows (voir plus bas). Les EPUB qui intègrent un audio enregistré via Media Overlays sont partiellement pris en charge aujourd'hui&nbsp;; la couverture complète arrivera dans une mise à jour ultérieure.</li>
+  <li><strong>EPUB</strong> — tous les fichiers EPUB sont lisibles, quelle que soit leur compression interne. Les EPUB en texte seul sont lus à voix haute par la synthèse vocale de Windows (voir plus bas). Les EPUB qui intègrent un audio enregistré via Media Overlays sont lus comme de véritables livres audio (voir plus bas).</li>
 </ul>
 
 <h3>Ouvrir un livre</h3>
@@ -1046,6 +1048,24 @@
   <li><kbd>Maj</kbd>+<kbd>B</kbd> — ajouter un signet à la position courante, éventuellement accompagné d'une note.</li>
   <li><kbd>M</kbd> — ouvrir le gestionnaire de signets du livre en cours (voir plus bas).</li>
 </ul>
+<p>La navigation structurelle fonctionne désormais aussi pour les EPUB. Les EPUB conformes à l'EPUB 3 incluent généralement un <em>Navigation Document</em> qui expose les niveaux de titres&nbsp;: MediaAccess l'utilise directement pour alimenter <kbd>Maj</kbd>+<kbd>↑</kbd> / <kbd>Maj</kbd>+<kbd>↓</kbd> et <kbd>Maj</kbd>+<kbd>→</kbd> / <kbd>Maj</kbd>+<kbd>←</kbd>. Pour les EPUB qui ne fournissent pas de Navigation Document, MediaAccess se rabat sur les balises <code>&lt;h1&gt;</code> à <code>&lt;h6&gt;</code> détectées dans le texte. Dans les deux cas, vous parcourez chapitres, sections et sous-sections exactement comme sur un livre DAISY, sans être limité à une avance paragraphe par paragraphe.</p>
+
+<h3>Annonce de progression</h3>
+<p>Appuyez sur <kbd>Maj</kbd>+<kbd>P</kbd> pendant qu'un livre est ouvert pour entendre votre progression&nbsp;: pourcentage lu, chapitre courant, page courante et temps de lecture restant estimé. Une annonce typique ressemble à&nbsp;: «&nbsp;47 pour cent, Chapitre 3, page 47, environ 2 heures 15 minutes restantes&nbsp;».</p>
+<p>L'estimation du temps restant tient compte de la vitesse de lecture effective. Pour les livres audio, elle est calculée à partir de la durée des fragments restants et du tempo / vitesse appliqués. Pour les livres en texte seul lus par synthèse vocale, elle est calculée à partir du nombre de paragraphes restants et de la vitesse SAPI choisie&nbsp;; ralentir ou accélérer la lecture met l'estimation à jour instantanément.</p>
+
+<h3>Sauter du contenu pendant la lecture</h3>
+<p>Les livres DAISY et EPUB marquent souvent comme «&nbsp;sautables&nbsp;» certains éléments qui peuvent interrompre le fil de lecture&nbsp;: numéros de page, notes du producteur, encadrés, notes de bas de page, etc. L'onglet <strong>Livres</strong> de <strong>Fichier → Options</strong> propose désormais six cases à cocher pour filtrer ces contenus pendant la lecture continue&nbsp;:</p>
+<ul>
+  <li><strong>Sauter les numéros de page</strong>&nbsp;;</li>
+  <li><strong>Sauter les notes</strong>&nbsp;;</li>
+  <li><strong>Sauter les encadrés</strong> (sidebars)&nbsp;;</li>
+  <li><strong>Sauter les notes du producteur</strong> (prodnotes)&nbsp;;</li>
+  <li><strong>Sauter les notes de bas de page</strong>&nbsp;;</li>
+  <li><strong>Sauter les références</strong>.</li>
+</ul>
+<p>MediaAccess reconnaît les classes DAISY 2.02 standard (<code>page-normal</code>, <code>optional-prodnote</code>, etc.), les classes SMIL DAISY 3 portées par les <code>&lt;seq&gt;</code> parents, et les types EPUB 3 (<code>epub:type</code> tels que <code>pagebreak</code>, <code>footnote</code>, <code>sidebar</code>, <code>noteref</code>, etc.). Quand un fragment correspond à une catégorie cochée, il est automatiquement enjambé pendant la lecture continue&nbsp;; la navigation manuelle (<kbd>Maj</kbd>+<kbd>→</kbd> / <kbd>Maj</kbd>+<kbd>←</kbd>, aller à une page) reste libre d'y accéder.</p>
+<p>Pour basculer rapidement le filtre sans passer par les Options, appuyez sur <kbd>Maj</kbd>+<kbd>S</kbd> pendant la lecture d'un livre&nbsp;: cela active ou désactive temporairement le saut de contenu pour la session courante. Le réglage temporaire est réinitialisé à l'ouverture du livre suivant et les cases des Options reprennent la main.</p>
 
 <h3>Mémoire de position</h3>
 <p>MediaAccess sauvegarde votre position dans chaque livre que vous ouvrez. Le fait de rouvrir un livre depuis la bibliothèque — ou simplement via <kbd>Ctrl</kbd>+<kbd>B</kbd> — reprend exactement là où vous vous étiez arrêté, niveau de navigation actif compris.</p>
@@ -1091,8 +1111,29 @@
 <p>Chaque raccourci DAISY listé ci-dessus est réaffectable via <strong>Outils → Actions</strong> (<kbd>F4</kbd>), section <strong>Livres</strong>.</p>
 </section>
 
+<section id="minuterie" aria-labelledby="minuterie-h">
+<h2 id="minuterie-h">23. Minuterie de sommeil</h2>
+
+<p>La minuterie de sommeil arrête automatiquement la lecture après une durée que vous choisissez — utile pour s'endormir sur un livre audio, un podcast, une radio ou un film sans avoir à se relever pour couper le son. Elle fonctionne avec n'importe quel moteur de lecture actif&nbsp;: BASS (audio), libmpv (vidéo), le lecteur de livres DAISY/EPUB et la synthèse vocale SAPI pour les livres en texte seul.</p>
+
+<h3>Lancer la minuterie</h3>
+<p>Le menu <strong>Outils → Minuterie de sommeil</strong> ouvre un sous-menu avec des durées préréglées&nbsp;: <strong>15</strong>, <strong>30</strong>, <strong>45</strong>, <strong>60</strong>, <strong>90</strong> et <strong>120 minutes</strong>, plus une entrée <strong>Durée personnalisée…</strong> qui ouvre une boîte de saisie pour entrer n'importe quelle valeur en minutes. Trois raccourcis sont également affectés par défaut&nbsp;:</p>
+<ul>
+  <li><kbd>F8</kbd> — lancer la minuterie (cycle parmi les préréglages courants à chaque appui)&nbsp;;</li>
+  <li><kbd>Maj</kbd>+<kbd>F8</kbd> — annoncer le temps restant&nbsp;;</li>
+  <li><kbd>Ctrl</kbd>+<kbd>F8</kbd> — annuler la minuterie en cours.</li>
+</ul>
+<p>Quand la minuterie est active, le temps restant peut être consulté à tout moment via <kbd>Maj</kbd>+<kbd>F8</kbd>. À l'échéance, MediaAccess arrête le moteur en cours d'utilisation — peu importe que vous écoutiez de la musique, regardiez une vidéo, lisiez un livre ou écoutiez une radio.</p>
+
+<h3>Fondu sortant optionnel</h3>
+<p>Pour une transition plus douce, vous pouvez activer un fondu sortant sur les <strong>30 dernières secondes</strong> avant l'arrêt. L'option se règle dans <strong>Fichier → Options</strong> (<kbd>Ctrl</kbd>+<kbd>,</kbd>), onglet <strong>Lecture</strong>, case <strong>Fondu sortant à la fin de la minuterie de sommeil (30 dernières secondes)</strong>. Sans le fondu, l'arrêt est instantané.</p>
+
+<h3>Réaffecter les raccourcis</h3>
+<p>Les trois raccourcis <kbd>F8</kbd>, <kbd>Maj</kbd>+<kbd>F8</kbd> et <kbd>Ctrl</kbd>+<kbd>F8</kbd> sont réaffectables via <strong>Outils → Actions</strong> (<kbd>F4</kbd>), section <strong>Outils</strong>.</p>
+</section>
+
 <section id="raccourcis" aria-labelledby="raccourcis-h">
-<h2 id="raccourcis-h">23. Référence des raccourcis</h2>
+<h2 id="raccourcis-h">24. Référence des raccourcis</h2>
 
 <h3>Fichier</h3>
 <table>
@@ -1225,10 +1266,12 @@
 <tr><td><kbd>Maj</kbd>+<kbd>→</kbd> / <kbd>Maj</kbd>+<kbd>←</kbd></td><td>Élément suivant / précédent au niveau actif (ou paragraphe en mode texte seul TTS)</td></tr>
 <tr><td><kbd>G</kbd></td><td>Aller à une page précise</td></tr>
 <tr><td><kbd>Maj</kbd>+<kbd>L</kbd></td><td>Annoncer la position actuelle</td></tr>
+<tr><td><kbd>Maj</kbd>+<kbd>P</kbd></td><td>Annoncer la progression (pourcentage, chapitre, page, temps restant estimé)</td></tr>
 <tr><td><kbd>Maj</kbd>+<kbd>B</kbd></td><td>Ajouter un signet</td></tr>
 <tr><td><kbd>M</kbd></td><td>Ouvrir le gestionnaire de signets du livre</td></tr>
 <tr><td><kbd>Ctrl</kbd>+<kbd>T</kbd></td><td>Afficher / masquer la fenêtre de texte</td></tr>
 <tr><td><kbd>F3</kbd></td><td>Rechercher dans le livre</td></tr>
+<tr><td><kbd>Maj</kbd>+<kbd>S</kbd></td><td>Basculer temporairement le saut de contenu pour la session courante</td></tr>
 </tbody>
 </table>
 
@@ -1239,6 +1282,9 @@
 <tbody>
 <tr><td><kbd>F4</kbd></td><td>Ouvrir la fenêtre Actions (raccourcis/keymaps)</td></tr>
 <tr><td><kbd>Ctrl</kbd>+<kbd>Maj</kbd>+<kbd>B</kbd></td><td>Bibliothèque de livres</td></tr>
+<tr><td><kbd>F8</kbd></td><td>Lancer la minuterie de sommeil</td></tr>
+<tr><td><kbd>Maj</kbd>+<kbd>F8</kbd></td><td>Annoncer le temps restant de la minuterie</td></tr>
+<tr><td><kbd>Ctrl</kbd>+<kbd>F8</kbd></td><td>Annuler la minuterie de sommeil</td></tr>
 </tbody>
 </table>
 

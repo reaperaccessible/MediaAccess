@@ -65,6 +65,7 @@
 // Timer
 #define IDT_UPDATE_TITLE    400
 #define IDT_BATCH_FILES     401
+#define IDT_SLEEP_TIMER     404   // v1.55 — sleep timer tick (1 s)
 
 // Custom messages
 #define WM_SPEAK            (WM_USER + 1)
@@ -276,6 +277,18 @@
 #define IDM_HELP_CONTACT         125   // v1.54 — mailto: reaperaccessible@gmail.com
 #define IDM_HELP_DONATE          126   // v1.54 — open PayPal donation URL
 
+// Sleep timer (v1.55)
+#define IDM_SLEEP_TIMER_OPEN     127   // F8 — opens dialog
+#define IDM_SLEEP_TIMER_CANCEL   128   // Shift+F8 — cancel running timer
+#define IDM_SLEEP_TIMER_SPEAK    129   // Ctrl+F8 — announce remaining
+#define IDM_SLEEP_PRESET_BASE    7300  // +0..+5 = 15/30/45/60/90/120 min
+#define IDD_SLEEP_TIMER          1590
+#define IDC_SLEEP_PRESET_COMBO   1591
+#define IDC_SLEEP_CUSTOM_EDIT    1592
+#define IDC_SLEEP_FADE_CHECK     1593
+#define IDC_LABEL_SLEEP_PRESET   1594
+#define IDC_LABEL_SLEEP_CUSTOM   1595
+
 // =========================================================================
 // DAISY / EPUB book reader (v1.49 — Phase 1)
 // =========================================================================
@@ -291,6 +304,17 @@
 #define IDM_BOOK_ANNOUNCE_LOCATION      1514   // Announce current chapter / page
 #define IDM_BOOK_ADD_BOOKMARK_WITH_NOTE 1515   // Bookmark with optional note
 #define IDM_BOOK_GO_TO_PAGE             1516   // G — jump to a specific page
+#define IDM_BOOK_ANNOUNCE_PROGRESS      1518   // v1.55 — Shift+P: speak % + location + ETA
+#define IDM_BOOK_TOGGLE_SKIP            1519   // v1.55 — Shift+S: bypass skip filter (per-session)
+
+// Books preferences — skip checkboxes (v1.55)
+#define IDC_BOOK_SKIP_PAGES             1600
+#define IDC_BOOK_SKIP_NOTES             1601
+#define IDC_BOOK_SKIP_SIDEBARS          1602
+#define IDC_BOOK_SKIP_PRODNOTES         1603
+#define IDC_BOOK_SKIP_FOOTNOTES         1604
+#define IDC_BOOK_SKIP_REFERENCES        1605
+#define IDC_LABEL_BOOK_SKIP_GROUP       1606
 
 // Books library dialog
 #define IDD_BOOK_LIBRARY                1520

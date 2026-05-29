@@ -252,6 +252,7 @@ void LoadSettings() {
     g_playlistFollowPlayback = GetPrivateProfileIntW(L"Playback", L"PlaylistFollow", 1, g_configPath.c_str()) != 0;
     g_checkForUpdates = GetPrivateProfileIntW(L"Playback", L"CheckForUpdates", 1, g_configPath.c_str()) != 0;
     g_allowMultipleInstances = GetPrivateProfileIntW(L"Playback", L"AllowMultipleInstances", 0, g_configPath.c_str()) != 0;
+    g_bookSkipMask = (uint32_t)GetPrivateProfileIntW(L"Books", L"SkipMask", 0, g_configPath.c_str());
 
     // Load seek settings
     g_seekEnabled[0] = GetPrivateProfileIntW(L"Movement", L"Seek1s", 0, g_configPath.c_str()) != 0;
@@ -579,6 +580,11 @@ void SaveSettings() {
     WritePrivateProfileStringW(L"Playback", L"PlaylistFollow", g_playlistFollowPlayback ? L"1" : L"0", g_configPath.c_str());
     WritePrivateProfileStringW(L"Playback", L"CheckForUpdates", g_checkForUpdates ? L"1" : L"0", g_configPath.c_str());
     WritePrivateProfileStringW(L"Playback", L"AllowMultipleInstances", g_allowMultipleInstances ? L"1" : L"0", g_configPath.c_str());
+    {
+        wchar_t skipBuf[16];
+        swprintf(skipBuf, 16, L"%u", g_bookSkipMask);
+        WritePrivateProfileStringW(L"Books", L"SkipMask", skipBuf, g_configPath.c_str());
+    }
 
     // Save seek settings
     WritePrivateProfileStringW(L"Movement", L"Seek1s", g_seekEnabled[0] ? L"1" : L"0", g_configPath.c_str());
