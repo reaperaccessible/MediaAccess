@@ -1218,4 +1218,49 @@ void RegisterPlayerTranslations() {
                    L"Opening Windows default-apps settings");
     AddTranslation("fr", "Opening Windows default-apps settings",
                    L"Ouverture des paramètres d'applications par défaut de Windows");
+
+    AddTranslation("en", "Set as default media player",
+                   L"Set as default media player");
+    AddTranslation("fr", "Set as default media player",
+                   L"Définir comme lecteur par défaut");
+
+    AddTranslation("en",
+        "Windows does not allow any application to set itself as the default "
+        "automatically — this is a security restriction Microsoft added in "
+        "Windows 8.\n\n"
+        "When you click OK, Windows will open the Default apps page on the "
+        "MediaAccess entry. From there, click each file type (.mp3, .mp4, "
+        ".mkv, .flac, .mid, etc.) and choose MediaAccess to make it the "
+        "default. On Windows 11 you can also use the \"Set default\" button "
+        "near the top of the MediaAccess page to assign all supported types "
+        "at once.",
+        L"Windows does not allow any application to set itself as the default "
+        L"automatically — this is a security restriction Microsoft added in "
+        L"Windows 8.\n\n"
+        L"When you click OK, Windows will open the Default apps page on the "
+        L"MediaAccess entry. From there, click each file type (.mp3, .mp4, "
+        L".mkv, .flac, .mid, etc.) and choose MediaAccess to make it the "
+        L"default. On Windows 11 you can also use the \"Set default\" button "
+        L"near the top of the MediaAccess page to assign all supported types "
+        L"at once.");
+    AddTranslation("fr",
+        "Windows does not allow any application to set itself as the default "
+        "automatically — this is a security restriction Microsoft added in "
+        "Windows 8.\n\n"
+        "When you click OK, Windows will open the Default apps page on the "
+        "MediaAccess entry. From there, click each file type (.mp3, .mp4, "
+        ".mkv, .flac, .mid, etc.) and choose MediaAccess to make it the "
+        "default. On Windows 11 you can also use the \"Set default\" button "
+        "near the top of the MediaAccess page to assign all supported types "
+        "at once.",
+        L"Windows n'autorise aucune application à se définir elle-même comme "
+        L"lecteur par défaut automatiquement — c'est une restriction de "
+        L"sécurité ajoutée par Microsoft depuis Windows 8.\n\n"
+        L"Quand vous cliquerez sur OK, Windows ouvrira la page des "
+        L"applications par défaut directement sur la fiche MediaAccess. "
+        L"De là, cliquez sur chaque type de fichier (.mp3, .mp4, .mkv, "
+        L".flac, .mid, etc.) et choisissez MediaAccess pour le rendre "
+        L"par défaut. Sur Windows 11, vous pouvez aussi utiliser le "
+        L"bouton « Définir par défaut » en haut de la page MediaAccess "
+        L"pour assigner d'un coup tous les formats pris en charge.");
 }

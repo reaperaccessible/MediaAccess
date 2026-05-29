@@ -361,12 +361,16 @@
 <tr><td><kbd>E</kbd></td><td>Repeat mode (off → track → all → off)</td></tr>
 <tr><td><kbd>J</kbd></td><td>Jump to time (mm:ss or hh:mm:ss)</td></tr>
 <tr><td><kbd>Home</kbd></td><td>Beginning of track</td></tr>
+<tr><td><kbd>Shift</kbd>+<kbd>End</kbd></td><td>Jump to 30 seconds before the end</td></tr>
 <tr><td><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>E</kbd></td><td>Speak elapsed time</td></tr>
 <tr><td><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>R</kbd></td><td>Speak remaining time</td></tr>
 <tr><td><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>T</kbd></td><td>Speak total duration</td></tr>
 <tr><td><kbd>A</kbd></td><td>Open audio device selection menu</td></tr>
 </tbody>
 </table>
+
+<h3>Jump near the end</h3>
+<p><kbd>Shift</kbd>+<kbd>End</kbd> jumps to 30 seconds before the end of the current track. Useful to preview an ending, skip a bonus track tucked at the end of an album, or catch the wrap-up of an audiobook chapter. The shortcut is a no-op on live streams whose duration is unknown.</p>
 
 <h3>Chapters</h3>
 <p>MediaAccess detects chapters in Ogg/FLAC/Opus files (VorbisComment), MP3 (ID3v2 CHAP), and Podcast 2.0 streams (RSS with <code>&lt;podcast:chapters&gt;</code>). To use them, enable "1 chapter (if available)" in <strong>Options → Movement</strong>, then select the "chapter" unit with <kbd>,</kbd> / <kbd>.</kbd> and navigate with <kbd>←</kbd> / <kbd>→</kbd>. The current chapter is spoken as "Chapter N: name".</p>
@@ -977,6 +981,10 @@
 <h3>Clear YouTube cache</h3>
 <p><strong>Help → Clear YouTube cache</strong> deletes all files in the YouTube cache. Current size is shown before confirmation.</p>
 
+<h3>Set as default media player</h3>
+<p><strong>Help → Set as default media player</strong> opens the Windows default-apps Settings page deep-linked to MediaAccess. From there, click each file type you want MediaAccess to handle (.mp3, .mp4, .mkv, .flac, .mid, etc.) and choose MediaAccess from the list. On Windows 11, a <strong>Set default</strong> button at the top of the MediaAccess page assigns every supported type at once.</p>
+<p>This indirect workflow is a Windows limitation, not a MediaAccess one: Microsoft removed the programmatic "set as default" API in Windows 8 for security reasons. Every media player on the system, including the ones bundled with Windows, hits the same wall — the final choice always belongs to the user, made through Settings.</p>
+
 <h3>Reset preferences</h3>
 <p>To go back to defaults:</p>
 <ol>
@@ -1024,6 +1032,7 @@
 <tr><td><kbd>E</kbd></td><td>Repeat mode</td></tr>
 <tr><td><kbd>J</kbd></td><td>Jump to time</td></tr>
 <tr><td><kbd>Home</kbd></td><td>Beginning</td></tr>
+<tr><td><kbd>Shift</kbd>+<kbd>End</kbd></td><td>Jump to 30 seconds before end</td></tr>
 <tr><td><kbd>R</kbd></td><td>Start/stop recording</td></tr>
 <tr><td><kbd>U</kbd></td><td>Mute</td></tr>
 <tr><td><kbd>M</kbd></td><td>Add bookmark</td></tr>

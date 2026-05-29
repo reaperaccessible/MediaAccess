@@ -361,12 +361,16 @@
 <tr><td><kbd>E</kbd></td><td>Mode répétition (off → piste → tout → off)</td></tr>
 <tr><td><kbd>J</kbd></td><td>Aller à un instant (mm:ss ou hh:mm:ss)</td></tr>
 <tr><td><kbd>Origine</kbd></td><td>Début de la piste</td></tr>
+<tr><td><kbd>Maj</kbd>+<kbd>Fin</kbd></td><td>Aller à 30 secondes avant la fin</td></tr>
 <tr><td><kbd>Ctrl</kbd>+<kbd>Maj</kbd>+<kbd>E</kbd></td><td>Énoncer le temps écoulé</td></tr>
 <tr><td><kbd>Ctrl</kbd>+<kbd>Maj</kbd>+<kbd>R</kbd></td><td>Énoncer le temps restant</td></tr>
 <tr><td><kbd>Ctrl</kbd>+<kbd>Maj</kbd>+<kbd>T</kbd></td><td>Énoncer la durée totale</td></tr>
 <tr><td><kbd>A</kbd></td><td>Ouvrir le menu de sélection du périphérique audio</td></tr>
 </tbody>
 </table>
+
+<h3>Aller près de la fin</h3>
+<p><kbd>Maj</kbd>+<kbd>Fin</kbd> place la lecture 30 secondes avant la fin de la piste en cours. Pratique pour pré-écouter une fin, sauter une piste bonus glissée en fin d'album ou attraper la conclusion d'un chapitre de livre audio. Le raccourci est sans effet sur les flux en direct dont la durée est inconnue.</p>
 
 <h3>Chapitres</h3>
 <p>MediaAccess détecte les chapitres dans les fichiers Ogg/FLAC/Opus (VorbisComment), MP3 (ID3v2 CHAP) et les flux Podcast 2.0 (RSS avec <code>&lt;podcast:chapters&gt;</code>). Pour les exploiter, activez « 1 chapitre (si disponible) » dans <strong>Options → Déplacement</strong>, puis sélectionnez l'unité « chapitre » avec <kbd>,</kbd> / <kbd>.</kbd> et naviguez avec <kbd>←</kbd> / <kbd>→</kbd>. Le chapitre courant est énoncé sous la forme « Chapitre N : nom ».</p>
@@ -977,6 +981,10 @@
 <h3>Vider le cache YouTube</h3>
 <p><strong>Aide → Vider le cache YouTube</strong> supprime tous les fichiers du cache YouTube. La taille actuelle est affichée avant confirmation.</p>
 
+<h3>Définir comme lecteur par défaut</h3>
+<p><strong>Aide → Définir comme lecteur par défaut</strong> ouvre la page Paramètres des applications par défaut de Windows, directement positionnée sur MediaAccess. À partir de là, cliquez sur chaque type de fichier que vous souhaitez confier à MediaAccess (.mp3, .mp4, .mkv, .flac, .mid, etc.) et choisissez MediaAccess dans la liste. Sur Windows 11, un bouton <strong>Définir par défaut</strong> en haut de la page MediaAccess attribue tous les formats pris en charge d'un seul coup.</p>
+<p>Ce détour par les Paramètres est une limitation de Windows, pas de MediaAccess : Microsoft a retiré l'API programmatique « définir comme lecteur par défaut » dès Windows 8, pour des raisons de sécurité. Tous les lecteurs multimédias du système, y compris ceux fournis avec Windows, se heurtent au même mur — la décision finale appartient toujours à l'utilisateur, depuis les Paramètres.</p>
+
 <h3>Réinitialiser les préférences</h3>
 <p>Pour repartir des valeurs par défaut :</p>
 <ol>
@@ -1024,6 +1032,7 @@
 <tr><td><kbd>E</kbd></td><td>Mode répétition</td></tr>
 <tr><td><kbd>J</kbd></td><td>Aller à un instant</td></tr>
 <tr><td><kbd>Origine</kbd></td><td>Début</td></tr>
+<tr><td><kbd>Maj</kbd>+<kbd>Fin</kbd></td><td>Aller à 30 secondes avant la fin</td></tr>
 <tr><td><kbd>R</kbd></td><td>Démarrer/arrêter l'enregistrement</td></tr>
 <tr><td><kbd>U</kbd></td><td>Muet</td></tr>
 <tr><td><kbd>M</kbd></td><td>Ajouter un signet</td></tr>
