@@ -136,7 +136,15 @@ if defined ISCC (
     if errorlevel 1 (
         echo Installer build failed!
     ) else (
-        echo Installer built successfully: MediaAccessInstaller.exe
+        REM Inno Setup writes MediaAccessInstaller_X.YZ.exe (OutputBaseFilename
+        REM is version-suffixed). Mirror it to the un-suffixed name so
+        REM `gh release create ... MediaAccessInstaller.exe` uploads THIS build
+        REM instead of whatever stale file was sitting in the folder. v1.49
+        REM through v1.51 were silently shipped with a leftover old installer
+        REM because of this — never again.
+        copy /y "MediaAccessInstaller_%APP_VERSION%.exe" "MediaAccessInstaller.exe" >nul
+        echo Installer built successfully: MediaAccessInstaller_%APP_VERSION%.exe
+        echo                       mirror: MediaAccessInstaller.exe ^(for release upload^)
     )
     rmdir /s /q "dist_temp" 2>nul
 ) else (
