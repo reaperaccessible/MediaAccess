@@ -94,6 +94,16 @@ int DaisyAddBookmarkHere(const std::wstring& note);
 // Jump to the bookmark's saved position.
 void DaisyJumpToBookmark(int clipIndex, double offsetSeconds);
 
+// Build a human-readable location label ("Chapter 3, page 47") for any
+// clip index in the current book. Walks navPoints to find the most recent
+// heading and page at or before the clip. Returns an empty string if no
+// book is loaded. Used by the bookmarks list dialog.
+std::wstring DaisyLocationLabelForClip(int clipIndex);
+
+// Returns the database book id for the currently loaded book, or 0 if none.
+// Exposed so the bookmarks dialog can query GetBookBookmarks(bookId).
+int DaisyCurrentBookId();
+
 // Jump to a specific text segment in TTS mode. No-op for audio books.
 // Used by F3 search hits and by the navigation in text-only mode.
 void DaisyJumpToSegment(int segmentIndex);

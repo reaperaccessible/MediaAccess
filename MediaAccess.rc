@@ -684,3 +684,20 @@ BEGIN
     DEFPUSHBUTTON   "Find &next", IDC_BOOK_SEARCH_NEXT, 110, 50, 70, 14
     PUSHBUTTON      "Close",      IDCANCEL,             200, 50, 70, 14
 END
+
+// =========================================================================
+// Bookmarks list for the current book (M key) — v1.53 Phase 3
+// =========================================================================
+IDD_BOOK_BOOKMARK_LIST DIALOGEX 0, 0, 380, 240
+STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "Bookmarks"
+FONT 9, "MS Shell Dlg"
+BEGIN
+    LTEXT           "Bookmarks in this book:", IDC_LABEL_BOOK_BOOKMARK_LIST, 10, 8, 200, 10
+    LISTBOX         IDC_BOOK_BOOKMARK_LIST, 10, 22, 360, 175, LBS_NOTIFY | LBS_USETABSTOPS | WS_VSCROLL | WS_TABSTOP | WS_BORDER
+
+    DEFPUSHBUTTON   "&Open",       IDC_BOOK_BOOKMARK_JUMP,      10,  208, 60, 16
+    PUSHBUTTON      "&Edit note",  IDC_BOOK_BOOKMARK_EDIT_NOTE, 75,  208, 75, 16
+    PUSHBUTTON      "&Delete",     IDC_BOOK_BOOKMARK_DELETE,   155,  208, 60, 16
+    PUSHBUTTON      "Close",       IDCANCEL,                   320,  208, 50, 16
+END

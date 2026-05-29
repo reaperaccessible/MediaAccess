@@ -41,6 +41,12 @@ void PromptSearchInBook(HWND owner);
 // next match on subsequent F3 presses.
 void FindNextInBook();
 
+// Phase 3 — Bookmarks management dialog (M key inside a book).
+// Lists bookmarks for the currently loaded book and lets the user jump,
+// edit the note or delete an entry. No-op if no book is loaded or the
+// book has no bookmarks yet (a short toast announces "No bookmarks").
+void ShowBookmarkList(HWND owner);
+
 } // namespace mediaaccess
 
 #endif // MEDIAACCESS_BOOKS_DIALOG_H

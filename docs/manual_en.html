@@ -1007,7 +1007,7 @@
 <ul>
   <li><strong>DAISY 2.02</strong> — the most widely distributed format, used by most public libraries and accessible-book services. The book is a folder containing an <code>ncc.html</code> table of contents, SMIL files, and audio files (typically MP3).</li>
   <li><strong>DAISY 3</strong> (ANSI/NISO Z39.86) — newer specification based on an <code>.opf</code> package and an NCX navigation file.</li>
-  <li><strong>EPUB 3</strong> metadata — recognized for library cataloging.</li>
+  <li><strong>EPUB</strong> — every EPUB file is readable, regardless of internal compression. Text-only EPUBs are read aloud through Windows text-to-speech (see below). EPUBs that embed recorded audio via Media Overlays are partially supported today; full coverage will land in a future update.</li>
 </ul>
 
 <h3>Opening a book</h3>
@@ -1041,9 +1041,10 @@
 <ul>
   <li><kbd>Shift</kbd>+<kbd>↑</kbd> / <kbd>Shift</kbd>+<kbd>↓</kbd> — cycle through navigation levels: Heading 1, Heading 2, ..., Heading 6, Page, Phrase. Each announcement includes the number of items at that level, so you can deduce its meaning (24 entries at level 2 most likely means chapters).</li>
   <li><kbd>Shift</kbd>+<kbd>→</kbd> / <kbd>Shift</kbd>+<kbd>←</kbd> — jump to the next or previous item at the active level.</li>
-  <li><kbd>G</kbd> — jump to a specific page by typing its label.</li>
+  <li><kbd>G</kbd> — jump to a specific page. The field accepts a number ("47"), a label ("p. 47", "page 47"), or a roman numeral ("iii"). If the exact page doesn't exist, MediaAccess jumps to the closest one and announces it ("Nearest page: 48").</li>
   <li><kbd>Shift</kbd>+<kbd>L</kbd> — announce the current location ("Chapter 3, page 47").</li>
   <li><kbd>Shift</kbd>+<kbd>B</kbd> — add a bookmark at the current position, optionally with a note.</li>
+  <li><kbd>M</kbd> — open the bookmarks manager for the current book (see below).</li>
 </ul>
 
 <h3>Position memory</h3>
@@ -1056,9 +1057,35 @@
 <p><strong>Volume difference with music files:</strong> DAISY books are typically mastered at a moderate level (around -23 LUFS, the broadcast standard) and will sound noticeably quieter than commercial music MP3s. If you want a louder playback for a book, enable <strong>Allow volume above 100%</strong> in <strong>Options → Playback</strong> and raise the volume past 100%.</p>
 </div>
 
-<div class="note">
-<p><strong>Text-only books:</strong> DAISY books that contain no recorded audio, as well as EPUB files without an audio track, are recognized and added to the library, but TTS playback for them is planned for a later update. Audio DAISY books play normally today.</p>
-</div>
+<h3>Text-to-speech for text-only books</h3>
+<p>Text-only DAISY books and EPUB books without a recorded audio track are read aloud by Windows SAPI 5. The voice is chosen in <strong>File → Options</strong> (<kbd>Ctrl</kbd>+<kbd>,</kbd>), tab <strong>Books</strong>, field <strong>Text-to-speech voice</strong>. The first entry is <em>(Windows default voice)</em>; below it are every SAPI voice installed on the machine. To add more voices, open <strong>Windows Settings → Time &amp; language → Speech → Voices → Add</strong>.</p>
+<p>The <strong>Rate</strong> effect (<kbd>Ctrl</kbd>+<kbd>4</kbd>, then <kbd>↑</kbd> / <kbd>↓</kbd>) drives the SAPI speaking rate when a text-only book is being read, exactly as it drives the audio engine when reading a recorded book — one mental model, two engines.</p>
+<p>When reading a text-only book via TTS, <kbd>Shift</kbd>+<kbd>→</kbd> and <kbd>Shift</kbd>+<kbd>←</kbd> jump to the next and previous paragraph.</p>
+
+<h3>Synchronized text window</h3>
+<p>For any book that exposes text — recorded audio books with synchronized text and text-only books alike — MediaAccess opens a modeless window that displays the current paragraph as you listen. It opens automatically when the book is loaded; press <kbd>Ctrl</kbd>+<kbd>T</kbd> at any time to show or hide it.</p>
+<p>Three themes are available in <strong>Options → Books → Text window theme</strong>:</p>
+<ul>
+  <li><strong>Standard</strong> — black on white, 12&nbsp;pt;</li>
+  <li><strong>High contrast</strong> — yellow on black, 16&nbsp;pt;</li>
+  <li><strong>Large</strong> — black on white, 24&nbsp;pt.</li>
+</ul>
+<p>If you never want the window to appear, tick <strong>Always hide text window</strong> in the same Books tab.</p>
+
+<h3>Searching inside the book</h3>
+<p>Press <kbd>F3</kbd> to open the search dialog. Type a search term and press <kbd>Enter</kbd> to jump to the first match; press <kbd>Enter</kbd> or <kbd>F3</kbd> again to jump to the next match. <kbd>Escape</kbd> closes the dialog. Search works on both audio+text books (jumps to the matching clip) and text-only books (jumps to the matching paragraph).</p>
+
+<h3>Bookmarks manager</h3>
+<p>Press <kbd>M</kbd> while a book is open to bring up the bookmarks manager. The list shows every bookmark in the current book, labeled by location ("[Chapter 3, page 47] — Key passage"). Three actions are available:</p>
+<ul>
+  <li><strong>Open</strong> (<kbd>Enter</kbd> or double-click) — jump to the bookmarked position and resume playback.</li>
+  <li><strong>Edit note</strong> — edit the text attached to the bookmark.</li>
+  <li><strong>Delete</strong> — remove the bookmark (confirmation required).</li>
+</ul>
+<p>Bookmarks are sorted in reading order. They live in MediaAccess's SQLite database and persist across sessions, independently of the book's last-read position.</p>
+
+<h3>EPUB with Media Overlays</h3>
+<p>EPUB files that embed synchronized recorded audio (the EPUB 3 "Media Overlays" standard, equivalent to DAISY 3) are played like regular audio books. When such a book is opened, MediaAccess extracts the embedded audio files into a temporary folder and plays them through BASS; the folder is cleaned up automatically when the book is closed. EPUB files without recorded audio continue to be read by the text-to-speech engine described above.</p>
 
 <h3>Remapping the shortcuts</h3>
 <p>Every DAISY shortcut listed above is rebindable via <strong>Tools → Actions</strong> (<kbd>F4</kbd>), section <strong>Books</strong>.</p>
@@ -1195,10 +1222,13 @@
 <tr><td><kbd>Ctrl</kbd>+<kbd>B</kbd></td><td>Open book</td></tr>
 <tr><td><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>B</kbd></td><td>Open book library</td></tr>
 <tr><td><kbd>Shift</kbd>+<kbd>↑</kbd> / <kbd>Shift</kbd>+<kbd>↓</kbd></td><td>Previous / Next navigation level (Heading 1...6, Page, Phrase)</td></tr>
-<tr><td><kbd>Shift</kbd>+<kbd>→</kbd> / <kbd>Shift</kbd>+<kbd>←</kbd></td><td>Next / Previous item at the active level</td></tr>
+<tr><td><kbd>Shift</kbd>+<kbd>→</kbd> / <kbd>Shift</kbd>+<kbd>←</kbd></td><td>Next / Previous item at the active level (or paragraph in text-only TTS mode)</td></tr>
 <tr><td><kbd>G</kbd></td><td>Jump to a specific page</td></tr>
 <tr><td><kbd>Shift</kbd>+<kbd>L</kbd></td><td>Announce current location</td></tr>
 <tr><td><kbd>Shift</kbd>+<kbd>B</kbd></td><td>Add a bookmark</td></tr>
+<tr><td><kbd>M</kbd></td><td>Open the book's bookmark manager</td></tr>
+<tr><td><kbd>Ctrl</kbd>+<kbd>T</kbd></td><td>Show / hide text window</td></tr>
+<tr><td><kbd>F3</kbd></td><td>Search in book</td></tr>
 </tbody>
 </table>
 

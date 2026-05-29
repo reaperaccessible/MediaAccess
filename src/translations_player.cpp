@@ -1470,4 +1470,39 @@ void RegisterPlayerTranslations() {
                          "It has been added to your library but cannot be played.",
                    L"Ce livre n'a pas d'audio enregistré ni de texte extractible. "
                    L"Il a été ajouté à votre bibliothèque mais ne peut pas être lu.");
+
+    // Phase 3 — bookmarks management dialog
+    AddTranslation("en", "Bookmarks...", L"Bookmarks...");
+    AddTranslation("fr", "Bookmarks...", L"Signets...");
+
+    AddTranslation("en", "Bookmarks in this book:", L"Bookmarks in this book:");
+    AddTranslation("fr", "Bookmarks in this book:", L"Signets dans ce livre :");
+
+    AddTranslation("en", "&Edit note", L"&Edit note");
+    AddTranslation("fr", "&Edit note", L"&Modifier la note");
+
+    AddTranslation("en", "&Delete", L"&Delete");
+    AddTranslation("fr", "&Delete", L"&Supprimer");
+
+    AddTranslation("en", "Edit bookmark note", L"Edit bookmark note");
+    AddTranslation("fr", "Edit bookmark note", L"Modifier la note du signet");
+
+    AddTranslation("en", "Delete this bookmark?", L"Delete this bookmark?");
+    AddTranslation("fr", "Delete this bookmark?", L"Supprimer ce signet ?");
+
+    AddTranslation("en", "Bookmark deleted", L"Bookmark deleted");
+    AddTranslation("fr", "Bookmark deleted", L"Signet supprimé");
+
+    AddTranslation("en", "Note updated", L"Note updated");
+    AddTranslation("fr", "Note updated", L"Note mise à jour");
+
+    AddTranslation("en", "(no bookmarks)", L"(no bookmarks)");
+    AddTranslation("fr", "(no bookmarks)", L"(aucun signet)");
+
+    AddTranslation("en", "Clip", L"Clip");
+    AddTranslation("fr", "Clip", L"Extrait");
+
+    // Phase 3 — smart page navigation
+    AddTranslation("en", "Nearest page:", L"Nearest page:");
+    AddTranslation("fr", "Nearest page:", L"Page la plus proche :");
 }

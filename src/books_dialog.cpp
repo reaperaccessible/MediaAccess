@@ -463,4 +463,171 @@ void FindNextInBook() {
     JumpToHit(s_search.hits[s_search.cursor]);
 }
 
+// -----------------------------------------------------------------------------
+// Phase 3 — Bookmarks management dialog
+//
+// Lists bookmarks for the currently loaded book sorted by clip index. Each
+// row is "[Chapter X, page Y] note" so the user can recognise where in the
+// book the bookmark lands without having to jump. Three buttons: jump (or
+// Enter / double-click), edit the note, delete (with confirmation).
+// -----------------------------------------------------------------------------
+
+struct BookmarkListState {
+    int                       bookId = 0;
+    std::vector<BookBookmark> items;
+};
+static BookmarkListState* s_bm = nullptr;
+
+static void FormatBookmarkLine(const BookBookmark& bm, std::wstring& out) {
+    std::wstring loc = DaisyLocationLabelForClip(bm.clipIndex);
+    if (loc.empty()) {
+        wchar_t buf[64];
+        swprintf(buf, 64, L"%s %d", T("Clip"), bm.clipIndex + 1);
+        loc = buf;
+    }
+    out = L"[" + loc + L"]";
+    if (!bm.note.empty()) out += L" — " + bm.note;
+}
+
+static void RepopulateBookmarkList(HWND dlg) {
+    if (!s_bm) return;
+    HWND list = GetDlgItem(dlg, IDC_BOOK_BOOKMARK_LIST);
+    int prev = (int)SendMessageW(list, LB_GETCURSEL, 0, 0);
+    SendMessageW(list, LB_RESETCONTENT, 0, 0);
+    s_bm->items = GetBookBookmarks(s_bm->bookId);
+    // Sort by clipIndex then offset for stable ordering in the book.
+    std::sort(s_bm->items.begin(), s_bm->items.end(),
+              [](const BookBookmark& a, const BookBookmark& b) {
+                  if (a.clipIndex != b.clipIndex) return a.clipIndex < b.clipIndex;
+                  return a.offsetSeconds < b.offsetSeconds;
+              });
+    for (const auto& bm : s_bm->items) {
+        std::wstring line;
+        FormatBookmarkLine(bm, line);
+        SendMessageW(list, LB_ADDSTRING, 0, (LPARAM)line.c_str());
+    }
+    if (s_bm->items.empty()) {
+        SendMessageW(list, LB_ADDSTRING, 0, (LPARAM)T("(no bookmarks)"));
+        EnableWindow(GetDlgItem(dlg, IDC_BOOK_BOOKMARK_JUMP),      FALSE);
+        EnableWindow(GetDlgItem(dlg, IDC_BOOK_BOOKMARK_EDIT_NOTE), FALSE);
+        EnableWindow(GetDlgItem(dlg, IDC_BOOK_BOOKMARK_DELETE),    FALSE);
+    } else {
+        EnableWindow(GetDlgItem(dlg, IDC_BOOK_BOOKMARK_JUMP),      TRUE);
+        EnableWindow(GetDlgItem(dlg, IDC_BOOK_BOOKMARK_EDIT_NOTE), TRUE);
+        EnableWindow(GetDlgItem(dlg, IDC_BOOK_BOOKMARK_DELETE),    TRUE);
+        int sel = prev;
+        if (sel < 0 || sel >= (int)s_bm->items.size()) sel = 0;
+        SendMessageW(list, LB_SETCURSEL, sel, 0);
+    }
+}
+
+// Reuses the existing bookmark-note dialog for editing an existing note.
+// The static s_noteOut pointer is declared above near PromptAddBookmark.
+static bool EditNoteDialog(HWND owner, std::wstring& noteInOut) {
+    static std::wstring* s_editNoteOut = nullptr;
+    static std::wstring  s_editNoteInitial;
+    s_editNoteOut     = &noteInOut;
+    s_editNoteInitial = noteInOut;
+
+    auto proc = [](HWND dlg, UINT msg, WPARAM wp, LPARAM) -> INT_PTR {
+        if (msg == WM_INITDIALOG) {
+            LocalizeDialog(dlg);
+            SetWindowTextW(dlg, T("Edit bookmark note"));
+            SetDlgItemTextW(dlg, IDC_BOOK_BOOKMARK_NOTE_EDIT,
+                            s_editNoteInitial.c_str());
+            HWND ed = GetDlgItem(dlg, IDC_BOOK_BOOKMARK_NOTE_EDIT);
+            SendMessageW(ed, EM_SETSEL, 0, -1);
+            SetFocus(ed);
+            return FALSE;
+        }
+        if (msg == WM_COMMAND) {
+            if (LOWORD(wp) == IDOK) {
+                wchar_t buf[1024] = {0};
+                GetDlgItemTextW(dlg, IDC_BOOK_BOOKMARK_NOTE_EDIT, buf, 1024);
+                if (s_editNoteOut) *s_editNoteOut = buf;
+                EndDialog(dlg, IDOK);
+                return TRUE;
+            }
+            if (LOWORD(wp) == IDCANCEL) { EndDialog(dlg, IDCANCEL); return TRUE; }
+        }
+        if (msg == WM_CLOSE) { EndDialog(dlg, IDCANCEL); return TRUE; }
+        return FALSE;
+    };
+    return DialogBoxW(GetModuleHandleW(nullptr),
+                      MAKEINTRESOURCEW(IDD_BOOK_BOOKMARK_NOTE),
+                      owner, proc) == IDOK;
+}
+
+static INT_PTR CALLBACK BookmarkListDlgProc(HWND dlg, UINT msg, WPARAM wp, LPARAM /*lp*/) {
+    switch (msg) {
+        case WM_INITDIALOG:
+            LocalizeDialog(dlg);
+            RepopulateBookmarkList(dlg);
+            SetFocus(GetDlgItem(dlg, IDC_BOOK_BOOKMARK_LIST));
+            return FALSE;
+
+        case WM_COMMAND: {
+            WORD id   = LOWORD(wp);
+            WORD code = HIWORD(wp);
+            if (!s_bm) return FALSE;
+            int sel = (int)SendDlgItemMessageW(dlg, IDC_BOOK_BOOKMARK_LIST,
+                                               LB_GETCURSEL, 0, 0);
+
+            if (id == IDC_BOOK_BOOKMARK_JUMP || id == IDOK) {
+                if (s_bm->items.empty()) return TRUE;
+                if (sel < 0 || sel >= (int)s_bm->items.size()) return TRUE;
+                const BookBookmark bm = s_bm->items[sel];
+                EndDialog(dlg, IDOK);
+                DaisyJumpToBookmark(bm.clipIndex, bm.offsetSeconds);
+                return TRUE;
+            }
+            if (id == IDC_BOOK_BOOKMARK_EDIT_NOTE) {
+                if (sel < 0 || sel >= (int)s_bm->items.size()) return TRUE;
+                std::wstring note = s_bm->items[sel].note;
+                if (EditNoteDialog(dlg, note)) {
+                    UpdateBookBookmarkNote(s_bm->items[sel].id, note);
+                    RepopulateBookmarkList(dlg);
+                    Speak(Ts("Note updated"));
+                }
+                return TRUE;
+            }
+            if (id == IDC_BOOK_BOOKMARK_DELETE) {
+                if (sel < 0 || sel >= (int)s_bm->items.size()) return TRUE;
+                if (MessageBoxW(dlg,
+                        T("Delete this bookmark?"),
+                        T("Bookmarks"),
+                        MB_YESNO | MB_ICONQUESTION) != IDYES) return TRUE;
+                RemoveBookBookmark(s_bm->items[sel].id);
+                RepopulateBookmarkList(dlg);
+                Speak(Ts("Bookmark deleted"));
+                return TRUE;
+            }
+            if (id == IDCANCEL) { EndDialog(dlg, 0); return TRUE; }
+            if (id == IDC_BOOK_BOOKMARK_LIST && code == LBN_DBLCLK) {
+                SendMessageW(dlg, WM_COMMAND, MAKEWPARAM(IDC_BOOK_BOOKMARK_JUMP, 0), 0);
+                return TRUE;
+            }
+            break;
+        }
+
+        case WM_CLOSE:
+            EndDialog(dlg, 0);
+            return TRUE;
+    }
+    return FALSE;
+}
+
+void ShowBookmarkList(HWND owner) {
+    if (!DaisyIsActive()) return;
+    int bookId = DaisyCurrentBookId();
+    if (bookId <= 0) return;
+    BookmarkListState st;
+    st.bookId = bookId;
+    s_bm = &st;
+    DialogBoxW(GetModuleHandleW(nullptr),
+               MAKEINTRESOURCEW(IDD_BOOK_BOOKMARK_LIST),
+               owner, BookmarkListDlgProc);
+    s_bm = nullptr;
+}
+
 } // namespace mediaaccess

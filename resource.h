@@ -338,6 +338,18 @@
 #define IDM_BOOK_SEARCH                 1569
 #define IDM_BOOK_SEARCH_NEXT            1570
 
+// =========================================================================
+// DAISY/EPUB reader — Phase 3 (v1.53): bookmarks management
+// =========================================================================
+#define IDM_BOOK_BOOKMARK_LIST          1571   // M — open bookmarks dialog
+
+#define IDD_BOOK_BOOKMARK_LIST          1572
+#define IDC_BOOK_BOOKMARK_LIST          1573
+#define IDC_BOOK_BOOKMARK_JUMP          1574
+#define IDC_BOOK_BOOKMARK_EDIT_NOTE     1575
+#define IDC_BOOK_BOOKMARK_DELETE        1576
+#define IDC_LABEL_BOOK_BOOKMARK_LIST    1577
+
 // Progress dialog (for updates)
 #define IDD_PROGRESS        995
 #define IDC_PROGRESS_BAR    996

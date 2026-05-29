@@ -600,6 +600,9 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
                 case IDM_BOOK_SEARCH:
                     if (mediaaccess::DaisyIsActive()) mediaaccess::PromptSearchInBook(hwnd);
                     break;
+                case IDM_BOOK_BOOKMARK_LIST:
+                    if (mediaaccess::DaisyIsActive()) mediaaccess::ShowBookmarkList(hwnd);
+                    break;
                 case IDM_BOOK_SEARCH_NEXT:
                     if (mediaaccess::DaisyIsActive()) mediaaccess::FindNextInBook();
                     break;

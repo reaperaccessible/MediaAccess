@@ -65,6 +65,11 @@ struct DaisyBook {
     std::vector<DaisyNavPoint>    navPoints;    // Sorted by clipIndex
     std::vector<DaisyTextSegment> textSegments; // Phase 2: text-only / EPUB-no-overlay
 
+    // Phase 3: when EPUB Media Overlays are used we extract the audio
+    // entries from inside the .epub to a per-book temp folder so BASS can
+    // open them. The folder lives until DaisyClose() removes it.
+    std::wstring tempAudioDir;
+
     // True if the book has no audio clips and must be spoken via TTS.
     bool isTextOnly() const { return clips.empty() || clips[0].audioFile.empty(); }
 };

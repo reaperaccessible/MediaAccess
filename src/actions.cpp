@@ -405,6 +405,9 @@ static const Action g_actions[] = {
     { "BOOK_SEARCH",              IDM_BOOK_SEARCH,            ActionCategory::Books,
       "Search in book...",            "Rechercher dans le livre...",
       { VK_F3, false, false, false } },       // F3
+    { "BOOK_BOOKMARK_LIST",       IDM_BOOK_BOOKMARK_LIST,     ActionCategory::Books,
+      "Bookmarks...",                 "Signets...",
+      { 'M', false, false, false } },         // M — list bookmarks
 
     // ========================================================================
     // CATEGORY: Radio — placeholder for future actions

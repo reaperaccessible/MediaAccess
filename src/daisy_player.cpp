@@ -202,6 +202,30 @@ void DaisyApplyVolume() {
 
 bool DaisyIsActive() { return g_d.book != nullptr; }
 
+// Recursively delete a directory tree. Best-effort — we don't propagate
+// errors because temp-folder cleanup must never break book unload.
+static void RemoveDirectoryRecursive(const std::wstring& dir) {
+    if (dir.empty()) return;
+    WIN32_FIND_DATAW fd;
+    std::wstring pat = dir + L"\\*";
+    HANDLE h = FindFirstFileW(pat.c_str(), &fd);
+    if (h != INVALID_HANDLE_VALUE) {
+        do {
+            if (wcscmp(fd.cFileName, L".") == 0 || wcscmp(fd.cFileName, L"..") == 0)
+                continue;
+            std::wstring child = dir + L"\\" + fd.cFileName;
+            if (fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
+                RemoveDirectoryRecursive(child);
+            } else {
+                SetFileAttributesW(child.c_str(), FILE_ATTRIBUTE_NORMAL);
+                DeleteFileW(child.c_str());
+            }
+        } while (FindNextFileW(h, &fd));
+        FindClose(h);
+    }
+    RemoveDirectoryW(dir.c_str());
+}
+
 void DaisyClose() {
     if (g_d.textOnlyMode) {
         SaveTtsPosition();
@@ -209,6 +233,11 @@ void DaisyClose() {
     } else {
         SaveCurrentPosition();
         FreeStream();
+    }
+    // Phase 3 — clean up the per-book temp folder if EPUB Media Overlays
+    // extracted audio there. Done after FreeStream() so no files are held open.
+    if (g_d.book && !g_d.book->tempAudioDir.empty()) {
+        RemoveDirectoryRecursive(g_d.book->tempAudioDir);
     }
     g_d.book.reset();
     g_d.bookId = 0;
@@ -626,38 +655,191 @@ void DaisyJumpToBookmark(int clipIndex, double offsetSeconds) {
     DaisyAnnounceCurrentLocation();
 }
 
+// Phase 3 — bookmarks management helpers
+std::wstring DaisyLocationLabelForClip(int clipIndex) {
+    if (!g_d.book) return L"";
+    if (clipIndex < 0) return L"";
+    std::wstring heading, page;
+    for (const auto& np : g_d.book->navPoints) {
+        if (np.clipIndex > clipIndex) break;
+        if (np.kind == DaisyNavPoint::Page)        page    = np.label;
+        else if (np.level >= 1 && np.level <= 6)   heading = np.label;
+    }
+    std::wstring out;
+    if (!heading.empty()) out = heading;
+    if (!page.empty()) {
+        if (!out.empty()) out += L", ";
+        out += page;
+    }
+    return out;
+}
+
+int DaisyCurrentBookId() {
+    return g_d.bookId;
+}
+
 } // namespace mediaaccess
 
 // -----------------------------------------------------------------------------
 // Page-by-label lookup, exposed for books_dialog.cpp's "Go to page" prompt.
-// Walks the book's nav points of kind=Page and matches the user's input
-// against the label (exact match first, then substring). Returns true if
-// a matching page was found and we jumped there.
+//
+// Phase 3 — accepts a variety of user inputs and falls back to the nearest
+// numeric match when no exact label exists:
+//   - "47"                 → numeric, exact or nearest
+//   - "p. 47" / "page 47"  → strip prefix, numeric
+//   - "iii"                → roman numeral, numeric
+//   - "Foreword"           → substring match on labels
+//
+// Many DAISY books label front-matter with roman numerals ("iii") and body
+// pages with arabic ("47"). We treat the two number spaces separately so
+// asking for "3" doesn't jump to "iii" — we prefer same-kind matches first.
 // -----------------------------------------------------------------------------
 namespace mediaaccess {
-bool DaisyJumpToPageLabel(const std::wstring& q) {
+
+// Trim leading/trailing whitespace.
+static std::wstring Trim(const std::wstring& s) {
+    size_t a = 0, b = s.size();
+    while (a < b && iswspace(s[a])) ++a;
+    while (b > a && iswspace(s[b - 1])) --b;
+    return s.substr(a, b - a);
+}
+
+// Lowercase ASCII fold for prefix matching.
+static std::wstring LowerW(std::wstring s) {
+    for (auto& c : s) c = (wchar_t)towlower(c);
+    return s;
+}
+
+// Roman numeral parser (1..3999). Returns -1 if input is not a valid roman.
+// Accepts upper or lower case. Strict-ish: requires standard subtraction rules.
+static int ParseRoman(const std::wstring& in) {
+    if (in.empty()) return -1;
+    auto val = [](wchar_t c) -> int {
+        switch (towlower(c)) {
+            case L'i': return 1;
+            case L'v': return 5;
+            case L'x': return 10;
+            case L'l': return 50;
+            case L'c': return 100;
+            case L'd': return 500;
+            case L'm': return 1000;
+        }
+        return 0;
+    };
+    int total = 0;
+    int prev  = 0;
+    for (size_t i = 0; i < in.size(); ++i) {
+        int v = val(in[i]);
+        if (v == 0) return -1;
+        if (prev && prev < v) total += v - 2 * prev;
+        else                  total += v;
+        prev = v;
+    }
+    return total > 0 ? total : -1;
+}
+
+// Try to extract a numeric value from a page label. Returns -1 if neither
+// arabic nor roman could be parsed. `outIsRoman` tells the caller which
+// number space the label lives in so we can prefer same-space matches.
+static int ParseLabelAsNumber(const std::wstring& labelIn, bool* outIsRoman) {
+    std::wstring s = Trim(labelIn);
+    if (s.empty()) { if (outIsRoman) *outIsRoman = false; return -1; }
+
+    // Strip a leading prefix like "Page ", "page ", "p. ", "p ".
+    std::wstring lo = LowerW(s);
+    static const wchar_t* kPrefixes[] = { L"page ", L"p. ", L"p." , L"p " };
+    for (auto* p : kPrefixes) {
+        size_t n = wcslen(p);
+        if (lo.size() >= n && lo.compare(0, n, p) == 0) {
+            s  = Trim(s.substr(n));
+            lo = LowerW(s);
+            break;
+        }
+    }
+
+    // Arabic? Allow trailing non-digits (e.g. "47b").
+    if (!s.empty() && iswdigit(s[0])) {
+        int v = 0;
+        size_t i = 0;
+        while (i < s.size() && iswdigit(s[i])) {
+            v = v * 10 + (s[i] - L'0');
+            ++i;
+        }
+        if (outIsRoman) *outIsRoman = false;
+        return v;
+    }
+
+    // Roman?
+    int r = ParseRoman(s);
+    if (r > 0) {
+        if (outIsRoman) *outIsRoman = true;
+        return r;
+    }
+    return -1;
+}
+
+static void JumpToClipAndAnnounce(int clipIndex, const std::wstring& announce) {
+    bool wasPlaying = DaisyIsPlaying();
+    StartClipPaused(clipIndex);
+    if (wasPlaying) BASS_ChannelPlay(g_d.stream, FALSE);
+    SpeakW(announce);
+}
+
+bool DaisyJumpToPageLabel(const std::wstring& qIn) {
     if (!g_d.book) return false;
+    std::wstring q = Trim(qIn);
     if (q.empty()) return false;
 
-    // Exact-label match first.
+    // 1) Exact label match (case-sensitive — DAISY labels are stable).
     for (const auto& np : g_d.book->navPoints) {
         if (np.kind != DaisyNavPoint::Page) continue;
-        if (np.label == q) {
-            bool wasPlaying = DaisyIsPlaying();
-            StartClipPaused(np.clipIndex);
-            if (wasPlaying) BASS_ChannelPlay(g_d.stream, FALSE);
-            SpeakW(np.label);
+        if (np.label == q) { JumpToClipAndAnnounce(np.clipIndex, np.label); return true; }
+    }
+
+    // 2) Numeric path — parse the query, find best match in same number space.
+    bool qIsRoman = false;
+    int qNum = ParseLabelAsNumber(q, &qIsRoman);
+    if (qNum > 0) {
+        const DaisyNavPoint* exact     = nullptr;
+        const DaisyNavPoint* nearest   = nullptr;
+        int                  nearestDist = 0;
+        // Pass 1 — prefer same number space (roman vs arabic).
+        for (const auto& np : g_d.book->navPoints) {
+            if (np.kind != DaisyNavPoint::Page) continue;
+            bool isRoman = false;
+            int  n = ParseLabelAsNumber(np.label, &isRoman);
+            if (n <= 0) continue;
+            if (isRoman != qIsRoman) continue;
+            if (n == qNum) { exact = &np; break; }
+            int d = (n > qNum) ? (n - qNum) : (qNum - n);
+            if (!nearest || d < nearestDist) { nearest = &np; nearestDist = d; }
+        }
+        // Pass 2 — fall back to opposite number space if nothing matched.
+        if (!exact && !nearest) {
+            for (const auto& np : g_d.book->navPoints) {
+                if (np.kind != DaisyNavPoint::Page) continue;
+                bool isRoman = false;
+                int  n = ParseLabelAsNumber(np.label, &isRoman);
+                if (n <= 0) continue;
+                if (n == qNum) { exact = &np; break; }
+                int d = (n > qNum) ? (n - qNum) : (qNum - n);
+                if (!nearest || d < nearestDist) { nearest = &np; nearestDist = d; }
+            }
+        }
+        if (exact) { JumpToClipAndAnnounce(exact->clipIndex, exact->label); return true; }
+        if (nearest) {
+            std::wstring announce = std::wstring(T("Nearest page:")) + L" " + nearest->label;
+            JumpToClipAndAnnounce(nearest->clipIndex, announce);
             return true;
         }
     }
-    // Substring match (case-sensitive).
+
+    // 3) Substring match on the label (case-insensitive).
+    std::wstring qLo = LowerW(q);
     for (const auto& np : g_d.book->navPoints) {
         if (np.kind != DaisyNavPoint::Page) continue;
-        if (np.label.find(q) != std::wstring::npos) {
-            bool wasPlaying = DaisyIsPlaying();
-            StartClipPaused(np.clipIndex);
-            if (wasPlaying) BASS_ChannelPlay(g_d.stream, FALSE);
-            SpeakW(np.label);
+        if (LowerW(np.label).find(qLo) != std::wstring::npos) {
+            JumpToClipAndAnnounce(np.clipIndex, np.label);
             return true;
         }
     }

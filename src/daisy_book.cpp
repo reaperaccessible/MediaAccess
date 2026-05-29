@@ -1491,6 +1491,236 @@ bool WriteTempXhtml(const std::vector<uint8_t>& buf, std::wstring& outPath) {
     return true;
 }
 
+// =========================================================================
+// Phase 3 — EPUB Media Overlays helpers
+//
+// Media Overlays are SMIL files that pair XHTML fragments with audio clip
+// ranges. The audio (typically MP3) lives inside the .epub ZIP, so to feed
+// it to BASS we extract each unique audio entry to a per-book temp folder
+// the first time we encounter it. The temp folder is cleaned up by
+// DaisyClose() (player) when the book is unloaded.
+// =========================================================================
+
+// Resolve a zip-relative href like "audio/track1.mp3" against a base entry
+// path like "OEBPS/smil/page1.smil" — produces "OEBPS/audio/track1.mp3".
+// Handles "./" and "../" segments. All paths use forward slashes.
+std::string ResolveZipPath(const std::string& baseEntry, const std::string& relHref) {
+    if (relHref.empty()) return baseEntry;
+    // If relHref is absolute (rare in EPUB), use as-is sans leading slash.
+    if (relHref[0] == '/') return relHref.substr(1);
+
+    // Split baseEntry into segments (drop the filename component).
+    std::vector<std::string> segs;
+    {
+        std::string b = baseEntry;
+        size_t slash = b.find_last_of('/');
+        std::string dir = (slash == std::string::npos) ? "" : b.substr(0, slash);
+        size_t start = 0;
+        for (size_t i = 0; i <= dir.size(); ++i) {
+            if (i == dir.size() || dir[i] == '/') {
+                if (i > start) segs.push_back(dir.substr(start, i - start));
+                start = i + 1;
+            }
+        }
+    }
+    // Walk relHref segments, applying "./" and "../" semantics.
+    size_t start = 0;
+    for (size_t i = 0; i <= relHref.size(); ++i) {
+        if (i == relHref.size() || relHref[i] == '/') {
+            if (i > start) {
+                std::string seg = relHref.substr(start, i - start);
+                if (seg == ".") {
+                    // skip
+                } else if (seg == "..") {
+                    if (!segs.empty()) segs.pop_back();
+                } else {
+                    segs.push_back(seg);
+                }
+            }
+            start = i + 1;
+        }
+    }
+    std::string out;
+    for (size_t i = 0; i < segs.size(); ++i) {
+        if (i) out += '/';
+        out += segs[i];
+    }
+    return out;
+}
+
+// Create a unique per-book temp folder under %TEMP%. Returns the path on
+// success or empty on failure.
+std::wstring CreateBookTempDir() {
+    wchar_t tempRoot[MAX_PATH];
+    if (!GetTempPathW(MAX_PATH, tempRoot)) return L"";
+    SYSTEMTIME st; GetSystemTime(&st);
+    wchar_t name[128];
+    swprintf(name, 128, L"MediaAccess_EpubMO_%lu_%lu_%lu",
+             (unsigned long)GetCurrentProcessId(),
+             (unsigned long)GetTickCount(),
+             (unsigned long)st.wMilliseconds);
+    std::wstring full = std::wstring(tempRoot) + name;
+    if (!CreateDirectoryW(full.c_str(), nullptr)) {
+        // If it already exists (collision is essentially impossible but be safe),
+        // append another disambiguator.
+        full += L"_x";
+        if (!CreateDirectoryW(full.c_str(), nullptr)) return L"";
+    }
+    return full;
+}
+
+// Extract one zip entry to disk at tempDir/<baseName>. baseName must be a
+// safe filename (no path separators). Returns the full disk path on success.
+std::wstring ExtractZipEntryToDir(EpubZip& zip, const std::string& entryName,
+                                  const std::wstring& tempDir,
+                                  const std::wstring& baseName) {
+    std::vector<uint8_t> data;
+    if (!zip.Extract(entryName, data)) return L"";
+    std::wstring out = tempDir + L"\\" + baseName;
+    HANDLE h = CreateFileW(out.c_str(), GENERIC_WRITE, 0, nullptr,
+                           CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
+    if (h == INVALID_HANDLE_VALUE) return L"";
+    DWORD wrote = 0;
+    BOOL ok = data.empty() ? TRUE
+                           : WriteFile(h, data.data(), (DWORD)data.size(),
+                                       &wrote, nullptr);
+    CloseHandle(h);
+    if (!ok || (!data.empty() && wrote != data.size())) {
+        DeleteFileW(out.c_str());
+        return L"";
+    }
+    return out;
+}
+
+// Mint a unique on-disk filename for a zip entry. Strips path components,
+// appends a numeric disambiguator if the basename has already been used.
+std::wstring UniqueBaseNameFor(const std::string& entryName,
+                               std::map<std::string, std::wstring>& assigned) {
+    auto it = assigned.find(entryName);
+    if (it != assigned.end()) return it->second;
+    size_t slash = entryName.find_last_of('/');
+    std::string base = (slash == std::string::npos)
+                       ? entryName : entryName.substr(slash + 1);
+    if (base.empty()) base = "audio.bin";
+    // Strip any odd characters that Windows objects to.
+    for (auto& c : base) {
+        if (c == '<' || c == '>' || c == ':' || c == '"' || c == '|' ||
+            c == '?' || c == '*' || c == '\\') c = '_';
+    }
+    std::wstring w = Utf8ToWide(base);
+    // Ensure uniqueness across different zip entries with the same basename.
+    int suffix = 0;
+    std::wstring candidate = w;
+    while (true) {
+        bool used = false;
+        for (auto& kv : assigned) if (kv.second == candidate) { used = true; break; }
+        if (!used) break;
+        wchar_t buf[16]; swprintf(buf, 16, L"_%d", ++suffix);
+        // Insert before extension if any.
+        size_t dot = w.find_last_of(L'.');
+        candidate = (dot == std::wstring::npos)
+                    ? (w + buf)
+                    : (w.substr(0, dot) + buf + w.substr(dot));
+    }
+    assigned[entryName] = candidate;
+    return candidate;
+}
+
+// Parse one in-zip SMIL file and append its clips to the book. Extracts
+// referenced audio entries to tempDir on first use.
+//
+// smilEntry — the zip entry path of the SMIL file (used to resolve relative
+//             audio src refs)
+// epubPath  — original .epub disk path (used for the XHTML origin label)
+// audioMap  — cache: zip-entry → on-disk extracted filename (per book)
+bool ParseEpubSmilFromZip(EpubZip& zip, const std::string& smilEntry,
+                          const std::wstring& tempDir,
+                          const std::wstring& epubPath,
+                          std::map<std::string, std::wstring>& audioMap,
+                          std::vector<DaisyClip>& outClips) {
+    std::vector<uint8_t> smilBuf;
+    if (!zip.Extract(smilEntry, smilBuf)) return false;
+    auto doc = LoadXmlFromZipEntry(smilBuf);
+    if (!doc) return false;
+
+    auto pars = SelectNodes(doc.Get(), L"//*[local-name()='par']");
+    long count = 0; if (pars) pars->get_length(&count);
+
+    for (long i = 0; i < count; ++i) {
+        ComPtr<IXMLDOMNode> par;
+        pars->get_item(i, par.PutVoid());
+        if (!par) continue;
+
+        // Text reference
+        std::wstring textFile;
+        std::string  textFrag;
+        auto textList = SelectNodes(par.Get(), L".//*[local-name()='text']");
+        long tCount = 0; if (textList) textList->get_length(&tCount);
+        if (tCount > 0) {
+            ComPtr<IXMLDOMNode> tn;
+            textList->get_item(0, tn.PutVoid());
+            if (tn) {
+                std::wstring src = AttrValue(tn.Get(), L"src");
+                if (!src.empty()) {
+                    std::wstring file;
+                    SplitFragment(UrlDecode(src), file, textFrag);
+                    if (!file.empty()) {
+                        std::string resolved = ResolveZipPath(
+                            smilEntry, WideToUtf8(file));
+                        textFile = epubPath + L"!/" + Utf8ToWide(resolved);
+                    }
+                }
+            }
+        }
+
+        // Audio references
+        auto audioList = SelectNodes(par.Get(), L".//*[local-name()='audio']");
+        long aCount = 0; if (audioList) audioList->get_length(&aCount);
+        for (long a = 0; a < aCount; ++a) {
+            ComPtr<IXMLDOMNode> an;
+            audioList->get_item(a, an.PutVoid());
+            if (!an) continue;
+            std::wstring src = AttrValue(an.Get(), L"src");
+            if (src.empty()) continue;
+
+            std::string audioEntry = ResolveZipPath(smilEntry,
+                                                    WideToUtf8(UrlDecode(src)));
+
+            // Extract on first sight, cache disk path.
+            std::wstring diskPath;
+            auto it = audioMap.find(audioEntry);
+            if (it != audioMap.end()) {
+                diskPath = tempDir + L"\\" + it->second;
+            } else {
+                std::wstring base = UniqueBaseNameFor(audioEntry, audioMap);
+                diskPath = ExtractZipEntryToDir(zip, audioEntry, tempDir, base);
+                if (diskPath.empty()) {
+                    LogF("daisy",
+                         "EPUB MO: could not extract audio %s",
+                         audioEntry.c_str());
+                    continue;
+                }
+            }
+
+            std::wstring beginStr = AttrAny(an.Get(),
+                {L"clipBegin", L"clip-begin", L"clipbegin"});
+            std::wstring endStr   = AttrAny(an.Get(),
+                {L"clipEnd",   L"clip-end",   L"clipend"});
+
+            DaisyClip clip;
+            clip.audioFile  = diskPath;
+            clip.clipBegin  = beginStr.empty() ? 0.0 : ParseSmilTime(beginStr);
+            clip.clipEnd    = endStr.empty()   ? 0.0 : ParseSmilTime(endStr);
+            if (clip.clipBegin < 0) clip.clipBegin = 0;
+            if (clip.clipEnd   < 0) clip.clipEnd   = 0;
+            clip.textFile   = textFile;
+            clip.textFragId = textFrag;
+            outClips.push_back(clip);
+        }
+    }
+    return !outClips.empty();
+}
+
 bool ParseEpub3Metadata(const std::wstring& epubPath, DaisyBook& book) {
     book.format = DaisyFormat::Epub3;
 
@@ -1544,8 +1774,10 @@ bool ParseEpub3Metadata(const std::wstring& epubPath, DaisyBook& book) {
         opfBaseUtf8 = (slash == std::string::npos) ? "" : r.substr(0, slash + 1);
     }
 
-    // Manifest: id -> (href, mediaType)
-    struct ManifestItem { std::string href, mediaType; };
+    // Manifest: id -> (href, mediaType, mediaOverlay).
+    // mediaOverlay is the id of another manifest item (a SMIL file) — present
+    // on EPUBs with audio sync (Phase 3 Media Overlays support).
+    struct ManifestItem { std::string href, mediaType, mediaOverlay; };
     std::map<std::string, ManifestItem> manifest;
     auto items = SelectNodes(odoc.Get(), L"//*[local-name()='item']");
     long iCount = 0; if (items) items->get_length(&iCount);
@@ -1556,7 +1788,8 @@ bool ParseEpub3Metadata(const std::wstring& epubPath, DaisyBook& book) {
         std::string id   = WideToUtf8(AttrValue(it.Get(), L"id"));
         std::string href = WideToUtf8(UrlDecode(AttrValue(it.Get(), L"href")));
         std::string mt   = WideToUtf8(AttrValue(it.Get(), L"media-type"));
-        if (!id.empty() && !href.empty()) manifest[id] = { href, mt };
+        std::string mo   = WideToUtf8(AttrValue(it.Get(), L"media-overlay"));
+        if (!id.empty() && !href.empty()) manifest[id] = { href, mt, mo };
     }
 
     // Spine
@@ -1607,6 +1840,55 @@ bool ParseEpub3Metadata(const std::wstring& epubPath, DaisyBook& book) {
     }
     // tmpFiles destructor cleans up the on-disk temp files now that the XHTML
     // DOMs are parsed and the text content has been copied into segments.
+
+    // ----------------------------------------------------------------------
+    // Phase 3 — Media Overlays. If any spine entry has a media-overlay attr,
+    // build clips from the referenced SMIL files in spine order. When this
+    // produces at least one clip we drop the text-only TTS fallback (clips
+    // take priority in DaisyLoadAndPlay).
+    // ----------------------------------------------------------------------
+    bool anyOverlay = false;
+    for (auto& id : spineIds) {
+        auto mit = manifest.find(id);
+        if (mit == manifest.end()) continue;
+        if (!mit->second.mediaOverlay.empty()) { anyOverlay = true; break; }
+    }
+
+    if (anyOverlay) {
+        std::wstring tempDir = CreateBookTempDir();
+        if (tempDir.empty()) {
+            LogF("daisy", "EPUB MO: could not create temp dir, skipping overlays");
+        } else {
+            std::map<std::string, std::wstring> audioMap;
+            std::vector<DaisyClip>              moClips;
+            for (auto& id : spineIds) {
+                auto mit = manifest.find(id);
+                if (mit == manifest.end()) continue;
+                if (mit->second.mediaOverlay.empty()) continue;
+                auto smilManifest = manifest.find(mit->second.mediaOverlay);
+                if (smilManifest == manifest.end()) continue;
+                std::string smilEntry = opfBaseUtf8 + smilManifest->second.href;
+                ParseEpubSmilFromZip(zip, smilEntry, tempDir, epubPath,
+                                     audioMap, moClips);
+            }
+
+            if (!moClips.empty()) {
+                book.tempAudioDir = tempDir;
+                book.clips        = std::move(moClips);
+                // Recompute totalDuration from clip ranges.
+                double total = 0.0;
+                for (const auto& c : book.clips) {
+                    if (c.clipEnd > c.clipBegin) total += c.clipEnd - c.clipBegin;
+                }
+                if (total > 0) book.totalDuration = total;
+                LogF("daisy", "EPUB MO: built %zu clips into %s",
+                     book.clips.size(), WideToUtf8(tempDir).c_str());
+            } else {
+                // No clips produced — clean up the empty temp dir.
+                RemoveDirectoryW(tempDir.c_str());
+            }
+        }
+    }
 
     return true;
 }

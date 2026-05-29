@@ -1007,7 +1007,7 @@
 <ul>
   <li><strong>DAISY 2.02</strong> — le format le plus diffusé, utilisé par la plupart des bibliothèques publiques et des services de livres accessibles. Le livre est un dossier contenant un fichier <code>ncc.html</code> servant de table des matières, des fichiers SMIL et des fichiers audio (typiquement MP3).</li>
   <li><strong>DAISY 3</strong> (ANSI/NISO Z39.86) — spécification plus récente reposant sur un fichier package <code>.opf</code> et un fichier de navigation NCX.</li>
-  <li><strong>Métadonnées EPUB 3</strong> — reconnues pour le catalogage en bibliothèque.</li>
+  <li><strong>EPUB</strong> — tous les fichiers EPUB sont lisibles, quelle que soit leur compression interne. Les EPUB en texte seul sont lus à voix haute par la synthèse vocale de Windows (voir plus bas). Les EPUB qui intègrent un audio enregistré via Media Overlays sont partiellement pris en charge aujourd'hui&nbsp;; la couverture complète arrivera dans une mise à jour ultérieure.</li>
 </ul>
 
 <h3>Ouvrir un livre</h3>
@@ -1041,9 +1041,10 @@
 <ul>
   <li><kbd>Maj</kbd>+<kbd>↑</kbd> / <kbd>Maj</kbd>+<kbd>↓</kbd> — parcourir les niveaux de navigation : Titre 1, Titre 2, ..., Titre 6, Page, Phrase. Chaque annonce inclut le nombre d'éléments à ce niveau, ce qui permet d'en déduire la signification (24 éléments au niveau 2 désigne très probablement les chapitres).</li>
   <li><kbd>Maj</kbd>+<kbd>→</kbd> / <kbd>Maj</kbd>+<kbd>←</kbd> — aller à l'élément suivant ou précédent au niveau actif.</li>
-  <li><kbd>G</kbd> — aller à une page précise en saisissant son libellé.</li>
+  <li><kbd>G</kbd> — aller à une page précise. Le champ accepte un numéro («&nbsp;47&nbsp;»), un libellé («&nbsp;p.&nbsp;47&nbsp;», «&nbsp;page&nbsp;47&nbsp;») ou un chiffre romain («&nbsp;iii&nbsp;»). Si la page exacte n'existe pas, MediaAccess saute à la plus proche et l'annonce («&nbsp;Page la plus proche : 48&nbsp;»).</li>
   <li><kbd>Maj</kbd>+<kbd>L</kbd> — annoncer la position actuelle (« Chapitre 3, page 47 »).</li>
   <li><kbd>Maj</kbd>+<kbd>B</kbd> — ajouter un signet à la position courante, éventuellement accompagné d'une note.</li>
+  <li><kbd>M</kbd> — ouvrir le gestionnaire de signets du livre en cours (voir plus bas).</li>
 </ul>
 
 <h3>Mémoire de position</h3>
@@ -1056,9 +1057,35 @@
 <p><strong>Différence de volume avec les fichiers de musique :</strong> les livres DAISY sont généralement masterisés à un niveau modéré (autour de -23 LUFS, le standard broadcast) et sonnent nettement moins fort que les MP3 du commerce. Si vous souhaitez une lecture plus forte pour un livre, activez <strong>Autoriser le volume au-dessus de 100 %</strong> dans <strong>Options → Lecture</strong> et remontez le volume au-dessus de 100 %.</p>
 </div>
 
-<div class="note">
-<p><strong>Livres texte seul :</strong> les livres DAISY qui ne contiennent aucun audio enregistré, tout comme les EPUB sans piste audio, sont reconnus et ajoutés à la bibliothèque, mais leur lecture par synthèse vocale est prévue pour une mise à jour ultérieure. Les livres DAISY audio sont entièrement lus dès aujourd'hui.</p>
-</div>
+<h3>Synthèse vocale pour les livres en texte seul</h3>
+<p>Les livres DAISY en texte seul et les EPUB sans piste audio enregistrée sont lus à voix haute par la synthèse vocale Windows SAPI 5. Vous choisissez la voix dans <strong>Fichier → Options</strong> (<kbd>Ctrl</kbd>+<kbd>,</kbd>), onglet <strong>Livres</strong>, champ <strong>Voix de synthèse vocale</strong>. La première entrée est <em>(Voix par défaut de Windows)</em>&nbsp;; en dessous figurent toutes les voix SAPI installées sur la machine. Pour en ajouter, ouvrez <strong>Paramètres de Windows → Heure et langue → Voix → Voix → Ajouter</strong>.</p>
+<p>L'effet <strong>Vitesse</strong> (<kbd>Ctrl</kbd>+<kbd>4</kbd>, puis <kbd>↑</kbd> / <kbd>↓</kbd>) pilote la vitesse d'élocution SAPI lors de la lecture d'un livre en texte seul, exactement comme il pilote le moteur audio pour un livre enregistré — un seul modèle mental, deux moteurs.</p>
+<p>Lors de la lecture d'un livre en texte seul par synthèse vocale, <kbd>Maj</kbd>+<kbd>→</kbd> et <kbd>Maj</kbd>+<kbd>←</kbd> sautent au paragraphe suivant et précédent.</p>
+
+<h3>Fenêtre de texte synchronisée</h3>
+<p>Pour tout livre exposant du texte — livres audio enregistrés avec texte synchronisé comme livres en texte seul — MediaAccess ouvre une fenêtre non modale qui affiche le paragraphe en cours d'écoute. Elle s'ouvre automatiquement au chargement du livre&nbsp;; appuyez sur <kbd>Ctrl</kbd>+<kbd>T</kbd> à tout moment pour l'afficher ou la masquer.</p>
+<p>Trois thèmes sont proposés dans <strong>Options → Livres → Thème de la fenêtre de texte</strong>&nbsp;:</p>
+<ul>
+  <li><strong>Standard</strong> — noir sur blanc, 12&nbsp;pt&nbsp;;</li>
+  <li><strong>Contraste élevé</strong> — jaune sur noir, 16&nbsp;pt&nbsp;;</li>
+  <li><strong>Grand</strong> — noir sur blanc, 24&nbsp;pt.</li>
+</ul>
+<p>Si vous ne souhaitez jamais voir cette fenêtre, cochez <strong>Toujours masquer la fenêtre de texte</strong> dans le même onglet Livres.</p>
+
+<h3>Recherche dans le livre</h3>
+<p>Appuyez sur <kbd>F3</kbd> pour ouvrir la boîte de dialogue de recherche. Saisissez un terme et appuyez sur <kbd>Entrée</kbd> pour aller à la première occurrence&nbsp;; appuyez de nouveau sur <kbd>Entrée</kbd> ou sur <kbd>F3</kbd> pour passer à la suivante. <kbd>Échap</kbd> ferme le dialogue. La recherche fonctionne aussi bien sur les livres audio+texte (saut au clip correspondant) que sur les livres en texte seul (saut au paragraphe correspondant).</p>
+
+<h3>Gestion des signets</h3>
+<p>Appuyez sur <kbd>M</kbd> pendant la lecture d'un livre pour ouvrir le gestionnaire de signets. La liste affiche tous les signets posés dans le livre courant, repérés par leur position («&nbsp;[Chapitre 3, page 47] — Passage clé&nbsp;»). Trois actions sont disponibles&nbsp;:</p>
+<ul>
+  <li><strong>Ouvrir</strong> (<kbd>Entrée</kbd> ou double-clic) — sauter à la position du signet et reprendre la lecture.</li>
+  <li><strong>Modifier la note</strong> — éditer le texte associé au signet.</li>
+  <li><strong>Supprimer</strong> — retirer le signet (confirmation demandée).</li>
+</ul>
+<p>Les signets sont rangés par ordre de position dans le livre. Ils sont sauvegardés dans la base SQLite de MediaAccess et persistent entre les sessions, indépendamment de la dernière position de lecture.</p>
+
+<h3>EPUB avec Media Overlays</h3>
+<p>Les EPUB qui intègrent un audio enregistré synchronisé avec le texte (la norme «&nbsp;Media Overlays&nbsp;» de l'EPUB 3, équivalente au DAISY 3) sont lus comme des livres audio classiques. À l'ouverture, MediaAccess extrait les fichiers audio embarqués dans l'EPUB vers un dossier temporaire et les joue via BASS&nbsp;; le dossier est nettoyé automatiquement à la fermeture du livre. Les EPUB sans audio enregistré continuent de passer par la synthèse vocale décrite plus haut.</p>
 
 <h3>Réaffecter les raccourcis</h3>
 <p>Chaque raccourci DAISY listé ci-dessus est réaffectable via <strong>Outils → Actions</strong> (<kbd>F4</kbd>), section <strong>Livres</strong>.</p>
@@ -1195,10 +1222,13 @@
 <tr><td><kbd>Ctrl</kbd>+<kbd>B</kbd></td><td>Ouvrir un livre</td></tr>
 <tr><td><kbd>Ctrl</kbd>+<kbd>Maj</kbd>+<kbd>B</kbd></td><td>Ouvrir la bibliothèque de livres</td></tr>
 <tr><td><kbd>Maj</kbd>+<kbd>↑</kbd> / <kbd>Maj</kbd>+<kbd>↓</kbd></td><td>Niveau de navigation précédent / suivant (Titre 1...6, Page, Phrase)</td></tr>
-<tr><td><kbd>Maj</kbd>+<kbd>→</kbd> / <kbd>Maj</kbd>+<kbd>←</kbd></td><td>Élément suivant / précédent au niveau actif</td></tr>
+<tr><td><kbd>Maj</kbd>+<kbd>→</kbd> / <kbd>Maj</kbd>+<kbd>←</kbd></td><td>Élément suivant / précédent au niveau actif (ou paragraphe en mode texte seul TTS)</td></tr>
 <tr><td><kbd>G</kbd></td><td>Aller à une page précise</td></tr>
 <tr><td><kbd>Maj</kbd>+<kbd>L</kbd></td><td>Annoncer la position actuelle</td></tr>
 <tr><td><kbd>Maj</kbd>+<kbd>B</kbd></td><td>Ajouter un signet</td></tr>
+<tr><td><kbd>M</kbd></td><td>Ouvrir le gestionnaire de signets du livre</td></tr>
+<tr><td><kbd>Ctrl</kbd>+<kbd>T</kbd></td><td>Afficher / masquer la fenêtre de texte</td></tr>
+<tr><td><kbd>F3</kbd></td><td>Rechercher dans le livre</td></tr>
 </tbody>
 </table>
 
