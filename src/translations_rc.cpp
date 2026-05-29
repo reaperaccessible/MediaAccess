@@ -159,6 +159,32 @@ void RegisterRcTranslations() {
     AddTranslation("en", "&Audio formats...", L"&Audio formats...");
     AddTranslation("fr", "&Audio formats...", L"Formats &audio...");
 
+    AddTranslation("en", "&Contact us...", L"&Contact us...");
+    AddTranslation("fr", "&Contact us...", L"Nous &contacter...");
+
+    AddTranslation("en", "Make a &donation...", L"Make a &donation...");
+    AddTranslation("fr", "Make a &donation...", L"Faire un &don...");
+
+    AddTranslation("en", "Contact us", L"Contact us");
+    AddTranslation("fr", "Contact us", L"Nous contacter");
+
+    AddTranslation("en", "Make a donation", L"Make a donation");
+    AddTranslation("fr", "Make a donation", L"Faire un don");
+
+    AddTranslation("en", "Could not open your email client. Please write to "
+                         "reaperaccessible@gmail.com manually.",
+                   L"Could not open your email client. Please write to "
+                   L"reaperaccessible@gmail.com manually.");
+    AddTranslation("fr", "Could not open your email client. Please write to "
+                         "reaperaccessible@gmail.com manually.",
+                   L"Impossible d'ouvrir votre logiciel de courriel. "
+                   L"Veuillez écrire à reaperaccessible@gmail.com manuellement.");
+
+    AddTranslation("en", "Could not open the donation page in your browser.",
+                   L"Could not open the donation page in your browser.");
+    AddTranslation("fr", "Could not open the donation page in your browser.",
+                   L"Impossible d'ouvrir la page de don dans votre navigateur.");
+
     // ===================================================================
     // DIALOG: IDD_OPTIONS - "Options"
     // ===================================================================

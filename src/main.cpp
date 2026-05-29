@@ -643,6 +643,43 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
                     }
                     break;
                 }
+                case IDM_HELP_CONTACT: {
+                    // mailto: link — Windows opens the default mail client
+                    // pre-filled with our address + a subject line that helps
+                    // us triage. Body left empty for the user to fill in.
+                    const wchar_t* url =
+                        L"mailto:reaperaccessible@gmail.com"
+                        L"?subject=MediaAccess%20request";
+                    HINSTANCE r = ShellExecuteW(hwnd, L"open", url,
+                                                nullptr, nullptr, SW_SHOWNORMAL);
+                    if ((INT_PTR)r <= 32) {
+                        MessageBoxW(hwnd,
+                            T("Could not open your email client. Please write to "
+                              "reaperaccessible@gmail.com manually."),
+                            T("Contact us"), MB_OK | MB_ICONINFORMATION);
+                    }
+                    break;
+                }
+                case IDM_HELP_DONATE: {
+                    // PayPal donation page for reaperaccessible. Opens in the
+                    // user's default browser.
+                    const wchar_t* url =
+                        L"https://www.paypal.com/donate/"
+                        L"?business=6RZ8Y2Q39B9LN"
+                        L"&no_recurring=0"
+                        L"&item_name=Thanks+to+your+donation%2C+REAPERACCESSIBLE"
+                        L"+provides+training%2C+tutorials%2C+and+tools+to+make"
+                        L"+REAPER+accessible+to+blind+users."
+                        L"&currency_code=USD";
+                    HINSTANCE r = ShellExecuteW(hwnd, L"open", url,
+                                                nullptr, nullptr, SW_SHOWNORMAL);
+                    if ((INT_PTR)r <= 32) {
+                        MessageBoxW(hwnd,
+                            T("Could not open the donation page in your browser."),
+                            T("Make a donation"), MB_OK | MB_ICONWARNING);
+                    }
+                    break;
+                }
                 case IDM_BOOKMARK_ADD:
                     if (g_currentTrack >= 0 && g_currentTrack < static_cast<int>(g_playlist.size())) {
                         double pos = GetCurrentPosition();

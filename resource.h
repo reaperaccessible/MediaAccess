@@ -273,6 +273,8 @@
 #define IDM_HELP_MANUAL         121
 #define IDM_KEYBOARD_HELP_TOGGLE 123
 #define IDM_HELP_SET_DEFAULT     124
+#define IDM_HELP_CONTACT         125   // v1.54 — mailto: reaperaccessible@gmail.com
+#define IDM_HELP_DONATE          126   // v1.54 — open PayPal donation URL
 
 // =========================================================================
 // DAISY / EPUB book reader (v1.49 — Phase 1)

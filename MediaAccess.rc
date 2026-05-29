@@ -91,6 +91,9 @@ BEGIN
         MENUITEM "C&lear YouTube cache...", IDM_HELP_CLEAR_YT_CACHE
         MENUITEM SEPARATOR
         MENUITEM "Audit dialog &layout...", IDM_HELP_AUDIT_LAYOUT
+        MENUITEM SEPARATOR
+        MENUITEM "&Contact us...",          IDM_HELP_CONTACT
+        MENUITEM "Make a &donation...",     IDM_HELP_DONATE
     END
 END
 
