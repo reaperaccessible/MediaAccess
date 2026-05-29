@@ -369,6 +369,16 @@ static const Action g_actions[] = {
     { "GLOBAL_YOUTUBE",           IDM_FILE_YOUTUBE,           ActionCategory::Global,
       "YouTube search (global)",      "Recherche YouTube (global)", {} },
 
+    // In-track seeking — added in v1.56 after user feedback.
+    { "GLOBAL_SEEKBACK",          IDM_PLAY_SEEKBACK,          ActionCategory::Global,
+      "Seek backward (global)",       "Reculer dans la piste (global)", {} },
+    { "GLOBAL_SEEKFWD",           IDM_PLAY_SEEKFWD,           ActionCategory::Global,
+      "Seek forward (global)",        "Avancer dans la piste (global)", {} },
+    { "GLOBAL_SEEK_BEGINNING",    IDM_PLAY_BEGINNING,         ActionCategory::Global,
+      "Go to beginning (global)",     "Aller au début (global)", {} },
+    { "GLOBAL_SEEK_NEAR_END",     IDM_PLAY_NEAR_END,          ActionCategory::Global,
+      "Jump 30 s before end (global)","Aller à 30 s de la fin (global)", {} },
+
     // ========================================================================
     // CATEGORY: Books — DAISY / EPUB reader (v1.49 Phase 1)
     // ========================================================================
