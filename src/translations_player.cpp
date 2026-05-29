@@ -1408,4 +1408,66 @@ void RegisterPlayerTranslations() {
         L"encore prise en charge. Il a été ajouté à votre bibliothèque — la "
         L"lecture vocale complète des livres EPUB et DAISY texte-seul "
         L"arrivera dans une prochaine mise à jour.");
+
+    // ----- v1.50 Phase 2 — TTS, text window, search -----
+    AddTranslation("en", "Book text", L"Book text");
+    AddTranslation("fr", "Book text", L"Texte du livre");
+
+    AddTranslation("en", "&Text-to-speech voice (for text-only books):",
+                   L"&Text-to-speech voice (for text-only books):");
+    AddTranslation("fr", "&Text-to-speech voice (for text-only books):",
+                   L"&Voix de synthèse vocale (livres texte seul) :");
+
+    AddTranslation("en", "(Windows default voice)", L"(Windows default voice)");
+    AddTranslation("fr", "(Windows default voice)", L"(Voix Windows par défaut)");
+
+    AddTranslation("en", "Text &window theme:", L"Text &window theme:");
+    AddTranslation("fr", "Text &window theme:", L"Thème de la fenêtre de te&xte :");
+
+    AddTranslation("en", "Standard",      L"Standard");
+    AddTranslation("fr", "Standard",      L"Standard");
+    AddTranslation("en", "High contrast", L"High contrast");
+    AddTranslation("fr", "High contrast", L"Fort contraste");
+    AddTranslation("en", "Large",         L"Large");
+    AddTranslation("fr", "Large",         L"Agrandi");
+
+    AddTranslation("en", "Al&ways hide text window (audio-only experience)",
+                   L"Al&ways hide text window (audio-only experience)");
+    AddTranslation("fr", "Al&ways hide text window (audio-only experience)",
+                   L"Tou&jours cacher la fenêtre texte (expérience audio uniquement)");
+
+    AddTranslation("en", "Show / hide text window", L"Show / hide text window");
+    AddTranslation("fr", "Show / hide text window", L"Afficher / cacher la fenêtre texte");
+
+    AddTranslation("en", "Find in book", L"Find in book");
+    AddTranslation("fr", "Find in book", L"Rechercher dans le livre");
+
+    AddTranslation("en", "Find:", L"Find:");
+    AddTranslation("fr", "Find:", L"Rechercher :");
+
+    AddTranslation("en", "Find &next", L"Find &next");
+    AddTranslation("fr", "Find &next", L"&Suivant");
+
+    AddTranslation("en", "Search in book...", L"Search in book...");
+    AddTranslation("fr", "Search in book...", L"Rechercher dans le livre...");
+
+    AddTranslation("en", "No matches found for:", L"No matches found for:");
+    AddTranslation("fr", "No matches found for:", L"Aucun résultat pour :");
+
+    AddTranslation("en", "Found", L"Found");
+    AddTranslation("fr", "Found", L"Trouvé");
+
+    AddTranslation("en", "This book has no extractable text — search is not available.",
+                   L"This book has no extractable text — search is not available.");
+    AddTranslation("fr", "This book has no extractable text — search is not available.",
+                   L"Ce livre n'a pas de texte extractible — la recherche n'est pas disponible.");
+
+    AddTranslation("en", "This book has no recorded audio and no extractable text. "
+                         "It has been added to your library but cannot be played.",
+                   L"This book has no recorded audio and no extractable text. "
+                   L"It has been added to your library but cannot be played.");
+    AddTranslation("fr", "This book has no recorded audio and no extractable text. "
+                         "It has been added to your library but cannot be played.",
+                   L"Ce livre n'a pas d'audio enregistré ni de texte extractible. "
+                   L"Il a été ajouté à votre bibliothèque mais ne peut pas être lu.");
 }

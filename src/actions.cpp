@@ -399,6 +399,12 @@ static const Action g_actions[] = {
     { "BOOK_GO_TO_PAGE",          IDM_BOOK_GO_TO_PAGE,        ActionCategory::Books,
       "Go to page...",                "Aller à la page...",
       { 'G', false, false, false } },         // G
+    { "BOOK_TOGGLE_TEXT_WINDOW",  IDM_BOOK_TOGGLE_TEXT_WINDOW, ActionCategory::Books,
+      "Show / hide text window",      "Afficher / cacher la fenêtre texte",
+      { 'T', true, false, false } },          // Ctrl+T
+    { "BOOK_SEARCH",              IDM_BOOK_SEARCH,            ActionCategory::Books,
+      "Search in book...",            "Rechercher dans le livre...",
+      { VK_F3, false, false, false } },       // F3
 
     // ========================================================================
     // CATEGORY: Radio — placeholder for future actions

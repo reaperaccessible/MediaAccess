@@ -267,12 +267,19 @@ BEGIN
     LTEXT           "(1-1000, default 128)", IDC_LABEL_MIDI_VOICES_RANGE, 190, 92, 105, 10
     AUTOCHECKBOX    "Use s&inc interpolation (higher quality, more CPU)", IDC_MIDI_SINC, 17, 110, 260, 10
 
-    // Books tab controls (shown when tab 12 selected) — v1.49 Phase 1
+    // Books tab controls (shown when tab 12 selected) — v1.49+1.50
     LTEXT           "Library folders (scanned for DAISY and EPUB books):", IDC_LABEL_BOOK_FOLDERS, 17, 30, 290, 10
-    LISTBOX         IDC_BOOK_FOLDERS_LIST, 17, 44, 305, 130, LBS_NOTIFY | WS_VSCROLL | WS_TABSTOP | WS_BORDER
-    PUSHBUTTON      "&Add folder...",     IDC_BOOK_FOLDER_ADD,    17, 180, 80, 14
-    PUSHBUTTON      "&Remove folder",     IDC_BOOK_FOLDER_REMOVE, 100, 180, 80, 14
-    PUSHBUTTON      "Re&scan now",        IDC_BOOK_RESCAN,        185, 180, 80, 14
+    LISTBOX         IDC_BOOK_FOLDERS_LIST, 17, 44, 305, 80, LBS_NOTIFY | WS_VSCROLL | WS_TABSTOP | WS_BORDER
+    PUSHBUTTON      "&Add folder...",     IDC_BOOK_FOLDER_ADD,    17, 128, 80, 14
+    PUSHBUTTON      "&Remove folder",     IDC_BOOK_FOLDER_REMOVE, 100, 128, 80, 14
+    PUSHBUTTON      "Re&scan now",        IDC_BOOK_RESCAN,        185, 128, 80, 14
+    // Phase 2: TTS voice + text window theme + hide checkbox
+    LTEXT           "&Text-to-speech voice (for text-only books):", IDC_LABEL_BOOK_TTS_VOICE, 17, 150, 290, 10
+    COMBOBOX        IDC_BOOK_TTS_VOICE, 17, 162, 305, 100, CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    LTEXT           "Text &window theme:", IDC_LABEL_BOOK_TEXT_THEME, 17, 184, 95, 10
+    COMBOBOX        IDC_BOOK_TEXT_THEME, 115, 182, 150, 100, CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    AUTOCHECKBOX    "Al&ways hide text window (audio-only experience)",
+                    IDC_BOOK_HIDE_TEXT_WINDOW, 17, 204, 305, 10
 
     DEFPUSHBUTTON   "OK", IDOK, 229, 240, 50, 14
     PUSHBUTTON      "Cancel", IDCANCEL, 283, 240, 50, 14
@@ -646,4 +653,34 @@ BEGIN
 
     DEFPUSHBUTTON   "OK",     IDOK,     105, 50, 50, 14
     PUSHBUTTON      "Cancel", IDCANCEL, 160, 50, 50, 14
+END
+
+// =========================================================================
+// Text display window (Ctrl+T) — v1.50 Phase 2
+// Modeless dialog with a single read-only multiline edit. The edit's
+// background/foreground colors and font come from the active theme set
+// in Preferences > Books.
+// =========================================================================
+IDD_BOOK_TEXT_WINDOW DIALOGEX 0, 0, 320, 240
+STYLE DS_SETFONT | WS_POPUP | WS_CAPTION | WS_SYSMENU | WS_THICKFRAME | WS_MAXIMIZEBOX | WS_MINIMIZEBOX
+CAPTION "Book text"
+FONT 10, "Segoe UI"
+BEGIN
+    EDITTEXT        IDC_BOOK_TEXT_EDIT, 0, 0, 320, 240,
+                    ES_MULTILINE | ES_READONLY | ES_AUTOVSCROLL | WS_VSCROLL | WS_TABSTOP
+END
+
+// =========================================================================
+// F3 search inside book — v1.50 Phase 2
+// =========================================================================
+IDD_BOOK_SEARCH DIALOGEX 0, 0, 280, 80
+STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "Find in book"
+FONT 9, "MS Shell Dlg"
+BEGIN
+    LTEXT           "Find:", IDC_LABEL_BOOK_SEARCH_PROMPT, 10, 10, 40, 10
+    EDITTEXT        IDC_BOOK_SEARCH_EDIT, 55, 8, 215, 14, ES_AUTOHSCROLL
+
+    DEFPUSHBUTTON   "Find &next", IDC_BOOK_SEARCH_NEXT, 110, 50, 70, 14
+    PUSHBUTTON      "Close",      IDCANCEL,             200, 50, 70, 14
 END

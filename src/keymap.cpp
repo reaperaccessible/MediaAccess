@@ -315,6 +315,14 @@ KeyMap BuildDefaultFrFrKeyMap()
     // PLAYER_PLAY / PAUSE / STOP / NEXT (X, C, V, B) stay the same on AZERTY.
     remap("BOOKMARK_ADD", 'M', VK_OEM_COMMA); // physical 0x32: AZERTY ','
 
+    // EFFECT_PREV / EFFECT_NEXT live at physical scancodes 0x1A and 0x1B
+    // (right of P). On AZERTY those keys send VK_OEM_6 (^) and VK_OEM_1 ($)
+    // respectively — NOT VK_OEM_4 / VK_OEM_6 like QWERTY does. Without this
+    // remap, the user's physical [ / ] keys do nothing and instead the
+    // top-row ) key (which IS VK_OEM_4 on AZERTY) triggers EFFECT_PREV.
+    remap("EFFECT_PREV", VK_OEM_4, VK_OEM_6);  // physical 0x1A: AZERTY ^
+    remap("EFFECT_NEXT", VK_OEM_6, VK_OEM_1);  // physical 0x1B: AZERTY $
+
     // Note: Numbers on AZERTY require Shift on the top row, so Ctrl+1 etc.
     // will physically require Ctrl+Shift+&. Users typically use the NumPad
     // for digits, where Ctrl+1 works natively. We leave the bindings as

@@ -77,7 +77,7 @@ set "SOURCES=src\main.cpp src\globals.cpp src\utils.cpp src\player.cpp"
 set "SOURCES=%SOURCES% src\settings.cpp src\hotkeys.cpp src\tray.cpp src\translations.cpp src\translations_rc.cpp src\translations_ui.cpp src\translations_player.cpp"
 set "SOURCES=%SOURCES% src\accessibility.cpp src\ui.cpp src\ui_options.cpp src\ui_playlist.cpp src\ui_radio.cpp src\ui_podcast.cpp src\ui_scheduler.cpp src\ui_bookmarks.cpp src\ui_tags.cpp src\effects.cpp"
 set "SOURCES=%SOURCES% src\database.cpp src\sqlite3.c"
-set "SOURCES=%SOURCES% src\tempo_processor.cpp src\youtube.cpp src\center_cancel.cpp src\convolution.cpp src\download_manager.cpp src\updater.cpp src\spatial_audio.cpp src\video_engine.cpp src\ytdlp_updater.cpp src\logger.cpp src\keyboard_help.cpp src\actions.cpp src\keymap.cpp src\actions_window.cpp src\daisy_book.cpp src\daisy_player.cpp src\books_dialog.cpp"
+set "SOURCES=%SOURCES% src\tempo_processor.cpp src\youtube.cpp src\center_cancel.cpp src\convolution.cpp src\download_manager.cpp src\updater.cpp src\spatial_audio.cpp src\video_engine.cpp src\ytdlp_updater.cpp src\logger.cpp src\keyboard_help.cpp src\actions.cpp src\keymap.cpp src\actions_window.cpp src\daisy_book.cpp src\daisy_player.cpp src\books_dialog.cpp src\tts_player.cpp src\book_text_window.cpp deps\miniz\miniz.c"
 
 REM Add Speedy source if enabled
 if defined SPEEDY_SRC set "SOURCES=%SOURCES% %SPEEDY_SRC%"
@@ -88,7 +88,7 @@ if errorlevel 1 goto :error
 
 REM Compile and link
 cl /nologo /W3 /O2 /MT /EHsc /utf-8 /DUNICODE /D_UNICODE /DNOMINMAX %COMMIT_FLAG% %SPEECH_FLAG% %SPEEDY_FLAG% %SIGNALSMITH_FLAG% %STEAMAUDIO_FLAG% ^
-   /I"." /I"include" /I"include\mediaaccess" %SPEEDY_INC% %SIGNALSMITH_INC% %STEAMAUDIO_INC% ^
+   /I"." /I"include" /I"include\mediaaccess" /I"deps\miniz" %SPEEDY_INC% %SIGNALSMITH_INC% %STEAMAUDIO_INC% ^
    %SOURCES% MediaAccess.res ^
    /Fe:MediaAccess.exe ^
    /link /LIBPATH:"lib" /MANIFEST:EMBED /MANIFESTINPUT:MediaAccess.manifest /DELAYLOAD:bass.dll /DELAYLOAD:bass_fx.dll /DELAYLOAD:bass_aac.dll /DELAYLOAD:bassmidi.dll /DELAYLOAD:bassenc.dll /DELAYLOAD:bassenc_mp3.dll /DELAYLOAD:bassenc_ogg.dll /DELAYLOAD:bassenc_flac.dll ^

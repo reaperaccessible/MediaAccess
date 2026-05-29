@@ -32,7 +32,13 @@
 #include <map>
 #include <sstream>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
+
+// miniz: DEFLATE / ZIP support for EPUB (Phase 2). Single-source amalgamation
+// dropped in deps/miniz/. We only need the inflate side, but the amalgamation
+// is small and well-tested so we include it whole.
+#include "miniz.h"
 
 #pragma comment(lib, "shlwapi.lib")
 #pragma comment(lib, "ole32.lib")
@@ -468,6 +474,258 @@ ComPtr<IXMLDOMNode> SelectSingleNode(IXMLDOMNode* root, const wchar_t* xpath) {
     return node;
 }
 
+// Lowercase + strip "ns:" prefix from a DOM node name. Used for tag dispatch
+// when walking XHTML in a namespace-agnostic way.
+std::wstring LocalTagLower(IXMLDOMNode* node) {
+    if (!node) return L"";
+    BSTR b = nullptr;
+    if (FAILED(node->get_nodeName(&b)) || !b) return L"";
+    std::wstring s = b;
+    SysFreeString(b);
+    s = ToLowerW(s);
+    size_t c = s.find(L':');
+    if (c != std::wstring::npos) s = s.substr(c + 1);
+    return s;
+}
+
+// Collapse runs of whitespace (space/tab/CR/LF/NBSP) to a single space and trim.
+std::wstring NormalizeWhitespace(const std::wstring& in) {
+    std::wstring out;
+    out.reserve(in.size());
+    bool prevSpace = true;  // leading whitespace gets eaten
+    for (wchar_t c : in) {
+        bool isSpace = (c == L' ' || c == L'\t' || c == L'\r' || c == L'\n' ||
+                        c == 0x00A0 /* NBSP */);
+        if (isSpace) {
+            if (!prevSpace) out.push_back(L' ');
+            prevSpace = true;
+        } else {
+            out.push_back(c);
+            prevSpace = false;
+        }
+    }
+    while (!out.empty() && out.back() == L' ') out.pop_back();
+    return out;
+}
+
+// Get the (whitespace-normalized) plain text content of a DOM element. MSXML's
+// get_text() concatenates descendant text nodes for us; we just normalize.
+std::wstring ElementText(IXMLDOMNode* node) {
+    if (!node) return L"";
+    BSTR b = nullptr;
+    if (FAILED(node->get_text(&b)) || !b) return L"";
+    std::wstring s = b;
+    SysFreeString(b);
+    return NormalizeWhitespace(s);
+}
+
+// Cache parsed XHTML DOMs keyed by lowercased absolute path. Each XHTML file
+// gets parsed exactly once across all the clips that reference it.
+struct XhtmlCache {
+    std::unordered_map<std::wstring, ComPtr<IXMLDOMDocument2>> docs;
+
+    IXMLDOMDocument2* Get(const std::wstring& absPath) {
+        std::wstring key = ToLowerW(absPath);
+        auto it = docs.find(key);
+        if (it != docs.end()) return it->second.Get();
+        auto doc = LoadXmlFromFile(absPath, /*htmlFallback*/true);
+        IXMLDOMDocument2* raw = doc.Get();
+        docs.emplace(std::move(key), std::move(doc));
+        return raw;
+    }
+};
+
+// Look up an element by id inside a parsed XHTML doc. We try several common
+// XPath shapes because XHTML produced by various DAISY tools uses different
+// attribute styles (plain id="...", xml:id="...", and sometimes name="..." on
+// <a> shims).
+ComPtr<IXMLDOMNode> FindElementById(IXMLDOMDocument2* doc, const std::string& fragId) {
+    if (!doc || fragId.empty()) return {};
+    std::wstring wid = Utf8ToWide(fragId);
+
+    // Escape any quotes that would break the XPath literal — extremely rare
+    // but cheap insurance.
+    std::wstring esc;
+    esc.reserve(wid.size());
+    for (wchar_t c : wid) {
+        if (c == L'\'' || c == L'"') continue;  // skip rather than build concat()
+        esc.push_back(c);
+    }
+
+    std::wstring xp = L"//*[@id='" + esc + L"']";
+    auto n = SelectSingleNode(doc, xp.c_str());
+    if (n) return n;
+
+    xp = L"//*[@xml:id='" + esc + L"']";
+    n = SelectSingleNode(doc, xp.c_str());
+    if (n) return n;
+
+    // Some tools wrap a <a name="..."> next to the target paragraph; walk to
+    // the parent block as a best-effort.
+    xp = L"//*[local-name()='a'][@name='" + esc + L"']/..";
+    n = SelectSingleNode(doc, xp.c_str());
+    return n;
+}
+
+// Populate clip.textContent for every clip that has a textFile/textFragId.
+// XHTML files are parsed lazily through `cache`, so each file hits disk once.
+void PopulateClipTextContent(std::vector<DaisyClip>& clips, XhtmlCache& cache) {
+    for (auto& clip : clips) {
+        if (clip.textFile.empty() || clip.textFragId.empty()) continue;
+        if (!FileExists(clip.textFile)) continue;
+        IXMLDOMDocument2* doc = cache.Get(clip.textFile);
+        if (!doc) continue;
+        auto node = FindElementById(doc, clip.textFragId);
+        if (!node) continue;
+        clip.textContent = ElementText(node.Get());
+    }
+}
+
+// Block-level XHTML tags we emit as a DaisyTextSegment when walking text-only
+// content. Order matches typical reading flow; we also stop descending into a
+// matched element (a <li> inside a <ul> is its own segment, not part of the
+// parent).
+bool IsBlockTextTag(const std::wstring& tag) {
+    return tag == L"p" || tag == L"blockquote" || tag == L"li" ||
+           tag == L"dt" || tag == L"dd" || tag == L"pre" ||
+           tag == L"caption" || tag == L"figcaption" ||
+           tag == L"div";  // div is a catch-all if no inner block matches
+}
+
+int HeadingLevel(const std::wstring& tag) {
+    if (tag.size() == 2 && tag[0] == L'h' && tag[1] >= L'1' && tag[1] <= L'6')
+        return tag[1] - L'0';
+    return -1;
+}
+
+// Recursively walk a DOM subtree, emitting one DaisyTextSegment per
+// "interesting" block element (headings, paragraphs, list items, page
+// numbers). To avoid double-counting nested blocks we skip descent once we
+// emit for an element — but we DO descend into containers like <div>, <body>,
+// <section>, <article>, <nav>, <main>, <aside>, <header>, <footer>.
+void WalkXhtmlForSegments(IXMLDOMNode* node,
+                          const std::wstring& xhtmlFile,
+                          std::vector<DaisyTextSegment>& out,
+                          std::unordered_set<std::wstring>& seenSegments) {
+    if (!node) return;
+
+    ComPtr<IXMLDOMNodeList> children;
+    node->get_childNodes(children.PutVoid());
+    if (!children) return;
+    long n = 0; children->get_length(&n);
+
+    for (long i = 0; i < n; ++i) {
+        ComPtr<IXMLDOMNode> ch;
+        children->get_item(i, ch.PutVoid());
+        if (!ch) continue;
+        DOMNodeType nt = NODE_INVALID;
+        ch->get_nodeType(&nt);
+        if (nt != NODE_ELEMENT) continue;
+
+        std::wstring tag = LocalTagLower(ch.Get());
+        if (tag.empty()) continue;
+
+        // Containers: just recurse, don't emit.
+        if (tag == L"html" || tag == L"body" || tag == L"head" ||
+            tag == L"section" || tag == L"article" || tag == L"nav" ||
+            tag == L"main" || tag == L"aside" || tag == L"header" ||
+            tag == L"footer" || tag == L"ul" || tag == L"ol" || tag == L"dl" ||
+            tag == L"figure") {
+            WalkXhtmlForSegments(ch.Get(), xhtmlFile, out, seenSegments);
+            continue;
+        }
+
+        // Skip non-content tags entirely.
+        if (tag == L"script" || tag == L"style" || tag == L"meta" ||
+            tag == L"link" || tag == L"title") {
+            continue;
+        }
+
+        int level = -1;
+        bool emit = false;
+        int hl = HeadingLevel(tag);
+        if (hl >= 1) { level = hl; emit = true; }
+        else if (IsBlockTextTag(tag)) {
+            // For <div>, only emit if it doesn't contain a block child we'd
+            // otherwise descend into. (Walk one level to check.)
+            if (tag == L"div") {
+                bool hasBlockChild = false;
+                ComPtr<IXMLDOMNodeList> gc;
+                ch->get_childNodes(gc.PutVoid());
+                long gn = 0; if (gc) gc->get_length(&gn);
+                for (long j = 0; j < gn; ++j) {
+                    ComPtr<IXMLDOMNode> g;
+                    gc->get_item(j, g.PutVoid());
+                    if (!g) continue;
+                    DOMNodeType gnt = NODE_INVALID;
+                    g->get_nodeType(&gnt);
+                    if (gnt != NODE_ELEMENT) continue;
+                    std::wstring gt = LocalTagLower(g.Get());
+                    if (HeadingLevel(gt) > 0 || IsBlockTextTag(gt) ||
+                        gt == L"section" || gt == L"article" || gt == L"ul" ||
+                        gt == L"ol" || gt == L"dl") {
+                        hasBlockChild = true;
+                        break;
+                    }
+                }
+                if (hasBlockChild) {
+                    WalkXhtmlForSegments(ch.Get(), xhtmlFile, out, seenSegments);
+                    continue;
+                }
+            }
+            level = -1;
+            emit = true;
+        } else if (tag == L"span") {
+            // Page-number spans: class contains "page-" (DAISY 2.02 convention)
+            std::wstring cls = ToLowerW(AttrValue(ch.Get(), L"class"));
+            if (cls.find(L"page") != std::wstring::npos) {
+                level = 0;
+                emit = true;
+            } else {
+                continue;  // inline span, ignore
+            }
+        } else {
+            // Some other inline-ish element: skip.
+            continue;
+        }
+
+        if (emit) {
+            std::wstring text = ElementText(ch.Get());
+            if (text.empty()) continue;
+            std::string id = WideToUtf8(AttrValue(ch.Get(), L"id"));
+
+            // Dedup key — guards against re-walking shared anchors across spine entries
+            std::wstring key = xhtmlFile + L"#" + Utf8ToWide(id) + L"\x1f" + text;
+            if (!seenSegments.insert(key).second) continue;
+
+            DaisyTextSegment seg;
+            seg.text       = std::move(text);
+            seg.textFile   = xhtmlFile;
+            seg.textFragId = std::move(id);
+            seg.navLevel   = level;
+            out.push_back(std::move(seg));
+        }
+    }
+}
+
+// Convenience: walk a whole XHTML file (top-level) and append segments.
+void AppendSegmentsFromFile(const std::wstring& xhtmlFile,
+                            XhtmlCache& cache,
+                            std::vector<DaisyTextSegment>& out) {
+    if (xhtmlFile.empty() || !FileExists(xhtmlFile)) return;
+    IXMLDOMDocument2* doc = cache.Get(xhtmlFile);
+    if (!doc) return;
+    auto body = SelectSingleNode(doc, L"//*[local-name()='body']");
+    IXMLDOMNode* root = body.Get();
+    ComPtr<IXMLDOMNode> docRoot;
+    if (!root) {
+        doc->QueryInterface(IID_PPV_ARGS(docRoot.PutVoid()));
+        root = docRoot.Get();
+    }
+    std::unordered_set<std::wstring> seen;
+    WalkXhtmlForSegments(root, xhtmlFile, out, seen);
+}
+
 // -----------------------------------------------------------------------------
 // SMIL time parser
 //
@@ -842,6 +1100,33 @@ bool ParseDaisy202(const std::wstring& folder, DaisyBook& book) {
         book.navPoints.push_back(np);
     }
 
+    // Phase 2: populate textContent for every clip whose <text> pointed into a
+    // resolvable XHTML fragment. Each unique XHTML file is parsed once.
+    {
+        XhtmlCache xcache;
+        PopulateClipTextContent(book.clips, xcache);
+
+        // Text-only DAISY 2.02 (multimediaType=textNcc or no audio at all):
+        // walk the NCC body (and any HTML referenced from it) as the text source.
+        if (book.clips.empty()) {
+            AppendSegmentsFromFile(nccPath, xcache, book.textSegments);
+            // Some textNcc books split content across additional .html files
+            // referenced by <a href> in the NCC. Walk those too in encounter order.
+            std::unordered_set<std::wstring> seenFile;
+            seenFile.insert(ToLowerW(nccPath));
+            for (auto& p : pending) {
+                // pending stores smilFile but for textNcc the href points at .html
+                // — repurpose: any unique referenced file.
+                std::wstring lk = ToLowerW(p.smilFile);
+                if (seenFile.insert(lk).second &&
+                    (EndsWith(p.smilFile, L".html") || EndsWith(p.smilFile, L".htm") ||
+                     EndsWith(p.smilFile, L".xhtml"))) {
+                    AppendSegmentsFromFile(p.smilFile, xcache, book.textSegments);
+                }
+            }
+        }
+    }
+
     // Total duration
     double total = 0;
     for (auto& c : book.clips) {
@@ -1018,17 +1303,23 @@ bool ParseDaisy3(const std::wstring& opfPath, DaisyBook& book) {
         if (!id.empty()) spine.push_back(id);
     }
 
-    // Parse each SMIL in spine order
+    // Parse each SMIL in spine order; remember XHTML spine entries for the
+    // text-only fallback below.
     std::unordered_map<std::wstring, SmilResult> smilCache;
+    std::vector<std::wstring> spineXhtml;  // absolute paths, spine order
     for (auto& id : spine) {
         auto mit = manifest.find(id);
         if (mit == manifest.end()) continue;
         std::wstring abs = JoinPath(opfFolder, mit->second.href);
         std::wstring mt  = mit->second.mediaType;
         std::wstring mtLow = ToLowerW(mt);
-        // Only parse SMIL spine entries (text-only books spine XHTML; skip those for now)
-        if (mtLow.find(L"smil") == std::wstring::npos &&
-            !EndsWith(abs, L".smil")) {
+        bool isSmil = (mtLow.find(L"smil") != std::wstring::npos) ||
+                      EndsWith(abs, L".smil");
+        bool isXhtml = (mtLow.find(L"html") != std::wstring::npos) ||
+                       EndsWith(abs, L".xhtml") || EndsWith(abs, L".html") ||
+                       EndsWith(abs, L".htm");
+        if (!isSmil) {
+            if (isXhtml) spineXhtml.push_back(abs);
             continue;
         }
         SmilResult tmp;
@@ -1079,6 +1370,20 @@ bool ParseDaisy3(const std::wstring& opfPath, DaisyBook& book) {
         }
     }
 
+    // Phase 2: text content + text-only fallback.
+    {
+        XhtmlCache xcache;
+        PopulateClipTextContent(book.clips, xcache);
+
+        if (book.clips.empty()) {
+            // Text-only DAISY 3 (or EPUB-like spine of XHTML). Walk spine
+            // XHTML entries in order.
+            for (auto& f : spineXhtml) {
+                AppendSegmentsFromFile(f, xcache, book.textSegments);
+            }
+        }
+    }
+
     // Total duration
     double total = 0;
     for (auto& c : book.clips) {
@@ -1089,108 +1394,101 @@ bool ParseDaisy3(const std::wstring& opfPath, DaisyBook& book) {
 }
 
 // -----------------------------------------------------------------------------
-// EPUB 3 metadata-only parser
+// EPUB 3 parser (miniz-backed ZIP reader)
 //
-// EPUB = ZIP. We don't pull in a ZIP library here; instead we recognize the
-// PK header, walk the central directory ourselves enough to extract two
-// small files (META-INF/container.xml and the .opf it points to). The files
-// are virtually always STORED or deflate-compressed; we handle both via
-// Windows' built-in Compression API for deflate, or pass through STORED.
-//
-// If anything goes wrong we still return a DaisyBook with format=Epub3 and
-// the filename as the title so the library scanner can show *something*.
+// EPUB is a ZIP. miniz gives us read access to STORED and DEFLATE entries, so
+// we can pull container.xml, the OPF, and (in Phase 2) every XHTML spine file
+// for TTS playback when no Media Overlays are present.
 // -----------------------------------------------------------------------------
 
-#pragma pack(push, 1)
-struct ZipLocalHeader {
-    uint32_t sig;
-    uint16_t verNeeded;
-    uint16_t flags;
-    uint16_t method;
-    uint16_t modTime;
-    uint16_t modDate;
-    uint32_t crc32;
-    uint32_t compSize;
-    uint32_t uncompSize;
-    uint16_t nameLen;
-    uint16_t extraLen;
-};
-struct ZipCentralDirHeader {
-    uint32_t sig;            // 0x02014b50
-    uint16_t verMade;
-    uint16_t verNeeded;
-    uint16_t flags;
-    uint16_t method;
-    uint16_t modTime;
-    uint16_t modDate;
-    uint32_t crc32;
-    uint32_t compSize;
-    uint32_t uncompSize;
-    uint16_t nameLen;
-    uint16_t extraLen;
-    uint16_t commentLen;
-    uint16_t diskNum;
-    uint16_t intAttr;
-    uint32_t extAttr;
-    uint32_t localHdrOffset;
-};
-struct ZipEndOfCentralDir {
-    uint32_t sig;            // 0x06054b50
-    uint16_t diskNum;
-    uint16_t diskCdStart;
-    uint16_t cdEntriesThisDisk;
-    uint16_t cdEntriesTotal;
-    uint32_t cdSize;
-    uint32_t cdOffset;
-    uint16_t commentLen;
-};
-#pragma pack(pop)
+// Open the .epub as a miniz archive on disk. miniz handles the file I/O so we
+// don't have to buffer the whole archive in memory for large books.
+struct EpubZip {
+    mz_zip_archive zip;
+    bool           open = false;
 
-// Inflate raw deflate stream using zlib? We don't have zlib linked. Use
-// Windows Compression API (Cabinet.dll exports... actually use COMPRESSION_FORMAT_XPRESS_HUFF
-// which isn't deflate). Simpler: support STORED only; if compressed, we just
-// fall back to filename-as-title.
-bool ZipExtractStored(const std::vector<uint8_t>& buf, const std::string& wantName,
-                      std::vector<uint8_t>& out) {
-    // Find End of Central Directory record (search last 64KB)
-    if (buf.size() < sizeof(ZipEndOfCentralDir)) return false;
-    size_t scan = buf.size() - sizeof(ZipEndOfCentralDir);
-    size_t minScan = (buf.size() > 65557) ? buf.size() - 65557 : 0;
-    const ZipEndOfCentralDir* eocd = nullptr;
-    while (scan >= minScan && scan + sizeof(ZipEndOfCentralDir) <= buf.size()) {
-        auto* p = reinterpret_cast<const ZipEndOfCentralDir*>(&buf[scan]);
-        if (p->sig == 0x06054b50) { eocd = p; break; }
-        if (scan == 0) break;
-        --scan;
-    }
-    if (!eocd) return false;
+    EpubZip() { memset(&zip, 0, sizeof(zip)); }
+    ~EpubZip() { if (open) mz_zip_reader_end(&zip); }
 
-    size_t cdOff = eocd->cdOffset;
-    int n = eocd->cdEntriesTotal;
-    for (int i = 0; i < n; ++i) {
-        if (cdOff + sizeof(ZipCentralDirHeader) > buf.size()) return false;
-        auto* cd = reinterpret_cast<const ZipCentralDirHeader*>(&buf[cdOff]);
-        if (cd->sig != 0x02014b50) return false;
-        std::string name((const char*)&buf[cdOff + sizeof(ZipCentralDirHeader)], cd->nameLen);
-        cdOff += sizeof(ZipCentralDirHeader) + cd->nameLen + cd->extraLen + cd->commentLen;
-
-        // Case-insensitive compare for matching
-        if (_stricmp(name.c_str(), wantName.c_str()) != 0) continue;
-        if (cd->method != 0) {
-            // STORED only path — deflate unsupported in Phase 1
-            LogF("daisy", "EPUB: file '%s' is compressed (method %u), unsupported",
-                 name.c_str(), (unsigned)cd->method);
-            return false;
-        }
-        size_t lhOff = cd->localHdrOffset;
-        if (lhOff + sizeof(ZipLocalHeader) > buf.size()) return false;
-        auto* lh = reinterpret_cast<const ZipLocalHeader*>(&buf[lhOff]);
-        size_t dataOff = lhOff + sizeof(ZipLocalHeader) + lh->nameLen + lh->extraLen;
-        if (dataOff + cd->uncompSize > buf.size()) return false;
-        out.assign(buf.begin() + dataOff, buf.begin() + dataOff + cd->uncompSize);
+    bool Open(const std::wstring& path) {
+        // miniz_reader_init_file takes UTF-8; convert from wide.
+        std::string utf8 = WideToUtf8(path);
+        if (!mz_zip_reader_init_file(&zip, utf8.c_str(), 0)) return false;
+        open = true;
         return true;
     }
-    return false;
+
+    // Extract a single named entry. Looks up case-insensitively because some
+    // EPUBs (notably Sigil output) use mixed casing for META-INF.
+    bool Extract(const std::string& name, std::vector<uint8_t>& out) {
+        if (!open) return false;
+        int idx = mz_zip_reader_locate_file(&zip, name.c_str(), nullptr, 0);
+        if (idx < 0) {
+            // Case-insensitive scan
+            mz_uint n = mz_zip_reader_get_num_files(&zip);
+            for (mz_uint i = 0; i < n; ++i) {
+                char buf[512];
+                mz_uint len = mz_zip_reader_get_filename(&zip, i, buf, sizeof(buf));
+                if (len == 0) continue;
+                if (_stricmp(buf, name.c_str()) == 0) { idx = (int)i; break; }
+            }
+            if (idx < 0) return false;
+        }
+        mz_zip_archive_file_stat st;
+        if (!mz_zip_reader_file_stat(&zip, idx, &st)) return false;
+        if (st.m_uncomp_size > 64ULL * 1024 * 1024) return false;  // sanity cap
+        out.resize((size_t)st.m_uncomp_size);
+        if (st.m_uncomp_size == 0) return true;
+        return mz_zip_reader_extract_to_mem(&zip, idx, out.data(),
+                                            (size_t)st.m_uncomp_size, 0) != 0;
+    }
+};
+
+// Strip BOM from a buffer in-place (front trim only).
+void StripBomVec(std::vector<uint8_t>& buf) {
+    if (buf.size() >= 3 && buf[0] == 0xEF && buf[1] == 0xBB && buf[2] == 0xBF) {
+        buf.erase(buf.begin(), buf.begin() + 3);
+    }
+}
+
+// Load XML from a zip-extracted buffer.
+ComPtr<IXMLDOMDocument2> LoadXmlFromZipEntry(std::vector<uint8_t>& buf) {
+    StripBomVec(buf);
+    if (buf.empty()) return {};
+    std::string s((const char*)buf.data(), buf.size());
+
+    // Same DOCTYPE strip as LoadXmlFromFile.
+    size_t p = s.find("<!DOCTYPE");
+    if (p == std::string::npos) p = s.find("<!doctype");
+    if (p != std::string::npos) {
+        size_t q = s.find('>', p);
+        if (q != std::string::npos) s.erase(p, q - p + 1);
+    }
+    return LoadXmlFromString(s);
+}
+
+// Parse one XHTML entry from inside the EPUB and walk it for segments. We
+// stage the bytes into a temp file so the existing XhtmlCache (which keys off
+// file paths) doesn't have to grow a parallel in-memory variant. The temp file
+// is deleted on scope exit.
+struct TempXhtmlFile {
+    std::wstring path;
+    ~TempXhtmlFile() { if (!path.empty()) DeleteFileW(path.c_str()); }
+};
+
+bool WriteTempXhtml(const std::vector<uint8_t>& buf, std::wstring& outPath) {
+    wchar_t dir[MAX_PATH]; GetTempPathW(MAX_PATH, dir);
+    wchar_t tmp[MAX_PATH]; if (!GetTempFileNameW(dir, L"mae", 0, tmp)) return false;
+    HANDLE h = CreateFileW(tmp, GENERIC_WRITE, 0, nullptr, CREATE_ALWAYS,
+                           FILE_ATTRIBUTE_NORMAL, nullptr);
+    if (h == INVALID_HANDLE_VALUE) return false;
+    DWORD wrote = 0;
+    BOOL ok = buf.empty() ? TRUE
+                          : WriteFile(h, buf.data(), (DWORD)buf.size(), &wrote, nullptr);
+    CloseHandle(h);
+    if (!ok || (!buf.empty() && wrote != buf.size())) return false;
+    outPath = tmp;
+    return true;
 }
 
 bool ParseEpub3Metadata(const std::wstring& epubPath, DaisyBook& book) {
@@ -1202,41 +1500,26 @@ bool ParseEpub3Metadata(const std::wstring& epubPath, DaisyBook& book) {
     if (dot != std::wstring::npos) fname = fname.substr(0, dot);
     book.title = fname;
 
-    // Read whole .epub into memory
-    HANDLE h = CreateFileW(epubPath.c_str(), GENERIC_READ, FILE_SHARE_READ, nullptr,
-                           OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
-    if (h == INVALID_HANDLE_VALUE) return true;  // we already have a title fallback
-    LARGE_INTEGER sz;
-    if (!GetFileSizeEx(h, &sz) || sz.QuadPart > 200LL * 1024 * 1024) {
-        CloseHandle(h);
+    EpubZip zip;
+    if (!zip.Open(epubPath)) {
+        LogF("daisy", "EPUB: could not open zip %s", WideToUtf8(epubPath).c_str());
         return true;
     }
-    std::vector<uint8_t> buf((size_t)sz.QuadPart);
-    DWORD read = 0;
-    BOOL ok = ReadFile(h, buf.data(), (DWORD)buf.size(), &read, nullptr);
-    CloseHandle(h);
-    if (!ok || read != buf.size() || buf.size() < 4) return true;
-    if (buf[0] != 'P' || buf[1] != 'K') return true;
 
     std::vector<uint8_t> container;
-    if (!ZipExtractStored(buf, "META-INF/container.xml", container)) {
-        // container.xml is almost always STORED but tolerate failure
-        return true;
-    }
-
-    std::string containerStr((const char*)container.data(), container.size());
-    auto cdoc = LoadXmlFromString(containerStr);
+    if (!zip.Extract("META-INF/container.xml", container)) return true;
+    auto cdoc = LoadXmlFromZipEntry(container);
     if (!cdoc) return true;
+
     auto rf = SelectSingleNode(cdoc.Get(), L"//*[local-name()='rootfile']");
     if (!rf) return true;
     std::wstring opfRel = AttrValue(rf.Get(), L"full-path");
     if (opfRel.empty()) return true;
 
     std::vector<uint8_t> opfBuf;
-    if (!ZipExtractStored(buf, WideToUtf8(opfRel), opfBuf)) return true;
+    if (!zip.Extract(WideToUtf8(opfRel), opfBuf)) return true;
 
-    std::string opfStr((const char*)opfBuf.data(), opfBuf.size());
-    auto odoc = LoadXmlFromString(opfStr);
+    auto odoc = LoadXmlFromZipEntry(opfBuf);
     if (!odoc) return true;
 
     auto getDc = [&](const wchar_t* tag) -> std::wstring {
@@ -1251,6 +1534,80 @@ bool ParseEpub3Metadata(const std::wstring& epubPath, DaisyBook& book) {
     if (!t.empty()) book.title    = t;
     if (!a.empty()) book.author   = a;
     if (!l.empty()) book.language = l;
+
+    // Phase 2: read the spine and build textSegments from every XHTML entry.
+    // The OPF base directory inside the zip is the parent of the .opf path.
+    std::string opfBaseUtf8;
+    {
+        std::string r = WideToUtf8(opfRel);
+        size_t slash = r.find_last_of('/');
+        opfBaseUtf8 = (slash == std::string::npos) ? "" : r.substr(0, slash + 1);
+    }
+
+    // Manifest: id -> (href, mediaType)
+    struct ManifestItem { std::string href, mediaType; };
+    std::map<std::string, ManifestItem> manifest;
+    auto items = SelectNodes(odoc.Get(), L"//*[local-name()='item']");
+    long iCount = 0; if (items) items->get_length(&iCount);
+    for (long i = 0; i < iCount; ++i) {
+        ComPtr<IXMLDOMNode> it;
+        items->get_item(i, it.PutVoid());
+        if (!it) continue;
+        std::string id   = WideToUtf8(AttrValue(it.Get(), L"id"));
+        std::string href = WideToUtf8(UrlDecode(AttrValue(it.Get(), L"href")));
+        std::string mt   = WideToUtf8(AttrValue(it.Get(), L"media-type"));
+        if (!id.empty() && !href.empty()) manifest[id] = { href, mt };
+    }
+
+    // Spine
+    std::vector<std::string> spineIds;
+    auto refs = SelectNodes(odoc.Get(),
+        L"//*[local-name()='spine']/*[local-name()='itemref']");
+    long sCount = 0; if (refs) refs->get_length(&sCount);
+    for (long i = 0; i < sCount; ++i) {
+        ComPtr<IXMLDOMNode> it;
+        refs->get_item(i, it.PutVoid());
+        if (!it) continue;
+        std::string id = WideToUtf8(AttrValue(it.Get(), L"idref"));
+        if (!id.empty()) spineIds.push_back(id);
+    }
+
+    // Walk each XHTML spine entry, extract its text into book.textSegments.
+    XhtmlCache xcache;
+    std::vector<TempXhtmlFile> tmpFiles;  // keep alive until function returns
+    for (auto& id : spineIds) {
+        auto mit = manifest.find(id);
+        if (mit == manifest.end()) continue;
+        std::string mtLow = ToLowerA(mit->second.mediaType);
+        bool isXhtml = mtLow.find("html") != std::string::npos;
+        if (!isXhtml) {
+            // Fall back on extension
+            std::string href = ToLowerA(mit->second.href);
+            if (href.size() < 4) continue;
+            if (href.rfind(".xhtml") == std::string::npos &&
+                href.rfind(".html")  == std::string::npos &&
+                href.rfind(".htm")   == std::string::npos) continue;
+        }
+        std::string entryName = opfBaseUtf8 + mit->second.href;
+        std::vector<uint8_t> body;
+        if (!zip.Extract(entryName, body)) continue;
+
+        TempXhtmlFile tmp;
+        if (!WriteTempXhtml(body, tmp.path)) continue;
+
+        // Remember where segments came from in terms users / search will
+        // recognise: original epub path + entry. Rewrite textFile after the walk.
+        size_t before = book.textSegments.size();
+        AppendSegmentsFromFile(tmp.path, xcache, book.textSegments);
+        std::wstring originLabel = epubPath + L"!/" + Utf8ToWide(entryName);
+        for (size_t k = before; k < book.textSegments.size(); ++k) {
+            book.textSegments[k].textFile = originLabel;
+        }
+        tmpFiles.push_back(std::move(tmp));
+    }
+    // tmpFiles destructor cleans up the on-disk temp files now that the XHTML
+    // DOMs are parsed and the text content has been copied into segments.
+
     return true;
 }
 
@@ -1342,12 +1699,86 @@ std::unique_ptr<DaisyBook> OpenDaisyBook(const std::wstring& path,
         return nullptr;
     }
 
-    LogF("daisy", "opened %ls: %d clips, %d nav points, %.1fs total",
+    LogF("daisy", "opened %ls: %d clips, %d nav points, %d segments, %.1fs total",
          book->title.c_str(),
          (int)book->clips.size(),
          (int)book->navPoints.size(),
+         (int)book->textSegments.size(),
          book->totalDuration);
     return book;
+}
+
+// -----------------------------------------------------------------------------
+// DaisySearchBook — case-insensitive substring search over all text content.
+//
+// Uses CompareStringW with NORM_IGNORECASE so accented characters fold
+// correctly (é matches É, ñ matches Ñ). For each hit we extract a short
+// single-line snippet centred on the match so the UI list can preview it.
+// -----------------------------------------------------------------------------
+
+namespace {
+
+// Case-insensitive substring search using CompareStringW. Returns the start
+// index of the first match, or std::wstring::npos.
+size_t FindCI(const std::wstring& hay, const std::wstring& needle) {
+    if (needle.empty() || hay.size() < needle.size()) return std::wstring::npos;
+    LCID lc = LOCALE_USER_DEFAULT;
+    for (size_t i = 0; i + needle.size() <= hay.size(); ++i) {
+        int r = CompareStringW(lc, NORM_IGNORECASE,
+                               hay.c_str() + i, (int)needle.size(),
+                               needle.c_str(), (int)needle.size());
+        if (r == CSTR_EQUAL) return i;
+    }
+    return std::wstring::npos;
+}
+
+std::wstring MakeSnippet(const std::wstring& src, size_t matchPos, size_t matchLen) {
+    constexpr size_t kPad = 30;
+    size_t start = (matchPos > kPad) ? matchPos - kPad : 0;
+    size_t end   = matchPos + matchLen + kPad;
+    if (end > src.size()) end = src.size();
+    std::wstring s = src.substr(start, end - start);
+    // Collapse newlines/tabs to spaces for one-line display.
+    for (auto& c : s) {
+        if (c == L'\n' || c == L'\r' || c == L'\t') c = L' ';
+    }
+    if (start > 0)        s = L"..." + s;
+    if (end   < src.size()) s += L"...";
+    return s;
+}
+
+} // namespace
+
+std::vector<DaisySearchHit> DaisySearchBook(const DaisyBook& book,
+                                            const std::wstring& needle) {
+    std::vector<DaisySearchHit> out;
+    if (needle.empty()) return out;
+
+    for (int i = 0; i < (int)book.clips.size(); ++i) {
+        const auto& c = book.clips[i];
+        if (c.textContent.empty()) continue;
+        size_t pos = FindCI(c.textContent, needle);
+        if (pos == std::wstring::npos) continue;
+        DaisySearchHit h;
+        h.clipIndex    = i;
+        h.segmentIndex = -1;
+        h.snippet      = MakeSnippet(c.textContent, pos, needle.size());
+        out.push_back(std::move(h));
+    }
+
+    for (int i = 0; i < (int)book.textSegments.size(); ++i) {
+        const auto& s = book.textSegments[i];
+        if (s.text.empty()) continue;
+        size_t pos = FindCI(s.text, needle);
+        if (pos == std::wstring::npos) continue;
+        DaisySearchHit h;
+        h.clipIndex    = -1;
+        h.segmentIndex = i;
+        h.snippet      = MakeSnippet(s.text, pos, needle.size());
+        out.push_back(std::move(h));
+    }
+
+    return out;
 }
 
 } // namespace mediaaccess

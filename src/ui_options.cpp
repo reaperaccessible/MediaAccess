@@ -1,8 +1,10 @@
 #include "ui_internal.h"
 #include "mediaaccess/translations.h"
 #include "mediaaccess/youtube.h"  // ClearYouTubeCache, GetYouTubeCacheSize
-#include "mediaaccess/database.h"     // book library folders
-#include "mediaaccess/books_dialog.h" // RescanBookLibrary
+#include "mediaaccess/database.h"          // book library folders
+#include "mediaaccess/books_dialog.h"      // RescanBookLibrary
+#include "mediaaccess/tts_player.h"        // SAPI voice list / set active
+#include "mediaaccess/book_text_window.h"  // theme + always-hide
 
 // Update the small hint under the SoundFont path field that tells the user
 // what will actually be used when the field is empty. Three cases:
@@ -88,9 +90,12 @@ void ShowTabControls(HWND hwnd, int tab) {
     int midiCtrls[] = {IDC_MIDI_SOUNDFONT, IDC_MIDI_SF_BROWSE, IDC_MIDI_VOICES, IDC_MIDI_SINC,
                        IDC_LABEL_MIDI_DESCRIPTION, IDC_LABEL_MIDI_SOUNDFONT, IDC_LABEL_MIDI_VOICES, IDC_LABEL_MIDI_VOICES_RANGE,
                        IDC_LABEL_MIDI_SF_BUNDLED};
-    // Books tab controls (tab 12) — DAISY / EPUB library folders
+    // Books tab controls (tab 12) — DAISY / EPUB library + TTS + text window
     int booksCtrls[] = {IDC_BOOK_FOLDERS_LIST, IDC_BOOK_FOLDER_ADD, IDC_BOOK_FOLDER_REMOVE,
-                        IDC_BOOK_RESCAN, IDC_LABEL_BOOK_FOLDERS};
+                        IDC_BOOK_RESCAN, IDC_LABEL_BOOK_FOLDERS,
+                        IDC_BOOK_TTS_VOICE, IDC_LABEL_BOOK_TTS_VOICE,
+                        IDC_BOOK_TEXT_THEME, IDC_LABEL_BOOK_TEXT_THEME,
+                        IDC_BOOK_HIDE_TEXT_WINDOW};
 
 
 
@@ -203,6 +208,42 @@ INT_PTR CALLBACK OptionsDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
                     SendMessageW(hList, LB_ADDSTRING, 0, (LPARAM)f.c_str());
                 }
             }
+
+            // Populate TTS voice combo
+            {
+                HWND hVoice = GetDlgItem(hwnd, IDC_BOOK_TTS_VOICE);
+                SendMessageW(hVoice, CB_RESETCONTENT, 0, 0);
+                // First item = "(Windows default)" with empty id
+                SendMessageW(hVoice, CB_ADDSTRING, 0,
+                             (LPARAM)T("(Windows default voice)"));
+                auto voices = mediaaccess::TtsListVoices();
+                int activeIdx = 0;  // default = first item
+                std::wstring activeId = mediaaccess::TtsGetActiveVoiceId();
+                for (size_t i = 0; i < voices.size(); ++i) {
+                    int idx = (int)SendMessageW(hVoice, CB_ADDSTRING, 0,
+                                                (LPARAM)voices[i].displayName.c_str());
+                    if (idx >= 0 && !activeId.empty() && voices[i].id == activeId) {
+                        activeIdx = idx;
+                    }
+                }
+                SendMessageW(hVoice, CB_SETCURSEL, activeIdx, 0);
+            }
+
+            // Populate text-window theme combo
+            {
+                HWND hTheme = GetDlgItem(hwnd, IDC_BOOK_TEXT_THEME);
+                SendMessageW(hTheme, CB_RESETCONTENT, 0, 0);
+                SendMessageW(hTheme, CB_ADDSTRING, 0, (LPARAM)T("Standard"));
+                SendMessageW(hTheme, CB_ADDSTRING, 0, (LPARAM)T("High contrast"));
+                SendMessageW(hTheme, CB_ADDSTRING, 0, (LPARAM)T("Large"));
+                SendMessageW(hTheme, CB_SETCURSEL,
+                             (int)mediaaccess::BookTextWindowGetTheme(), 0);
+            }
+
+            // "Always hide text window" checkbox
+            CheckDlgButton(hwnd, IDC_BOOK_HIDE_TEXT_WINDOW,
+                           mediaaccess::BookTextWindowGetAlwaysHide()
+                               ? BST_CHECKED : BST_UNCHECKED);
 
             // (Global Hotkeys tab removed in v1.41 — see Tools → Actions.)
 
@@ -979,6 +1020,35 @@ INT_PTR CALLBACK OptionsDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
                     SpeakW(buf);
                     return TRUE;
                 }
+
+                case IDC_BOOK_TTS_VOICE: {
+                    if (HIWORD(wParam) != CBN_SELCHANGE) break;
+                    int sel = (int)SendDlgItemMessageW(hwnd, IDC_BOOK_TTS_VOICE, CB_GETCURSEL, 0, 0);
+                    if (sel < 0) return TRUE;
+                    if (sel == 0) {
+                        mediaaccess::TtsSetActiveVoiceId(L"");  // Windows default
+                    } else {
+                        auto voices = mediaaccess::TtsListVoices();
+                        int voiceIdx = sel - 1;
+                        if (voiceIdx >= 0 && voiceIdx < (int)voices.size()) {
+                            mediaaccess::TtsSetActiveVoiceId(voices[voiceIdx].id);
+                        }
+                    }
+                    return TRUE;
+                }
+
+                case IDC_BOOK_TEXT_THEME: {
+                    if (HIWORD(wParam) != CBN_SELCHANGE) break;
+                    int sel = (int)SendDlgItemMessageW(hwnd, IDC_BOOK_TEXT_THEME, CB_GETCURSEL, 0, 0);
+                    if (sel < 0 || sel > 2) return TRUE;
+                    mediaaccess::BookTextWindowSetTheme((mediaaccess::BookTextTheme)sel);
+                    return TRUE;
+                }
+
+                case IDC_BOOK_HIDE_TEXT_WINDOW:
+                    mediaaccess::BookTextWindowSetAlwaysHide(
+                        IsDlgButtonChecked(hwnd, IDC_BOOK_HIDE_TEXT_WINDOW) == BST_CHECKED);
+                    return TRUE;
 
                 case IDC_REC_FORMAT:
                     if (HIWORD(wParam) == CBN_SELCHANGE) {

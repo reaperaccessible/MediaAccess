@@ -8,6 +8,7 @@
 #include "mediaaccess/books_dialog.h"
 #include "mediaaccess/daisy_book.h"
 #include "mediaaccess/daisy_player.h"
+#include "mediaaccess/book_text_window.h"
 #include "mediaaccess/database.h"
 #include "mediaaccess/translations.h"
 #include "mediaaccess/accessibility.h"
@@ -52,16 +53,14 @@ bool OpenBookByPath(HWND owner, const std::wstring& path) {
         return false;
     }
 
-    // EPUB without clips can be registered in the library but not played in
-    // Phase 1 — let the user know rather than silently failing.
-    if (book->clips.empty()) {
+    // Book has no recorded audio AND no extracted text — nothing playable.
+    if (book->clips.empty() && book->textSegments.empty()) {
         int id = UpsertBook(book->path, book->title, book->author,
                             L"epub3", book->totalDuration);
         (void)id;
         MessageBoxW(owner,
-            T("This book has no recorded audio and no synthesized speech support yet. "
-              "It has been added to your library — full text-to-speech playback "
-              "for EPUB and text-only DAISY books will arrive in a future update."),
+            T("This book has no recorded audio and no extractable text. "
+              "It has been added to your library but cannot be played."),
             L"MediaAccess", MB_OK | MB_ICONINFORMATION);
         return false;
     }
@@ -78,12 +77,26 @@ bool OpenBookByPath(HWND owner, const std::wstring& path) {
         return false;
     }
 
+    // Capture text-availability info before move-from.
+    bool hasText = !book->textSegments.empty();
+    if (!hasText) {
+        for (const auto& c : book->clips) {
+            if (!c.textContent.empty()) { hasText = true; break; }
+        }
+    }
+
     if (!DaisyLoadAndPlay(std::move(book), bookId)) {
         MessageBoxW(owner, T("Could not start book playback."),
                     L"MediaAccess", MB_OK | MB_ICONWARNING);
         return false;
     }
     Speak(Ts("Book opened"));
+
+    // Auto-show text window for books that have text, unless the user opted
+    // out via Preferences > Books > "Always hide text window".
+    if (hasText && !BookTextWindowGetAlwaysHide()) {
+        BookTextWindowShow(owner);
+    }
     return true;
 }
 
@@ -354,6 +367,100 @@ void PromptGoToPage(HWND owner) {
         std::wstring msg = std::wstring(T("Page not found:")) + L" " + s_pageBuf;
         MessageBoxW(owner, msg.c_str(), L"MediaAccess", MB_OK | MB_ICONINFORMATION);
     }
+}
+
+// -----------------------------------------------------------------------------
+// F3 search inside the current book
+// -----------------------------------------------------------------------------
+
+// Cached search state — the dialog leaves the query and hits intact between
+// invocations so "F3 → close dialog → F3 again" advances to the next hit
+// without retyping.
+struct SearchState {
+    std::wstring query;
+    std::vector<DaisySearchHit> hits;
+    int cursor = -1;  // Index of the last-jumped hit; -1 = none yet
+};
+static SearchState s_search;
+static std::wstring s_searchEditBuf;  // For dialog text exchange
+
+static void JumpToHit(const DaisySearchHit& h) {
+    if (h.clipIndex >= 0) {
+        DaisyJumpToBookmark(h.clipIndex, 0.0);
+    } else if (h.segmentIndex >= 0) {
+        DaisyJumpToSegment(h.segmentIndex);
+    }
+}
+
+static void PerformSearch(HWND owner) {
+    const DaisyBook* book = DaisyCurrentBook();
+    if (!book) return;
+    if (s_search.query.empty()) return;
+    s_search.hits = DaisySearchBook(*book, s_search.query);
+    s_search.cursor = -1;
+    if (s_search.hits.empty()) {
+        std::wstring msg = std::wstring(T("No matches found for:")) + L" " + s_search.query;
+        MessageBoxW(owner, msg.c_str(), L"MediaAccess", MB_OK | MB_ICONINFORMATION);
+        return;
+    }
+    s_search.cursor = 0;
+    JumpToHit(s_search.hits[0]);
+    Speak(Ts("Found"));
+}
+
+static INT_PTR CALLBACK SearchDlgProc(HWND dlg, UINT msg, WPARAM wp, LPARAM /*lp*/) {
+    switch (msg) {
+        case WM_INITDIALOG:
+            LocalizeDialog(dlg);
+            SetDlgItemTextW(dlg, IDC_BOOK_SEARCH_EDIT, s_search.query.c_str());
+            SendDlgItemMessageW(dlg, IDC_BOOK_SEARCH_EDIT, EM_SETSEL, 0, -1);
+            SetFocus(GetDlgItem(dlg, IDC_BOOK_SEARCH_EDIT));
+            return FALSE;
+        case WM_COMMAND:
+            if (LOWORD(wp) == IDOK || LOWORD(wp) == IDC_BOOK_SEARCH_NEXT) {
+                wchar_t buf[1024] = {0};
+                GetDlgItemTextW(dlg, IDC_BOOK_SEARCH_EDIT, buf, 1024);
+                std::wstring newQuery = buf;
+                if (newQuery.empty()) return TRUE;
+                if (newQuery != s_search.query) {
+                    s_search.query = newQuery;
+                    s_search.hits.clear();
+                    s_search.cursor = -1;
+                }
+                if (s_search.hits.empty()) {
+                    PerformSearch(dlg);
+                } else {
+                    // Advance to next hit
+                    s_search.cursor = (s_search.cursor + 1) % (int)s_search.hits.size();
+                    JumpToHit(s_search.hits[s_search.cursor]);
+                }
+                return TRUE;
+            }
+            if (LOWORD(wp) == IDCANCEL) { EndDialog(dlg, 0); return TRUE; }
+            break;
+        case WM_CLOSE:
+            EndDialog(dlg, 0);
+            return TRUE;
+    }
+    return FALSE;
+}
+
+void PromptSearchInBook(HWND owner) {
+    if (!DaisyIsActive()) return;
+    if (!DaisyHasText()) {
+        MessageBoxW(owner, T("This book has no extractable text — search is not available."),
+                    L"MediaAccess", MB_OK | MB_ICONINFORMATION);
+        return;
+    }
+    DialogBoxW(GetModuleHandleW(nullptr),
+               MAKEINTRESOURCEW(IDD_BOOK_SEARCH), owner, SearchDlgProc);
+}
+
+void FindNextInBook() {
+    if (!DaisyIsActive()) return;
+    if (s_search.hits.empty()) return;
+    s_search.cursor = (s_search.cursor + 1) % (int)s_search.hits.size();
+    JumpToHit(s_search.hits[s_search.cursor]);
 }
 
 } // namespace mediaaccess

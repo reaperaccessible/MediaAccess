@@ -10,6 +10,7 @@
 #include <commctrl.h>
 #include <commdlg.h>
 #include <shellapi.h>
+#include <objbase.h>   // CoInitializeEx for TTS
 
 #include "globals.h"
 #include "player.h"
@@ -34,11 +35,14 @@
 #include "mediaaccess/daisy_book.h"
 #include "mediaaccess/daisy_player.h"
 #include "mediaaccess/books_dialog.h"
+#include "mediaaccess/tts_player.h"
+#include "mediaaccess/book_text_window.h"
 #include <utility>  // for std::pair
 
 // Custom message posted from daisy_player.cpp BASS sync (worker thread).
 #define WM_DAISY_NEXT_CLIP_LOCAL (WM_USER + 50)
 extern "C" void DaisyOnClipEnded(int endedClipIndex);
+extern "C" void DaisyOnTtsEndOfStream();
 
 #pragma comment(lib, "bass.lib")
 #pragma comment(lib, "user32.lib")
@@ -342,6 +346,11 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
             DaisyOnClipEnded((int)wParam);
             return 0;
 
+        case mediaaccess::WM_TTS_END_OF_STREAM:
+            // SAPI told us the current paragraph finished speaking — advance.
+            DaisyOnTtsEndOfStream();
+            return 0;
+
         case WM_HOTKEY: {
             int hotkeyId = static_cast<int>(wParam);
 
@@ -584,6 +593,15 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
                     break;
                 case IDM_BOOK_GO_TO_PAGE:
                     if (mediaaccess::DaisyIsActive()) mediaaccess::PromptGoToPage(hwnd);
+                    break;
+                case IDM_BOOK_TOGGLE_TEXT_WINDOW:
+                    mediaaccess::BookTextWindowToggle(hwnd);
+                    break;
+                case IDM_BOOK_SEARCH:
+                    if (mediaaccess::DaisyIsActive()) mediaaccess::PromptSearchInBook(hwnd);
+                    break;
+                case IDM_BOOK_SEARCH_NEXT:
+                    if (mediaaccess::DaisyIsActive()) mediaaccess::FindNextInBook();
                     break;
                 case IDM_HELP_MANUAL: {
                     // Open the bilingual HTML manual in the user's default browser.
@@ -999,6 +1017,8 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
             // of shutdown no matter how slow the rest of the chain is.
             // -----------------------------------------------------------
             mediaaccess::DaisyClose();  // Save book position + free book stream first
+            mediaaccess::BookTextWindowDestroy();
+            mediaaccess::TtsShutdown();
             if (g_fxStream) BASS_ChannelStop(g_fxStream);
             if (g_stream)   BASS_ChannelStop(g_stream);
             BASS_Pause();
@@ -1127,6 +1147,11 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLi
     // uses the correct language.
     InitTranslations();
     LoadSettings();
+    // Initialize COM for SAPI (TTS) and any other COM-using helpers. Tolerate
+    // RPC_E_CHANGED_MODE if some other component already initialized it with
+    // a different threading model.
+    CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
+    mediaaccess::TtsInit();
     // Load the active keymap (and ship USA/FR-CA/FR-FR defaults if missing).
     // Must happen AFTER LoadSettings (which reads the language preference) so
     // the keymap dispatcher sees the right active keymap from the very first

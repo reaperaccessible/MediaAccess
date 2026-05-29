@@ -31,6 +31,16 @@ void PromptAddBookmark(HWND owner);
 // No-op if no book is currently loaded.
 void PromptGoToPage(HWND owner);
 
+// F3 search dialog — prompts for text, finds matches in the current book,
+// jumps to the first one. Calling again with state still cached jumps to
+// the next hit. No-op if no book is currently loaded.
+void PromptSearchInBook(HWND owner);
+
+// "Find next" without a dialog — repeats the previous search if any.
+// Useful for F3 repeated press: opens the dialog on first F3, jumps to
+// next match on subsequent F3 presses.
+void FindNextInBook();
+
 } // namespace mediaaccess
 
 #endif // MEDIAACCESS_BOOKS_DIALOG_H

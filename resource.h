@@ -313,6 +313,30 @@
 #define IDC_BOOK_FOLDER_ADD             1551
 #define IDC_BOOK_FOLDER_REMOVE          1552
 #define IDC_LABEL_BOOK_FOLDERS          1553
+// v1.50 Phase 2 — extended Books prefs
+#define IDC_BOOK_TTS_VOICE              1554
+#define IDC_LABEL_BOOK_TTS_VOICE        1555
+#define IDC_BOOK_TEXT_THEME             1556
+#define IDC_LABEL_BOOK_TEXT_THEME       1557
+#define IDC_BOOK_HIDE_TEXT_WINDOW       1558
+
+// =========================================================================
+// DAISY/EPUB reader — Phase 2 (v1.50): text window + F3 search + TTS
+// =========================================================================
+// Text display window (modeless)
+#define IDD_BOOK_TEXT_WINDOW            1560
+#define IDC_BOOK_TEXT_EDIT              1561
+
+// Toggle / focus the text window
+#define IDM_BOOK_TOGGLE_TEXT_WINDOW     1562
+
+// F3 search dialog
+#define IDD_BOOK_SEARCH                 1565
+#define IDC_BOOK_SEARCH_EDIT            1566
+#define IDC_BOOK_SEARCH_NEXT            1567
+#define IDC_LABEL_BOOK_SEARCH_PROMPT    1568
+#define IDM_BOOK_SEARCH                 1569
+#define IDM_BOOK_SEARCH_NEXT            1570
 
 // Progress dialog (for updates)
 #define IDD_PROGRESS        995

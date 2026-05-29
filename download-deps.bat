@@ -156,6 +156,21 @@ copy /y "temp_dl\steamaudio\steamaudio\lib\windows-x64\phonon.dll" "lib\" >nul
 copy /y "temp_dl\steamaudio\steamaudio\lib\windows-x64\phonon.lib" "lib\" >nul
 echo Steam Audio SDK installed.
 
+REM ============================================================
+REM miniz (single-source DEFLATE/ZIP library, MIT)
+REM Used by daisy_book.cpp to extract EPUB archives.
+REM ============================================================
+echo.
+echo Downloading miniz...
+if exist "deps\miniz" rmdir /s /q "deps\miniz"
+mkdir "deps\miniz"
+powershell -Command "Invoke-WebRequest -Uri 'https://github.com/richgel999/miniz/releases/download/3.0.2/miniz-3.0.2.zip' -OutFile 'temp_dl\miniz.zip'"
+powershell -Command "Expand-Archive -Path 'temp_dl\miniz.zip' -DestinationPath 'temp_dl\miniz' -Force"
+copy /y "temp_dl\miniz\miniz.h" "deps\miniz\" >nul
+copy /y "temp_dl\miniz\miniz.c" "deps\miniz\" >nul
+copy /y "temp_dl\miniz\LICENSE" "deps\miniz\" >nul 2>&1
+echo miniz installed.
+
 echo.
 echo Downloading SQLite...
 powershell -Command "Invoke-WebRequest -Uri 'https://sqlite.org/2026/sqlite-amalgamation-3510200.zip' -OutFile 'temp_dl\sqlite.zip'"

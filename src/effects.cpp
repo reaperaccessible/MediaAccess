@@ -3,6 +3,7 @@
 #include "accessibility.h"
 #include "resource.h"
 #include "mediaaccess/translations.h"
+#include "mediaaccess/tts_player.h"  // Drive SAPI rate from Rate effect
 #include "bass_fx.h"
 #include "tempo_processor.h"
 #include "center_cancel.h"
@@ -866,6 +867,9 @@ void SetParamValue(ParamId id, float value) {
                 // Use native BASS frequency attribute (changes speed and pitch together)
                 BASS_ChannelSetAttribute(g_fxStream, BASS_ATTRIB_FREQ, g_originalFreq * g_rate);
             }
+            // Also drive the SAPI rate so the same control speeds up the
+            // voice when reading a text-only DAISY book.
+            mediaaccess::TtsSetSpeedMultiplier(g_rate);
             break;
         // Freeverb parameters
         case ParamId::ReverbMix:

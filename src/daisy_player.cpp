@@ -15,6 +15,8 @@
 #include "mediaaccess/accessibility.h"
 #include "mediaaccess/translations.h"
 #include "mediaaccess/logger.h"
+#include "mediaaccess/tts_player.h"          // Phase 2 — TTS for text-only books
+#include "mediaaccess/book_text_window.h"    // Phase 2 — text display window
 #include "bass.h"
 
 #include <windows.h>
@@ -54,6 +56,15 @@ struct DaisyState {
     // Cumulative duration of clips 0..currentClip-1, so DaisyGetBookPosition
     // can compute "global" book time without re-summing every call.
     double   clipsBeforeDuration = 0.0;
+
+    // Phase 2 — TTS path for text-only books / EPUB without Media Overlays.
+    // When textOnlyMode is true, currentClip / stream / endSync are unused;
+    // currentSegment indexes into book->textSegments and SAPI handles
+    // playback via the tts_player module. WM_TTS_END_OF_STREAM advances
+    // to the next segment.
+    bool     textOnlyMode    = false;
+    int      currentSegment  = 0;
+    bool     ttsPaused       = false;
 };
 
 static DaisyState g_d;
@@ -132,7 +143,36 @@ static bool StartClipPaused(int clipIdx) {
     g_d.currentOffset = 0.0;
     RecomputeClipsBeforeDuration();
     DaisyApplyVolume();   // New stream inherits current global volume / mute
+
+    // Push the clip's text to the text window for audio+text books.
+    // (Empty string clears the display for audio-only clips.)
+    BookTextWindowSetText(c.textContent);
     return true;
+}
+
+// -----------------------------------------------------------------------------
+// TTS path — used for text-only DAISY books and EPUB without Media Overlays
+// -----------------------------------------------------------------------------
+
+static bool StartTtsSegment(int segIdx) {
+    if (!g_d.book) return false;
+    if (segIdx < 0 || segIdx >= (int)g_d.book->textSegments.size()) return false;
+    const DaisyTextSegment& seg = g_d.book->textSegments[segIdx];
+    g_d.currentSegment = segIdx;
+    BookTextWindowSetText(seg.text);
+    if (!TtsSpeak(seg.text)) {
+        LogF("daisy", "TTS Speak failed for segment %d", segIdx);
+        return false;
+    }
+    g_d.ttsPaused = false;
+    return true;
+}
+
+static void SaveTtsPosition() {
+    if (g_d.bookId <= 0) return;
+    // Reuse position_clip column to store segment index; offset always 0
+    // for TTS since SAPI doesn't expose intra-utterance position.
+    UpdateBookPosition(g_d.bookId, g_d.currentSegment, 0.0);
 }
 
 static void SaveCurrentPosition() {
@@ -163,26 +203,59 @@ void DaisyApplyVolume() {
 bool DaisyIsActive() { return g_d.book != nullptr; }
 
 void DaisyClose() {
-    SaveCurrentPosition();
-    FreeStream();
+    if (g_d.textOnlyMode) {
+        SaveTtsPosition();
+        TtsStop();
+    } else {
+        SaveCurrentPosition();
+        FreeStream();
+    }
     g_d.book.reset();
     g_d.bookId = 0;
     g_d.currentClip = 0;
     g_d.currentOffset = 0.0;
     g_d.clipsBeforeDuration = 0.0;
+    g_d.textOnlyMode = false;
+    g_d.currentSegment = 0;
+    g_d.ttsPaused = false;
 }
 
 bool DaisyLoadAndPlay(std::unique_ptr<DaisyBook> book, int bookId) {
     if (!book) return false;
-    if (book->clips.empty()) return false;  // Text-only — Phase 2 will handle
+
+    // Text-only path (text-only DAISY or EPUB without Media Overlays):
+    // use SAPI to speak paragraphs in sequence.
+    bool isTextOnly = book->clips.empty() && !book->textSegments.empty();
+
+    if (!isTextOnly && book->clips.empty()) {
+        // No audio AND no extracted text — nothing we can play.
+        return false;
+    }
 
     // Tear down anything currently playing.
     DaisyClose();
 
-    g_d.book   = std::move(book);
-    g_d.bookId = bookId;
+    g_d.book          = std::move(book);
+    g_d.bookId        = bookId;
+    g_d.textOnlyMode  = isTextOnly;
 
-    // Resume from saved position if available.
+    if (isTextOnly) {
+        // Make sure SAPI is initialized (init is idempotent).
+        TtsInit();
+
+        // Resume from saved segment.
+        BookEntry e = GetBookById(bookId);
+        int startSeg = 0;
+        if (e.id != 0 && e.positionClip >= 0 &&
+            e.positionClip < (int)g_d.book->textSegments.size()) {
+            startSeg = e.positionClip;
+        }
+        if (!StartTtsSegment(startSeg)) return false;
+        MarkBookOpened(bookId);
+        return true;
+    }
+
+    // Audio + (optional) text path — original logic.
     BookEntry e = GetBookById(bookId);
     int startClip = 0;
     double startOffset = 0.0;
@@ -207,10 +280,25 @@ bool DaisyLoadAndPlay(std::unique_ptr<DaisyBook> book, int bookId) {
 }
 
 void DaisyPlay() {
+    if (g_d.textOnlyMode) {
+        if (g_d.ttsPaused) {
+            TtsResume();
+            g_d.ttsPaused = false;
+        } else if (!TtsIsSpeaking()) {
+            StartTtsSegment(g_d.currentSegment);
+        }
+        return;
+    }
     if (g_d.stream) BASS_ChannelPlay(g_d.stream, FALSE);
 }
 
 void DaisyPause() {
+    if (g_d.textOnlyMode) {
+        TtsPause();
+        g_d.ttsPaused = true;
+        SaveTtsPosition();
+        return;
+    }
     if (g_d.stream) {
         BASS_ChannelPause(g_d.stream);
         SaveCurrentPosition();
@@ -218,6 +306,11 @@ void DaisyPause() {
 }
 
 void DaisyPlayPause() {
+    if (g_d.textOnlyMode) {
+        if (TtsIsSpeaking()) DaisyPause();
+        else                 DaisyPlay();
+        return;
+    }
     if (!g_d.stream) return;
     DWORD st = BASS_ChannelIsActive(g_d.stream);
     if (st == BASS_ACTIVE_PLAYING) DaisyPause();
@@ -225,6 +318,12 @@ void DaisyPlayPause() {
 }
 
 void DaisyStop() {
+    if (g_d.textOnlyMode) {
+        TtsStop();
+        g_d.ttsPaused = false;
+        SaveTtsPosition();
+        return;
+    }
     if (!g_d.stream || !g_d.book) return;
     BASS_ChannelPause(g_d.stream);
     const DaisyClip& c = g_d.book->clips[g_d.currentClip];
@@ -280,10 +379,12 @@ double DaisyGetBookDuration() {
 }
 
 bool DaisyIsPlaying() {
+    if (g_d.textOnlyMode) return TtsIsSpeaking();
     return g_d.stream && BASS_ChannelIsActive(g_d.stream) == BASS_ACTIVE_PLAYING;
 }
 
 bool DaisyIsPaused() {
+    if (g_d.textOnlyMode) return g_d.ttsPaused;
     return g_d.stream && BASS_ChannelIsActive(g_d.stream) == BASS_ACTIVE_PAUSED;
 }
 
@@ -384,6 +485,16 @@ void DaisyCycleNavLevel(int direction) {
 
 void DaisyNavigateForward() {
     if (!g_d.book) return;
+    // Text-only path — Shift+Right = next paragraph.
+    if (g_d.textOnlyMode) {
+        int next = g_d.currentSegment + 1;
+        if (next >= (int)g_d.book->textSegments.size()) {
+            Speak(Ts("End of book"));
+            return;
+        }
+        StartTtsSegment(next);
+        return;
+    }
     if (g_d.navLevel == -1) {
         // Phrase mode = next clip
         int next = g_d.currentClip + 1;
@@ -414,6 +525,11 @@ void DaisyNavigateForward() {
 
 void DaisyNavigateBackward() {
     if (!g_d.book) return;
+    if (g_d.textOnlyMode) {
+        if (g_d.currentSegment <= 0) { Speak(Ts("Beginning of book")); return; }
+        StartTtsSegment(g_d.currentSegment - 1);
+        return;
+    }
     if (g_d.navLevel == -1) {
         if (g_d.currentClip <= 0) { Speak(Ts("Beginning of book")); return; }
         bool wasPlaying = DaisyIsPlaying();
@@ -473,6 +589,25 @@ int DaisyAddBookmarkHere(const std::wstring& note) {
     int id = AddBookBookmark(g_d.bookId, g_d.currentClip, offsetInClip, note);
     if (id > 0) Speak(Ts("Bookmark added"));
     return id;
+}
+
+void DaisyJumpToSegment(int segmentIndex) {
+    if (!g_d.book || !g_d.textOnlyMode) return;
+    if (segmentIndex < 0 || segmentIndex >= (int)g_d.book->textSegments.size()) return;
+    StartTtsSegment(segmentIndex);
+}
+
+bool DaisyHasText() {
+    if (!g_d.book) return false;
+    if (!g_d.book->textSegments.empty()) return true;
+    for (const auto& c : g_d.book->clips) {
+        if (!c.textContent.empty()) return true;
+    }
+    return false;
+}
+
+const DaisyBook* DaisyCurrentBook() {
+    return g_d.book.get();
 }
 
 void DaisyJumpToBookmark(int clipIndex, double offsetSeconds) {
@@ -550,4 +685,20 @@ extern "C" void DaisyOnClipEnded(int endedClipIndex) {
     if (StartClipPaused(next)) {
         BASS_ChannelPlay(g_d.stream, FALSE);
     }
+}
+
+// Called from main.cpp WndProc when SAPI signals end of utterance via
+// WM_TTS_END_OF_STREAM. Advance to the next paragraph in text-only mode.
+extern "C" void DaisyOnTtsEndOfStream() {
+    using namespace mediaaccess;
+    if (!g_d.book) return;
+    if (!g_d.textOnlyMode) return;
+    if (g_d.ttsPaused) return;  // User paused — don't auto-advance
+    int next = g_d.currentSegment + 1;
+    if (next >= (int)g_d.book->textSegments.size()) {
+        SaveTtsPosition();
+        Speak(Ts("End of book"));
+        return;
+    }
+    StartTtsSegment(next);
 }

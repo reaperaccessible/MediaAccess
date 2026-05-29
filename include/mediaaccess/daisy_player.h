@@ -94,6 +94,18 @@ int DaisyAddBookmarkHere(const std::wstring& note);
 // Jump to the bookmark's saved position.
 void DaisyJumpToBookmark(int clipIndex, double offsetSeconds);
 
+// Jump to a specific text segment in TTS mode. No-op for audio books.
+// Used by F3 search hits and by the navigation in text-only mode.
+void DaisyJumpToSegment(int segmentIndex);
+
+// Returns true if the current book has text content (clip.textContent set
+// or non-empty textSegments). Used by the search dialog and other UI.
+bool DaisyHasText();
+
+// Read-only accessor for the currently loaded book (for search, etc.).
+// Returns nullptr if no book is loaded.
+const DaisyBook* DaisyCurrentBook();
+
 } // namespace mediaaccess
 
 #endif // MEDIAACCESS_DAISY_PLAYER_H
