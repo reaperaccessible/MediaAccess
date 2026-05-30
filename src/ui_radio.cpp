@@ -987,6 +987,9 @@ static LRESULT CALLBACK RadioSearchListSubclassProc(HWND hwnd, UINT msg, WPARAM 
                 }
 
                 if (!streamUrl.empty()) {
+                    // v1.60 — preset the station name BEFORE PlayTrack so
+                    // the title shows "Station - ..." from the get-go.
+                    SetNowPlaying(SourceType::RadioFavorite, r.name, L"");
                     g_playlist.clear();
                     g_playlist.push_back(streamUrl);
                     PlayTrack(0);
@@ -1091,6 +1094,9 @@ static LRESULT CALLBACK RadioListSubclassProc(HWND hwnd, UINT msg, WPARAM wParam
             // Play selected station
             int sel = static_cast<int>(SendMessageW(hwnd, LB_GETCURSEL, 0, 0));
             if (sel >= 0 && sel < static_cast<int>(g_radioStations.size())) {
+                // v1.60 — preset favorite name before PlayTrack.
+                SetNowPlaying(SourceType::RadioFavorite,
+                              g_radioStations[sel].name, L"");
                 g_playlist.clear();
                 g_playlist.push_back(g_radioStations[sel].url);
                 PlayTrack(0);
@@ -1474,6 +1480,9 @@ static INT_PTR CALLBACK RadioDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM 
                         HWND hList = GetDlgItem(hwnd, IDC_RADIO_LIST);
                         int sel = static_cast<int>(SendMessageW(hList, LB_GETCURSEL, 0, 0));
                         if (sel >= 0 && sel < static_cast<int>(g_radioStations.size())) {
+                            // v1.60 — preset favorite name before PlayTrack.
+                            SetNowPlaying(SourceType::RadioFavorite,
+                                          g_radioStations[sel].name, L"");
                             g_playlist.clear();
                             g_playlist.push_back(g_radioStations[sel].url);
                             PlayTrack(0);
@@ -1635,6 +1644,10 @@ static INT_PTR CALLBACK RadioDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM 
                             }
 
                             if (!streamUrl.empty()) {
+                                // v1.60 — preset the station name from
+                                // the search result before PlayTrack.
+                                SetNowPlaying(SourceType::RadioFavorite,
+                                              r.name, L"");
                                 g_playlist.clear();
                                 g_playlist.push_back(streamUrl);
                                 PlayTrack(0);

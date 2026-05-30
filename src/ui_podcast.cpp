@@ -1168,6 +1168,21 @@ static INT_PTR CALLBACK PodcastDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARA
                                         }
                                     }
                                 }
+                                // v1.60 — preset podcast name + first
+                                // episode title before PlayTrack.
+                                std::wstring podName;
+                                for (const auto& s : g_podcastSubs) {
+                                    if (s.id == g_currentPodcastId) {
+                                        podName = s.name; break;
+                                    }
+                                }
+                                std::wstring epTitle;
+                                if (!selItems.empty() && selItems[0] >= 0 &&
+                                    selItems[0] < (int)g_podcastEpisodes.size()) {
+                                    epTitle = g_podcastEpisodes[selItems[0]].title;
+                                }
+                                SetNowPlaying(SourceType::Podcast,
+                                              podName, epTitle);
                                 PlayTrack(0, true);
                                 if (g_playlist.size() == 1) {
                                     Speak(Ts("Playing"));
@@ -1189,6 +1204,14 @@ static INT_PTR CALLBACK PodcastDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARA
                             std::wstring title;
                             Speak(Ts("Loading preview"));
                             if (ParsePodcastFeed(g_podcastSearchResults[sel].feedUrl, title, eps) && !eps.empty()) {
+                                // v1.60 — title returned by ParsePodcastFeed
+                                // is the podcast (channel) name; eps[0].title
+                                // is the episode.
+                                SetNowPlaying(SourceType::Podcast,
+                                              title.empty()
+                                                  ? g_podcastSearchResults[sel].name
+                                                  : title,
+                                              eps[0].title);
                                 g_playlist.clear();
                                 g_playlist.push_back(eps[0].audioUrl);
                                 PlayTrack(0, true);
@@ -1611,6 +1634,15 @@ static INT_PTR CALLBACK PodcastDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARA
                         HWND hList = GetDlgItem(hwnd, IDC_PODCAST_EPISODES);
                         int sel = static_cast<int>(SendMessageW(hList, LB_GETCARETINDEX, 0, 0));
                         if (sel >= 0 && sel < static_cast<int>(g_podcastEpisodes.size())) {
+                            // v1.60 — preset podcast + episode names.
+                            std::wstring podName;
+                            for (const auto& s : g_podcastSubs) {
+                                if (s.id == g_currentPodcastId) {
+                                    podName = s.name; break;
+                                }
+                            }
+                            SetNowPlaying(SourceType::Podcast, podName,
+                                          g_podcastEpisodes[sel].title);
                             g_playlist.clear();
                             g_playlist.push_back(g_podcastEpisodes[sel].audioUrl);
                             PlayTrack(0, true);

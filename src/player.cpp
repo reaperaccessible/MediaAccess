@@ -32,6 +32,7 @@ static void TeardownMpvBeforeLoad();
 static std::string GetMetadataTag(HSTREAM stream, const char* tagName);
 static std::string GetStreamTitle(HSTREAM stream);
 static std::string GetTrimmedTag(const char* data, size_t maxLen);
+static std::string GetStationName(HSTREAM stream);  // v1.60 — used by AnnounceStreamMetadata
 
 // Global SoundFont handle for MIDI playback
 static HSOUNDFONT g_hSoundFont = 0;
@@ -1215,8 +1216,27 @@ void AnnounceStreamMetadata() {
     std::string streamTitle = GetStreamTitle(stream);
     if (streamTitle.empty()) return;
 
+    // v1.60 — update the now-playing item so the window title shows the
+    // freshest song name immediately. Order matters: do this BEFORE the
+    // existing UpdateWindowTitle() in main.cpp's WM_META_CHANGED handler
+    // gets a chance to render with stale data.
+    std::wstring wideTitle = Utf8ToWide(streamTitle);
+    SetNowPlayingItem(wideTitle);
+
+    // v1.60 — if the RadioUrl case (ad-hoc URL paste) never got a source
+    // name, try to pull the station's icy-name HTTP header now that BASS
+    // has it. icy-name is static per connection so we only set if empty.
+    if (g_nowPlayingType == SourceType::RadioUrl &&
+        g_nowPlayingSource.empty()) {
+        std::string stationName = GetStationName(stream);
+        if (!stationName.empty()) {
+            g_nowPlayingSource = Utf8ToWide(stationName);
+            UpdateWindowTitle();
+        }
+    }
+
     // Record to song history (independent of speech setting)
-    AddSongHistoryEntry(Utf8ToWide(streamTitle));
+    AddSongHistoryEntry(wideTitle);
 
     if (g_speechTrackChange) {
         Speak(streamTitle);
@@ -1355,7 +1375,7 @@ void Stop() {
         g_isVideoPlaying = false;
         g_activeEngine = PlaybackEngine::None;
         SetWindowPos(g_hwnd, nullptr, 0, 0, 500, 150, SWP_NOMOVE | SWP_NOZORDER);
-        UpdateWindowTitle();
+        ClearNowPlaying();  // v1.60
         UpdateStatusBar();
         return;
     }
@@ -1372,7 +1392,7 @@ void Stop() {
             }
         }
     }
-    UpdateWindowTitle();
+    ClearNowPlaying();  // v1.60
     UpdateStatusBar();
 }
 
@@ -1688,6 +1708,39 @@ void PlayTrack(int index, bool autoPlay) {
     // Notify playlist dialog about track change
     if (loadedSuccessfully) {
         NotifyPlaylistTrackChanged();
+
+        // v1.60 — Now-playing infrastructure. Source-typed callers (radio
+        // favourite, podcast, YouTube) call SetNowPlaying() BEFORE
+        // PlayTrack so g_nowPlayingType is already set. For local files
+        // the callers don't bother — PlayTrack defaults to Local here
+        // (and overrides any stale RadioFavorite/Podcast/YouTube state
+        // left over from the previous track). For URLs we leave the
+        // caller's type intact; we just refresh the item from tags in
+        // case nothing is set yet.
+        const std::wstring& path = g_playlist[g_currentTrack];
+        bool isUrl = IsURL(path.c_str());
+        if (!isUrl) {
+            // Local audio file: source is "(Local)" (resolved at display
+            // time via T()), item is the tag title or filename fallback.
+            std::wstring item = GetTagTitle();
+            if (item.empty() || item == L"No title" || item == L"Nothing playing") {
+                item = GetFileName(path);
+            }
+            SetNowPlaying(SourceType::Local, L"", item);
+        } else {
+            // URL: if the caller didn't preset a source type, we have no
+            // station/podcast/channel name to show — fall back to RadioUrl
+            // with an empty source (the icy-name from BASS will fill in
+            // via WM_META_CHANGED if available).
+            if (g_nowPlayingType == SourceType::None ||
+                g_nowPlayingType == SourceType::Local) {
+                SetNowPlaying(SourceType::RadioUrl, L"", L"");
+            } else {
+                // Caller preset a typed source — refresh the item so the
+                // window title shows the ICY/tag info we have now.
+                UpdateWindowTitle();
+            }
+        }
     }
 
     // Announce track change if setting is enabled
@@ -2389,13 +2442,26 @@ static void SpeakUtf8(const std::string& text) {
 }
 
 void SpeakTagTitle() {
+    // v1.60 — speak the unified "<source> - <item>" the user also sees in
+    // the window title. BuildNowPlayingSpeech composes from the v1.60
+    // now-playing globals + falls back to ICY/MPV/tags when the item is
+    // still empty (e.g. just after Play, before the first ICY metadata).
+    std::wstring composed = BuildNowPlayingSpeech();
+    if (!composed.empty()) {
+        SpeakW(composed);
+        return;
+    }
+
+    // Pre-v1.60 fallback path: nothing in the now-playing globals AND
+    // nothing usable from BASS/MPV. Either we're truly idle or we're in
+    // a state the new infrastructure didn't catch (BASS stream with no
+    // tags + no SetNowPlaying call).
     HSTREAM stream = GetTagStream();
     if (!stream) {
         Speak(Ts("Nothing playing"));
         return;
     }
 
-    // For streams, first check if there's a full stream title (often "Artist - Title")
     std::string streamTitle = GetStreamTitle(stream);
     if (!streamTitle.empty()) {
         SpeakUtf8(streamTitle);
@@ -2404,29 +2470,18 @@ void SpeakTagTitle() {
 
     std::string title = GetMetadataTag(stream, "TITLE");
     std::string artist = GetMetadataTag(stream, "ARTIST");
-
-    // Try ID3v1 if nothing found
     if (title.empty() || artist.empty()) {
         const TAG_ID3* id3 = (const TAG_ID3*)BASS_ChannelGetTags(stream, BASS_TAG_ID3);
         if (id3) {
-            if (title.empty()) {
-                title = GetTrimmedTag(id3->title, 30);
-            }
-            if (artist.empty()) {
-                artist = GetTrimmedTag(id3->artist, 30);
-            }
+            if (title.empty())  title  = GetTrimmedTag(id3->title, 30);
+            if (artist.empty()) artist = GetTrimmedTag(id3->artist, 30);
         }
     }
 
-    if (!artist.empty() && !title.empty()) {
-        SpeakUtf8(artist + " - " + title);
-    } else if (!title.empty()) {
-        SpeakUtf8(title);
-    } else if (!artist.empty()) {
-        SpeakUtf8(artist);
-    } else {
-        Speak(Ts("No title"));
-    }
+    if (!artist.empty() && !title.empty()) SpeakUtf8(artist + " - " + title);
+    else if (!title.empty())               SpeakUtf8(title);
+    else if (!artist.empty())              SpeakUtf8(artist);
+    else                                   Speak(Ts("No title"));
 }
 
 void SpeakTagArtist() {

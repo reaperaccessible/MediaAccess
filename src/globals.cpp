@@ -76,6 +76,13 @@ bool     g_bookSkipBypass = false;  // RAM-only; toggled by Shift+S in books
 // Options > Playback > "Announce track when MediaAccess gets focus".
 bool g_announceTrackOnFocus = true;
 
+// v1.60 — Now-playing display state. Definitions; the SourceType enum is
+// in mediaaccess/ui.h so we have to include it here.
+#include "mediaaccess/ui.h"
+SourceType   g_nowPlayingType   = SourceType::None;
+std::wstring g_nowPlayingSource;
+std::wstring g_nowPlayingItem;
+
 // System tray
 NOTIFYICONDATAW g_trayIcon = {0};
 bool g_trayIconVisible = false;

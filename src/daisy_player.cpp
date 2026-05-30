@@ -19,6 +19,7 @@
 #include "mediaaccess/book_text_window.h"    // Phase 2 — text display window
 #include "mediaaccess/player.h"              // Phase 4 — GetEffectivePlaybackSpeed
 #include "mediaaccess/globals.h"             // Phase 4 — g_bookSkipMask / g_bookSkipBypass
+#include "mediaaccess/ui.h"                  // v1.60 — SetNowPlaying et al.
 #include "bass.h"
 
 #include <windows.h>
@@ -74,6 +75,11 @@ static DaisyState g_d;
 // -----------------------------------------------------------------------------
 // Helpers
 // -----------------------------------------------------------------------------
+
+// Forward declaration — BuildLocationLabel is defined further down with
+// the rest of the navigation helpers but used by StartClipPaused /
+// StartTtsSegment (v1.60 now-playing item refresh).
+static std::wstring BuildLocationLabel();
 
 static double ClipDuration(const DaisyClip& c) {
     if (c.clipEnd > c.clipBegin) return c.clipEnd - c.clipBegin;
@@ -149,6 +155,10 @@ static bool StartClipPaused(int clipIdx) {
     // Push the clip's text to the text window for audio+text books.
     // (Empty string clears the display for audio-only clips.)
     BookTextWindowSetText(c.textContent);
+    // v1.60 — refresh the title's "item" to the latest chapter/page label.
+    // Cheap; the label only changes at chapter boundaries inside a long
+    // book, and the window title comparison short-circuits no-op writes.
+    if (g_d.book) SetNowPlayingItem(BuildLocationLabel());
     return true;
 }
 
@@ -167,6 +177,8 @@ static bool StartTtsSegment(int segIdx) {
         return false;
     }
     g_d.ttsPaused = false;
+    // v1.60 — refresh title with the segment's chapter / page label.
+    SetNowPlayingItem(BuildLocationLabel());
     return true;
 }
 
@@ -249,6 +261,10 @@ void DaisyClose() {
     g_d.textOnlyMode = false;
     g_d.currentSegment = 0;
     g_d.ttsPaused = false;
+    // v1.60 — drop the now-playing state when a book closes. If the caller
+    // is about to start another piece of media (DaisyLoadAndPlay or
+    // LoadFile), the next SetNowPlaying will restore it immediately.
+    ClearNowPlaying();
 }
 
 bool DaisyLoadAndPlay(std::unique_ptr<DaisyBook> book, int bookId) {
@@ -284,6 +300,9 @@ bool DaisyLoadAndPlay(std::unique_ptr<DaisyBook> book, int bookId) {
         }
         if (!StartTtsSegment(startSeg)) return false;
         MarkBookOpened(bookId);
+        // v1.60 — show the book title + initial location in the window
+        // title and announce path.
+        SetNowPlaying(SourceType::Book, g_d.book->title, BuildLocationLabel());
         return true;
     }
 
@@ -308,6 +327,8 @@ bool DaisyLoadAndPlay(std::unique_ptr<DaisyBook> book, int bookId) {
 
     BASS_ChannelPlay(g_d.stream, FALSE);
     MarkBookOpened(bookId);
+    // v1.60 — book title + initial location.
+    SetNowPlaying(SourceType::Book, g_d.book->title, BuildLocationLabel());
     return true;
 }
 
@@ -619,11 +640,11 @@ void DaisyNavigateBackward() {
     SpeakW((LPCWSTR)g_d.book->navPoints[found].label.c_str());
 }
 
-void DaisyAnnounceCurrentLocation() {
-    if (!g_d.book) return;
-    // Walk nav points and find the last heading and last page before/at
-    // current position. In text-only mode clipIndex stores a segment index,
-    // so compare against currentSegment instead of currentClip.
+// Compose the current location label ("Chapter 3, page 47") without
+// announcing it — used by both DaisyAnnounceCurrentLocation and the
+// v1.60 SetNowPlayingItem refresh after navigation.
+static std::wstring BuildLocationLabel() {
+    if (!g_d.book) return L"";
     int cur = g_d.textOnlyMode ? g_d.currentSegment : g_d.currentClip;
     std::wstring heading, page;
     for (const auto& np : g_d.book->navPoints) {
@@ -637,8 +658,16 @@ void DaisyAnnounceCurrentLocation() {
         if (!msg.empty()) msg += L", ";
         msg += page;
     }
+    return msg;
+}
+
+void DaisyAnnounceCurrentLocation() {
+    if (!g_d.book) return;
+    std::wstring msg = BuildLocationLabel();
     if (msg.empty()) msg = g_d.book->title;
     SpeakW(msg);
+    // v1.60 — keep the now-playing item synced with the spoken location.
+    SetNowPlayingItem(msg);
 }
 
 // -----------------------------------------------------------------------------

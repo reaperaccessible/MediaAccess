@@ -7,39 +7,111 @@
 // Constants
 const wchar_t* const APP_NAME_INTERNAL = L"MediaAccess";
 
-// Update window title (optionally shows track name)
+// v1.60 — pull the localized source label. For SourceType::Local with no
+// explicit source provided, resolve "(Local)" at display time via T() so a
+// language change is reflected immediately on the next refresh.
+static std::wstring NowPlayingSourceLabel() {
+    if (g_nowPlayingType == SourceType::Local && g_nowPlayingSource.empty()) {
+        return T("(Local)");
+    }
+    return g_nowPlayingSource;
+}
+
+// Update window title — composes "MediaAccess - <source> - <item>" using
+// the v1.60 now-playing globals. Falls back to GetTagTitle() / MPV title /
+// filename when the explicit item is empty (e.g. between Play and the
+// first ICY metadata event).
 void UpdateWindowTitle() {
     std::wstring title = APP_NAME_INTERNAL;
 
-    // MPV active: use mpv media-title or filename
-    if (g_activeEngine == PlaybackEngine::MPV) {
-        if (g_showTitleInWindow) {
-            std::wstring mpvTitle = MPVGetMediaTitle();
-            if (mpvTitle.empty() && g_currentTrack >= 0 && g_currentTrack < static_cast<int>(g_playlist.size())) {
-                mpvTitle = GetFileName(g_playlist[g_currentTrack]);
-            }
-            if (!mpvTitle.empty()) {
-                title += L" - ";
-                title += mpvTitle;
+    if (g_showTitleInWindow && g_nowPlayingType != SourceType::None) {
+        std::wstring src = NowPlayingSourceLabel();
+        std::wstring itm = g_nowPlayingItem;
+        if (itm.empty()) {
+            if (g_activeEngine == PlaybackEngine::MPV) {
+                itm = MPVGetMediaTitle();
+            } else {
+                std::wstring t = GetTagTitle();
+                if (!t.empty() && t != L"No title" && t != L"Nothing playing") {
+                    itm = t;
+                }
             }
         }
-        SetWindowTextW(g_hwnd, title.c_str());
-        return;
-    }
-
-    if (g_showTitleInWindow && g_currentTrack >= 0 && g_currentTrack < static_cast<int>(g_playlist.size())) {
-        title += L" - ";
-        // Try to get metadata (artist - title) first
-        std::wstring tagTitle = GetTagTitle();
-        if (!tagTitle.empty() && tagTitle != L"No title" && tagTitle != L"Nothing playing") {
-            title += tagTitle;
+        std::wstring composed;
+        if (src.empty() && itm.empty()) {
+            // Last-resort fallback — show the filename of the active playlist
+            // entry. Mainly kicks in for local files with no tags before
+            // SetNowPlaying has settled.
+            if (g_currentTrack >= 0 &&
+                g_currentTrack < static_cast<int>(g_playlist.size())) {
+                composed = GetFileName(g_playlist[g_currentTrack]);
+            }
+        } else if (src.empty()) {
+            composed = itm;
+        } else if (itm.empty()) {
+            composed = src;
         } else {
-            // Fall back to filename
-            title += GetFileName(g_playlist[g_currentTrack]);
+            composed = src + L" - " + itm;
+        }
+        if (!composed.empty()) {
+            title += L" - ";
+            title += composed;
         }
     }
 
     SetWindowTextW(g_hwnd, title.c_str());
+}
+
+// v1.60 — now-playing helpers. Each one updates the relevant globals and
+// then refreshes the window title in one go so callers can't forget.
+void SetNowPlaying(SourceType type,
+                   const std::wstring& source,
+                   const std::wstring& item) {
+    g_nowPlayingType   = type;
+    g_nowPlayingSource = source;
+    g_nowPlayingItem   = item;
+    UpdateWindowTitle();
+}
+
+void SetNowPlayingItem(const std::wstring& item) {
+    g_nowPlayingItem = item;
+    UpdateWindowTitle();
+}
+
+void ClearNowPlaying() {
+    g_nowPlayingType   = SourceType::None;
+    g_nowPlayingSource.clear();
+    g_nowPlayingItem.clear();
+    UpdateWindowTitle();
+}
+
+// Compose the spoken "<source> - <item>" string used by SpeakTagTitle and
+// by the WM_ACTIVATEAPP auto-announce. Mirrors UpdateWindowTitle's
+// composition exactly so what's spoken matches what's displayed.
+std::wstring BuildNowPlayingSpeech() {
+    if (g_nowPlayingType == SourceType::None) return L"";
+    std::wstring src = NowPlayingSourceLabel();
+    std::wstring itm = g_nowPlayingItem;
+    if (itm.empty()) {
+        if (g_activeEngine == PlaybackEngine::MPV) {
+            itm = MPVGetMediaTitle();
+        } else {
+            std::wstring t = GetTagTitle();
+            if (!t.empty() && t != L"No title" && t != L"Nothing playing") {
+                itm = t;
+            }
+        }
+    }
+    if (src.empty() && itm.empty()) {
+        if (g_currentTrack >= 0 &&
+            g_currentTrack < static_cast<int>(g_playlist.size())) {
+            return GetFileName(g_playlist[g_currentTrack]);
+        }
+        return L"";
+    }
+    if (src.empty()) return itm;
+    if (itm.empty()) return src;
+    return src + L" - " + itm;
 }
 
 // Update status bar with position, volume, state

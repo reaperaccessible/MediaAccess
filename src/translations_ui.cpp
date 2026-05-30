@@ -474,6 +474,11 @@ void RegisterUiTranslations() {
     AddTranslation("fr", "Readme",                                  L"Lisez-moi");
     AddTranslation("en", "Bookmark added",                          L"Bookmark added");
     AddTranslation("fr", "Bookmark added",                          L"Signet ajouté");
+
+    // v1.60 — now-playing source label for local files
+    AddTranslation("en", "(Local)",                                 L"(Local)");
+    AddTranslation("fr", "(Local)",                                 L"(Local)");
+
     AddTranslation("en", "Shuffle on",                              L"Shuffle on");
     AddTranslation("fr", "Shuffle on",                              L"Aléatoire activé");
     AddTranslation("en", "Shuffle off",                             L"Shuffle off");

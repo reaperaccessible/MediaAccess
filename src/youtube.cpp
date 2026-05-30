@@ -5,6 +5,7 @@
 #include "accessibility.h"
 #include "translations.h"
 #include "video_engine.h"  // IsMPVAvailable() — used as YouTube playback fallback
+#include "ui.h"           // v1.60 — SetNowPlaying / SourceType
 #include "resource.h"
 #include <wininet.h>
 #include <shlwapi.h>
@@ -1147,6 +1148,10 @@ static void DoSearch(HWND hwnd) {
                 return;
             } else if (!isPlaylist && !isChannel) {
                 // Single video — let YouTubePlayById handle download/playback.
+                // v1.60 — channel/title unknown at this point (no search
+                // result row). Mark as YouTube; MPV/yt-dlp will fill in
+                // the item via MPVGetMediaTitle and UpdateWindowTitle.
+                SetNowPlaying(SourceType::YouTube, L"YouTube", L"");
                 YouTubePlayById(id);
                 return;
             }
@@ -1259,6 +1264,11 @@ static void PlaySelected(HWND hwnd) {
     if (sel < 0 || sel >= static_cast<int>(g_ytResults.size())) return;
 
     const YouTubeResult& result = g_ytResults[sel];
+    // v1.60 — preset YouTube channel + video title BEFORE the engine
+    // pipeline so the window shows it even before mpv/yt-dlp finishes
+    // resolving the stream. The (still-empty) item gets refreshed later
+    // when MPVGetMediaTitle returns something concrete.
+    SetNowPlaying(SourceType::YouTube, result.channel, result.title);
     YouTubePlayById(result.videoId);
 }
 
