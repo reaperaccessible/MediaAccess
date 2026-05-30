@@ -20,6 +20,7 @@
 #include "mediaaccess/player.h"              // Phase 4 — GetEffectivePlaybackSpeed
 #include "mediaaccess/globals.h"             // Phase 4 — g_bookSkipMask / g_bookSkipBypass
 #include "mediaaccess/ui.h"                  // v1.60 — SetNowPlaying et al.
+#include "mediaaccess/utils.h"               // v1.64 — FormatTime for seek announcements
 #include "bass.h"
 
 #include <windows.h>
@@ -416,6 +417,9 @@ void DaisySeekRelative(double delta) {
         BASS_ChannelSetPosition(g_d.stream, b, BASS_POS_BYTE);
     }
     if (wasPlaying) BASS_ChannelPlay(g_d.stream, FALSE);
+    // v1.64 — announce the new position so the user knows where the
+    // seek landed without having to query the status bar.
+    SpeakW(FormatTime(target));
 }
 
 double DaisyGetBookPosition() {

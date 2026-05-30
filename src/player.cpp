@@ -1398,7 +1398,20 @@ void Stop() {
 
 // Seek relative to current position
 void Seek(double seconds) {
-    if (g_activeEngine == PlaybackEngine::MPV) { MPVSeek(seconds); UpdateStatusBar(); return; }
+    if (g_activeEngine == PlaybackEngine::MPV) {
+        // v1.64 — capture the target position so we can announce it
+        // even though MPVSeek may not have applied yet by the time we
+        // call MPVGetPosition (mpv seek is async).
+        double cur = MPVGetPosition();
+        double len = MPVGetLength();
+        double target = cur + seconds;
+        if (target < 0) target = 0;
+        if (len > 0 && target > len) target = len;
+        MPVSeek(seconds);
+        UpdateStatusBar();
+        SpeakW(FormatTime(target));
+        return;
+    }
     if (!g_fxStream || g_isBusy || g_isLoading) return;
 
     // Verify stream is still valid
@@ -1424,6 +1437,10 @@ void Seek(double seconds) {
     processor->SetPosition(newPos);
 
     UpdateStatusBar();
+    // v1.64 — announce the new position so NVDA users don't have to
+    // press NVDA+End after every left/right press. Speak() defaults to
+    // interrupt=true so rapid repeated seeks coalesce to the last one.
+    SpeakW(FormatTime(newPos));
 }
 
 // Seek by tracks (positive = forward, negative = backward)
@@ -1443,7 +1460,16 @@ void SeekTracks(int tracks) {
 
 // Seek to absolute position in seconds
 void SeekToPosition(double seconds) {
-    if (g_activeEngine == PlaybackEngine::MPV) { MPVSeekToPosition(seconds); UpdateStatusBar(); return; }
+    if (g_activeEngine == PlaybackEngine::MPV) {
+        double len = MPVGetLength();
+        double target = seconds;
+        if (target < 0) target = 0;
+        if (len > 0 && target > len) target = len;
+        MPVSeekToPosition(seconds);
+        UpdateStatusBar();
+        SpeakW(FormatTime(target));  // v1.64
+        return;
+    }
     if (!g_fxStream) return;
     TempoProcessor* processor = GetTempoProcessor();
     if (!processor || !processor->IsActive()) return;
@@ -1454,6 +1480,7 @@ void SeekToPosition(double seconds) {
 
     processor->SetPosition(seconds);
     UpdateStatusBar();
+    SpeakW(FormatTime(seconds));  // v1.64
 }
 
 // Get current playback position in seconds
