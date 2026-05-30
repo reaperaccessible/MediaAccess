@@ -214,6 +214,8 @@ void RegisterPlayerTranslations() {
     AddTranslation("fr", "KEY_MOD_CTRL",  L"Ctrl");
     AddTranslation("en", "KEY_MOD_SHIFT", L"Shift");
     AddTranslation("fr", "KEY_MOD_SHIFT", L"Maj");
+    AddTranslation("en", "KEY_MOD_WIN",   L"Win");
+    AddTranslation("fr", "KEY_MOD_WIN",   L"Win");
     AddTranslation("en", "KEY_MOD_ALT",   L"Alt");
     AddTranslation("fr", "KEY_MOD_ALT",   L"Alt");
 

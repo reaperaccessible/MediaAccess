@@ -678,6 +678,7 @@ void MigrateLegacyHotkeysIfPresent()
         sc.ctrl  = (hk.modifiers & MOD_CONTROL) != 0;
         sc.shift = (hk.modifiers & MOD_SHIFT)   != 0;
         sc.alt   = (hk.modifiers & MOD_ALT)     != 0;
+        sc.win   = (hk.modifiers & MOD_WIN)     != 0;  // v1.66
         g_activeKeymap.AddShortcut(match->stringId, sc);
         migratedAny = true;
     }
@@ -732,6 +733,7 @@ void SyncGlobalHotkeysFromKeymap()
             if (sc.ctrl)  hk.modifiers |= MOD_CONTROL;
             if (sc.shift) hk.modifiers |= MOD_SHIFT;
             if (sc.alt)   hk.modifiers |= MOD_ALT;
+            if (sc.win)   hk.modifiers |= MOD_WIN;  // v1.66
             hk.vk        = sc.vk;
             hk.actionIdx = -1;             // unused — commandId is authoritative
             hk.commandId = a->commandId;

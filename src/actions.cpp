@@ -637,6 +637,7 @@ std::string ShortcutToDisplay(const Shortcut& s)
     if (s.ctrl)  out += Ts("KEY_MOD_CTRL")  + "+";
     if (s.shift) out += Ts("KEY_MOD_SHIFT") + "+";
     if (s.alt)   out += Ts("KEY_MOD_ALT")   + "+";
+    if (s.win)   out += Ts("KEY_MOD_WIN")   + "+";  // v1.66
     out += KeyNameDisplay(s.vk);
     return out;
 }
@@ -706,6 +707,7 @@ std::string ShortcutToKeymapText(const Shortcut& s)
     if (s.ctrl)  out += "Ctrl+";
     if (s.shift) out += "Shift+";
     if (s.alt)   out += "Alt+";
+    if (s.win)   out += "Win+";  // v1.66
     if (const char* n = NameForVK(s.vk)) {
         out += n;
     } else if ((s.vk >= 'A' && s.vk <= 'Z') || (s.vk >= '0' && s.vk <= '9')) {
@@ -753,6 +755,7 @@ Shortcut ShortcutFromKeymapText(const std::string& text)
         if (consume("Ctrl+"))  { s.ctrl  = true; changed = true; continue; }
         if (consume("Shift+")) { s.shift = true; changed = true; continue; }
         if (consume("Alt+"))   { s.alt   = true; changed = true; continue; }
+        if (consume("Win+"))   { s.win   = true; changed = true; continue; }  // v1.66
     }
 
     if (rest.empty()) return Shortcut{};

@@ -48,11 +48,13 @@ struct Shortcut {
     bool ctrl  = false;
     bool shift = false;
     bool alt   = false;
+    bool win   = false;  // v1.66 — Windows key modifier (Jack)
 
     bool valid() const { return vk != 0; }
 
     bool operator==(const Shortcut& o) const {
-        return vk == o.vk && ctrl == o.ctrl && shift == o.shift && alt == o.alt;
+        return vk == o.vk && ctrl == o.ctrl && shift == o.shift &&
+               alt == o.alt && win == o.win;
     }
 };
 

@@ -70,6 +70,8 @@ std::string DescribeKey(WPARAM wParam, LPARAM lParam)
     sc.ctrl  = (GetKeyState(VK_CONTROL) & 0x8000) != 0;
     sc.shift = (GetKeyState(VK_SHIFT)   & 0x8000) != 0;
     sc.alt   = (GetKeyState(VK_MENU)    & 0x8000) != 0;
+    sc.win   = ((GetKeyState(VK_LWIN) & 0x8000) != 0) ||
+               ((GetKeyState(VK_RWIN) & 0x8000) != 0);  // v1.66
 
     std::string label = mediaaccess::ShortcutToDisplay(sc);
     if (label.empty()) label = KeyNameFromVK(vk);

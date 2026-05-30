@@ -136,7 +136,9 @@ static LRESULT CALLBACK AssignEditProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp
                 bool ctrl  = (GetKeyState(VK_CONTROL) & 0x8000) != 0;
                 bool shift = (GetKeyState(VK_SHIFT)   & 0x8000) != 0;
                 bool alt   = (GetKeyState(VK_MENU)    & 0x8000) != 0;
-                if (!ctrl && !shift && !alt) {
+                bool win   = (GetKeyState(VK_LWIN) & 0x8000) ||
+                             (GetKeyState(VK_RWIN) & 0x8000);  // v1.66
+                if (!ctrl && !shift && !alt && !win) {
                     s_assign->captured = Shortcut{};
                     UpdateAssignDisplay(dlg);
                     return 0;
@@ -147,6 +149,10 @@ static LRESULT CALLBACK AssignEditProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp
             s.ctrl  = (GetKeyState(VK_CONTROL) & 0x8000) != 0;
             s.shift = (GetKeyState(VK_SHIFT)   & 0x8000) != 0;
             s.alt   = (GetKeyState(VK_MENU)    & 0x8000) != 0;
+            // v1.66 — Jack reported Win+Alt+Shift+1 captured as Alt+Shift+1.
+            // Cause: VK_LWIN/VK_RWIN aren't sampled here. Add it.
+            s.win   = ((GetKeyState(VK_LWIN) & 0x8000) != 0) ||
+                      ((GetKeyState(VK_RWIN) & 0x8000) != 0);
             s_assign->captured = s;
             UpdateAssignDisplay(dlg);
             return 0;
