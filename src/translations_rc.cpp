@@ -185,6 +185,12 @@ void RegisterRcTranslations() {
     AddTranslation("fr", "Could not open the donation page in your browser.",
                    L"Impossible d'ouvrir la page de don dans votre navigateur.");
 
+    // v1.65 — Speech tab: position announcement after seek
+    AddTranslation("en", "Announce &position after a seek",
+                   L"Announce &position after a seek");
+    AddTranslation("fr", "Announce &position after a seek",
+                   L"Annoncer la &position après un déplacement");
+
     // v1.63 — Audio slots menu and dialog
     AddTranslation("en", "Audio &slots...", L"Audio &slots...");
     AddTranslation("fr", "Audio &slots...", L"&Slots audio...");

@@ -81,6 +81,12 @@ bool g_announceTrackOnFocus = true;
 // partially-torn-down BASS state. Read in cli_switches.cpp.
 bool g_isShuttingDown = false;
 
+// v1.65 — announce the new position after a left/right seek (or any
+// path that calls Seek / SeekToPosition / DaisySeekRelative). Default
+// true to preserve the v1.64 default behavior. Toggle in Options >
+// Speech > "Announce position after seek".
+bool g_speechSeekPosition = true;
+
 // v1.60 — Now-playing display state. Definitions; the SourceType enum is
 // in mediaaccess/ui.h so we have to include it here.
 #include "mediaaccess/ui.h"

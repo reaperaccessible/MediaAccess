@@ -171,6 +171,7 @@ BEGIN
     AUTOCHECKBOX    "Speak &volume when adjusted", IDC_SPEECH_VOLUME, 17, 70, 170, 10
     AUTOCHECKBOX    "Speak &effect value when adjusted", IDC_SPEECH_EFFECT, 17, 90, 210, 10
     AUTOCHECKBOX    "Announce YouTube effects activation", IDC_SPEECH_YT_HYBRID, 17, 110, 260, 10
+    AUTOCHECKBOX    "Announce &position after a seek", IDC_SPEECH_SEEK_POSITION, 17, 130, 260, 10
 
     // Movement tab controls (shown when tab 4 selected)
     LTEXT           "Seek amounts (use , and . to cycle):", IDC_LABEL_MOVEMENT_DESCRIPTION, 17, 30, 260, 10

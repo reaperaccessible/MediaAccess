@@ -92,6 +92,7 @@ extern uint32_t g_bookSkipMask;            // Phase 4 — skip categories bitmas
 extern bool     g_bookSkipBypass;          // Phase 4 — runtime toggle (Shift+S)
 extern bool     g_announceTrackOnFocus;    // v1.59 — speak track on WM_ACTIVATEAPP
 extern bool     g_isShuttingDown;          // v1.63 — gate WM_COPYDATA dwData=4 during shutdown
+extern bool     g_speechSeekPosition;      // v1.65 — speak new position after Seek
 
 // v1.60 — Now-playing display state. Forward-declared here; the SourceType
 // enum and the manipulator helpers live in mediaaccess/ui.h to keep this

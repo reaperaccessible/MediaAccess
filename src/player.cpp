@@ -1409,7 +1409,7 @@ void Seek(double seconds) {
         if (len > 0 && target > len) target = len;
         MPVSeek(seconds);
         UpdateStatusBar();
-        SpeakW(FormatTime(target));
+        if (g_speechSeekPosition) SpeakW(FormatTime(target));  // v1.65 gate
         return;
     }
     if (!g_fxStream || g_isBusy || g_isLoading) return;
@@ -1440,7 +1440,8 @@ void Seek(double seconds) {
     // v1.64 — announce the new position so NVDA users don't have to
     // press NVDA+End after every left/right press. Speak() defaults to
     // interrupt=true so rapid repeated seeks coalesce to the last one.
-    SpeakW(FormatTime(newPos));
+    // v1.65 — gated by Options > Speech > "Announce position after seek".
+    if (g_speechSeekPosition) SpeakW(FormatTime(newPos));
 }
 
 // Seek by tracks (positive = forward, negative = backward)
@@ -1467,7 +1468,7 @@ void SeekToPosition(double seconds) {
         if (len > 0 && target > len) target = len;
         MPVSeekToPosition(seconds);
         UpdateStatusBar();
-        SpeakW(FormatTime(target));  // v1.64
+        if (g_speechSeekPosition) SpeakW(FormatTime(target));  // v1.64/65
         return;
     }
     if (!g_fxStream) return;
@@ -1480,7 +1481,7 @@ void SeekToPosition(double seconds) {
 
     processor->SetPosition(seconds);
     UpdateStatusBar();
-    SpeakW(FormatTime(seconds));  // v1.64
+    if (g_speechSeekPosition) SpeakW(FormatTime(seconds));  // v1.64/65
 }
 
 // Get current playback position in seconds

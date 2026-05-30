@@ -262,6 +262,7 @@
 #define IDC_SPEECH_VOLUME       841
 #define IDC_SPEECH_EFFECT       842
 #define IDC_SPEECH_YT_HYBRID    843
+#define IDC_SPEECH_SEEK_POSITION 844  // v1.65 — announce position after seek
 
 // Radio dialog
 #define IDM_FILE_RADIO      107

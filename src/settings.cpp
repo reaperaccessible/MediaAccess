@@ -242,6 +242,7 @@ void LoadSettings() {
     // Load speech settings
     g_speechTrackChange = GetPrivateProfileIntW(L"Speech", L"TrackChange", 0, g_configPath.c_str()) != 0;
     g_speechVolume = GetPrivateProfileIntW(L"Speech", L"Volume", 1, g_configPath.c_str()) != 0;
+    g_speechSeekPosition = GetPrivateProfileIntW(L"Speech", L"AnnounceSeekPosition", 1, g_configPath.c_str()) != 0;  // v1.65
     g_speechEffect = GetPrivateProfileIntW(L"Speech", L"Effect", 1, g_configPath.c_str()) != 0;
     g_speechYTHybrid = GetPrivateProfileIntW(L"Speech", L"YTHybrid", 1, g_configPath.c_str()) != 0;
 
@@ -572,6 +573,7 @@ void SaveSettings() {
     // Save speech settings
     WritePrivateProfileStringW(L"Speech", L"TrackChange", g_speechTrackChange ? L"1" : L"0", g_configPath.c_str());
     WritePrivateProfileStringW(L"Speech", L"Volume", g_speechVolume ? L"1" : L"0", g_configPath.c_str());
+    WritePrivateProfileStringW(L"Speech", L"AnnounceSeekPosition", g_speechSeekPosition ? L"1" : L"0", g_configPath.c_str());  // v1.65
     WritePrivateProfileStringW(L"Speech", L"Effect", g_speechEffect ? L"1" : L"0", g_configPath.c_str());
     WritePrivateProfileStringW(L"Speech", L"YTHybrid", g_speechYTHybrid ? L"1" : L"0", g_configPath.c_str());
 
