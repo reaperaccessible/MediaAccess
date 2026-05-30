@@ -1,6 +1,9 @@
 1.49
 DAISY book reader (Phase 1). MediaAccess now plays DAISY 2.02 and DAISY 3 audio books like a Victor Reader or VoiceDream. Open a book via File > Open book (a folder containing NCC.html, an .opf file, or an .epub) or browse your library via Tools > Book library. The Library is built from folders you register in Préférences (coming) — but you can also rescan from the library window itself. Each book remembers your last position automatically; bookmarks support optional notes (Shift+B prompts for one). Navigation uses Shift+Up/Down to cycle through nav levels (heading 1 through 6, page, phrase) and Shift+Left/Right to jump backward/forward at that level. G opens a Go-to-page prompt. Shift+L announces where you are ("Chapter 3, page 47"). EPUB without audio and text-only DAISY books are recognized and added to the library — full text-to-speech playback for these will arrive in Phase 2.
 
+1.57
+Auto-relaunch after update. When MediaAccess installs an update, the application now restarts automatically once the install finishes — no need to double-click the desktop icon again. The updater writes a small batch wrapper to %TEMP% that waits for the installer to terminate, then re-launches MediaAccess.exe. Note that because the code that writes this wrapper lives in the OUTGOING version, the relaunch only kicks in starting from the FIRST update AFTER 1.57: upgrading from 1.55 or 1.56 to 1.57 still requires one manual relaunch (the old updater doesn't know how to do it), but from 1.57 onward the relaunch is automatic. Suggested by a user.
+
 1.56
 Add four in-track navigation actions to the Global category (Tools → Actions): Seek backward, Seek forward, Go to beginning, Jump 30 s before end. Until now only track-level commands (Play/Pause, Next track, Volume, etc.) could be assigned a system-wide hotkey; users who wanted to seek inside the current track without giving MediaAccess focus had to bring the window forward first. Reported by a user.
 

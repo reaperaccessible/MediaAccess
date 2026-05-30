@@ -530,27 +530,85 @@ void ApplyUpdate() {
             return;
         }
 
-        // Launch the installer via cmd.exe so we can insert a 2-second
-        // delay BEFORE the installer starts. That delay gives MediaAccess
-        // time to fully exit (we post WM_CLOSE right after, then return
-        // here, then wWinMain unwinds) so the installer doesn't hit a
-        // locked .exe.
+        // Write a batch wrapper in %TEMP% that runs the installer
+        // synchronously, then re-launches MediaAccess.exe so the user
+        // doesn't have to do it by hand. Same idea as the zip-path batch
+        // below, but for the standard installer path.
         //
-        // Belt-and-suspenders: the installer itself also has
+        // Why a batch and not chained cmd.exe `&&`: the relaunch must wait
+        // for the installer to fully terminate (Inno's bootstrapper +
+        // Restart Manager + UAC elevation chain) — `start /wait` on the
+        // installer is the simplest way to express that.
+        //
+        // Why %TEMP% and not the app directory: under Program Files the
+        // app dir is read-only for a normal user, and Inno may briefly
+        // lock files there during install.
+        //
+        // The batch deliberately does NOT delete itself (`del %~f0`).
+        // Self-deleting batches that spawn an installer + another exe is
+        // a common malware heuristic; Windows nettoie %TEMP% au reboot.
+        //
+        // Belt-and-suspenders: the installer itself still has
         // CloseApplications=yes + AppMutex=MediaAccessSingleInstance in
-        // installer.iss, so even if the timing slips, Inno's Restart
-        // Manager integration will close us gracefully before overwriting
-        // files. Either mechanism alone fixes the lock-failure loop;
-        // both together makes it robust regardless of update-checker age.
-        std::wstring cmdArgs = L"/c timeout /t 2 /nobreak >nul && start \"\" \"" +
-                               installerPath + L"\" /SILENT";
+        // installer.iss, so Inno's Restart Manager closes MediaAccess
+        // gracefully before file copy even if the timing slips.
+        //
+        // Chicken-and-egg: this code runs in the OUTGOING version. Users
+        // upgrading from 1.55/1.56 to 1.57 won't see the relaunch (their
+        // old updater doesn't know about it). The auto-relaunch kicks in
+        // for the FIRST upgrade after 1.57. Documented in changelog.txt.
+        wchar_t tempDir[MAX_PATH] = {0};
+        GetTempPathW(MAX_PATH, tempDir);
+        wchar_t batchPath[MAX_PATH] = {0};
+        if (!GetTempFileNameW(tempDir, L"MAU", 0, batchPath)) {
+            MessageBoxW(GetMessageBoxOwner(), T("Failed to launch installer."),
+                T("Update Error"), MB_OK | MB_ICONERROR);
+            return;
+        }
+        // GetTempFileName gave us a .tmp; rename to .cmd so cmd.exe takes
+        // it as a script. Easiest path: just write to a sibling .cmd file
+        // and delete the .tmp.
+        std::wstring batchPathCmd = std::wstring(batchPath) + L".cmd";
+        DeleteFileW(batchPath);
+
+        wchar_t exePath[MAX_PATH];
+        GetModuleFileNameW(NULL, exePath, MAX_PATH);
+        std::wstring exePathW(exePath);
+
+        // Convert to narrow for std::ofstream. Paths from GetTempPathW /
+        // GetModuleFileNameW on Windows 11 fit ANSI for the standard
+        // user account locations (%LOCALAPPDATA%\Temp, Program Files).
+        std::string narrowBatch(batchPathCmd.begin(), batchPathCmd.end());
+        std::string narrowInstaller(installerPath.begin(), installerPath.end());
+        std::string narrowExe(exePathW.begin(), exePathW.end());
+
+        std::ofstream batch(narrowBatch);
+        if (!batch.is_open()) {
+            MessageBoxW(GetMessageBoxOwner(), T("Failed to launch installer."),
+                T("Update Error"), MB_OK | MB_ICONERROR);
+            return;
+        }
+        batch << "@echo off\r\n";
+        batch << "REM MediaAccess auto-relaunch wrapper - safe to delete.\r\n";
+        batch << "timeout /t 2 /nobreak > nul\r\n";
+        // start /wait blocks until the installer terminates (including
+        // its elevated bootstrapper child). Quoted empty "" is the window
+        // title argument that start expects when paths are quoted.
+        batch << "start /wait \"\" \"" << narrowInstaller << "\" /SILENT\r\n";
+        // Relaunch unconditionally. If the install failed (UAC denied,
+        // antivirus block, etc.) the old binary at exePath is still there
+        // and starts fine — better than leaving the user with nothing.
+        batch << "start \"\" \"" << narrowExe << "\"\r\n";
+        batch.close();
+
+        // Launch the batch detached so it survives our process exit.
+        std::wstring shellCmd = L"cmd.exe /c \"" + batchPathCmd + L"\"";
         STARTUPINFOW si{};
         si.cb = sizeof(si);
         si.dwFlags = STARTF_USESHOWWINDOW;
         si.wShowWindow = SW_HIDE;
         PROCESS_INFORMATION pi{};
-        std::wstring cmdLine = L"cmd.exe " + cmdArgs;
-        if (!CreateProcessW(nullptr, &cmdLine[0], nullptr, nullptr, FALSE,
+        if (!CreateProcessW(nullptr, &shellCmd[0], nullptr, nullptr, FALSE,
                             CREATE_NO_WINDOW | DETACHED_PROCESS,
                             nullptr, nullptr, &si, &pi)) {
             MessageBoxW(GetMessageBoxOwner(), T("Failed to launch installer."),
