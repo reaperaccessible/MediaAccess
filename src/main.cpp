@@ -38,6 +38,8 @@
 #include "mediaaccess/books_dialog.h"
 #include "mediaaccess/tts_player.h"
 #include "mediaaccess/book_text_window.h"
+#include "mediaaccess/cli_switches.h"   // v1.63
+#include "mediaaccess/audio_slots.h"    // v1.63
 #include <utility>  // for std::pair
 
 // Custom message posted from daisy_player.cpp BASS sync (worker thread).
@@ -135,6 +137,14 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
 
             // Silently keep yt-dlp.exe up to date (background thread).
             LaunchYtdlpUpdateCheck();
+
+            // v1.63 — drain any CLI switches that came in with our own
+            // command line (the launcher stashed them in g_pendingCliCommands).
+            // Posted so it runs after WM_CREATE returns and the message pump
+            // gets to deliver — gives PlayTrack a chance to settle first.
+            if (!g_pendingCliCommands.empty()) {
+                PostMessageW(hwnd, WM_APP_CLI, 0, 0);
+            }
 
             return 0;
         }
@@ -422,6 +432,18 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
 
         case WM_COPYDATA: {
             COPYDATASTRUCT* cds = reinterpret_cast<COPYDATASTRUCT*>(lParam);
+            // v1.63 — if we're already tearing down (WM_DESTROY in flight),
+            // drop late deliveries silently rather than touch a half-freed
+            // BASS state.
+            if (g_isShuttingDown) return TRUE;
+            // v1.63 — dwData == 4: CLI switch ("verb\0param\0" UTF-16).
+            if (cds && cds->dwData == 4 && cds->lpData && cds->cbData > 0) {
+                CliCommand cmd;
+                if (DecodeCliPayload(cds->lpData, cds->cbData, cmd)) {
+                    ApplyCliCommand(hwnd, cmd, /*fromRemote=*/true);
+                }
+                return TRUE;
+            }
             // dwData == 3: second launch with no file args — just bring the
             // existing window back. Fixes "desktop icon does nothing when
             // MediaAccess is hidden in the system tray".
@@ -600,6 +622,15 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
                 case IDM_TOOLS_BOOK_LIBRARY:
                     mediaaccess::ShowBookLibrary(hwnd);
                     break;
+                case IDM_TOOLS_AUDIO_SLOTS:
+                    ShowAudioSlotsDialog(hwnd);
+                    break;
+                case IDM_AUDIO_DEVICE_CYCLE:
+                    CycleAudioDevice();
+                    break;
+                case IDM_AUDIO_DEVICE_SPEAK:
+                    SpeakCurrentAudioDevice();
+                    break;
                 case IDM_BOOK_NAV_LEVEL_UP:
                     if (mediaaccess::DaisyIsActive()) mediaaccess::DaisyCycleNavLevel(+1);
                     break;
@@ -660,6 +691,17 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
                 case 7303: mediaaccess::SleepStart(60);  break;
                 case 7304: mediaaccess::SleepStart(90);  break;
                 case 7305: mediaaccess::SleepStart(120); break;
+                // v1.63 — audio slot activations (IDM_AUDIO_SLOT_BASE + 0..9)
+                case IDM_AUDIO_SLOT_BASE + 0: ActivateAudioSlot(0); break;
+                case IDM_AUDIO_SLOT_BASE + 1: ActivateAudioSlot(1); break;
+                case IDM_AUDIO_SLOT_BASE + 2: ActivateAudioSlot(2); break;
+                case IDM_AUDIO_SLOT_BASE + 3: ActivateAudioSlot(3); break;
+                case IDM_AUDIO_SLOT_BASE + 4: ActivateAudioSlot(4); break;
+                case IDM_AUDIO_SLOT_BASE + 5: ActivateAudioSlot(5); break;
+                case IDM_AUDIO_SLOT_BASE + 6: ActivateAudioSlot(6); break;
+                case IDM_AUDIO_SLOT_BASE + 7: ActivateAudioSlot(7); break;
+                case IDM_AUDIO_SLOT_BASE + 8: ActivateAudioSlot(8); break;
+                case IDM_AUDIO_SLOT_BASE + 9: ActivateAudioSlot(9); break;
                 case IDM_BOOK_SEARCH_NEXT:
                     if (mediaaccess::DaisyIsActive()) mediaaccess::FindNextInBook();
                     break;
@@ -1100,6 +1142,9 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
             return 0;
 
         case WM_DESTROY:
+            // v1.63 — mark shutdown so WM_COPYDATA dwData=4 (CLI deliveries)
+            // arriving after this point are dropped before they touch BASS.
+            g_isShuttingDown = true;
             // -----------------------------------------------------------
             // Kill audio IMMEDIATELY before doing anything else.
             // Otherwise the BASS device keeps producing sound for the
@@ -1144,6 +1189,13 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
             return 0;
     }
 
+    // v1.63 — drain the CLI command queue accumulated when this is the
+    // first instance and the launcher saw control switches on argv.
+    if (msg == WM_APP_CLI) {
+        DrainPendingCliCommands(hwnd);
+        return 0;
+    }
+
     // Download completion from DownloadManager (posted to main window)
     if (msg == WM_DOWNLOAD_COMPLETE) {
         int id = static_cast<int>(wParam);
@@ -1183,24 +1235,33 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLi
     // Check if multiple instances are allowed
     bool allowMultiple = GetPrivateProfileIntW(L"Playback", L"AllowMultipleInstances", 0, g_configPath.c_str()) != 0;
 
-    // Check if we have file arguments
+    // Walk argv once: classify each token as file vs CLI switch (v1.63) vs ignored.
+    // A token is a switch iff it starts with "/" AND IsKnownCliSwitch returns true
+    // AND it doesn't also resolve to a real file (paranoid edge case).
     bool hasFileArgs = false;
+    std::vector<CliCommand> cliCmds;
     int argc;
     LPWSTR* argv = CommandLineToArgvW(GetCommandLineW(), &argc);
     if (argv) {
         for (int i = 1; i < argc; i++) {
-            if (GetFileAttributesW(argv[i]) != INVALID_FILE_ATTRIBUTES) {
-                hasFileArgs = true;
-                break;
+            bool isFile = (GetFileAttributesW(argv[i]) != INVALID_FILE_ATTRIBUTES);
+            if (isFile) { hasFileArgs = true; continue; }
+            if (IsKnownCliSwitch(argv[i])) {
+                CliCommand cmd;
+                if (ParseCliSwitch(argv[i], cmd)) {
+                    cliCmds.push_back(std::move(cmd));
+                }
             }
+            // Otherwise silently ignored — bogus arg or path that doesn't exist.
         }
     }
+    bool hasCliSwitches = !cliCmds.empty();
 
     // Single instance logic:
     // - If multiple instances NOT allowed: always use single instance
-    // - If multiple instances allowed AND has file args: send to existing instance
-    // - If multiple instances allowed AND no file args: start new instance
-    bool useSingleInstance = !allowMultiple || hasFileArgs;
+    // - If multiple instances allowed AND has file/cli args: send to existing instance
+    // - If multiple instances allowed AND no args: start new instance
+    bool useSingleInstance = !allowMultiple || hasFileArgs || hasCliSwitches;
 
     HANDLE hMutex = CreateMutexW(nullptr, TRUE, MUTEX_NAME);
     if (GetLastError() == ERROR_ALREADY_EXISTS && useSingleInstance) {
@@ -1218,11 +1279,11 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLi
                         firstFile = false;
                     }
                 }
-            } else {
-                // No file args: user launched MediaAccess again (desktop
-                // icon, Start menu, Win+R, etc.) while it's already running
-                // — possibly hidden in the system tray. Ask the existing
-                // instance to restore and come to the foreground.
+            } else if (!hasCliSwitches) {
+                // No file args AND no CLI switches: user launched MediaAccess
+                // again (desktop icon, Start menu, Win+R, etc.) while it's
+                // already running — possibly hidden in the system tray. Ask
+                // the existing instance to restore and come to the foreground.
                 COPYDATASTRUCT cds;
                 cds.dwData = 3;       // "activate" sentinel
                 cds.cbData = 0;
@@ -1233,12 +1294,57 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLi
                 GetWindowThreadProcessId(existingWnd, &existingPid);
                 if (existingPid) AllowSetForegroundWindow(existingPid);
             }
+
+            // v1.63 — relay CLI switches via WM_COPYDATA dwData=4. Use
+            // SendMessageTimeoutW with SMTO_ABORTIFHUNG so a modal dialog in
+            // the existing instance doesn't freeze every CLI invocation.
+            // Also allow the existing instance to take foreground when /show
+            // is among the switches.
+            if (hasCliSwitches) {
+                DWORD existingPid = 0;
+                GetWindowThreadProcessId(existingWnd, &existingPid);
+                if (existingPid) AllowSetForegroundWindow(existingPid);
+                for (const auto& cmd : cliCmds) {
+                    std::wstring payload;
+                    EncodeCliPayload(cmd, payload);
+                    if (payload.empty()) continue;
+                    COPYDATASTRUCT cds;
+                    cds.dwData = 4;
+                    cds.cbData = static_cast<DWORD>(payload.size() * sizeof(wchar_t));
+                    cds.lpData = const_cast<wchar_t*>(payload.c_str());
+                    DWORD_PTR result = 0;
+                    SendMessageTimeoutW(existingWnd, WM_COPYDATA, 0,
+                                        reinterpret_cast<LPARAM>(&cds),
+                                        SMTO_ABORTIFHUNG, 5000, &result);
+                }
+            }
             if (argv) LocalFree(argv);
             CloseHandle(hMutex);
             return 0;
         }
     }
     if (argv) LocalFree(argv);
+
+    // v1.63 — no other instance, but CLI commands are present. Stash them
+    // for DrainPendingCliCommands which fires after WM_CREATE finishes
+    // initial setup. Special case: if the ONLY commands are quit/hide,
+    // there's nothing to act on yet — exit 0 silently rather than spawn
+    // an instance that immediately dies.
+    if (hasCliSwitches && !hasFileArgs) {
+        bool anyMeaningful = false;
+        for (const auto& c : cliCmds) {
+            if (c.verb != CliVerb::Quit && c.verb != CliVerb::Hide) {
+                anyMeaningful = true; break;
+            }
+        }
+        if (!anyMeaningful) {
+            CloseHandle(hMutex);
+            return 0;
+        }
+    }
+    if (hasCliSwitches) {
+        g_pendingCliCommands = std::move(cliCmds);
+    }
 
     // Register translations before LoadSettings: LoadSettings reads the saved
     // language and immediately calls SetLanguage() so any UI built afterwards

@@ -185,6 +185,38 @@ void RegisterRcTranslations() {
     AddTranslation("fr", "Could not open the donation page in your browser.",
                    L"Impossible d'ouvrir la page de don dans votre navigateur.");
 
+    // v1.63 — Audio slots menu and dialog
+    AddTranslation("en", "Audio &slots...", L"Audio &slots...");
+    AddTranslation("fr", "Audio &slots...", L"&Slots audio...");
+    AddTranslation("en", "Audio slots",     L"Audio slots");
+    AddTranslation("fr", "Audio slots",     L"Slots audio");
+    AddTranslation("en", "&Slot 1:",  L"&Slot 1 :");
+    AddTranslation("fr", "&Slot 1:",  L"&Slot 1 :");
+    AddTranslation("en", "S&lot 2:",  L"S&lot 2 :");
+    AddTranslation("fr", "S&lot 2:",  L"S&lot 2 :");
+    AddTranslation("en", "Sl&ot 3:",  L"Sl&ot 3 :");
+    AddTranslation("fr", "Sl&ot 3:",  L"Sl&ot 3 :");
+    AddTranslation("en", "Slo&t 4:",  L"Slo&t 4 :");
+    AddTranslation("fr", "Slo&t 4:",  L"Slo&t 4 :");
+    AddTranslation("en", "Slot &5:",  L"Slot &5 :");
+    AddTranslation("fr", "Slot &5:",  L"Slot &5 :");
+    AddTranslation("en", "Slot &6:",  L"Slot &6 :");
+    AddTranslation("fr", "Slot &6:",  L"Slot &6 :");
+    AddTranslation("en", "Slot &7:",  L"Slot &7 :");
+    AddTranslation("fr", "Slot &7:",  L"Slot &7 :");
+    AddTranslation("en", "Slot &8:",  L"Slot &8 :");
+    AddTranslation("fr", "Slot &8:",  L"Slot &8 :");
+    AddTranslation("en", "Slot &9:",  L"Slot &9 :");
+    AddTranslation("fr", "Slot &9:",  L"Slot &9 :");
+    AddTranslation("en", "Slot 1&0:", L"Slot 1&0 :");
+    AddTranslation("fr", "Slot 1&0:", L"Slot 1&0 :");
+    AddTranslation("en", "&Refresh device list", L"&Refresh device list");
+    AddTranslation("fr", "&Refresh device list", L"&Actualiser la liste des périphériques");
+    AddTranslation("en", "Assign keyboard shortcuts to slots from Tools > Actions.",
+                   L"Assign keyboard shortcuts to slots from Tools > Actions.");
+    AddTranslation("fr", "Assign keyboard shortcuts to slots from Tools > Actions.",
+                   L"Assignez des raccourcis aux slots depuis Outils > Actions.");
+
     // v1.55 — sleep-timer menu cascade
     AddTranslation("en", "Sleep &timer", L"Sleep &timer");
     AddTranslation("fr", "Sleep &timer", L"Minuterie de &sommeil");

@@ -6,6 +6,7 @@
 #include "database.h"
 #include "accessibility.h"
 #include "tempo_processor.h"
+#include "mediaaccess/audio_slots.h"  // v1.63 — LoadAudioSlots / SaveAudioSlots
 #include "updater.h"
 #include "youtube.h"
 #include "translations.h"
@@ -254,6 +255,7 @@ void LoadSettings() {
     g_allowMultipleInstances = GetPrivateProfileIntW(L"Playback", L"AllowMultipleInstances", 0, g_configPath.c_str()) != 0;
     g_bookSkipMask = (uint32_t)GetPrivateProfileIntW(L"Books", L"SkipMask", 0, g_configPath.c_str());
     g_announceTrackOnFocus = GetPrivateProfileIntW(L"Playback", L"AnnounceTrackOnFocus", 1, g_configPath.c_str()) != 0;
+    LoadAudioSlots();  // v1.63 — [AudioSlots] Slot1..Slot10
 
     // Load seek settings
     g_seekEnabled[0] = GetPrivateProfileIntW(L"Movement", L"Seek1s", 0, g_configPath.c_str()) != 0;
@@ -587,6 +589,7 @@ void SaveSettings() {
         WritePrivateProfileStringW(L"Books", L"SkipMask", skipBuf, g_configPath.c_str());
     }
     WritePrivateProfileStringW(L"Playback", L"AnnounceTrackOnFocus", g_announceTrackOnFocus ? L"1" : L"0", g_configPath.c_str());
+    SaveAudioSlots();  // v1.63
 
     // Save seek settings
     WritePrivateProfileStringW(L"Movement", L"Seek1s", g_seekEnabled[0] ? L"1" : L"0", g_configPath.c_str());

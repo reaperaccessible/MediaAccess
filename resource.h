@@ -382,6 +382,20 @@
 #define IDC_PROGRESS_TEXT   997
 #define IDC_CHECK_UPDATES   998
 #define IDC_ANNOUNCE_ON_FOCUS   1700  // v1.59 — speak "Now playing" on app focus
+
+// v1.63 — Audio slots (Jack's request)
+#define IDM_TOOLS_AUDIO_SLOTS       1710  // Menu Tools → Audio slots...
+#define IDD_AUDIO_SLOTS             1711  // Dialog template
+#define IDC_AUDIO_SLOT_BASE         1720  // 1720..1729 = combos
+#define IDC_AUDIO_SLOT_LABEL_BASE   1740  // 1740..1749 = labels
+#define IDC_AUDIO_SLOTS_HELP        1750  // Help LTEXT at bottom
+#define IDC_AUDIO_SLOTS_REFRESH     1751  // Refresh button
+#define IDM_AUDIO_SLOT_BASE         7400  // 7400..7409 = activate slot N (1-10)
+#define IDM_AUDIO_DEVICE_CYCLE      7410
+#define IDM_AUDIO_DEVICE_SPEAK      7411
+
+// v1.63 — CLI switch infrastructure
+#define WM_APP_CLI                  (WM_APP + 7)  // self-post to drain CLI queue
 #define IDC_MULTI_INSTANCE  999
 #define IDD_RADIO           850
 #define IDC_RADIO_TAB       851

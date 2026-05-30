@@ -204,6 +204,8 @@
     <li><a href="#scheduler">Scheduler</a></li>
     <li><a href="#tray">System tray</a></li>
     <li><a href="#hotkeys">Actions and keyboard shortcuts</a></li>
+    <li><a href="#cli">Command line</a></li>
+    <li><a href="#slots">Audio slots</a></li>
     <li><a href="#options">Options reference</a></li>
     <li><a href="#accessibility">Accessibility</a></li>
     <li><a href="#updates">Updates</a></li>
@@ -808,8 +810,86 @@
 <p>Dedicated keyboard media keys (Play/Pause, Stop, Previous, Next) are always globally active, regardless of your custom shortcuts and of the loaded keymap.</p>
 </section>
 
+<section id="cli" aria-labelledby="cli-h">
+<h2 id="cli-h">18. Command line</h2>
+<p>MediaAccess accepts a set of switches on its command line, in the style of foobar2000's <em>Foorun</em> tool. When you launch <code>MediaAccess.exe</code> with one or more switches:</p>
+<ul>
+  <li>if a MediaAccess instance is already running, the switch is relayed instantly to that instance (via <code>WM_COPYDATA</code>) and the second process exits silently without opening a window;</li>
+  <li>otherwise, MediaAccess starts normally and then applies the switches. <code>/quit</code> and <code>/hide</code> are exceptions: with no running instance they are simply ignored.</li>
+</ul>
+<p>Several switches can be combined in the same call, mixed with file or folder arguments. The order is preserved: load first, play next, adjust the volume last.</p>
+<p>This interface is meant for automation: AutoHotkey scripts, Stream Deck buttons, the Windows Task Scheduler, batch files, IR remotes via third-party utilities, or custom screen-reader scripts.</p>
+
+<h3>Available switches</h3>
+<table>
+<caption>Command-line switches</caption>
+<thead><tr><th>Switch</th><th>Effect</th></tr></thead>
+<tbody>
+<tr><td><code>/play</code></td><td>Start playback.</td></tr>
+<tr><td><code>/pause</code></td><td>Pause playback.</td></tr>
+<tr><td><code>/stop</code></td><td>Stop playback.</td></tr>
+<tr><td><code>/toggle</code></td><td>Toggle play/pause based on the current state.</td></tr>
+<tr><td><code>/next</code></td><td>Next track.</td></tr>
+<tr><td><code>/prev</code></td><td>Previous track.</td></tr>
+<tr><td><code>/volup</code></td><td>Raise volume by the step configured in Options.</td></tr>
+<tr><td><code>/voldown</code></td><td>Lower volume by the configured step.</td></tr>
+<tr><td><code>/volume:<em>N</em></code></td><td>Set the volume to <em>N</em> percent (0 to 400). If <strong>Allow volume above 100%</strong> is unchecked in Preferences, the value is clamped to 100.</td></tr>
+<tr><td><code>/mute</code></td><td>Toggle mute.</td></tr>
+<tr><td><code>/seek:+<em>N</em></code></td><td>Seek forward <em>N</em> seconds relative to the current position (signed relative seek).</td></tr>
+<tr><td><code>/seek:-<em>N</em></code></td><td>Seek backward <em>N</em> seconds.</td></tr>
+<tr><td><code>/seek:<em>N</em></code></td><td>Seek to the absolute time of <em>N</em> seconds (no sign).</td></tr>
+<tr><td><code>/quit</code></td><td>Exit MediaAccess (ignored if no instance is running).</td></tr>
+<tr><td><code>/show</code></td><td>Restore the window from the system tray and bring it to the foreground. Announces "MediaAccess restored".</td></tr>
+<tr><td><code>/hide</code></td><td>Minimize MediaAccess to the system tray. Announces "MediaAccess hidden" (ignored if no instance is running).</td></tr>
+</tbody>
+</table>
+
+<h3>Examples</h3>
+<p>Launch MediaAccess and immediately start playing a folder:</p>
+<pre><code>MediaAccess.exe "C:\Music" /play</code></pre>
+<p>Load a playlist, start playback, and set the volume to 60%:</p>
+<pre><code>MediaAccess.exe "C:\Music\album.m3u" /play /volume:60</code></pre>
+<p>Set the volume without showing the window:</p>
+<pre><code>MediaAccess.exe /volume:80 /hide</code></pre>
+<p>Seek 30 seconds forward in the running instance:</p>
+<pre><code>MediaAccess.exe /seek:+30</code></pre>
+</section>
+
+<section id="slots" aria-labelledby="slots-h">
+<h2 id="slots-h">19. Audio slots</h2>
+<p><strong>Audio slots</strong> let you bookmark up to ten favorite output devices and switch between them with a single keystroke, without opening Options. Ideal for instant switching between your headphones, your speakers, your capture card, your USB interface, or a virtual loopback device.</p>
+<p>Each slot remembers a device <strong>by name</strong>, not by BASS index. You can unplug and replug your USB devices in a different order: the bindings remain valid as long as the name is recognized.</p>
+
+<h3>Configuring the slots</h3>
+<p><strong>Tools → Audio slots…</strong> opens the configuration dialog. It contains ten combos, one per slot, listing every BASS-enabled output device detected on the machine; the first entry in each combo is <em>(None)</em>, which disables the slot.</p>
+<p>If a previously-saved device is currently disconnected when you open the dialog, it appears as "<em>(disconnected)</em> <em>device name</em>" so the binding is preserved and becomes active again automatically as soon as the device is reconnected.</p>
+<p>The <strong>Refresh device list</strong> button re-enumerates the available audio outputs without closing the dialog — handy when you have just plugged in a new device. <strong>OK</strong> saves your choices, <strong>Cancel</strong> discards them.</p>
+
+<h3>Assigning a shortcut to each slot</h3>
+<p>Then open the Actions window (<kbd>F4</kbd> or <strong>Tools → Actions</strong>) and switch to the <strong>Global</strong> category. There you will find:</p>
+<ul>
+  <li><strong>Audio device slot 1</strong> through <strong>Audio device slot 10</strong> — switches the audio engine directly to the device in the indicated slot;</li>
+  <li><strong>Cycle audio output</strong> — steps through the configured slots on each press;</li>
+  <li><strong>Speak current audio output</strong> — speaks the name of the device currently in use.</li>
+</ul>
+<p>Assign each of these actions to the key combination of your choice. Because Global-category shortcuts are handled by <code>RegisterHotKey</code>, they require at least one modifier (Ctrl, Alt, Shift, or Win) and stay active even when MediaAccess does not have focus.</p>
+
+<h3>Speech announcements</h3>
+<p>Each slot action produces an immediate announcement:</p>
+<ul>
+  <li>Successful switch: "Switched to <em>device name</em>";</li>
+  <li>Empty slot: "Slot <em>N</em> is not configured";</li>
+  <li>Disconnected device: "Device not found: <em>name</em>";</li>
+  <li>Speak current output: "Audio output: <em>device name</em>".</li>
+</ul>
+<p>Playback position is preserved across the switch: if a track was playing, it continues immediately on the new output with no audible jump.</p>
+
+<h3>Use case: live streaming</h3>
+<p>The original motivation behind audio slots is <strong>live streaming</strong>. You prepare a file on your default output (heard through your headphones), navigate to the right spot, pause, then press the hotkey bound to the slot pointing at the WDM loopback device of your streaming mixer (for example VoiceMeeter, or OBS's virtual audio output). Pressing Play once more sends the audio straight into the stream, without ever having to touch the system mixer or change the Windows default device.</p>
+</section>
+
 <section id="options" aria-labelledby="options-h">
-<h2 id="options-h">18. Options reference</h2>
+<h2 id="options-h">20. Options reference</h2>
 <p><kbd>Ctrl</kbd>+<kbd>,</kbd> or <strong>File → Options</strong> opens preferences. Twelve tabs. (Keyboard shortcuts are no longer configured here: use <kbd>F4</kbd> or <strong>Tools → Actions</strong>, see <a href="#hotkeys">section 17</a>.)</p>
 
 <h3>Playback tab</h3>
@@ -901,7 +981,7 @@
 </section>
 
 <section id="accessibility" aria-labelledby="accessibility-h">
-<h2 id="accessibility-h">19. Accessibility</h2>
+<h2 id="accessibility-h">21. Accessibility</h2>
 
 <h3>Supported screen readers</h3>
 <p>MediaAccess auto-detects the active screen reader:</p>
@@ -951,7 +1031,7 @@
 </section>
 
 <section id="updates" aria-labelledby="updates-h">
-<h2 id="updates-h">20. Updates</h2>
+<h2 id="updates-h">22. Updates</h2>
 
 <h3>Automatic check</h3>
 <p>On startup, MediaAccess checks in the background for a new version on GitHub (option <strong>Options → Playback → Check for updates on startup</strong>, on by default).</p>
@@ -965,7 +1045,7 @@
 </section>
 
 <section id="troubleshooting" aria-labelledby="troubleshooting-h">
-<h2 id="troubleshooting-h">21. Troubleshooting</h2>
+<h2 id="troubleshooting-h">23. Troubleshooting</h2>
 
 <h3>Log file</h3>
 <p>MediaAccess writes a log to:</p>
@@ -1001,7 +1081,7 @@
 </section>
 
 <section id="books" aria-labelledby="books-h">
-<h2 id="books-h">22. DAISY book playback</h2>
+<h2 id="books-h">24. DAISY book playback</h2>
 
 <p>MediaAccess includes a built-in reader for DAISY accessible audiobooks, comparable to dedicated apps such as Victor Reader or VoiceDream. Books can be opened individually or organized in a library, and all the usual MediaAccess transport, tempo, pitch, EQ, and announcement shortcuts apply during reading.</p>
 
@@ -1112,7 +1192,7 @@
 </section>
 
 <section id="sleep-timer" aria-labelledby="sleep-timer-h">
-<h2 id="sleep-timer-h">23. Sleep timer</h2>
+<h2 id="sleep-timer-h">25. Sleep timer</h2>
 
 <p>The sleep timer automatically stops playback after a duration you choose — useful for falling asleep to an audiobook, a podcast, a radio stream, or a movie without having to get back up to turn the sound off. It works with any active playback engine: BASS (audio), libmpv (video), the DAISY/EPUB book player, and the SAPI text-to-speech engine for text-only books.</p>
 
@@ -1133,7 +1213,7 @@
 </section>
 
 <section id="shortcuts" aria-labelledby="shortcuts-h">
-<h2 id="shortcuts-h">24. Keyboard shortcuts reference</h2>
+<h2 id="shortcuts-h">26. Keyboard shortcuts reference</h2>
 
 <h3>File</h3>
 <table>

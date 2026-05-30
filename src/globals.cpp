@@ -76,6 +76,11 @@ bool     g_bookSkipBypass = false;  // RAM-only; toggled by Shift+S in books
 // Options > Playback > "Announce track when MediaAccess gets focus".
 bool g_announceTrackOnFocus = true;
 
+// v1.63 — set true at the very top of WM_DESTROY so that late CLI
+// deliveries via WM_COPYDATA dwData=4 are dropped before they touch a
+// partially-torn-down BASS state. Read in cli_switches.cpp.
+bool g_isShuttingDown = false;
+
 // v1.60 — Now-playing display state. Definitions; the SourceType enum is
 // in mediaaccess/ui.h so we have to include it here.
 #include "mediaaccess/ui.h"

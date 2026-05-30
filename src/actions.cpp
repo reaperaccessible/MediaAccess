@@ -447,6 +447,32 @@ static const Action g_actions[] = {
     { "GLOBAL_READ_TAG_FILENAME", IDM_READ_TAG_FILENAME,      ActionCategory::Global,
       "Speak filename (global)",      "Annoncer le nom de fichier (global)", {} },
 
+    // Audio device slots (10) + cycle + speak — v1.63
+    { "GLOBAL_AUDIO_SLOT_1",      IDM_AUDIO_SLOT_BASE + 0,    ActionCategory::Global,
+      "Audio device slot 1 (global)",  "Slot de périphérique audio 1 (global)", {} },
+    { "GLOBAL_AUDIO_SLOT_2",      IDM_AUDIO_SLOT_BASE + 1,    ActionCategory::Global,
+      "Audio device slot 2 (global)",  "Slot de périphérique audio 2 (global)", {} },
+    { "GLOBAL_AUDIO_SLOT_3",      IDM_AUDIO_SLOT_BASE + 2,    ActionCategory::Global,
+      "Audio device slot 3 (global)",  "Slot de périphérique audio 3 (global)", {} },
+    { "GLOBAL_AUDIO_SLOT_4",      IDM_AUDIO_SLOT_BASE + 3,    ActionCategory::Global,
+      "Audio device slot 4 (global)",  "Slot de périphérique audio 4 (global)", {} },
+    { "GLOBAL_AUDIO_SLOT_5",      IDM_AUDIO_SLOT_BASE + 4,    ActionCategory::Global,
+      "Audio device slot 5 (global)",  "Slot de périphérique audio 5 (global)", {} },
+    { "GLOBAL_AUDIO_SLOT_6",      IDM_AUDIO_SLOT_BASE + 5,    ActionCategory::Global,
+      "Audio device slot 6 (global)",  "Slot de périphérique audio 6 (global)", {} },
+    { "GLOBAL_AUDIO_SLOT_7",      IDM_AUDIO_SLOT_BASE + 6,    ActionCategory::Global,
+      "Audio device slot 7 (global)",  "Slot de périphérique audio 7 (global)", {} },
+    { "GLOBAL_AUDIO_SLOT_8",      IDM_AUDIO_SLOT_BASE + 7,    ActionCategory::Global,
+      "Audio device slot 8 (global)",  "Slot de périphérique audio 8 (global)", {} },
+    { "GLOBAL_AUDIO_SLOT_9",      IDM_AUDIO_SLOT_BASE + 8,    ActionCategory::Global,
+      "Audio device slot 9 (global)",  "Slot de périphérique audio 9 (global)", {} },
+    { "GLOBAL_AUDIO_SLOT_10",     IDM_AUDIO_SLOT_BASE + 9,    ActionCategory::Global,
+      "Audio device slot 10 (global)", "Slot de périphérique audio 10 (global)", {} },
+    { "GLOBAL_AUDIO_DEVICE_CYCLE",IDM_AUDIO_DEVICE_CYCLE,     ActionCategory::Global,
+      "Cycle audio output (global)",   "Changer de périphérique audio (global)", {} },
+    { "GLOBAL_AUDIO_DEVICE_SPEAK",IDM_AUDIO_DEVICE_SPEAK,     ActionCategory::Global,
+      "Speak current audio output (global)", "Annoncer le périphérique audio actuel (global)", {} },
+
     // ========================================================================
     // CATEGORY: Books — DAISY / EPUB reader (v1.49 Phase 1)
     // ========================================================================

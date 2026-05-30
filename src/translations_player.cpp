@@ -1564,6 +1564,32 @@ void RegisterPlayerTranslations() {
     AddTranslation("en", "RadioBrowser", L"RadioBrowser");
     AddTranslation("fr", "RadioBrowser", L"Navigateur Radio");
 
+    // v1.63 — audio slots + CLI switches
+    AddTranslation("en", "(None)",                       L"(None)");
+    AddTranslation("fr", "(None)",                       L"(Aucun)");
+    AddTranslation("en", "(disconnected) ",              L"(disconnected) ");
+    AddTranslation("fr", "(disconnected) ",              L"(débranché) ");
+    AddTranslation("en", "Slot",                         L"Slot");
+    AddTranslation("fr", "Slot",                         L"Slot");
+    AddTranslation("en", "is not configured",            L"is not configured");
+    AddTranslation("fr", "is not configured",            L"n'est pas configuré");
+    AddTranslation("en", "Device not found: ",           L"Device not found: ");
+    AddTranslation("fr", "Device not found: ",           L"Périphérique introuvable : ");
+    AddTranslation("en", "Audio output: ",               L"Audio output: ");
+    AddTranslation("fr", "Audio output: ",               L"Sortie audio : ");
+    AddTranslation("en", "Default device",               L"Default device");
+    AddTranslation("fr", "Default device",               L"Périphérique par défaut");
+    AddTranslation("en", "No audio devices found",       L"No audio devices found");
+    AddTranslation("fr", "No audio devices found",       L"Aucun périphérique audio trouvé");
+    AddTranslation("en", "Audio slots saved",            L"Audio slots saved");
+    AddTranslation("fr", "Audio slots saved",            L"Slots audio enregistrés");
+    AddTranslation("en", "Device list refreshed",        L"Device list refreshed");
+    AddTranslation("fr", "Device list refreshed",        L"Liste des périphériques actualisée");
+    AddTranslation("en", "MediaAccess restored",         L"MediaAccess restored");
+    AddTranslation("fr", "MediaAccess restored",         L"MediaAccess restauré");
+    AddTranslation("en", "MediaAccess hidden",           L"MediaAccess hidden");
+    AddTranslation("fr", "MediaAccess hidden",           L"MediaAccess masqué");
+
     // v1.61 — extended radio search filters
     AddTranslation("en", "Ad&vanced filters", L"Ad&vanced filters");
     AddTranslation("fr", "Ad&vanced filters", L"Filtres a&vancés");

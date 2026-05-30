@@ -204,6 +204,8 @@
     <li><a href="#planificateur">Planificateur</a></li>
     <li><a href="#tray">Zone de notification</a></li>
     <li><a href="#hotkeys">Actions et raccourcis</a></li>
+    <li><a href="#cli">Ligne de commande</a></li>
+    <li><a href="#slots">Slots audio</a></li>
     <li><a href="#options">Options détaillées</a></li>
     <li><a href="#accessibilite">Accessibilité</a></li>
     <li><a href="#mises-a-jour">Mises à jour</a></li>
@@ -808,8 +810,86 @@
 <p>Les touches multimédias dédiées du clavier (Lecture/Pause, Arrêt, Précédent, Suivant) sont toujours actives globalement, indépendamment de vos raccourcis personnalisés et du keymap chargé.</p>
 </section>
 
+<section id="cli" aria-labelledby="cli-h">
+<h2 id="cli-h">18. Ligne de commande</h2>
+<p>MediaAccess accepte un ensemble d'options sur sa ligne de commande, à la manière de l'outil <em>Foorun</em> de foobar2000. Quand vous lancez <code>MediaAccess.exe</code> avec une ou plusieurs options&nbsp;:</p>
+<ul>
+  <li>si une instance de MediaAccess tourne déjà, l'option est transmise instantanément à cette instance (via <code>WM_COPYDATA</code>) et le second processus se termine sans afficher de fenêtre&nbsp;;</li>
+  <li>sinon, MediaAccess démarre normalement puis applique les options. Les options <code>/quit</code> et <code>/hide</code> font exception&nbsp;: si aucune instance ne tourne, elles sont simplement ignorées.</li>
+</ul>
+<p>Vous pouvez combiner plusieurs options dans le même appel, et mélanger fichiers et options. L'ordre est respecté&nbsp;: chargez d'abord, lisez ensuite, ajustez enfin le volume.</p>
+<p>Cette interface est conçue pour les automatisations&nbsp;: scripts AutoHotkey, boutons Stream Deck, planificateur de tâches Windows, fichiers batch, télécommandes infrarouges via des utilitaires tiers, ou encore scripts personnalisés de lecteur d'écran.</p>
+
+<h3>Options disponibles</h3>
+<table>
+<caption>Options de ligne de commande</caption>
+<thead><tr><th>Option</th><th>Effet</th></tr></thead>
+<tbody>
+<tr><td><code>/play</code></td><td>Démarre la lecture.</td></tr>
+<tr><td><code>/pause</code></td><td>Met en pause.</td></tr>
+<tr><td><code>/stop</code></td><td>Arrête la lecture.</td></tr>
+<tr><td><code>/toggle</code></td><td>Bascule lecture / pause selon l'état courant.</td></tr>
+<tr><td><code>/next</code></td><td>Piste suivante.</td></tr>
+<tr><td><code>/prev</code></td><td>Piste précédente.</td></tr>
+<tr><td><code>/volup</code></td><td>Augmente le volume du pas configuré dans les Options.</td></tr>
+<tr><td><code>/voldown</code></td><td>Diminue le volume du pas configuré.</td></tr>
+<tr><td><code>/volume:<em>N</em></code></td><td>Règle le volume sur <em>N</em>&nbsp;% (0 à 400). Si l'option <strong>Autoriser le volume au-dessus de 100&nbsp;%</strong> est désactivée dans les Préférences, la valeur est plafonnée à 100.</td></tr>
+<tr><td><code>/mute</code></td><td>Bascule le mode muet.</td></tr>
+<tr><td><code>/seek:+<em>N</em></code></td><td>Avance de <em>N</em> secondes par rapport à la position courante (déplacement relatif signé).</td></tr>
+<tr><td><code>/seek:-<em>N</em></code></td><td>Recule de <em>N</em> secondes.</td></tr>
+<tr><td><code>/seek:<em>N</em></code></td><td>Saute à la position absolue de <em>N</em> secondes (sans signe).</td></tr>
+<tr><td><code>/quit</code></td><td>Quitte MediaAccess (ignoré s'il n'y a pas d'instance en cours).</td></tr>
+<tr><td><code>/show</code></td><td>Restaure la fenêtre depuis la zone de notification et la met au premier plan. Annonce «&nbsp;MediaAccess restauré&nbsp;».</td></tr>
+<tr><td><code>/hide</code></td><td>Réduit MediaAccess dans la zone de notification. Annonce «&nbsp;MediaAccess masqué&nbsp;» (ignoré s'il n'y a pas d'instance en cours).</td></tr>
+</tbody>
+</table>
+
+<h3>Exemples</h3>
+<p>Lancer MediaAccess et démarrer immédiatement la lecture d'un dossier&nbsp;:</p>
+<pre><code>MediaAccess.exe "C:\Music" /play</code></pre>
+<p>Charger une liste de lecture, démarrer la lecture et régler le volume sur 60&nbsp;%&nbsp;:</p>
+<pre><code>MediaAccess.exe "C:\Music\album.m3u" /play /volume:60</code></pre>
+<p>Régler le volume sans afficher la fenêtre&nbsp;:</p>
+<pre><code>MediaAccess.exe /volume:80 /hide</code></pre>
+<p>Saut avant de 30 secondes dans l'instance en cours&nbsp;:</p>
+<pre><code>MediaAccess.exe /seek:+30</code></pre>
+</section>
+
+<section id="slots" aria-labelledby="slots-h">
+<h2 id="slots-h">19. Slots audio</h2>
+<p>Les <strong>slots audio</strong> permettent d'enregistrer jusqu'à dix périphériques de sortie favoris et de basculer entre eux d'une simple frappe, sans passer par les Options. Idéal pour alterner instantanément entre votre casque, vos enceintes, votre carte de capture, votre interface USB ou un périphérique de loopback virtuel.</p>
+<p>Chaque slot mémorise un périphérique <strong>par son nom</strong>, et non par son index BASS. Vous pouvez donc débrancher puis rebrancher vos périphériques USB dans un autre ordre&nbsp;: les associations restent valides tant que le nom est reconnu.</p>
+
+<h3>Configurer les slots</h3>
+<p><strong>Outils → Slots audio…</strong> ouvre la fenêtre de configuration. Elle contient dix combos, un par slot, listant tous les périphériques BASS détectés sur la machine&nbsp;; la première entrée de chaque combo est <em>(Aucun)</em>, qui désactive le slot.</p>
+<p>Si un périphérique précédemment enregistré n'est plus connecté au moment où vous ouvrez la fenêtre, il apparaît sous la forme «&nbsp;<em>(débranché)</em> <em>nom du périphérique</em>&nbsp;»&nbsp;: l'association est préservée et redevient active automatiquement dès que le périphérique est rebranché.</p>
+<p>Le bouton <strong>Actualiser la liste des périphériques</strong> ré-énumère les sorties audio disponibles sans fermer la fenêtre — pratique quand vous venez de brancher un nouveau périphérique. <strong>OK</strong> enregistre vos choix, <strong>Annuler</strong> les abandonne.</p>
+
+<h3>Affecter un raccourci à chaque slot</h3>
+<p>Ouvrez ensuite la fenêtre Actions (<kbd>F4</kbd> ou <strong>Outils → Actions</strong>) et placez-vous dans la catégorie <strong>Globale</strong>. Vous y trouverez les actions&nbsp;:</p>
+<ul>
+  <li><strong>Slot audio 1</strong> à <strong>Slot audio 10</strong> — bascule directement vers le périphérique du slot indiqué&nbsp;;</li>
+  <li><strong>Cycler la sortie audio</strong> — parcourt à chaque appui les slots configurés&nbsp;;</li>
+  <li><strong>Annoncer la sortie audio courante</strong> — annonce vocalement le nom du périphérique actuellement utilisé.</li>
+</ul>
+<p>Affectez à chacune de ces actions la combinaison clavier de votre choix. Les raccourcis de la catégorie Globale étant gérés par <code>RegisterHotKey</code>, ils requièrent au moins un modificateur (Ctrl, Alt, Maj ou Win) et restent actifs même quand MediaAccess n'a pas le focus.</p>
+
+<h3>Annonces vocales</h3>
+<p>Chaque action de slot produit une annonce immédiate&nbsp;:</p>
+<ul>
+  <li>Bascule réussie&nbsp;: «&nbsp;Basculé sur <em>nom du périphérique</em>&nbsp;»&nbsp;;</li>
+  <li>Slot vide&nbsp;: «&nbsp;Le slot <em>N</em> n'est pas configuré&nbsp;»&nbsp;;</li>
+  <li>Périphérique débranché&nbsp;: «&nbsp;Périphérique introuvable&nbsp;: <em>nom</em>&nbsp;»&nbsp;;</li>
+  <li>Annoncer la sortie courante&nbsp;: «&nbsp;Sortie audio&nbsp;: <em>nom du périphérique</em>&nbsp;».</li>
+</ul>
+<p>La position de lecture est préservée pendant la bascule&nbsp;: si un morceau était en cours, il continue immédiatement sur la nouvelle sortie sans saut audible.</p>
+
+<h3>Cas d'usage&nbsp;: diffusion en direct</h3>
+<p>Le besoin originel des slots audio est la <strong>diffusion en direct</strong>. Vous préparez un fichier sur votre sortie par défaut (entendue dans votre casque), naviguez jusqu'au passage souhaité, mettez en pause, puis appuyez sur le raccourci affecté au slot pointant vers la sortie loopback WDM de votre logiciel de mixage (par exemple VoiceMeeter ou la sortie virtuelle d'OBS). Une nouvelle pression sur Lecture envoie alors l'audio directement dans votre flux, sans avoir à manipuler le mélangeur système ni à changer le périphérique par défaut de Windows.</p>
+</section>
+
 <section id="options" aria-labelledby="options-h">
-<h2 id="options-h">18. Options détaillées</h2>
+<h2 id="options-h">20. Options détaillées</h2>
 <p><kbd>Ctrl</kbd>+<kbd>,</kbd> ou <strong>Fichier → Options</strong> ouvre les préférences. Douze onglets. (Les raccourcis clavier ne sont plus configurés ici : utilisez <kbd>F4</kbd> ou <strong>Outils → Actions</strong>, voir <a href="#hotkeys">section 17</a>.)</p>
 
 <h3>Onglet Lecture</h3>
@@ -901,7 +981,7 @@
 </section>
 
 <section id="accessibilite" aria-labelledby="accessibilite-h">
-<h2 id="accessibilite-h">19. Accessibilité</h2>
+<h2 id="accessibilite-h">21. Accessibilité</h2>
 
 <h3>Lecteurs d'écran pris en charge</h3>
 <p>MediaAccess détecte automatiquement le lecteur d'écran actif :</p>
@@ -951,7 +1031,7 @@
 </section>
 
 <section id="mises-a-jour" aria-labelledby="maj-h">
-<h2 id="maj-h">20. Mises à jour</h2>
+<h2 id="maj-h">22. Mises à jour</h2>
 
 <h3>Vérification automatique</h3>
 <p>Au démarrage, MediaAccess vérifie en arrière-plan s'il existe une nouvelle version sur GitHub (option <strong>Options → Lecture → Rechercher des mises à jour au démarrage</strong>, activée par défaut).</p>
@@ -965,7 +1045,7 @@
 </section>
 
 <section id="depannage" aria-labelledby="depannage-h">
-<h2 id="depannage-h">21. Dépannage</h2>
+<h2 id="depannage-h">23. Dépannage</h2>
 
 <h3>Journal</h3>
 <p>MediaAccess écrit un journal dans :</p>
@@ -1001,7 +1081,7 @@
 </section>
 
 <section id="livres" aria-labelledby="livres-h">
-<h2 id="livres-h">22. Lecture de livres DAISY</h2>
+<h2 id="livres-h">24. Lecture de livres DAISY</h2>
 
 <p>MediaAccess intègre un lecteur de livres audio accessibles au format DAISY, comparable à des applications dédiées comme Victor Reader ou VoiceDream. Les livres peuvent être ouverts un à un ou organisés dans une bibliothèque, et tous les raccourcis habituels de transport, tempo, hauteur, égaliseur et annonces vocales s'appliquent pendant la lecture.</p>
 
@@ -1112,7 +1192,7 @@
 </section>
 
 <section id="minuterie" aria-labelledby="minuterie-h">
-<h2 id="minuterie-h">23. Minuterie de sommeil</h2>
+<h2 id="minuterie-h">25. Minuterie de sommeil</h2>
 
 <p>La minuterie de sommeil arrête automatiquement la lecture après une durée que vous choisissez — utile pour s'endormir sur un livre audio, un podcast, une radio ou un film sans avoir à se relever pour couper le son. Elle fonctionne avec n'importe quel moteur de lecture actif&nbsp;: BASS (audio), libmpv (vidéo), le lecteur de livres DAISY/EPUB et la synthèse vocale SAPI pour les livres en texte seul.</p>
 
@@ -1133,7 +1213,7 @@
 </section>
 
 <section id="raccourcis" aria-labelledby="raccourcis-h">
-<h2 id="raccourcis-h">24. Référence des raccourcis</h2>
+<h2 id="raccourcis-h">26. Référence des raccourcis</h2>
 
 <h3>Fichier</h3>
 <table>
