@@ -379,6 +379,74 @@ static const Action g_actions[] = {
     { "GLOBAL_SEEK_NEAR_END",     IDM_PLAY_NEAR_END,          ActionCategory::Global,
       "Jump 30 s before end (global)","Aller à 30 s de la fin (global)", {} },
 
+    // Seek-unit control — added in v1.58 after user feedback.
+    { "GLOBAL_SEEK_UNIT_DECREASE", IDM_SEEK_DECREASE,         ActionCategory::Global,
+      "Smaller seek unit (global)",   "Unité de saut plus petite (global)", {} },
+    { "GLOBAL_SEEK_UNIT_INCREASE", IDM_SEEK_INCREASE,         ActionCategory::Global,
+      "Larger seek unit (global)",    "Unité de saut plus grande (global)", {} },
+    { "GLOBAL_SEEK_UNIT_SPEAK",    IDM_SPEAK_SEEK,            ActionCategory::Global,
+      "Speak seek unit (global)",     "Annoncer l'unité de saut (global)", {} },
+
+    // Time announcements — added in v1.58.
+    { "GLOBAL_SPEAK_ELAPSED",     IDM_PLAY_ELAPSED,           ActionCategory::Global,
+      "Speak elapsed time (global)",  "Annoncer le temps écoulé (global)", {} },
+    { "GLOBAL_SPEAK_REMAINING",   IDM_PLAY_REMAINING,         ActionCategory::Global,
+      "Speak remaining time (global)","Annoncer le temps restant (global)", {} },
+    { "GLOBAL_SPEAK_TOTAL",       IDM_PLAY_TOTAL,             ActionCategory::Global,
+      "Speak total duration (global)","Annoncer la durée totale (global)", {} },
+
+    // Now playing — added in v1.58.
+    { "GLOBAL_NOW_PLAYING",       IDM_PLAY_NOWPLAYING,        ActionCategory::Global,
+      "Speak now playing (global)",   "Annoncer ce qui joue (global)", {} },
+
+    // Effect toggles (12) — added in v1.58.
+    { "GLOBAL_TOGGLE_VOLUME",       IDM_TOGGLE_VOLUME,        ActionCategory::Global,
+      "Toggle Volume effect (global)",        "Basculer l'effet Volume (global)", {} },
+    { "GLOBAL_TOGGLE_PITCH",        IDM_TOGGLE_PITCH,         ActionCategory::Global,
+      "Toggle Pitch effect (global)",         "Basculer l'effet Tonalité (global)", {} },
+    { "GLOBAL_TOGGLE_TEMPO",        IDM_TOGGLE_TEMPO,         ActionCategory::Global,
+      "Toggle Tempo effect (global)",         "Basculer l'effet Tempo (global)", {} },
+    { "GLOBAL_TOGGLE_RATE",         IDM_TOGGLE_RATE,          ActionCategory::Global,
+      "Toggle Rate effect (global)",          "Basculer l'effet Vitesse (global)", {} },
+    { "GLOBAL_TOGGLE_REVERB",       IDM_TOGGLE_REVERB,        ActionCategory::Global,
+      "Cycle Reverb algorithm (global)",      "Changer l'algorithme de Réverbération (global)", {} },
+    { "GLOBAL_TOGGLE_ECHO",         IDM_TOGGLE_ECHO,          ActionCategory::Global,
+      "Toggle Echo effect (global)",          "Basculer l'effet Écho (global)", {} },
+    { "GLOBAL_TOGGLE_EQ",           IDM_TOGGLE_EQ,            ActionCategory::Global,
+      "Toggle Equalizer (global)",            "Basculer l'Égaliseur (global)", {} },
+    { "GLOBAL_TOGGLE_COMPRESSOR",   IDM_TOGGLE_COMPRESSOR,    ActionCategory::Global,
+      "Toggle Compressor (global)",           "Basculer le Compresseur (global)", {} },
+    { "GLOBAL_TOGGLE_STEREO_WIDTH", IDM_TOGGLE_STEREOWIDTH,   ActionCategory::Global,
+      "Toggle Stereo Width (global)",         "Basculer la Largeur stéréo (global)", {} },
+    { "GLOBAL_TOGGLE_CENTER_CANCEL",IDM_TOGGLE_CENTERCANCEL,  ActionCategory::Global,
+      "Toggle Center Cancel (global)",        "Basculer l'Annulation centrale (global)", {} },
+    { "GLOBAL_TOGGLE_CONVOLUTION",  IDM_TOGGLE_CONVOLUTION,   ActionCategory::Global,
+      "Toggle Convolution Reverb (global)",   "Basculer la Réverbération à convolution (global)", {} },
+    { "GLOBAL_TOGGLE_SPATIAL",      IDM_TOGGLE_SPATIAL,       ActionCategory::Global,
+      "Toggle 3D Audio (global)",             "Basculer l'Audio 3D (global)", {} },
+
+    // Tag reads (10) — added in v1.58.
+    { "GLOBAL_READ_TAG_TITLE",    IDM_READ_TAG_TITLE,         ActionCategory::Global,
+      "Speak title (global)",         "Annoncer le titre (global)", {} },
+    { "GLOBAL_READ_TAG_ARTIST",   IDM_READ_TAG_ARTIST,        ActionCategory::Global,
+      "Speak artist (global)",        "Annoncer l'artiste (global)", {} },
+    { "GLOBAL_READ_TAG_ALBUM",    IDM_READ_TAG_ALBUM,         ActionCategory::Global,
+      "Speak album (global)",         "Annoncer l'album (global)", {} },
+    { "GLOBAL_READ_TAG_YEAR",     IDM_READ_TAG_YEAR,          ActionCategory::Global,
+      "Speak year (global)",          "Annoncer l'année (global)", {} },
+    { "GLOBAL_READ_TAG_TRACK",    IDM_READ_TAG_TRACK,         ActionCategory::Global,
+      "Speak track number (global)",  "Annoncer le numéro de piste (global)", {} },
+    { "GLOBAL_READ_TAG_GENRE",    IDM_READ_TAG_GENRE,         ActionCategory::Global,
+      "Speak genre (global)",         "Annoncer le genre (global)", {} },
+    { "GLOBAL_READ_TAG_COMMENT",  IDM_READ_TAG_COMMENT,       ActionCategory::Global,
+      "Speak comment (global)",       "Annoncer le commentaire (global)", {} },
+    { "GLOBAL_READ_TAG_BITRATE",  IDM_READ_TAG_BITRATE,       ActionCategory::Global,
+      "Speak bitrate (global)",       "Annoncer le débit (global)", {} },
+    { "GLOBAL_READ_TAG_DURATION", IDM_READ_TAG_DURATION,      ActionCategory::Global,
+      "Speak duration (global)",      "Annoncer la durée (global)", {} },
+    { "GLOBAL_READ_TAG_FILENAME", IDM_READ_TAG_FILENAME,      ActionCategory::Global,
+      "Speak filename (global)",      "Annoncer le nom de fichier (global)", {} },
+
     // ========================================================================
     // CATEGORY: Books — DAISY / EPUB reader (v1.49 Phase 1)
     // ========================================================================
