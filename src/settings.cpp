@@ -253,6 +253,7 @@ void LoadSettings() {
     g_checkForUpdates = GetPrivateProfileIntW(L"Playback", L"CheckForUpdates", 1, g_configPath.c_str()) != 0;
     g_allowMultipleInstances = GetPrivateProfileIntW(L"Playback", L"AllowMultipleInstances", 0, g_configPath.c_str()) != 0;
     g_bookSkipMask = (uint32_t)GetPrivateProfileIntW(L"Books", L"SkipMask", 0, g_configPath.c_str());
+    g_announceTrackOnFocus = GetPrivateProfileIntW(L"Playback", L"AnnounceTrackOnFocus", 1, g_configPath.c_str()) != 0;
 
     // Load seek settings
     g_seekEnabled[0] = GetPrivateProfileIntW(L"Movement", L"Seek1s", 0, g_configPath.c_str()) != 0;
@@ -585,6 +586,7 @@ void SaveSettings() {
         swprintf(skipBuf, 16, L"%u", g_bookSkipMask);
         WritePrivateProfileStringW(L"Books", L"SkipMask", skipBuf, g_configPath.c_str());
     }
+    WritePrivateProfileStringW(L"Playback", L"AnnounceTrackOnFocus", g_announceTrackOnFocus ? L"1" : L"0", g_configPath.c_str());
 
     // Save seek settings
     WritePrivateProfileStringW(L"Movement", L"Seek1s", g_seekEnabled[0] ? L"1" : L"0", g_configPath.c_str());

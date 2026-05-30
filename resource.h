@@ -381,6 +381,7 @@
 #define IDC_PROGRESS_BAR    996
 #define IDC_PROGRESS_TEXT   997
 #define IDC_CHECK_UPDATES   998
+#define IDC_ANNOUNCE_ON_FOCUS   1700  // v1.59 — speak "Now playing" on app focus
 #define IDC_MULTI_INSTANCE  999
 #define IDD_RADIO           850
 #define IDC_RADIO_TAB       851

@@ -318,6 +318,30 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
             UpdateWindowTitle();
             return 0;
 
+        case WM_ACTIVATEAPP:
+            // v1.59 — when MediaAccess gains app-level focus (Alt+Tab from
+            // another app, taskbar click, tray restore), speak the current
+            // track / station / book title via SpeakTagTitle so the screen
+            // reader user immediately knows what's playing without having
+            // to press a shortcut. Gated by Options > Playback > "Announce
+            // track when MediaAccess gets focus" (default ON).
+            //
+            // wParam is TRUE on activation, FALSE on deactivation. We only
+            // act on activation.
+            if (wParam && g_announceTrackOnFocus) {
+                // Only announce when something is actually loaded.
+                // SpeakTagTitle returns silently if nothing to say.
+                bool somethingPlaying =
+                    (g_currentTrack >= 0 &&
+                     g_currentTrack < (int)g_playlist.size()) ||
+                    g_activeEngine == PlaybackEngine::MPV ||
+                    mediaaccess::DaisyIsActive();
+                if (somethingPlaying) {
+                    SpeakTagTitle();
+                }
+            }
+            return 0;
+
         case WM_YT_HYBRID_READY: {
             // YouTube hybrid background download finished — swap mpv -> BASS.
             std::wstring* idPtr = reinterpret_cast<std::wstring*>(lParam);

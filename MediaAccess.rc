@@ -134,6 +134,7 @@ BEGIN
     AUTOCHECKBOX    "Check for &updates on startup", IDC_CHECK_UPDATES, 17, 170, 170, 10
     AUTOCHECKBOX    "Allow &multiple instances", IDC_MULTI_INSTANCE, 17, 183, 150, 10
     AUTOCHECKBOX    "Register all supported &file types", IDC_REGISTER_FILE_TYPES, 155, 183, 180, 10
+    AUTOCHECKBOX    "A&nnounce track when MediaAccess gets focus", IDC_ANNOUNCE_ON_FOCUS, 17, 220, 260, 10
     LTEXT           "Re&wind on pause (ms):", IDC_REWIND_LABEL, 170, 145, 95, 10
     EDITTEXT        IDC_REWIND_ON_PAUSE, 250, 143, 30, 14, ES_AUTOHSCROLL | ES_NUMBER
     LTEXT           "Volu&me step:", IDC_LABEL_PLAYBACK_VOLUME_STEP, 160, 118, 65, 10

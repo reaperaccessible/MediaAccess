@@ -207,6 +207,11 @@ void RegisterRcTranslations() {
     AddTranslation("en", "&Speak remaining\tCtrl+F8", L"&Speak remaining\tCtrl+F8");
     AddTranslation("fr", "&Speak remaining\tCtrl+F8", L"&Annoncer le temps restant\tCtrl+F8");
 
+    AddTranslation("en", "A&nnounce track when MediaAccess gets focus",
+                   L"A&nnounce track when MediaAccess gets focus");
+    AddTranslation("fr", "A&nnounce track when MediaAccess gets focus",
+                   L"A&nnoncer la piste quand MediaAccess reçoit le focus");
+
     // ===================================================================
     // DIALOG: IDD_OPTIONS - "Options"
     // ===================================================================

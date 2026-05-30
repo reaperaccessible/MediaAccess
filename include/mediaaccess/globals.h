@@ -90,6 +90,7 @@ extern bool g_checkForUpdates;             // Check for updates on startup
 extern bool g_allowMultipleInstances;      // Allow multiple instances (new windows)
 extern uint32_t g_bookSkipMask;            // Phase 4 — skip categories bitmask
 extern bool     g_bookSkipBypass;          // Phase 4 — runtime toggle (Shift+S)
+extern bool     g_announceTrackOnFocus;    // v1.59 — speak track on WM_ACTIVATEAPP
 
 // System tray
 extern NOTIFYICONDATAW g_trayIcon;

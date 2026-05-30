@@ -71,6 +71,11 @@ bool g_allowMultipleInstances = false;  // Allow multiple instances (default fal
 uint32_t g_bookSkipMask = 0;
 bool     g_bookSkipBypass = false;  // RAM-only; toggled by Shift+S in books
 
+// v1.59 — speak the current track / station when MediaAccess gains focus
+// (Alt+Tab, taskbar click, tray restore). Default true. Toggle in
+// Options > Playback > "Announce track when MediaAccess gets focus".
+bool g_announceTrackOnFocus = true;
+
 // System tray
 NOTIFYICONDATAW g_trayIcon = {0};
 bool g_trayIconVisible = false;
