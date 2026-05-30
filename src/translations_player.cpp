@@ -1560,6 +1560,10 @@ void RegisterPlayerTranslations() {
     AddTranslation("en", "Minutes:", L"Minutes:");
     AddTranslation("fr", "Minutes:", L"Minutes :");
 
+    // v1.62 — friendlier French label for the RadioBrowser source.
+    AddTranslation("en", "RadioBrowser", L"RadioBrowser");
+    AddTranslation("fr", "RadioBrowser", L"Navigateur Radio");
+
     // v1.61 — extended radio search filters
     AddTranslation("en", "Ad&vanced filters", L"Ad&vanced filters");
     AddTranslation("fr", "Ad&vanced filters", L"Filtres a&vancés");

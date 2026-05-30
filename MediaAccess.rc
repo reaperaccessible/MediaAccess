@@ -417,9 +417,13 @@ BEGIN
     LTEXT           "S&ort:",     IDC_RADIO_SEARCH_SORT_LABEL,     14, 80, 30, 10
     COMBOBOX        IDC_RADIO_SEARCH_SORT,     44, 78, 90, 80, CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
     // Results list (shifted down 18 dlu to make room for filters row).
+    // Resource order matters for MSAA: the LTEXT immediately preceding a
+    // LISTBOX becomes its accessible name. Keep "S&tations:" right before
+    // IDC_RADIO_SEARCH_LIST; the result-count LTEXT goes AFTER the listbox
+    // (its visual position is set by x/y, so the swap doesn't move it).
     LTEXT           "S&tations:", IDC_RADIO_SEARCH_LIST_LABEL, 14, 96, 80, 10
-    LTEXT           "", IDC_RADIO_SEARCH_RESULT_COUNT, 140, 96, 196, 10
     LISTBOX         IDC_RADIO_SEARCH_LIST, 14, 108, 322, 115, LBS_NOTIFY | WS_VSCROLL | WS_TABSTOP
+    LTEXT           "", IDC_RADIO_SEARCH_RESULT_COUNT, 140, 96, 196, 10
     LTEXT           "Enter = play, Escape = close", -1, 14, 228, 150, 10
     PUSHBUTTON      "Add to &Favorites", IDC_RADIO_SEARCH_ADD, 230, 226, 70, 14
     // Common

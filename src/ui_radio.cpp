@@ -1450,9 +1450,12 @@ static INT_PTR CALLBACK RadioDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM 
             g_origRadioSearchEditProc = reinterpret_cast<WNDPROC>(
                 SetWindowLongPtrW(hSearchEdit, GWLP_WNDPROC, reinterpret_cast<LONG_PTR>(RadioSearchEditSubclassProc)));
 
-            // Initialize search source combo
+            // Initialize search source combo. RadioBrowser is the open-source
+            // radio directory at radio-browser.info; in French we localize the
+            // label to "Navigateur Radio" since users found "RadioBrowser"
+            // opaque. TuneIn and iHeartRadio are brand names — left untouched.
             HWND hSource = GetDlgItem(hwnd, IDC_RADIO_SEARCH_SOURCE);
-            SendMessageW(hSource, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(L"RadioBrowser"));
+            SendMessageW(hSource, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(T("RadioBrowser")));
             SendMessageW(hSource, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(L"TuneIn"));
             SendMessageW(hSource, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(L"iHeartRadio"));
             SendMessageW(hSource, CB_SETCURSEL, 0, 0);
