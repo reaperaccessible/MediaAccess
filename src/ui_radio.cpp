@@ -90,6 +90,21 @@ static volatile bool g_radioCountriesFetched = false;
 static volatile bool g_radioCountriesFetching = false;
 static const UINT WM_RADIO_COUNTRIES_READY = WM_APP + 11;
 
+// v1.61 — extended filter caches (tags and languages, same fetch pattern).
+static std::vector<std::wstring> g_radioTags;
+static volatile bool g_radioTagsFetched  = false;
+static volatile bool g_radioTagsFetching = false;
+static const UINT WM_RADIO_TAGS_READY = WM_APP + 12;
+
+static std::vector<std::wstring> g_radioLanguages;
+static volatile bool g_radioLanguagesFetched  = false;
+static volatile bool g_radioLanguagesFetching = false;
+static const UINT WM_RADIO_LANGUAGES_READY = WM_APP + 13;
+
+// v1.61 — show/hide the advanced filters section. Persisted in the INI
+// under [Radio] AdvancedSearchOpen.
+static bool g_radioAdvancedOpen = false;
+
 // HTTP GET request (reused from youtube.cpp pattern)
 static std::wstring RadioHttpGet(const std::wstring& url, const wchar_t* extraHeaders = nullptr) {
     std::wstring result;
@@ -275,21 +290,196 @@ static void EnsureRadioCountriesFetched(HWND hwnd) {
     else g_radioCountriesFetching = false;
 }
 
+// v1.61 — generic list fetcher for /tags and /languages. Same JSON-array
+// parsing logic as countries (each object has a "name" field).
+static void FetchRadioListInto(const std::wstring& url,
+                               std::vector<std::wstring>& out) {
+    std::wstring json = RadioHttpGet(url);
+    if (json.empty()) return;
+    size_t pos = 0;
+    while ((pos = json.find(L'{', pos)) != std::wstring::npos) {
+        int depth = 1;
+        size_t endPos = pos + 1;
+        bool inString = false;
+        while (endPos < json.length() && depth > 0) {
+            wchar_t c = json[endPos];
+            if (c == L'"' && (endPos == 0 || json[endPos-1] != L'\\')) {
+                inString = !inString;
+            } else if (!inString) {
+                if (c == L'{') depth++;
+                else if (c == L'}') depth--;
+            }
+            endPos++;
+        }
+        if (depth != 0) break;
+        std::wstring obj = json.substr(pos, endPos - pos);
+        std::wstring name = ExtractJsonString(obj, L"name");
+        if (!name.empty()) out.push_back(name);
+        pos = endPos;
+    }
+}
+
+static DWORD WINAPI FetchRadioTagsThreadProc(LPVOID param) {
+    HWND hwnd = reinterpret_cast<HWND>(param);
+    // Cap to top 500 by station count — the full list is enormous and most
+    // entries are typos / one-station tags that are useless as filters.
+    FetchRadioListInto(
+        L"https://de1.api.radio-browser.info/json/tags?hidebroken=true"
+        L"&order=stationcount&reverse=true&limit=500",
+        g_radioTags);
+    g_radioTagsFetched  = true;
+    g_radioTagsFetching = false;
+    if (IsWindow(hwnd)) PostMessageW(hwnd, WM_RADIO_TAGS_READY, 0, 0);
+    return 0;
+}
+
+static DWORD WINAPI FetchRadioLanguagesThreadProc(LPVOID param) {
+    HWND hwnd = reinterpret_cast<HWND>(param);
+    FetchRadioListInto(
+        L"https://de1.api.radio-browser.info/json/languages?hidebroken=true"
+        L"&order=stationcount&reverse=true",
+        g_radioLanguages);
+    g_radioLanguagesFetched  = true;
+    g_radioLanguagesFetching = false;
+    if (IsWindow(hwnd)) PostMessageW(hwnd, WM_RADIO_LANGUAGES_READY, 0, 0);
+    return 0;
+}
+
+static void EnsureRadioTagsFetched(HWND hwnd) {
+    if (g_radioTagsFetched || g_radioTagsFetching) return;
+    g_radioTagsFetching = true;
+    HANDLE th = CreateThread(nullptr, 0, FetchRadioTagsThreadProc, hwnd, 0, nullptr);
+    if (th) CloseHandle(th);
+    else g_radioTagsFetching = false;
+}
+
+static void EnsureRadioLanguagesFetched(HWND hwnd) {
+    if (g_radioLanguagesFetched || g_radioLanguagesFetching) return;
+    g_radioLanguagesFetching = true;
+    HANDLE th = CreateThread(nullptr, 0, FetchRadioLanguagesThreadProc, hwnd, 0, nullptr);
+    if (th) CloseHandle(th);
+    else g_radioLanguagesFetching = false;
+}
+
+// v1.61 — populate genre + language combos from the cached lists.
+static void PopulateGenreCombo(HWND hwnd) {
+    HWND hCombo = GetDlgItem(hwnd, IDC_RADIO_SEARCH_GENRE);
+    if (!hCombo) return;
+    wchar_t current[256] = {0};
+    GetWindowTextW(hCombo, current, 256);
+    SendMessageW(hCombo, CB_RESETCONTENT, 0, 0);
+    SendMessageW(hCombo, CB_ADDSTRING, 0, (LPARAM)T("(Any)"));
+    for (const auto& t : g_radioTags) {
+        SendMessageW(hCombo, CB_ADDSTRING, 0, (LPARAM)t.c_str());
+    }
+    if (current[0]) SetWindowTextW(hCombo, current);
+    else            SendMessageW(hCombo, CB_SETCURSEL, 0, 0);
+}
+
+static void PopulateLanguageCombo(HWND hwnd) {
+    HWND hCombo = GetDlgItem(hwnd, IDC_RADIO_SEARCH_LANGUAGE);
+    if (!hCombo) return;
+    wchar_t current[256] = {0};
+    GetWindowTextW(hCombo, current, 256);
+    SendMessageW(hCombo, CB_RESETCONTENT, 0, 0);
+    SendMessageW(hCombo, CB_ADDSTRING, 0, (LPARAM)T("(Any)"));
+    for (const auto& l : g_radioLanguages) {
+        SendMessageW(hCombo, CB_ADDSTRING, 0, (LPARAM)l.c_str());
+    }
+    if (current[0]) SetWindowTextW(hCombo, current);
+    else            SendMessageW(hCombo, CB_SETCURSEL, 0, 0);
+}
+
+// Static-list combos: bitrate floor and sort order. Each combo carries a
+// hidden item-data integer so the search code can read the chosen value
+// without parsing labels (and the labels can be localized freely).
+static void PopulateBitrateCombo(HWND hwnd) {
+    HWND hCombo = GetDlgItem(hwnd, IDC_RADIO_SEARCH_BITRATE);
+    if (!hCombo) return;
+    SendMessageW(hCombo, CB_RESETCONTENT, 0, 0);
+    int items[] = {0, 64, 128, 256};
+    const wchar_t* labels[] = { T("(Any)"), L"64 kbps+", L"128 kbps+", L"256 kbps+" };
+    for (int i = 0; i < 4; ++i) {
+        int idx = (int)SendMessageW(hCombo, CB_ADDSTRING, 0, (LPARAM)labels[i]);
+        SendMessageW(hCombo, CB_SETITEMDATA, idx, items[i]);
+    }
+    SendMessageW(hCombo, CB_SETCURSEL, 0, 0);
+}
+
+// Sort options. Item-data is an index into kSortKeys defined in the
+// search code below — labels can stay localized.
+static void PopulateSortCombo(HWND hwnd) {
+    HWND hCombo = GetDlgItem(hwnd, IDC_RADIO_SEARCH_SORT);
+    if (!hCombo) return;
+    SendMessageW(hCombo, CB_RESETCONTENT, 0, 0);
+    const wchar_t* labels[] = {
+        T("Popularity"),
+        T("Name"),
+        T("Bitrate"),
+        T("Last checked"),
+    };
+    for (int i = 0; i < 4; ++i) {
+        int idx = (int)SendMessageW(hCombo, CB_ADDSTRING, 0, (LPARAM)labels[i]);
+        SendMessageW(hCombo, CB_SETITEMDATA, idx, i);
+    }
+    SendMessageW(hCombo, CB_SETCURSEL, 0, 0);
+}
+
+// v1.61 — sort keys parallel to the PopulateSortCombo labels above.
+// 0 = Popularity (clickcount desc), 1 = Name asc, 2 = Bitrate desc,
+// 3 = Last checked (lastchangetime desc).
+static const struct { const char* name; bool reverse; } kSortKeys[] = {
+    { "clickcount",      true  },
+    { "name",            false },
+    { "bitrate",         true  },
+    { "lastchangetime",  true  },
+};
+
 // Search RadioBrowser API
-static bool SearchRadioBrowser(const std::wstring& query, const std::wstring& country, std::vector<RadioSearchResult>& results) {
+// v1.61 — accepts extra optional filters. Pass empty / 0 to disable each.
+//   tag         genre / category (RadioBrowser tag field)
+//   language    language name
+//   bitrateMin  in kbps; 0 = no floor
+//   sortKey     index into kSortKeys; -1 = default (popularity when query
+//               is empty, otherwise let RadioBrowser pick relevance)
+static bool SearchRadioBrowser(const std::wstring& query,
+                               const std::wstring& country,
+                               const std::wstring& tag,
+                               const std::wstring& language,
+                               int bitrateMin,
+                               int sortKey,
+                               std::vector<RadioSearchResult>& results) {
     results.clear();
 
-    // Use search endpoint; name and country are both optional filters
+    // Use search endpoint; all named filters are optional.
     std::wstring url = L"https://de1.api.radio-browser.info/json/stations/search?limit=100&hidebroken=true";
     if (!query.empty()) {
         url += L"&name=" + RadioUrlEncode(query);
     }
     if (!country.empty()) {
         url += L"&country=" + RadioUrlEncode(country);
-        // When browsing a whole country, sort by popularity so the good stations surface first
-        if (query.empty()) {
-            url += L"&order=clickcount&reverse=true";
-        }
+    }
+    if (!tag.empty()) {
+        url += L"&tag=" + RadioUrlEncode(tag);
+    }
+    if (!language.empty()) {
+        url += L"&language=" + RadioUrlEncode(language);
+    }
+    if (bitrateMin > 0) {
+        wchar_t buf[32];
+        swprintf(buf, 32, L"&bitrateMin=%d", bitrateMin);
+        url += buf;
+    }
+    if (sortKey >= 0 && sortKey < (int)(sizeof(kSortKeys)/sizeof(kSortKeys[0]))) {
+        url += L"&order=";
+        // ASCII keys, no encoding needed.
+        for (const char* p = kSortKeys[sortKey].name; *p; ++p) url += (wchar_t)*p;
+        if (kSortKeys[sortKey].reverse) url += L"&reverse=true";
+    } else if (query.empty() && (!country.empty() || !tag.empty() || !language.empty())) {
+        // No explicit sort but a filter is present without a name search —
+        // surface the most popular stations first (preserves the pre-v1.61
+        // behaviour for the country-only browse case).
+        url += L"&order=clickcount&reverse=true";
     }
     std::wstring json = RadioHttpGet(url);
     if (json.empty()) return false;
@@ -928,11 +1118,30 @@ static void UpdateRadioTabVisibility(HWND hwnd, int tab) {
 
     // Country controls: only visible on search tab with RadioBrowser selected
     int src = static_cast<int>(SendDlgItemMessageW(hwnd, IDC_RADIO_SEARCH_SOURCE, CB_GETCURSEL, 0, 0));
-    bool showCountry = (tab == 1 && src == 0);
-    ShowWindow(GetDlgItem(hwnd, IDC_RADIO_SEARCH_COUNTRY), showCountry ? SW_SHOW : SW_HIDE);
-    ShowWindow(GetDlgItem(hwnd, IDC_RADIO_SEARCH_COUNTRY_LABEL), showCountry ? SW_SHOW : SW_HIDE);
+    bool isRadioBrowser = (tab == 1 && src == 0);
+    ShowWindow(GetDlgItem(hwnd, IDC_RADIO_SEARCH_COUNTRY), isRadioBrowser ? SW_SHOW : SW_HIDE);
+    ShowWindow(GetDlgItem(hwnd, IDC_RADIO_SEARCH_COUNTRY_LABEL), isRadioBrowser ? SW_SHOW : SW_HIDE);
 
-    // Also hide/show static text labels (they have -1 IDs, so we position them)
+    // v1.61 — Advanced-filters checkbox: only meaningful for RadioBrowser.
+    // The expanded row below it is shown only when both conditions hold:
+    // we're on search/RadioBrowser AND the user ticked the checkbox.
+    ShowWindow(GetDlgItem(hwnd, IDC_RADIO_SEARCH_ADVANCED),
+               isRadioBrowser ? SW_SHOW : SW_HIDE);
+
+    bool showAdvanced = isRadioBrowser && g_radioAdvancedOpen;
+    int advCtrls[] = {
+        IDC_RADIO_SEARCH_GENRE,    IDC_RADIO_SEARCH_GENRE_LABEL,
+        IDC_RADIO_SEARCH_LANGUAGE, IDC_RADIO_SEARCH_LANGUAGE_LABEL,
+        IDC_RADIO_SEARCH_BITRATE,  IDC_RADIO_SEARCH_BITRATE_LABEL,
+        IDC_RADIO_SEARCH_SORT,     IDC_RADIO_SEARCH_SORT_LABEL,
+    };
+    for (int id : advCtrls) {
+        ShowWindow(GetDlgItem(hwnd, id), showAdvanced ? SW_SHOW : SW_HIDE);
+    }
+
+    // The result-count static lives on the search tab only.
+    ShowWindow(GetDlgItem(hwnd, IDC_RADIO_SEARCH_RESULT_COUNT),
+               tab == 1 ? SW_SHOW : SW_HIDE);
 }
 
 // Radio list subclass proc for keyboard handling
@@ -1258,6 +1467,28 @@ static INT_PTR CALLBACK RadioDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM 
                 EnsureRadioCountriesFetched(hwnd);
             }
 
+            // v1.61 — initialize the advanced-filters combos. Bitrate and
+            // Sort are static; Genre and Language are lazily fetched in the
+            // background (population happens when WM_RADIO_*_READY fires).
+            PopulateBitrateCombo(hwnd);
+            PopulateSortCombo(hwnd);
+            HWND hGenre = GetDlgItem(hwnd, IDC_RADIO_SEARCH_GENRE);
+            SendMessageW(hGenre, CB_ADDSTRING, 0, (LPARAM)T("(Any)"));
+            SendMessageW(hGenre, CB_SETCURSEL, 0, 0);
+            HWND hLang = GetDlgItem(hwnd, IDC_RADIO_SEARCH_LANGUAGE);
+            SendMessageW(hLang, CB_ADDSTRING, 0, (LPARAM)T("(Any)"));
+            SendMessageW(hLang, CB_SETCURSEL, 0, 0);
+            if (g_radioTagsFetched)      PopulateGenreCombo(hwnd);
+            else                          EnsureRadioTagsFetched(hwnd);
+            if (g_radioLanguagesFetched) PopulateLanguageCombo(hwnd);
+            else                          EnsureRadioLanguagesFetched(hwnd);
+
+            // Restore "advanced filters" toggle state from INI.
+            g_radioAdvancedOpen = GetPrivateProfileIntW(
+                L"Radio", L"AdvancedSearchOpen", 0, g_configPath.c_str()) != 0;
+            CheckDlgButton(hwnd, IDC_RADIO_SEARCH_ADVANCED,
+                           g_radioAdvancedOpen ? BST_CHECKED : BST_UNCHECKED);
+
             // Load favorites
             RefreshRadioList(hwnd);
 
@@ -1279,6 +1510,25 @@ static INT_PTR CALLBACK RadioDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM 
                         HWND hTab = GetDlgItem(hwnd, IDC_RADIO_TAB);
                         int curTab = static_cast<int>(SendMessageW(hTab, TCM_GETCURSEL, 0, 0));
                         UpdateRadioTabVisibility(hwnd, curTab);
+                        return TRUE;
+                    }
+                    break;
+
+                case IDC_RADIO_SEARCH_ADVANCED:
+                    if (HIWORD(wParam) == BN_CLICKED) {
+                        // v1.61 — flip the global, persist, re-evaluate
+                        // which controls are visible. Speak the new state
+                        // so a screen-reader user gets immediate feedback.
+                        g_radioAdvancedOpen =
+                            (IsDlgButtonChecked(hwnd, IDC_RADIO_SEARCH_ADVANCED) == BST_CHECKED);
+                        WritePrivateProfileStringW(L"Radio", L"AdvancedSearchOpen",
+                            g_radioAdvancedOpen ? L"1" : L"0", g_configPath.c_str());
+                        HWND hTab = GetDlgItem(hwnd, IDC_RADIO_TAB);
+                        int curTab = (int)SendMessageW(hTab, TCM_GETCURSEL, 0, 0);
+                        UpdateRadioTabVisibility(hwnd, curTab);
+                        Speak(g_radioAdvancedOpen
+                              ? Ts("Advanced filters shown")
+                              : Ts("Advanced filters hidden"));
                         return TRUE;
                     }
                     break;
@@ -1512,8 +1762,39 @@ static INT_PTR CALLBACK RadioDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM 
                         if (countryFilter == L"(Any)") countryFilter.clear();
                     }
 
-                    // Allow empty query only for RadioBrowser if a country is selected
-                    if (wcslen(query) == 0 && countryFilter.empty()) {
+                    // v1.61 — read the advanced filters (only when the
+                    // section is open AND RadioBrowser is selected; empty
+                    // strings / 0 / -1 disable each filter).
+                    std::wstring tagFilter, languageFilter;
+                    int bitrateMin = 0;
+                    int sortKey = -1;
+                    if (source == 0 && g_radioAdvancedOpen) {
+                        wchar_t buf[256] = {0};
+                        GetDlgItemTextW(hwnd, IDC_RADIO_SEARCH_GENRE, buf, 256);
+                        tagFilter = buf;
+                        if (tagFilter == T("(Any)")) tagFilter.clear();
+
+                        buf[0] = 0;
+                        GetDlgItemTextW(hwnd, IDC_RADIO_SEARCH_LANGUAGE, buf, 256);
+                        languageFilter = buf;
+                        if (languageFilter == T("(Any)")) languageFilter.clear();
+
+                        int bIdx = (int)SendDlgItemMessageW(hwnd, IDC_RADIO_SEARCH_BITRATE, CB_GETCURSEL, 0, 0);
+                        if (bIdx > 0) {
+                            bitrateMin = (int)SendDlgItemMessageW(hwnd, IDC_RADIO_SEARCH_BITRATE, CB_GETITEMDATA, bIdx, 0);
+                        }
+                        int sIdx = (int)SendDlgItemMessageW(hwnd, IDC_RADIO_SEARCH_SORT, CB_GETCURSEL, 0, 0);
+                        if (sIdx >= 0) {
+                            sortKey = (int)SendDlgItemMessageW(hwnd, IDC_RADIO_SEARCH_SORT, CB_GETITEMDATA, sIdx, 0);
+                        }
+                    }
+
+                    // Allow empty query when ANY RadioBrowser filter is set
+                    // (country, tag, language). Bitrate / sort alone don't
+                    // count — they refine but don't define the query.
+                    bool anyFilter = !countryFilter.empty() || !tagFilter.empty() ||
+                                     !languageFilter.empty();
+                    if (wcslen(query) == 0 && !anyFilter) {
                         Speak(Ts("Enter a search term"));
                         return TRUE;
                     }
@@ -1522,6 +1803,7 @@ static INT_PTR CALLBACK RadioDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM 
                     HWND hSearchList = GetDlgItem(hwnd, IDC_RADIO_SEARCH_LIST);
                     SendMessageW(hSearchList, LB_RESETCONTENT, 0, 0);
                     g_radioSearchResults.clear();
+                    SetDlgItemTextW(hwnd, IDC_RADIO_SEARCH_RESULT_COUNT, T("Searching..."));
 
                     // Show searching message
                     Speak(Ts("Searching"));
@@ -1530,7 +1812,10 @@ static INT_PTR CALLBACK RadioDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM 
                     bool found = false;
 
                     if (source == 0) {  // RadioBrowser
-                        found = SearchRadioBrowser(query, countryFilter, g_radioSearchResults);
+                        found = SearchRadioBrowser(query, countryFilter,
+                                                   tagFilter, languageFilter,
+                                                   bitrateMin, sortKey,
+                                                   g_radioSearchResults);
                     } else if (source == 1) {  // TuneIn
                         found = SearchTuneIn(query, g_radioSearchResults);
                     } else if (source == 2) {  // iHeartRadio
@@ -1557,6 +1842,10 @@ static INT_PTR CALLBACK RadioDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM 
                         wchar_t msg[128];
                         swprintf(msg, 128, T("Found %d stations"), static_cast<int>(g_radioSearchResults.size()));
                         Speak(WideToUtf8(msg).c_str());
+                        // v1.61 — mirror the count into the static so a
+                        // sighted user sees it too, and so the screen
+                        // reader can read it back via standard navigation.
+                        SetDlgItemTextW(hwnd, IDC_RADIO_SEARCH_RESULT_COUNT, msg);
 
                         // Select first item
                         if (SendMessageW(hSearchList, LB_GETCOUNT, 0, 0) > 0) {
@@ -1565,6 +1854,8 @@ static INT_PTR CALLBACK RadioDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM 
                         }
                     } else {
                         Speak(Ts("No stations found"));
+                        SetDlgItemTextW(hwnd, IDC_RADIO_SEARCH_RESULT_COUNT,
+                                        T("No stations found"));
                     }
                     return TRUE;
                 }
@@ -1679,6 +1970,14 @@ static INT_PTR CALLBACK RadioDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM 
         default:
             if (msg == WM_RADIO_COUNTRIES_READY) {
                 PopulateCountryCombo(hwnd);
+                return TRUE;
+            }
+            if (msg == WM_RADIO_TAGS_READY) {
+                PopulateGenreCombo(hwnd);
+                return TRUE;
+            }
+            if (msg == WM_RADIO_LANGUAGES_READY) {
+                PopulateLanguageCombo(hwnd);
                 return TRUE;
             }
             break;

@@ -1560,6 +1560,32 @@ void RegisterPlayerTranslations() {
     AddTranslation("en", "Minutes:", L"Minutes:");
     AddTranslation("fr", "Minutes:", L"Minutes :");
 
+    // v1.61 — extended radio search filters
+    AddTranslation("en", "Ad&vanced filters", L"Ad&vanced filters");
+    AddTranslation("fr", "Ad&vanced filters", L"Filtres a&vancés");
+    AddTranslation("en", "&Genre:",    L"&Genre:");
+    AddTranslation("fr", "&Genre:",    L"&Genre :");
+    AddTranslation("en", "&Language:", L"&Language:");
+    AddTranslation("fr", "&Language:", L"&Langue :");
+    AddTranslation("en", "&Bitrate:",  L"&Bitrate:");
+    AddTranslation("fr", "&Bitrate:",  L"&Débit :");
+    AddTranslation("en", "S&ort:",     L"S&ort:");
+    AddTranslation("fr", "S&ort:",     L"Tri&er :");
+    AddTranslation("en", "Popularity",   L"Popularity");
+    AddTranslation("fr", "Popularity",   L"Popularité");
+    AddTranslation("en", "Name",         L"Name");
+    AddTranslation("fr", "Name",         L"Nom");
+    AddTranslation("en", "Bitrate",      L"Bitrate");
+    AddTranslation("fr", "Bitrate",      L"Débit");
+    AddTranslation("en", "Last checked", L"Last checked");
+    AddTranslation("fr", "Last checked", L"Dernière vérification");
+    AddTranslation("en", "Searching...", L"Searching...");
+    AddTranslation("fr", "Searching...", L"Recherche en cours...");
+    AddTranslation("en", "Advanced filters shown", L"Advanced filters shown");
+    AddTranslation("fr", "Advanced filters shown", L"Filtres avancés affichés");
+    AddTranslation("en", "Advanced filters hidden", L"Advanced filters hidden");
+    AddTranslation("fr", "Advanced filters hidden", L"Filtres avancés masqués");
+
     // Phase 4 — skippable content
     AddTranslation("en", "Toggle skip mode", L"Toggle skip mode");
     AddTranslation("fr", "Toggle skip mode", L"Activer/désactiver le mode saut");

@@ -397,6 +397,18 @@
 #define IDC_RADIO_SEARCH_COUNTRY_LABEL 865
 #define IDC_RADIO_SEARCH_LIST_LABEL    866
 
+// v1.61 — extended search filters (disclosure-progressive UI)
+#define IDC_RADIO_SEARCH_ADVANCED      870  // Toggle checkbox: show filters
+#define IDC_RADIO_SEARCH_GENRE         871  // Genre/tag combo (editable)
+#define IDC_RADIO_SEARCH_GENRE_LABEL   872
+#define IDC_RADIO_SEARCH_LANGUAGE      873  // Language combo (editable)
+#define IDC_RADIO_SEARCH_LANGUAGE_LABEL 874
+#define IDC_RADIO_SEARCH_BITRATE       875  // Bitrate-min combo (Any/64/128/256)
+#define IDC_RADIO_SEARCH_BITRATE_LABEL 876
+#define IDC_RADIO_SEARCH_SORT          877  // Sort combo (Popularity/Name/...)
+#define IDC_RADIO_SEARCH_SORT_LABEL    878
+#define IDC_RADIO_SEARCH_RESULT_COUNT  879  // Live result-count static
+
 // Add station dialog
 #define IDD_RADIO_ADD       860
 #define IDC_RADIO_NAME      861
