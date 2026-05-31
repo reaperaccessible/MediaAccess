@@ -172,8 +172,18 @@ KeyMap LoadKeyMap(const std::wstring& path, std::string* errorOut)
         }
     }
 
-    // Derive name from filename if not specified in header.
-    if (km.name.empty()) {
+    // v1.72 — Always derive km.name from the on-disk filename, even if the
+    // file's own NAME= header says something else. The stem is the canonical
+    // identity used by ListAvailableKeyMaps, the Actions-dialog combo, and
+    // [Actions] CurrentKeyMap in MediaAccess.ini; honouring an out-of-sync
+    // NAME= header would cause LoadActiveKeyMapAtStartup to persist a name
+    // it cannot resolve back to a file on next launch, silently falling back
+    // to USA — exactly the class of bug Sèb reported with v1.71's Save-As
+    // letting the user pick an arbitrary path. The NAME= line is still
+    // parsed above (cosmetic; honoured at read but immediately overridden
+    // here) and is regenerated as NAME=<stem> by SaveKeyMap on the next
+    // NotifyKeymapChanged, so any out-of-sync file self-heals on first edit.
+    {
         std::wstring stem = path;
         size_t slash = stem.find_last_of(L"\\/");
         if (slash != std::wstring::npos) stem = stem.substr(slash + 1);

@@ -433,6 +433,13 @@ static bool IsValidKeymapName(const std::wstring& name)
     if (name.empty()) return false;
     if (name == L"." || name == L"..") return false;
     if (name.size() > 200) return false;
+    // Trailing dot or trailing space — Windows silently strips these when
+    // creating a file, which would make the on-disk stem differ from the
+    // name the user typed. Even with the v1.72 LoadKeyMap stem-derivation
+    // fix that prevents a permanent desync, we'd still confuse the user by
+    // accepting "Foo." and then listing it as "Foo" in the combo. Reject
+    // up-front and let the user adjust.
+    if (name.back() == L'.' || name.back() == L' ') return false;
     for (wchar_t c : name) {
         if (c < 32) return false;
         switch (c) {
