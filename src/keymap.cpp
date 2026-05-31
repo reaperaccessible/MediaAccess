@@ -63,7 +63,13 @@ void KeyMap::RemoveShortcut(const std::string& actionStringId, const Shortcut& s
     if (it == bindings.end()) return;
     auto& vec = it->second;
     vec.erase(std::remove(vec.begin(), vec.end(), s), vec.end());
-    if (vec.empty()) bindings.erase(it);
+    // v1.74 — Keep the empty entry as a tombstone instead of erasing it.
+    // MergeMissingDefaults looks at `bindings.find(stringId) != end()` to
+    // decide whether to inject the default shortcut for an action that has
+    // no binding yet. If we erased the entry here, the next startup (or
+    // next combo switch via LoadKeyMapByName) would treat the action as
+    // "missing" and re-inject its default — defeating the user's intent
+    // when they explicitly removed every binding for that action.
 }
 
 std::string KeyMap::FindActionFor(const Shortcut& s, ActionCategory cat) const
@@ -164,11 +170,22 @@ KeyMap LoadKeyMap(const std::wstring& path, std::string* errorOut)
         const Action* a = ActionByStringId(key);
         if (!a) continue; // Unknown action — silently skip.
 
+        // v1.74 — Always create the entry (possibly empty) so a line like
+        // "ACTION_ID =" with no RHS materialises as a tombstone. This is
+        // what tells MergeMissingDefaults that the user explicitly cleared
+        // every binding for this action and does NOT want the default
+        // resurrected at next load. operator[] inserts an empty vector if
+        // the key is missing; the loop below adds the shortcuts, if any.
+        auto& vec = km.bindings[key];
         std::vector<std::string> parts = SplitCsv(val, ',');
         for (const auto& part : parts) {
             if (part.empty()) continue;
             Shortcut s = ShortcutFromKeymapText(part);
-            if (s.valid()) km.AddShortcut(key, s);
+            if (s.valid()) {
+                bool dup = false;
+                for (const auto& x : vec) if (x == s) { dup = true; break; }
+                if (!dup) vec.push_back(s);
+            }
         }
     }
 
@@ -225,10 +242,15 @@ bool SaveKeyMap(const std::wstring& path, const KeyMap& km, std::string* errorOu
 
         for (const Action* a : acts) {
             auto it = km.bindings.find(a->stringId);
-            if (it == km.bindings.end() || it->second.empty()) continue;
-            oss << a->stringId << " = ";
+            // v1.74 — Absent from bindings: skip the line entirely. Present
+            // but empty (tombstone, see KeyMap::RemoveShortcut): write
+            // "ACTION_ID =" with no RHS, so the next LoadKeyMap recreates
+            // the tombstone and MergeMissingDefaults respects the user's
+            // explicit decision to leave that action unbound.
+            if (it == km.bindings.end()) continue;
+            oss << a->stringId << " =";
             for (size_t i = 0; i < it->second.size(); ++i) {
-                if (i > 0) oss << ", ";
+                oss << (i == 0 ? " " : ", ");
                 oss << ShortcutToKeymapText(it->second[i]);
             }
             oss << "\r\n";
@@ -511,6 +533,38 @@ static std::wstring ResolveKeyMapPath(const std::string& name)
     return std::wstring();
 }
 
+// v1.74 — Extracted from LoadActiveKeyMapAtStartup so the same logic runs
+// for every keymap load path (startup AND combo switch via LoadKeyMapByName).
+//
+// For each registered action with a defaultUsa shortcut:
+//   * skip if the keymap already has ANY entry for that action (including
+//     an empty tombstone — see KeyMap::RemoveShortcut). An entry means the
+//     user has expressed an opinion, even if that opinion is "no binding".
+//   * skip if the default shortcut is already claimed by another action
+//     in the same category (don't steal the user's reassigned key).
+//   * otherwise, add the default. This is what lets actions introduced
+//     after a keymap was generated (e.g. Sleep Timer and Books in v1.50+)
+//     pick up their default bindings automatically, without requiring a
+//     "Reset to defaults" click and without disturbing customisations.
+//
+// Returns true if any binding was added. Callers decide whether to persist:
+// LoadActiveKeyMapAtStartup and LoadKeyMapByName both save when changed
+// because they own the file at that point.
+static bool MergeMissingDefaults(KeyMap& km)
+{
+    int total = ActionCount();
+    bool changed = false;
+    for (int i = 0; i < total; ++i) {
+        const Action* a = ActionAt(i);
+        if (!a || !a->defaultUsa.valid()) continue;
+        if (km.bindings.find(a->stringId) != km.bindings.end()) continue;
+        if (!km.FindActionFor(a->defaultUsa, a->category).empty()) continue;
+        km.AddShortcut(a->stringId, a->defaultUsa);
+        changed = true;
+    }
+    return changed;
+}
+
 bool LoadKeyMapByName(const std::string& name, std::string* errorOut)
 {
     if (name.empty()) {
@@ -533,6 +587,15 @@ bool LoadKeyMapByName(const std::string& name, std::string* errorOut)
     // edits. SetActiveKeyMap then persists the name to MediaAccess.ini.
     if (path == GetShippedKeyMapPath(name)) {
         km.path = GetUserKeyMapPath(name);
+    }
+    // v1.74 — same merge step the startup loader runs. Without this, a
+    // keymap selected through the combo would silently miss defaults for
+    // any action added in a version newer than the file on disk (the user
+    // would see the action listed without a shortcut, even though a default
+    // is defined). Tombstones — entries the user explicitly cleared — are
+    // skipped by MergeMissingDefaults, so a deliberate "unbind" survives.
+    if (MergeMissingDefaults(km) && !km.path.empty()) {
+        SaveKeyMap(km.path, km, nullptr);
     }
     SetActiveKeyMap(km);
     return true;
@@ -703,28 +766,11 @@ void LoadActiveKeyMapAtStartup()
         km.path = GetUserKeyMapPath(chosen);
     }
 
-    // Merge new defaults: for each registered action with a defaultUsa shortcut,
-    // if the user's keymap doesn't have ANY binding for that action AND the
-    // default shortcut isn't already claimed by another action, add it. This
-    // lets new actions added by future updates (e.g. the Books category in
-    // v1.49) receive their default bindings automatically without the user
-    // having to click "Reset to defaults" — and without disturbing any of
-    // their existing custom assignments.
-    {
-        int total = ActionCount();
-        bool changed = false;
-        for (int i = 0; i < total; ++i) {
-            const Action* a = ActionAt(i);
-            if (!a || !a->defaultUsa.valid()) continue;
-            if (km.bindings.find(a->stringId) != km.bindings.end()) continue;
-            // Don't steal a shortcut already bound to something else (same cat).
-            if (!km.FindActionFor(a->defaultUsa, a->category).empty()) continue;
-            km.AddShortcut(a->stringId, a->defaultUsa);
-            changed = true;
-        }
-        if (changed && !km.path.empty()) {
-            SaveKeyMap(km.path, km, nullptr);
-        }
+    // v1.74 — merge step extracted to MergeMissingDefaults so the combo
+    // switch path (LoadKeyMapByName) gets the same self-healing behaviour.
+    // Tombstone-aware: actions the user explicitly cleared are skipped.
+    if (MergeMissingDefaults(km) && !km.path.empty()) {
+        SaveKeyMap(km.path, km, nullptr);
     }
 
     g_activeKeymap = km;

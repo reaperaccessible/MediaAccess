@@ -1,3 +1,12 @@
+1.74
+Two improvements to the keymap system, both invisible in normal use but important when you have a customized keymap.
+
+First, switching to another keymap through the combo at the top of Tools > Actions now also runs the "merge missing defaults" step that previously only ran at startup. Concretely: if you import an older keymap that predates a few new actions (Sleep Timer, Books, etc.), or if you switch to a regional keymap that has not been refreshed yet, the defaults for the missing actions are added on the spot. Before this version, you would have had to restart MediaAccess to get them.
+
+Second, fix a long-standing bug where you could not actually disable an action by removing all its shortcuts. Until now, removing every binding of an action erased the action from the keymap file entirely. At the next launch, the merge step noticed the action was "missing", concluded it was an action newly introduced by a later version, and re-injected its default shortcut — silently undoing your deletion. The keymap file format now preserves "this action is intentionally unbound" as an explicit tombstone (an empty line "ACTION_ID ="), and the merge step respects it. Removing every shortcut from an action now permanently disables that action.
+
+Both behaviours are tombstone-aware: any binding you deliberately cleared survives every load, every combo switch, and every restart. Migration from older versions is seamless — your existing keymap files keep working unchanged, and the only behaviour difference is that *future* unbind operations are now permanent.
+
 1.73
 Fix Reset to defaults silently doing nothing. The button rebuilt the active keymap correctly in memory and then tried to write the file at the install path (Program Files\MediaAccess\KeyMaps\...). Under UAC, Windows silently redirected that write to the per-user VirtualStore instead of failing, so the fallback path to %APPDATA%\MediaAccess\KeyMaps\ never ran and the user's real keymap file stayed untouched. Since the loader prefers %APPDATA% over the install folder, Reset appeared to have no effect — the same stale file came back at the next launch. Now Reset writes directly to %APPDATA%, where the loader actually looks.
 
