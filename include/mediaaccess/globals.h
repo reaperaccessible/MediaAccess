@@ -200,6 +200,7 @@ extern float g_eqTrebleFreq;
 // YouTube settings
 extern std::wstring g_ytdlpPath;    // Path to yt-dlp executable
 extern std::wstring g_ytApiKey;     // YouTube Data API key (optional)
+extern std::wstring g_ytDownloadPath; // v1.71 — Permanent-download destination for YouTube tracks (empty = legacy Downloads\MediaAccess\YouTube)
 
 // Downloads settings
 extern std::wstring g_downloadPath;      // Output directory for podcast downloads

@@ -217,6 +217,13 @@ void LoadSettings() {
 
     GetPrivateProfileStringW(L"YouTube", L"ApiKey", L"", ytBuf, 512, g_configPath.c_str());
     g_ytApiKey = ytBuf;
+    // v1.71 — user-chosen download folder for permanent YouTube downloads.
+    // Empty (the upgrade default for everyone who installed before v1.71) keeps
+    // the historical Downloads\MediaAccess\YouTube behavior via the legacy
+    // fallback inside youtube.cpp's GetDownloadsTargetDir().
+    wchar_t ytDlBuf[MAX_PATH] = {0};
+    GetPrivateProfileStringW(L"YouTube", L"DownloadPath", L"", ytDlBuf, MAX_PATH, g_configPath.c_str());
+    g_ytDownloadPath = ytDlBuf;
 
     // Load downloads settings
     wchar_t dlBuf[512] = {0};
@@ -553,6 +560,7 @@ void SaveSettings() {
     // Save YouTube settings — YtdlpPath is no longer persisted (auto-detected
     // each run from %LOCALAPPDATA% / bundled lib / PATH).
     WritePrivateProfileStringW(L"YouTube", L"ApiKey", g_ytApiKey.c_str(), g_configPath.c_str());
+    WritePrivateProfileStringW(L"YouTube", L"DownloadPath", g_ytDownloadPath.c_str(), g_configPath.c_str());
 
     // Save downloads settings
     WritePrivateProfileStringW(L"Downloads", L"Path", g_downloadPath.c_str(), g_configPath.c_str());

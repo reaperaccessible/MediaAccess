@@ -349,6 +349,7 @@ float g_eqTrebleFreq = 12000.0f;
 // YouTube settings
 std::wstring g_ytdlpPath;   // Path to yt-dlp executable
 std::wstring g_ytApiKey;    // YouTube Data API key (optional)
+std::wstring g_ytDownloadPath; // v1.71 — empty means fall back to the historical Downloads\MediaAccess\YouTube path
 
 // Downloads settings
 std::wstring g_downloadPath;             // Output directory for podcast downloads

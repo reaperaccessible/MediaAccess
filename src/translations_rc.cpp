@@ -349,6 +349,14 @@ void RegisterRcTranslations() {
     AddTranslation("fr", "(Bitrate only applies to MP3 and OGG formats)",
                    L"(Le débit ne s'applique qu'aux formats MP3 et OGG)");
 
+    // YouTube tab — v1.71 download folder field + Browse button
+    AddTranslation("en", "Do&wnload folder (empty = default):",
+                   L"Do&wnload folder (empty = default):");
+    AddTranslation("fr", "Do&wnload folder (empty = default):",
+                   L"Dossier de télé&chargement (vide = par défaut) :");
+    AddTranslation("en", "Bro&wse...",                              L"Bro&wse...");
+    AddTranslation("fr", "Bro&wse...",                              L"Pa&rcourir...");
+
     // Downloads tab
     AddTranslation("en", "Configure podcast episode download settings.",
                    L"Configure podcast episode download settings.");

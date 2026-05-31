@@ -88,6 +88,7 @@ void ShowTabControls(HWND hwnd, int tab) {
                            IDC_LABEL_ADVANCED_BUFFER_DESC, IDC_LABEL_ADVANCED_BUFFER_SIZE, IDC_LABEL_ADVANCED_UPDATE_PERIOD, IDC_LABEL_ADVANCED_LATENCY_NOTE, IDC_LABEL_ADVANCED_TEMPO_ALGO, IDC_LABEL_ADVANCED_EQ_FREQ, IDC_LABEL_ADVANCED_EQ_BASS, IDC_LABEL_ADVANCED_EQ_MID, IDC_LABEL_ADVANCED_EQ_TREBLE};
     // YouTube tab controls (tab 8) — yt-dlp path/browse removed (bundled + auto-updated)
     int youtubeCtrls[] = {IDC_YT_APIKEY, IDC_YT_CLEAR_ON_EXIT, IDC_YT_CLEAR_NOW, IDC_YT_CACHE_LIMIT, IDC_LABEL_YT_LIMIT,
+                          IDC_YT_DOWNLOAD_PATH, IDC_YT_DOWNLOAD_PATH_BROWSE, IDC_LABEL_YT_DOWNLOAD_PATH,
                           IDC_LABEL_YOUTUBE_API_KEY, IDC_LABEL_YOUTUBE_API_HELP, IDC_LABEL_YOUTUBE_API_NOTE};
     // SoundTouch tab controls (tab 9)
     int soundtouchCtrls[] = {IDC_ST_AA_FILTER, IDC_ST_AA_LENGTH, IDC_ST_QUICK_ALGO, IDC_ST_SEQUENCE,
@@ -483,6 +484,9 @@ INT_PTR CALLBACK OptionsDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
             SetDlgItemTextW(hwnd, IDC_YT_APIKEY, g_ytApiKey.c_str());
             CheckDlgButton(hwnd, IDC_YT_CLEAR_ON_EXIT, g_clearYtCacheOnExit ? BST_CHECKED : BST_UNCHECKED);
             SetDlgItemInt(hwnd, IDC_YT_CACHE_LIMIT, g_ytCacheLimitMB, FALSE);
+            // v1.71 — show current YouTube download folder (empty string is fine; it
+            // signals to the user that the historical default is in effect).
+            SetDlgItemTextW(hwnd, IDC_YT_DOWNLOAD_PATH, g_ytDownloadPath.c_str());
 
             // Initialize Recording tab
             {
@@ -840,6 +844,16 @@ INT_PTR CALLBACK OptionsDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
                         int v = (int)GetDlgItemInt(hwnd, IDC_YT_CACHE_LIMIT, &ok, FALSE);
                         if (ok && v >= 0) g_ytCacheLimitMB = v;
                     }
+                    // v1.71 — capture the user-chosen YouTube download folder. The
+                    // Edit control is ES_READONLY so the only way to fill it is via
+                    // the Browse button (SHBrowseForFolder always returns an absolute
+                    // existing path). An empty value here means "use the historical
+                    // default" and is treated as a fallback by youtube.cpp.
+                    {
+                        wchar_t buf[MAX_PATH];
+                        GetDlgItemTextW(hwnd, IDC_YT_DOWNLOAD_PATH, buf, MAX_PATH);
+                        g_ytDownloadPath = buf;
+                    }
 
                     // Get Recording settings
                     {
@@ -1007,6 +1021,27 @@ INT_PTR CALLBACK OptionsDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
                         wchar_t folderPath[MAX_PATH];
                         if (SHGetPathFromIDListW(pidl, folderPath)) {
                             SetDlgItemTextW(hwnd, IDC_DOWNLOAD_PATH, folderPath);
+                        }
+                        CoTaskMemFree(pidl);
+                    }
+                    return TRUE;
+                }
+
+                case IDC_YT_DOWNLOAD_PATH_BROWSE: {
+                    // v1.71 — Browse for YouTube downloads folder. Same pattern as
+                    // IDC_DOWNLOAD_BROWSE above. Saving the dialog with an empty
+                    // path resets MediaAccess to the historical default; to clear
+                    // an already-set folder the user simply Cancels the dialog and
+                    // edits the INI file manually (rare; documented behaviour).
+                    BROWSEINFOW bi = {0};
+                    bi.hwndOwner = hwnd;
+                    bi.lpszTitle = T("Select YouTube downloads folder");
+                    bi.ulFlags = BIF_RETURNONLYFSDIRS | BIF_NEWDIALOGSTYLE;
+                    LPITEMIDLIST pidl = SHBrowseForFolderW(&bi);
+                    if (pidl) {
+                        wchar_t folderPath[MAX_PATH];
+                        if (SHGetPathFromIDListW(pidl, folderPath)) {
+                            SetDlgItemTextW(hwnd, IDC_YT_DOWNLOAD_PATH, folderPath);
                         }
                         CoTaskMemFree(pidl);
                     }

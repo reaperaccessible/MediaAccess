@@ -696,8 +696,10 @@ static std::wstring SanitizeForFilename(const std::wstring& title) {
     return out;
 }
 
-// Returns Downloads\MediaAccess\YouTube, creating directories as needed.
-static std::wstring GetDownloadsTargetDir() {
+// Historical default: Downloads\MediaAccess\YouTube. Used when the user has
+// not configured a custom download folder, or when the configured folder is
+// unreachable (network drive offline, etc.). Creates parents as needed.
+static std::wstring GetLegacyDownloadsTargetDir() {
     PWSTR raw = nullptr;
     std::wstring root;
     if (SUCCEEDED(SHGetKnownFolderPath(FOLDERID_Downloads, 0, nullptr, &raw)) && raw) {
@@ -714,6 +716,44 @@ static std::wstring GetDownloadsTargetDir() {
     out += L"\\YouTube";
     CreateDirectoryW(out.c_str(), nullptr);
     return out;
+}
+
+// v1.71 — Returns the target directory for permanent YouTube downloads.
+// Two-tier resolution:
+//   1. If the user has set g_ytDownloadPath (Options > YouTube > Download folder)
+//      AND the path is reachable + writable, use that. Create it if missing.
+//   2. Otherwise (no preference, or preference unreachable / read-only), fall
+//      back silently to the historical Downloads\MediaAccess\YouTube path.
+// The fallback is silent on purpose: a chatty error message would be more
+// annoying than missing a download (the user can always go fish the file out
+// of the legacy folder if surprised). Race-safe: the value is captured once
+// per call into a local std::wstring before any filesystem access.
+static std::wstring GetDownloadsTargetDir() {
+    std::wstring pref = g_ytDownloadPath;   // local snapshot — no race with Options write
+    if (!pref.empty()) {
+        wchar_t abs[MAX_PATH] = {0};
+        DWORD n = GetFullPathNameW(pref.c_str(), MAX_PATH, abs, nullptr);
+        if (n > 0 && n < MAX_PATH) {
+            // CreateDirectoryW is a no-op if the directory already exists
+            CreateDirectoryW(abs, nullptr);
+            DWORD attrs = GetFileAttributesW(abs);
+            if (attrs != INVALID_FILE_ATTRIBUTES && (attrs & FILE_ATTRIBUTE_DIRECTORY)) {
+                // Confirm writability so a stale path (USB stick removed,
+                // network share offline, read-only mount) falls back cleanly.
+                std::wstring probe = std::wstring(abs) + L"\\.ma_write_test";
+                HANDLE h = CreateFileW(probe.c_str(), GENERIC_WRITE, 0, nullptr,
+                                       CREATE_ALWAYS,
+                                       FILE_ATTRIBUTE_TEMPORARY | FILE_FLAG_DELETE_ON_CLOSE,
+                                       nullptr);
+                if (h != INVALID_HANDLE_VALUE) {
+                    CloseHandle(h);
+                    return abs;
+                }
+            }
+        }
+        // Any failure path here falls through to the legacy default below.
+    }
+    return GetLegacyDownloadsTargetDir();
 }
 
 // Permanently download a video to the user's Downloads folder.

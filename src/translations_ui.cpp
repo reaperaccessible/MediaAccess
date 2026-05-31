@@ -478,6 +478,8 @@ void RegisterUiTranslations() {
     AddTranslation("fr", "Position announcement on",                L"Annonce de position activée");
     AddTranslation("en", "Position announcement off",               L"Position announcement off");
     AddTranslation("fr", "Position announcement off",               L"Annonce de position désactivée");
+    AddTranslation("en", "Select YouTube downloads folder",         L"Select YouTube downloads folder");
+    AddTranslation("fr", "Select YouTube downloads folder",         L"Sélectionner le dossier de téléchargement YouTube");
     AddTranslation("en", "Failed to register window class.",        L"Failed to register window class.");
     AddTranslation("fr", "Failed to register window class.",        L"Échec de l'enregistrement de la classe de fenêtre.");
     AddTranslation("en", "Failed to create window.",                L"Failed to create window.");
