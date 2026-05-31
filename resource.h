@@ -57,6 +57,7 @@
 #define IDM_PLAY_NEAR_END   222
 #define IDM_PLAY_MUTE       218
 #define IDM_PLAY_REPEAT_TOGGLE 219
+#define IDM_PLAY_TOGGLE_SEEK_ANNOUNCE 1800
 #define IDM_EFFECT_PRESETS  238
 
 // Accelerator table

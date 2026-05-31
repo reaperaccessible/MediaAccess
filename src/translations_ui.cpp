@@ -474,6 +474,10 @@ void RegisterUiTranslations() {
     AddTranslation("fr", "Shuffle on",                              L"Aléatoire activé");
     AddTranslation("en", "Shuffle off",                             L"Shuffle off");
     AddTranslation("fr", "Shuffle off",                             L"Aléatoire désactivé");
+    AddTranslation("en", "Position announcement on",                L"Position announcement on");
+    AddTranslation("fr", "Position announcement on",                L"Annonce de position activée");
+    AddTranslation("en", "Position announcement off",               L"Position announcement off");
+    AddTranslation("fr", "Position announcement off",               L"Annonce de position désactivée");
     AddTranslation("en", "Failed to register window class.",        L"Failed to register window class.");
     AddTranslation("fr", "Failed to register window class.",        L"Échec de l'enregistrement de la classe de fenêtre.");
     AddTranslation("en", "Failed to create window.",                L"Failed to create window.");

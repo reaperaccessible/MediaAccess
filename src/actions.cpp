@@ -112,6 +112,15 @@ static const Action g_actions[] = {
     { "PLAYER_REPEAT_TOGGLE",     IDM_PLAY_REPEAT_TOGGLE,     ActionCategory::Main,
       "Cycle repeat mode",            "Changer le mode répétition",
       { 'E', false, false, false } },
+    // Toggles the v1.65 preference that announces the playback position after
+    // each left/right seek. Same commandId is also registered in the Global
+    // category below so the user can bind a system-wide hotkey. Requested by
+    // user Sèb so he can flip the announcement on/off without opening the
+    // Options dialog. No default shortcut — user-defined via Tools > Actions.
+    { "PLAYER_TOGGLE_SEEK_ANNOUNCE", IDM_PLAY_TOGGLE_SEEK_ANNOUNCE, ActionCategory::Main,
+      "Toggle position announcement after seek",
+      "Basculer l'annonce de position après un déplacement",
+      {} },
     { "PLAYER_MUTE",              IDM_PLAY_MUTE,              ActionCategory::Main,
       "Toggle mute",                  "Basculer le mode muet",
       { 'U', false, false, false } },
@@ -379,6 +388,11 @@ static const Action g_actions[] = {
       "Toggle recording (global)",    "Basculer l'enregistrement (global)", {} },
     { "GLOBAL_SHUFFLE",           IDM_PLAY_SHUFFLE,           ActionCategory::Global,
       "Toggle shuffle (global)",      "Basculer la lecture aléatoire (global)", {} },
+    // Same commandId as PLAYER_TOGGLE_SEEK_ANNOUNCE above; WM_HOTKEY → WM_COMMAND
+    // routes to a single case in main.cpp regardless of which entry was triggered.
+    { "GLOBAL_TOGGLE_SEEK_ANNOUNCE", IDM_PLAY_TOGGLE_SEEK_ANNOUNCE, ActionCategory::Global,
+      "Toggle position announcement after seek (global)",
+      "Basculer l'annonce de position après un déplacement (global)", {} },
     { "GLOBAL_YOUTUBE",           IDM_FILE_YOUTUBE,           ActionCategory::Global,
       "YouTube search (global)",      "Recherche YouTube (global)", {} },
 

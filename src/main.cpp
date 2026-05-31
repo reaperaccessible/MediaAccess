@@ -973,6 +973,19 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
                     CheckMenuItem(GetMenu(hwnd), IDM_PLAY_SHUFFLE, g_shuffle ? MF_CHECKED : MF_UNCHECKED);
                     SaveSettings();
                     break;
+                case IDM_PLAY_TOGGLE_SEEK_ANNOUNCE:
+                    // Toggles g_speechSeekPosition (the v1.65 preference that controls
+                    // whether the new timecode is spoken after each left/right seek).
+                    // The Options > Speech checkbox re-reads the variable on every
+                    // dialog open, so cohesion is preserved without a CheckMenuItem
+                    // call. SaveSettings() persists under [Speech] AnnounceSeekPosition.
+                    // Requested by user Sèb so he can flip the announcement on/off
+                    // from a system-wide hotkey without opening Preferences.
+                    g_speechSeekPosition = !g_speechSeekPosition;
+                    Speak(g_speechSeekPosition ? Ts("Position announcement on")
+                                               : Ts("Position announcement off"));
+                    SaveSettings();
+                    break;
                 case IDM_PLAY_REPEAT_TOGGLE:
                     ToggleRepeatMode();
                     break;
