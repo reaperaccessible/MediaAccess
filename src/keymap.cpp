@@ -530,13 +530,16 @@ void LoadActiveKeyMapAtStartup()
 
     // Search user dir first, then install dir.
     std::wstring path = GetUserKeyMapPath(chosen);
+    bool loadedFromInstallDir = false;
     if (GetFileAttributesW(path.c_str()) == INVALID_FILE_ATTRIBUTES) {
         path = GetShippedKeyMapPath(chosen);
+        loadedFromInstallDir = true;
     }
     if (GetFileAttributesW(path.c_str()) == INVALID_FILE_ATTRIBUTES) {
         // Last-ditch: fall back to USA shipped path; if still missing,
         // build defaults in memory.
         path = GetShippedKeyMapPath("USA");
+        loadedFromInstallDir = true;
     }
 
     KeyMap km;
@@ -547,6 +550,17 @@ void LoadActiveKeyMapAtStartup()
     }
     if (km.bindings.empty()) {
         km = BuildDefaultUsaKeyMap();
+    }
+
+    // v1.67 — keymap migration. The installer writes regional defaults
+    // to <install>\KeyMaps with ignoreversion, so any user-modification
+    // stored at that path gets overwritten on every update. Redirect
+    // the in-memory path to the user dir so the very next save (auto
+    // after a shortcut edit, or explicit Save) lands in %APPDATA% and
+    // survives future installs. Jack reported his Global hotkeys being
+    // reset on every release before this fix.
+    if (loadedFromInstallDir && !chosen.empty()) {
+        km.path = GetUserKeyMapPath(chosen);
     }
 
     // Merge new defaults: for each registered action with a defaultUsa shortcut,

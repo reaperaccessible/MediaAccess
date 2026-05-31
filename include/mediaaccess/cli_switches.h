@@ -28,7 +28,8 @@ enum class CliVerb {
     Mute,
     SeekRel,    // param is signed seconds delta
     SeekAbs,    // param is unsigned seconds absolute
-    Quit, Show, Hide
+    Quit, Show, Hide,
+    Slot        // v1.67 — switch to audio slot N (1-10)
 };
 
 struct CliCommand {

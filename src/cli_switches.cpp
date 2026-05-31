@@ -11,6 +11,7 @@
 #include "mediaaccess/tray.h"
 #include "mediaaccess/accessibility.h"
 #include "mediaaccess/translations.h"
+#include "mediaaccess/audio_slots.h"  // v1.67 — ActivateAudioSlot for /slot:N
 #include "resource.h"
 
 #include <cstdlib>
@@ -69,6 +70,7 @@ constexpr VerbDef kVerbs[] = {
     { L"quit",    CliVerb::Quit,    false },
     { L"show",    CliVerb::Show,    false },
     { L"hide",    CliVerb::Hide,    false },
+    { L"slot",    CliVerb::Slot,    true  },  // v1.67 — /slot:N (1-10)
 };
 
 // Case-insensitive wide-string compare for ASCII-only verb names.
@@ -255,6 +257,18 @@ void ApplyCliCommand(HWND hwnd, const CliCommand& cmd, bool fromRemote) {
         case CliVerb::Hide:
             DoHide(hwnd);
             if (fromRemote) Speak(Ts("MediaAccess hidden"));
+            break;
+
+        case CliVerb::Slot:
+            // v1.67 — /slot:N switches to audio output slot N (1..10).
+            // ActivateAudioSlot speaks success / "not configured" /
+            // "device not found" itself.
+            if (cmd.hasIntParam) {
+                int slot = cmd.intParam;
+                if (slot >= 1 && slot <= 10) {
+                    ActivateAudioSlot(slot - 1);
+                }
+            }
             break;
 
         case CliVerb::Unknown:
