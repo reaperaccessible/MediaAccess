@@ -349,10 +349,13 @@ void RegisterRcTranslations() {
     AddTranslation("fr", "(Bitrate only applies to MP3 and OGG formats)",
                    L"(Le débit ne s'applique qu'aux formats MP3 et OGG)");
 
-    // YouTube tab — v1.71 download folder field + Browse button
-    AddTranslation("en", "Do&wnload folder (empty = default):",
-                   L"Do&wnload folder (empty = default):");
-    AddTranslation("fr", "Do&wnload folder (empty = default):",
+    // YouTube tab — v1.71 download folder field + Browse button.
+    // Mnemonic chosen as Alt+D in EN ("&Download") because Alt+W is already
+    // owned by the Browse button (Bro&wse). In FR, Alt+C ("télé&chargement")
+    // keeps Browse on Alt+R ("Pa&rcourir") — no conflict.
+    AddTranslation("en", "&Download folder (empty = default):",
+                   L"&Download folder (empty = default):");
+    AddTranslation("fr", "&Download folder (empty = default):",
                    L"Dossier de télé&chargement (vide = par défaut) :");
     AddTranslation("en", "Bro&wse...",                              L"Bro&wse...");
     AddTranslation("fr", "Bro&wse...",                              L"Pa&rcourir...");

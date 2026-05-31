@@ -244,8 +244,8 @@ BEGIN
     PUSHBUTTON      "Clear cache now...", IDC_YT_CLEAR_NOW, 17, 122, 100, 14
     LTEXT           "Limit cache size (MB, 0 = unlimited):", IDC_LABEL_YT_LIMIT, 17, 145, 145, 10
     EDITTEXT        IDC_YT_CACHE_LIMIT, 165, 143, 50, 14, ES_AUTOHSCROLL | ES_NUMBER
-    LTEXT           "Do&wnload folder (empty = default):", IDC_LABEL_YT_DOWNLOAD_PATH, 17, 167, 200, 10
-    EDITTEXT        IDC_YT_DOWNLOAD_PATH, 17, 180, 205, 14, ES_AUTOHSCROLL | ES_READONLY
+    LTEXT           "&Download folder (empty = default):", IDC_LABEL_YT_DOWNLOAD_PATH, 17, 167, 200, 10
+    EDITTEXT        IDC_YT_DOWNLOAD_PATH, 17, 180, 205, 14, ES_AUTOHSCROLL
     PUSHBUTTON      "Bro&wse...", IDC_YT_DOWNLOAD_PATH_BROWSE, 225, 179, 50, 14
 
     // SoundTouch tab controls (shown when tab 9 selected)

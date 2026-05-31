@@ -845,10 +845,10 @@ INT_PTR CALLBACK OptionsDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
                         if (ok && v >= 0) g_ytCacheLimitMB = v;
                     }
                     // v1.71 — capture the user-chosen YouTube download folder. The
-                    // Edit control is ES_READONLY so the only way to fill it is via
-                    // the Browse button (SHBrowseForFolder always returns an absolute
-                    // existing path). An empty value here means "use the historical
-                    // default" and is treated as a fallback by youtube.cpp.
+                    // Edit control is editable so the user can either Browse to pick
+                    // a folder, or simply clear the field to revert to the historical
+                    // default. Any invalid value (typo, removed USB stick, etc.) is
+                    // handled by the silent fallback in youtube.cpp.
                     {
                         wchar_t buf[MAX_PATH];
                         GetDlgItemTextW(hwnd, IDC_YT_DOWNLOAD_PATH, buf, MAX_PATH);
@@ -1030,9 +1030,10 @@ INT_PTR CALLBACK OptionsDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
                 case IDC_YT_DOWNLOAD_PATH_BROWSE: {
                     // v1.71 — Browse for YouTube downloads folder. Same pattern as
                     // IDC_DOWNLOAD_BROWSE above. Saving the dialog with an empty
-                    // path resets MediaAccess to the historical default; to clear
-                    // an already-set folder the user simply Cancels the dialog and
-                    // edits the INI file manually (rare; documented behaviour).
+                    // path resets MediaAccess to the historical default; the edit
+                    // field is NOT ES_READONLY so the user can simply Delete the
+                    // path to revert. Free-typed invalid paths fall back silently
+                    // to the legacy folder via youtube.cpp::GetDownloadsTargetDir.
                     BROWSEINFOW bi = {0};
                     bi.hwndOwner = hwnd;
                     bi.lpszTitle = T("Select YouTube downloads folder");

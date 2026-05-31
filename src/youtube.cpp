@@ -727,7 +727,10 @@ static std::wstring GetLegacyDownloadsTargetDir() {
 // The fallback is silent on purpose: a chatty error message would be more
 // annoying than missing a download (the user can always go fish the file out
 // of the legacy folder if surprised). Race-safe: the value is captured once
-// per call into a local std::wstring before any filesystem access.
+// per call into a local std::wstring before any filesystem access. The Edit
+// field in Options is NOT ES_READONLY, so the user can clear the path by
+// hand to revert to the historical default — any free-typed garbage path
+// simply falls back here without complaint.
 static std::wstring GetDownloadsTargetDir() {
     std::wstring pref = g_ytDownloadPath;   // local snapshot — no race with Options write
     if (!pref.empty()) {
