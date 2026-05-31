@@ -438,6 +438,11 @@ static bool IsValidKeymapName(const std::wstring& name)
         switch (c) {
             case L'<': case L'>': case L':': case L'"':
             case L'/': case L'\\': case L'|': case L'?': case L'*':
+            // '=' is the delimiter used by the .MediaAccessKeyMap KEY=VALUE
+            // line format AND by the .ini section under [Actions]. Blocking
+            // it here keeps the on-disk encoding unambiguous, even though
+            // the current parser splits on the first '=' and would survive.
+            case L'=':
                 return false;
         }
     }
@@ -751,6 +756,18 @@ static void OnReset(HWND dlg)
     UpdateKeymapLabel(dlg);
     PopulateActionsList(dlg);
     PopulateShortcutsList(dlg);
+    // v1.72 — re-select the active keymap in the combo. Without this, a user
+    // who had picked another keymap in the combo would see Reset rebase the
+    // active one without the combo reflecting the change.
+    PopulateKeymapCombo(dlg);
+    // Match the announcement pattern of the v1.72 combo handlers so screen
+    // readers get a clear cue that the reset actually happened.
+    size_t total = 0;
+    for (const auto& kv : GetActiveKeyMap().bindings) total += kv.second.size();
+    std::string spoken = Ts("Keymap") + " " + GetActiveKeyMap().name + " " +
+                         Ts("active") + ", " + std::to_string(total) + " " +
+                         Ts("shortcuts");
+    Speak(spoken);
 }
 
 // =============================================================================
