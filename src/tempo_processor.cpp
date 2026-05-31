@@ -176,7 +176,6 @@ private:
     std::deque<float> m_outputQueue;
 
     static constexpr size_t DECODE_BLOCK_SIZE = 2048;
-    static constexpr size_t MAX_OUTPUT_QUEUE = 65536;
 
     // Convert tempo percentage to speed multiplier
     float TempoToSpeed() const {
@@ -460,7 +459,6 @@ private:
     std::deque<float> m_outputQueue;
 
     static constexpr size_t DECODE_BLOCK_SIZE = 1024;
-    static constexpr size_t MAX_OUTPUT_QUEUE = 65536;
 
     double GetSpeedMultiplier() const {
         return (100.0 + m_tempo) / 100.0 * m_rate;

@@ -37,6 +37,12 @@ extern bool  g_muted;      // Muted state
 // clip reaches its end position. Wparam = clip index that just ended.
 #define WM_DAISY_NEXT_CLIP (WM_USER + 50)
 
+// Upper bound on consecutive clips/segments to skip in one auto-advance step
+// when the user has opted out of categories (page numbers, footnotes, ...).
+// Bounded to prevent infinite loops on pathological books where every entry
+// is in a skip category.
+static constexpr int kClipSkipSafetyBound = 5000;
+
 // Optional: keep this in sync with main.cpp's WM_COMMAND dispatch so the
 // rest of the file doesn't depend on a header. main.cpp routes the message
 // to DaisyOnClipEnded().
@@ -645,15 +651,16 @@ void DaisyNavigateBackward() {
     SpeakW((LPCWSTR)g_d.book->navPoints[found].label.c_str());
 }
 
-// Compose the current location label ("Chapter 3, page 47") without
-// announcing it — used by both DaisyAnnounceCurrentLocation and the
-// v1.60 SetNowPlayingItem refresh after navigation.
-static std::wstring BuildLocationLabel() {
+// Compose a location label ("Chapter 3, page 47") for an arbitrary navPoint
+// index (clip index in audio mode, segment index in text-only mode — the
+// navPoints vector reuses clipIndex for both, see daisy_book.h). Returns an
+// empty string if no book is loaded or the index has no preceding nav point.
+static std::wstring BuildLocationLabelForIndex(int idx) {
     if (!g_d.book) return L"";
-    int cur = g_d.textOnlyMode ? g_d.currentSegment : g_d.currentClip;
+    if (idx < 0) return L"";
     std::wstring heading, page;
     for (const auto& np : g_d.book->navPoints) {
-        if (np.clipIndex > cur) break;
+        if (np.clipIndex > idx) break;
         if (np.kind == DaisyNavPoint::Page)        page    = np.label;
         else if (np.level >= 1 && np.level <= 6)   heading = np.label;
     }
@@ -664,6 +671,13 @@ static std::wstring BuildLocationLabel() {
         msg += page;
     }
     return msg;
+}
+
+// Current playback location — text-only segment or audio clip as appropriate.
+static std::wstring BuildLocationLabel() {
+    if (!g_d.book) return L"";
+    int cur = g_d.textOnlyMode ? g_d.currentSegment : g_d.currentClip;
+    return BuildLocationLabelForIndex(cur);
 }
 
 void DaisyAnnounceCurrentLocation() {
@@ -730,21 +744,7 @@ void DaisyJumpToBookmark(int clipIndex, double offsetSeconds) {
 
 // Phase 3 — bookmarks management helpers
 std::wstring DaisyLocationLabelForClip(int clipIndex) {
-    if (!g_d.book) return L"";
-    if (clipIndex < 0) return L"";
-    std::wstring heading, page;
-    for (const auto& np : g_d.book->navPoints) {
-        if (np.clipIndex > clipIndex) break;
-        if (np.kind == DaisyNavPoint::Page)        page    = np.label;
-        else if (np.level >= 1 && np.level <= 6)   heading = np.label;
-    }
-    std::wstring out;
-    if (!heading.empty()) out = heading;
-    if (!page.empty()) {
-        if (!out.empty()) out += L", ";
-        out += page;
-    }
-    return out;
+    return BuildLocationLabelForIndex(clipIndex);
 }
 
 int DaisyCurrentBookId() {
@@ -781,25 +781,6 @@ static std::wstring FormatRemainingFriendly(double seconds) {
     return buf;
 }
 
-// Build a location label for a text segment (mirrors DaisyLocationLabelForClip).
-// Walks navPoints by their clipIndex (dual-purpose: segment in text-only mode).
-static std::wstring LocationLabelForSegment(int segIdx) {
-    if (!g_d.book) return L"";
-    std::wstring heading, page;
-    for (const auto& np : g_d.book->navPoints) {
-        if (np.clipIndex > segIdx) break;
-        if (np.kind == DaisyNavPoint::Page)        page    = np.label;
-        else if (np.level >= 1 && np.level <= 6)   heading = np.label;
-    }
-    std::wstring out;
-    if (!heading.empty()) out = heading;
-    if (!page.empty()) {
-        if (!out.empty()) out += L", ";
-        out += page;
-    }
-    return out;
-}
-
 void DaisyAnnounceProgress() {
     if (!g_d.book) { Speak(Ts("No book loaded")); return; }
 
@@ -813,7 +794,7 @@ void DaisyAnnounceProgress() {
         if (n > 0) {
             percent = (int)(100.0 * (g_d.currentSegment + 1) / n);
             if (percent > 100) percent = 100;
-            loc = LocationLabelForSegment(g_d.currentSegment);
+            loc = BuildLocationLabelForIndex(g_d.currentSegment);
 
             // Estimate remaining: sum chars of remaining segments / chars-per-sec.
             // Base SAPI ~17 chars/sec at speed multiplier 1.0; scale.
@@ -1044,9 +1025,10 @@ extern "C" void DaisyOnClipEnded(int endedClipIndex) {
     if (endedClipIndex != g_d.currentClip) return;
     int next = g_d.currentClip + 1;
     // Phase 4 — skip categories the user has opted out of (page numbers,
-    // footnotes, etc.). Bounded to avoid infinite loops on pathological books.
+    // footnotes, etc.). Bounded by kClipSkipSafetyBound to avoid infinite
+    // loops on pathological books.
     int safety = 0;
-    while (next < (int)g_d.book->clips.size() && safety < 5000 &&
+    while (next < (int)g_d.book->clips.size() && safety < kClipSkipSafetyBound &&
            BookSkipShouldSkip(g_d.book->clips[next].skipKind)) {
         ++next; ++safety;
     }
@@ -1071,7 +1053,7 @@ extern "C" void DaisyOnTtsEndOfStream() {
     if (g_d.ttsPaused) return;  // User paused — don't auto-advance
     int next = g_d.currentSegment + 1;
     int safety = 0;
-    while (next < (int)g_d.book->textSegments.size() && safety < 5000 &&
+    while (next < (int)g_d.book->textSegments.size() && safety < kClipSkipSafetyBound &&
            BookSkipShouldSkip(g_d.book->textSegments[next].skipKind)) {
         ++next; ++safety;
     }

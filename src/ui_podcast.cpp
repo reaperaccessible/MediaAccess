@@ -697,6 +697,15 @@ static bool SearchItunesPodcasts(const std::wstring& query, std::vector<PodcastS
     return !results.empty();
 }
 
+// Look up a subscription's display name by id. Returns an empty string when
+// no match is found — used as the "source" label in SetNowPlaying calls.
+static std::wstring GetPodcastNameById(int podcastId) {
+    for (const auto& s : g_podcastSubs) {
+        if (s.id == podcastId) return s.name;
+    }
+    return L"";
+}
+
 // Refresh podcast subscriptions list
 static void RefreshPodcastSubsList(HWND hwnd) {
     HWND hList = GetDlgItem(hwnd, IDC_PODCAST_SUBS_LIST);
@@ -1170,12 +1179,7 @@ static INT_PTR CALLBACK PodcastDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARA
                                 }
                                 // v1.60 — preset podcast name + first
                                 // episode title before PlayTrack.
-                                std::wstring podName;
-                                for (const auto& s : g_podcastSubs) {
-                                    if (s.id == g_currentPodcastId) {
-                                        podName = s.name; break;
-                                    }
-                                }
+                                std::wstring podName = GetPodcastNameById(g_currentPodcastId);
                                 std::wstring epTitle;
                                 if (!selItems.empty() && selItems[0] >= 0 &&
                                     selItems[0] < (int)g_podcastEpisodes.size()) {
@@ -1635,12 +1639,7 @@ static INT_PTR CALLBACK PodcastDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARA
                         int sel = static_cast<int>(SendMessageW(hList, LB_GETCARETINDEX, 0, 0));
                         if (sel >= 0 && sel < static_cast<int>(g_podcastEpisodes.size())) {
                             // v1.60 — preset podcast + episode names.
-                            std::wstring podName;
-                            for (const auto& s : g_podcastSubs) {
-                                if (s.id == g_currentPodcastId) {
-                                    podName = s.name; break;
-                                }
-                            }
+                            std::wstring podName = GetPodcastNameById(g_currentPodcastId);
                             SetNowPlaying(SourceType::Podcast, podName,
                                           g_podcastEpisodes[sel].title);
                             g_playlist.clear();

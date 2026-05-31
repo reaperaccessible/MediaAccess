@@ -61,6 +61,211 @@ void ParseCommandLine();
 // Declarations from ui.cpp
 int ExpandFileToFolder(const std::wstring& filePath, std::vector<std::wstring>& outFiles);
 
+// -----------------------------------------------------------------------------
+// Named magic numbers
+// -----------------------------------------------------------------------------
+// Initial window size on first launch (before settings restore). Picked to be
+// tall enough for the menu bar + a one-line status bar.
+static constexpr int  DEFAULT_WINDOW_WIDTH  = 500;
+static constexpr int  DEFAULT_WINDOW_HEIGHT = 150;
+// Auto-hide cursor timer used during fullscreen video playback.
+static constexpr UINT IDT_FULLSCREEN_CURSOR_HIDE = 410;
+static constexpr UINT FULLSCREEN_CURSOR_HIDE_MS  = 3000;
+// Sleep-timer quick-pick presets (resource.h defines IDM_SLEEP_PRESET_BASE = 7300;
+// each menu slot is BASE + index into kSleepPresetMinutes).
+static constexpr int kSleepPresetMinutes[] = { 15, 30, 45, 60, 90, 120 };
+
+// -----------------------------------------------------------------------------
+// Help-menu command helpers — moved out of the WM_COMMAND switch so each long
+// path-building / Shell-execute block stays readable. Each helper is a direct
+// extraction with no behavior change.
+// -----------------------------------------------------------------------------
+static void OpenHelpManual(HWND hwnd) {
+    // Open the bilingual HTML manual in the user's default browser.
+    // We pick the file matching the current app language; user can
+    // switch languages from the link inside the manual.
+    wchar_t manualPath[MAX_PATH];
+    GetModuleFileNameW(nullptr, manualPath, MAX_PATH);
+    wchar_t* slash = wcsrchr(manualPath, L'\\');
+    if (!slash) return;
+    *(slash + 1) = L'\0';
+    const char* lang = GetCurrentLanguage();
+    const wchar_t* file = (lang && strcmp(lang, "fr") == 0)
+        ? L"docs\\manual_fr.html"
+        : L"docs\\manual_en.html";
+    wcscat_s(manualPath, MAX_PATH, file);
+    HINSTANCE r = ShellExecuteW(hwnd, L"open", manualPath, nullptr, nullptr, SW_SHOWNORMAL);
+    if ((INT_PTR)r <= 32) {
+        MessageBoxW(hwnd,
+            T("Could not open the manual. Make sure the docs folder is present alongside MediaAccess.exe."),
+            T("Manual"), MB_OK | MB_ICONWARNING);
+    }
+}
+
+static void OpenHelpReadme(HWND hwnd) {
+    wchar_t readmePath[MAX_PATH];
+    GetModuleFileNameW(nullptr, readmePath, MAX_PATH);
+    wchar_t* slash = wcsrchr(readmePath, L'\\');
+    if (!slash) return;
+    *(slash + 1) = L'\0';
+    wcscat_s(readmePath, MAX_PATH, L"docs\\readme.txt");
+    HINSTANCE r = ShellExecuteW(hwnd, L"open", readmePath, nullptr, nullptr, SW_SHOWNORMAL);
+    if ((INT_PTR)r <= 32) {
+        MessageBoxW(hwnd,
+            T("Could not open readme.txt. Make sure the docs folder is present alongside MediaAccess.exe."),
+            T("Readme"), MB_OK | MB_ICONWARNING);
+    }
+}
+
+static void OpenHelpContact(HWND hwnd) {
+    // mailto: link — Windows opens the default mail client pre-filled with
+    // our address + a subject line that helps us triage.
+    const wchar_t* url =
+        L"mailto:reaperaccessible@gmail.com"
+        L"?subject=MediaAccess%20request";
+    HINSTANCE r = ShellExecuteW(hwnd, L"open", url, nullptr, nullptr, SW_SHOWNORMAL);
+    if ((INT_PTR)r <= 32) {
+        MessageBoxW(hwnd,
+            T("Could not open your email client. Please write to "
+              "reaperaccessible@gmail.com manually."),
+            T("Contact us"), MB_OK | MB_ICONINFORMATION);
+    }
+}
+
+static void OpenHelpDonate(HWND hwnd) {
+    // PayPal donation page for reaperaccessible. Opens in the user's default browser.
+    const wchar_t* url =
+        L"https://www.paypal.com/donate/"
+        L"?business=6RZ8Y2Q39B9LN"
+        L"&no_recurring=0"
+        L"&item_name=Thanks+to+your+donation%2C+REAPERACCESSIBLE"
+        L"+provides+training%2C+tutorials%2C+and+tools+to+make"
+        L"+REAPER+accessible+to+blind+users."
+        L"&currency_code=USD";
+    HINSTANCE r = ShellExecuteW(hwnd, L"open", url, nullptr, nullptr, SW_SHOWNORMAL);
+    if ((INT_PTR)r <= 32) {
+        MessageBoxW(hwnd,
+            T("Could not open the donation page in your browser."),
+            T("Make a donation"), MB_OK | MB_ICONWARNING);
+    }
+}
+
+static void HelpSetAsDefault(HWND hwnd) {
+    // Microsoft removed the programmatic "set as default" APIs in Windows 8+
+    // to prevent app hijacking. Every media player (VLC, foobar2000, …) has
+    // the same limitation. The best we can do is take the user straight to
+    // the right Settings page and tell them exactly which buttons to click.
+    MessageBoxW(hwnd,
+        T("Windows does not allow any application to set itself as the default "
+          "automatically — this is a security restriction Microsoft added in "
+          "Windows 8.\n\n"
+          "When you click OK, Windows will open the Default apps page on the "
+          "MediaAccess entry. From there, click each file type (.mp3, .mp4, "
+          ".mkv, .flac, .mid, etc.) and choose MediaAccess to make it the "
+          "default. On Windows 11 you can also use the \"Set default\" button "
+          "near the top of the MediaAccess page to assign all supported types "
+          "at once."),
+        T("Set as default media player"),
+        MB_OK | MB_ICONINFORMATION);
+    ShellExecuteW(hwnd, L"open",
+                  L"ms-settings:defaultapps?registeredAppMachine=MediaAccess",
+                  nullptr, nullptr, SW_SHOWNORMAL);
+}
+
+static void HelpClearYouTubeCache(HWND hwnd) {
+    unsigned long long bytes = GetYouTubeCacheSize();
+    double mb = bytes / (1024.0 * 1024.0);
+    wchar_t prompt[256];
+    swprintf(prompt, 256, L"%s\n\n%.1f MB", T("Clear all cached YouTube audio?"), mb);
+    if (MessageBoxW(hwnd, prompt, T("Clear YouTube cache"),
+                    MB_YESNO | MB_ICONQUESTION) != IDYES) return;
+    int n = ClearYouTubeCache();
+    wchar_t done[128];
+    swprintf(done, 128, T("Removed %d cached files."), n);
+    MessageBoxW(hwnd, done, T("Clear YouTube cache"), MB_OK | MB_ICONINFORMATION);
+}
+
+static void PasteMediaFromClipboard() {
+    extern std::vector<std::wstring> GetFilesFromClipboard();
+    // Ctrl+V on the main window: paste media files/URLs from the clipboard.
+    // Replaces the current playlist (matching the "Open file" semantics —
+    // paste behaves like a fresh open).
+    std::vector<std::wstring> files;
+    try {
+        files = GetFilesFromClipboard();
+    } catch (...) {}
+    if (files.empty()) {
+        Speak(Ts("No media in clipboard"));
+        return;
+    }
+    g_playlist.clear();
+    g_currentTrack = -1;
+    for (const auto& f : files) g_playlist.push_back(f);
+    PlayTrack(0);
+    if (files.size() == 1) {
+        Speak(Ts("Pasted 1 item"));
+    } else {
+        Speak(std::to_string(files.size()) + " " + Ts("items pasted"));
+    }
+}
+
+static void OpenSubtitleFile(HWND hwnd) {
+    if (g_activeEngine != PlaybackEngine::MPV) return;
+    wchar_t fname[MAX_PATH] = L"";
+    OPENFILENAMEW ofn = { sizeof(ofn) };
+    ofn.hwndOwner = hwnd;
+    ofn.lpstrFilter = L"Subtitle Files\0*.srt;*.ass;*.ssa;*.sub;*.vtt\0All Files\0*.*\0";
+    ofn.lpstrFile = fname;
+    ofn.nMaxFile = MAX_PATH;
+    ofn.Flags = OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST;
+    if (GetOpenFileNameW(&ofn)) MPVLoadExternalSubtitle(fname);
+}
+
+// Dispatch dynamic-range command IDs (audio devices, recent files, effect
+// presets). Returns true if the cmdId was handled.
+static bool DispatchDynamicRangeCommand(WORD cmdId) {
+    if (cmdId >= IDM_AUDIO_DEVICE_BASE && cmdId < IDM_AUDIO_DEVICE_BASE + 100) {
+        SelectAudioDevice(cmdId - IDM_AUDIO_DEVICE_BASE);
+        return true;
+    }
+    if (cmdId >= IDM_FILE_RECENT_BASE && cmdId < IDM_FILE_RECENT_BASE + MAX_RECENT_FILES) {
+        size_t idx = cmdId - IDM_FILE_RECENT_BASE;
+        if (idx < g_recentFiles.size()) {
+            g_playlist.clear();
+            g_playlist.push_back(g_recentFiles[idx]);
+            g_currentTrack = -1;
+            PlayTrack(0);
+        }
+        return true;
+    }
+    if (cmdId >= IDM_PRESET_BASE && cmdId < IDM_PRESET_BASE + 100) {
+        auto names = GetEffectPresetNames();
+        size_t idx = cmdId - IDM_PRESET_BASE;
+        if (idx < names.size() && LoadEffectPreset(names[idx])) {
+            std::wstring msg = std::wstring(T("Loaded preset ")) + names[idx];
+            SpeakW(msg);
+        }
+        return true;
+    }
+    if (cmdId >= IDM_PRESET_DELETE_BASE && cmdId < IDM_PRESET_DELETE_BASE + 100) {
+        auto names = GetEffectPresetNames();
+        size_t idx = cmdId - IDM_PRESET_DELETE_BASE;
+        if (idx < names.size()) {
+            std::wstring n = names[idx];
+            if (DeleteEffectPreset(n)) {
+                std::wstring msg = std::wstring(T("Deleted preset ")) + n;
+                SpeakW(msg);
+            }
+        }
+        return true;
+    }
+    if (cmdId == IDM_PRESET_SAVE_NEW) {
+        ShowSaveEffectPresetDialog();
+        return true;
+    }
+    return false;
+}
+
 // Parse command line arguments
 void ParseCommandLine() {
     int argc;
@@ -185,11 +390,11 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
                 return 0;
             }
             if (wParam == VK_F11 && g_isVideoPlaying) {
-                PostMessageW(hwnd, WM_COMMAND, 1200, 0);
+                PostMessageW(hwnd, WM_COMMAND, IDM_VIDEO_FULLSCREEN, 0);
                 return 0;
             }
             if (wParam == VK_ESCAPE && g_isFullscreen) {
-                PostMessageW(hwnd, WM_COMMAND, 1200, 0);
+                PostMessageW(hwnd, WM_COMMAND, IDM_VIDEO_FULLSCREEN, 0);
                 return 0;
             }
             // -----------------------------------------------------------
@@ -245,7 +450,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
 
         case WM_LBUTTONDBLCLK:
             if (g_isVideoPlaying) {
-                PostMessageW(hwnd, WM_COMMAND, 1200, 0);
+                PostMessageW(hwnd, WM_COMMAND, IDM_VIDEO_FULLSCREEN, 0);
                 return 0;
             }
             break;
@@ -253,21 +458,21 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
         case WM_MOUSEMOVE:
             if (g_isFullscreen) {
                 while (ShowCursor(TRUE) < 0) {}
-                SetTimer(hwnd, 410, 3000, nullptr);
+                SetTimer(hwnd, IDT_FULLSCREEN_CURSOR_HIDE, FULLSCREEN_CURSOR_HIDE_MS, nullptr);
             }
             break;
 
         case WM_RBUTTONUP:
             if (g_isVideoPlaying) {
                 HMENU hMenu = CreatePopupMenu();
-                AppendMenuW(hMenu, MF_STRING, 1200, T("Fullscreen\tF11"));
+                AppendMenuW(hMenu, MF_STRING, IDM_VIDEO_FULLSCREEN,  T("Fullscreen\tF11"));
                 AppendMenuW(hMenu, MF_SEPARATOR, 0, nullptr);
-                AppendMenuW(hMenu, MF_STRING, 1201, T("Cycle Subtitles"));
-                AppendMenuW(hMenu, MF_STRING, 1202, T("Load Subtitle File..."));
-                AppendMenuW(hMenu, MF_STRING, 1240, T("Cycle Audio Track"));
-                AppendMenuW(hMenu, MF_STRING, 1270, T("Cycle Aspect Ratio"));
+                AppendMenuW(hMenu, MF_STRING, IDM_VIDEO_SUB_CYCLE,   T("Cycle Subtitles"));
+                AppendMenuW(hMenu, MF_STRING, IDM_VIDEO_SUB_LOAD,    T("Load Subtitle File..."));
+                AppendMenuW(hMenu, MF_STRING, IDM_VIDEO_AUDIO_CYCLE, T("Cycle Audio Track"));
+                AppendMenuW(hMenu, MF_STRING, IDM_VIDEO_ASPECT,      T("Cycle Aspect Ratio"));
                 AppendMenuW(hMenu, MF_SEPARATOR, 0, nullptr);
-                AppendMenuW(hMenu, MF_STRING, 1280, T("Take Screenshot"));
+                AppendMenuW(hMenu, MF_STRING, IDM_VIDEO_SCREENSHOT,  T("Take Screenshot"));
                 POINT pt;
                 GetCursorPos(&pt);
                 TrackPopupMenu(hMenu, TPM_LEFTALIGN, pt.x, pt.y, 0, hwnd, nullptr);
@@ -307,8 +512,8 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
             } else if (wParam == IDT_SCHED_DURATION) {
                 KillTimer(hwnd, IDT_SCHED_DURATION);
                 HandleScheduledDurationEnd();
-            } else if (wParam == 410) { // Cursor auto-hide timer for fullscreen
-                KillTimer(hwnd, 410);
+            } else if (wParam == IDT_FULLSCREEN_CURSOR_HIDE) {
+                KillTimer(hwnd, IDT_FULLSCREEN_CURSOR_HIDE);
                 if (g_isFullscreen) {
                     POINT pt;
                     GetCursorPos(&pt);
@@ -527,29 +732,9 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
                 case IDM_FILE_HIDE_TRAY:
                     HideToTray(hwnd);
                     break;
-                case IDM_FILE_PASTE: { extern std::vector<std::wstring> GetFilesFromClipboard();
-                    // Ctrl+V on the main window: paste media files/URLs from the
-                    // clipboard. Replaces the current playlist (matching the
-                    // "Open file" semantics — paste behaves like a fresh open).
-                    std::vector<std::wstring> files;
-                    try {
-                        files = GetFilesFromClipboard();
-                    } catch (...) {}
-                    if (files.empty()) {
-                        Speak(Ts("No media in clipboard"));
-                    } else {
-                        g_playlist.clear();
-                        g_currentTrack = -1;
-                        for (const auto& f : files) g_playlist.push_back(f);
-                        PlayTrack(0);
-                        if (files.size() == 1) {
-                            Speak(Ts("Pasted 1 item"));
-                        } else {
-                            Speak(std::to_string(files.size()) + " " + Ts("items pasted"));
-                        }
-                    }
+                case IDM_FILE_PASTE:
+                    PasteMediaFromClipboard();
                     break;
-                }
                 case IDM_TOOLS_OPTIONS:
                     ShowOptionsDialog();
                     break;
@@ -559,51 +744,15 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
                 case IDM_HELP_TEST_YOUTUBE:
                     ShowTestYouTubePlayback();
                     break;
-                case IDM_HELP_CLEAR_YT_CACHE: {
-                    unsigned long long bytes = GetYouTubeCacheSize();
-                    double mb = bytes / (1024.0 * 1024.0);
-                    wchar_t prompt[256];
-                    swprintf(prompt, 256, L"%s\n\n%.1f MB", T("Clear all cached YouTube audio?"), mb);
-                    if (MessageBoxW(hwnd, prompt, T("Clear YouTube cache"),
-                                    MB_YESNO | MB_ICONQUESTION) == IDYES) {
-                        int n = ClearYouTubeCache();
-                        wchar_t done[128];
-                        swprintf(done, 128, T("Removed %d cached files."), n);
-                        MessageBoxW(hwnd, done, T("Clear YouTube cache"), MB_OK | MB_ICONINFORMATION);
-                    }
+                case IDM_HELP_CLEAR_YT_CACHE:
+                    HelpClearYouTubeCache(hwnd);
                     break;
-                }
                 case IDM_HELP_UPDATES:
                     ShowCheckForUpdatesDialog(hwnd, false);
                     break;
-                case IDM_HELP_SET_DEFAULT: {
-                    // Microsoft removed the programmatic "set as default"
-                    // APIs in Windows 8+ to prevent app hijacking. Every
-                    // media player (VLC, foobar2000, …) has the same
-                    // limitation. The best we can do is take the user
-                    // straight to the right Settings page and tell them
-                    // exactly which buttons to click.
-                    //
-                    // Show a clear instruction dialog first (also read
-                    // aloud by NVDA / JAWS / Narrator when focused), then
-                    // open Settings deep-linked to MediaAccess.
-                    MessageBoxW(hwnd,
-                        T("Windows does not allow any application to set itself as the default "
-                          "automatically — this is a security restriction Microsoft added in "
-                          "Windows 8.\n\n"
-                          "When you click OK, Windows will open the Default apps page on the "
-                          "MediaAccess entry. From there, click each file type (.mp3, .mp4, "
-                          ".mkv, .flac, .mid, etc.) and choose MediaAccess to make it the "
-                          "default. On Windows 11 you can also use the \"Set default\" button "
-                          "near the top of the MediaAccess page to assign all supported types "
-                          "at once."),
-                        T("Set as default media player"),
-                        MB_OK | MB_ICONINFORMATION);
-                    ShellExecuteW(hwnd, L"open",
-                                  L"ms-settings:defaultapps?registeredAppMachine=MediaAccess",
-                                  nullptr, nullptr, SW_SHOWNORMAL);
+                case IDM_HELP_SET_DEFAULT:
+                    HelpSetAsDefault(hwnd);
                     break;
-                }
                 case IDM_HELP_AUDIT_LAYOUT:
                     AuditOptionsLayout();
                     break;
@@ -687,12 +836,13 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
                 case IDM_SLEEP_TIMER_SPEAK:
                     mediaaccess::SleepSpeakRemaining();
                     break;
-                case 7300: mediaaccess::SleepStart(15);  break;
-                case 7301: mediaaccess::SleepStart(30);  break;
-                case 7302: mediaaccess::SleepStart(45);  break;
-                case 7303: mediaaccess::SleepStart(60);  break;
-                case 7304: mediaaccess::SleepStart(90);  break;
-                case 7305: mediaaccess::SleepStart(120); break;
+                // Sleep-timer quick presets (IDM_SLEEP_PRESET_BASE + 0..5).
+                case IDM_SLEEP_PRESET_BASE + 0: mediaaccess::SleepStart(kSleepPresetMinutes[0]); break;
+                case IDM_SLEEP_PRESET_BASE + 1: mediaaccess::SleepStart(kSleepPresetMinutes[1]); break;
+                case IDM_SLEEP_PRESET_BASE + 2: mediaaccess::SleepStart(kSleepPresetMinutes[2]); break;
+                case IDM_SLEEP_PRESET_BASE + 3: mediaaccess::SleepStart(kSleepPresetMinutes[3]); break;
+                case IDM_SLEEP_PRESET_BASE + 4: mediaaccess::SleepStart(kSleepPresetMinutes[4]); break;
+                case IDM_SLEEP_PRESET_BASE + 5: mediaaccess::SleepStart(kSleepPresetMinutes[5]); break;
                 // v1.63 — audio slot activations (IDM_AUDIO_SLOT_BASE + 0..9)
                 case IDM_AUDIO_SLOT_BASE + 0: ActivateAudioSlot(0); break;
                 case IDM_AUDIO_SLOT_BASE + 1: ActivateAudioSlot(1); break;
@@ -707,80 +857,18 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
                 case IDM_BOOK_SEARCH_NEXT:
                     if (mediaaccess::DaisyIsActive()) mediaaccess::FindNextInBook();
                     break;
-                case IDM_HELP_MANUAL: {
-                    // Open the bilingual HTML manual in the user's default browser.
-                    // We pick the file matching the current app language; user can
-                    // switch languages from the link inside the manual.
-                    wchar_t manualPath[MAX_PATH];
-                    GetModuleFileNameW(nullptr, manualPath, MAX_PATH);
-                    wchar_t* slash = wcsrchr(manualPath, L'\\');
-                    if (slash) {
-                        *(slash + 1) = L'\0';
-                        const char* lang = GetCurrentLanguage();
-                        const wchar_t* file = (lang && strcmp(lang, "fr") == 0)
-                            ? L"docs\\manual_fr.html"
-                            : L"docs\\manual_en.html";
-                        wcscat_s(manualPath, MAX_PATH, file);
-                        HINSTANCE r = ShellExecuteW(hwnd, L"open", manualPath, nullptr, nullptr, SW_SHOWNORMAL);
-                        if ((INT_PTR)r <= 32) {
-                            MessageBoxW(hwnd,
-                                T("Could not open the manual. Make sure the docs folder is present alongside MediaAccess.exe."),
-                                T("Manual"), MB_OK | MB_ICONWARNING);
-                        }
-                    }
+                case IDM_HELP_MANUAL:
+                    OpenHelpManual(hwnd);
                     break;
-                }
-                case IDM_HELP_README: {
-                    wchar_t readmePath[MAX_PATH];
-                    GetModuleFileNameW(nullptr, readmePath, MAX_PATH);
-                    wchar_t* slash = wcsrchr(readmePath, L'\\');
-                    if (slash) {
-                        *(slash + 1) = L'\0';
-                        wcscat_s(readmePath, MAX_PATH, L"docs\\readme.txt");
-                        HINSTANCE r = ShellExecuteW(hwnd, L"open", readmePath, nullptr, nullptr, SW_SHOWNORMAL);
-                        if ((INT_PTR)r <= 32) {
-                            MessageBoxW(hwnd, T("Could not open readme.txt. Make sure the docs folder is present alongside MediaAccess.exe."), T("Readme"), MB_OK | MB_ICONWARNING);
-                        }
-                    }
+                case IDM_HELP_README:
+                    OpenHelpReadme(hwnd);
                     break;
-                }
-                case IDM_HELP_CONTACT: {
-                    // mailto: link — Windows opens the default mail client
-                    // pre-filled with our address + a subject line that helps
-                    // us triage. Body left empty for the user to fill in.
-                    const wchar_t* url =
-                        L"mailto:reaperaccessible@gmail.com"
-                        L"?subject=MediaAccess%20request";
-                    HINSTANCE r = ShellExecuteW(hwnd, L"open", url,
-                                                nullptr, nullptr, SW_SHOWNORMAL);
-                    if ((INT_PTR)r <= 32) {
-                        MessageBoxW(hwnd,
-                            T("Could not open your email client. Please write to "
-                              "reaperaccessible@gmail.com manually."),
-                            T("Contact us"), MB_OK | MB_ICONINFORMATION);
-                    }
+                case IDM_HELP_CONTACT:
+                    OpenHelpContact(hwnd);
                     break;
-                }
-                case IDM_HELP_DONATE: {
-                    // PayPal donation page for reaperaccessible. Opens in the
-                    // user's default browser.
-                    const wchar_t* url =
-                        L"https://www.paypal.com/donate/"
-                        L"?business=6RZ8Y2Q39B9LN"
-                        L"&no_recurring=0"
-                        L"&item_name=Thanks+to+your+donation%2C+REAPERACCESSIBLE"
-                        L"+provides+training%2C+tutorials%2C+and+tools+to+make"
-                        L"+REAPER+accessible+to+blind+users."
-                        L"&currency_code=USD";
-                    HINSTANCE r = ShellExecuteW(hwnd, L"open", url,
-                                                nullptr, nullptr, SW_SHOWNORMAL);
-                    if ((INT_PTR)r <= 32) {
-                        MessageBoxW(hwnd,
-                            T("Could not open the donation page in your browser."),
-                            T("Make a donation"), MB_OK | MB_ICONWARNING);
-                    }
+                case IDM_HELP_DONATE:
+                    OpenHelpDonate(hwnd);
                     break;
-                }
                 case IDM_BOOKMARK_ADD:
                     if (g_currentTrack >= 0 && g_currentTrack < static_cast<int>(g_playlist.size())) {
                         double pos = GetCurrentPosition();
@@ -1065,80 +1153,31 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
                     ShowAudioDeviceMenu(hwnd);
                     break;
                 // ===== Video commands =====
-                case 1200: // IDM_VIDEO_FULLSCREEN
+                case IDM_VIDEO_FULLSCREEN:
                     if (g_isVideoPlaying) MPVToggleFullscreen(hwnd);
                     break;
-                case 1201: // IDM_VIDEO_SUB_CYCLE
+                case IDM_VIDEO_SUB_CYCLE:
                     if (g_activeEngine == PlaybackEngine::MPV) MPVCycleSubtitles();
                     break;
-                case 1202: { // IDM_VIDEO_SUB_LOAD
-                    if (g_activeEngine != PlaybackEngine::MPV) break;
-                    wchar_t fname[MAX_PATH] = L"";
-                    OPENFILENAMEW ofn = { sizeof(ofn) };
-                    ofn.hwndOwner = hwnd;
-                    ofn.lpstrFilter = L"Subtitle Files\0*.srt;*.ass;*.ssa;*.sub;*.vtt\0All Files\0*.*\0";
-                    ofn.lpstrFile = fname;
-                    ofn.nMaxFile = MAX_PATH;
-                    ofn.Flags = OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST;
-                    if (GetOpenFileNameW(&ofn)) MPVLoadExternalSubtitle(fname);
+                case IDM_VIDEO_SUB_LOAD:
+                    OpenSubtitleFile(hwnd);
                     break;
-                }
-                case 1203: // IDM_VIDEO_SUB_OFF
+                case IDM_VIDEO_SUB_OFF:
                     if (g_activeEngine == PlaybackEngine::MPV) MPVSetSubtitleTrack(0);
                     break;
-                case 1240: // IDM_VIDEO_AUDIO_CYCLE
+                case IDM_VIDEO_AUDIO_CYCLE:
                     if (g_activeEngine == PlaybackEngine::MPV) MPVCycleAudioTracks();
                     break;
-                case 1270: // IDM_VIDEO_ASPECT
+                case IDM_VIDEO_ASPECT:
                     if (g_activeEngine == PlaybackEngine::MPV) MPVCycleAspectRatio();
                     break;
-                case 1280: // IDM_VIDEO_SCREENSHOT
+                case IDM_VIDEO_SCREENSHOT:
                     if (g_activeEngine == PlaybackEngine::MPV) MPVTakeScreenshot();
                     break;
                 default:
-                    // Handle audio device selection (dynamic menu IDs)
-                    {
-                        WORD cmdId = LOWORD(wParam);
-                        if (cmdId >= IDM_AUDIO_DEVICE_BASE && cmdId < IDM_AUDIO_DEVICE_BASE + 100) {
-                            int deviceIndex = cmdId - IDM_AUDIO_DEVICE_BASE;
-                            SelectAudioDevice(deviceIndex);
-                        }
-                        // Handle recent file selection
-                        else if (cmdId >= IDM_FILE_RECENT_BASE && cmdId < IDM_FILE_RECENT_BASE + MAX_RECENT_FILES) {
-                            size_t idx = cmdId - IDM_FILE_RECENT_BASE;
-                            if (idx < g_recentFiles.size()) {
-                                g_playlist.clear();
-                                g_playlist.push_back(g_recentFiles[idx]);
-                                g_currentTrack = -1;
-                                PlayTrack(0);
-                            }
-                        }
-                        // Handle effect preset apply
-                        else if (cmdId >= IDM_PRESET_BASE && cmdId < IDM_PRESET_BASE + 100) {
-                            auto names = GetEffectPresetNames();
-                            size_t idx = cmdId - IDM_PRESET_BASE;
-                            if (idx < names.size() && LoadEffectPreset(names[idx])) {
-                                std::wstring msg = std::wstring(T("Loaded preset ")) + names[idx];
-                                SpeakW(msg);
-                            }
-                        }
-                        // Handle effect preset delete
-                        else if (cmdId >= IDM_PRESET_DELETE_BASE && cmdId < IDM_PRESET_DELETE_BASE + 100) {
-                            auto names = GetEffectPresetNames();
-                            size_t idx = cmdId - IDM_PRESET_DELETE_BASE;
-                            if (idx < names.size()) {
-                                std::wstring n = names[idx];
-                                if (DeleteEffectPreset(n)) {
-                                    std::wstring msg = std::wstring(T("Deleted preset ")) + n;
-                                    SpeakW(msg);
-                                }
-                            }
-                        }
-                        // Handle save new preset
-                        else if (cmdId == IDM_PRESET_SAVE_NEW) {
-                            ShowSaveEffectPresetDialog();
-                        }
-                    }
+                    // Dynamic-range command IDs (audio devices, recent files,
+                    // effect presets). Helper returns true if handled.
+                    DispatchDynamicRangeCommand(LOWORD(wParam));
                     break;
             }
             return 0;
@@ -1405,7 +1444,7 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLi
         APP_NAME,
         WS_OVERLAPPEDWINDOW,
         CW_USEDEFAULT, CW_USEDEFAULT,
-        500, 150,
+        DEFAULT_WINDOW_WIDTH, DEFAULT_WINDOW_HEIGHT,
         nullptr,
         nullptr,
         hInstance,

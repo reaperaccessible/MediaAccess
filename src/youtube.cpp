@@ -58,7 +58,6 @@ static std::wstring RunYtdlp(const std::wstring& args);
 static std::wstring UrlEncode(const std::wstring& str);
 static std::wstring HttpGet(const std::wstring& url);
 static std::wstring ParseJsonString(const std::wstring& json, const std::wstring& key);
-static std::vector<std::wstring> ParseJsonArray(const std::wstring& json, const std::wstring& arrayKey);
 
 // Check if yt-dlp is available
 static bool IsYtdlpAvailable() {

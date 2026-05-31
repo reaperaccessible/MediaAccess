@@ -152,8 +152,6 @@ static INT_PTR CALLBACK BookmarksDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPA
             // Populate listbox
             RefreshBookmarkList(hwnd);
 
-            LocalizeDialog(hwnd);
-
             SetFocus(hList);
             return FALSE;
         }

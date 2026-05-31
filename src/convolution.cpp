@@ -2,8 +2,6 @@
 #include "bass.h"
 #include <cmath>
 #include <algorithm>
-#include <cstdio>
-#include <cstring>
 
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
@@ -68,11 +66,11 @@ bool ConvolutionReverb::LoadIR(const wchar_t* path) {
         return false;
     }
 
-    int channels = info.chans;
-    int sampleRate = info.freq;
+    const int channels = info.chans;
+    const int sampleRate = info.freq;
 
     // Get total length in bytes and calculate samples
-    QWORD length = BASS_ChannelGetLength(stream, BASS_POS_BYTE);
+    const QWORD length = BASS_ChannelGetLength(stream, BASS_POS_BYTE);
     if (length == (QWORD)-1 || length == 0) {
         BASS_StreamFree(stream);
         return false;

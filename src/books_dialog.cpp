@@ -12,7 +12,6 @@
 #include "mediaaccess/database.h"
 #include "mediaaccess/translations.h"
 #include "mediaaccess/accessibility.h"
-#include "mediaaccess/logger.h"
 #include "resource.h"
 
 #include <windows.h>

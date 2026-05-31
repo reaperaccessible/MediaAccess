@@ -244,17 +244,9 @@ static INT_PTR CALLBACK FindShortcutDlgProc(HWND dlg, UINT msg, WPARAM wp, LPARA
     return FALSE;
 }
 
-// We need a version of UpdateAssignDisplay that targets IDC_FIND_SHORTCUT_DISPLAY.
-// Easiest: patch UpdateAssignDisplay to write to whatever editHwnd is set, by
-// SetWindowText on the captured edit handle directly.
-//
-// AssignEditProc currently calls UpdateAssignDisplay(GetParent(hwnd)) which
-// expects IDC_SHORTCUT_DISPLAY. To make the find dialog work without
-// duplicating the edit subclass, we tweak UpdateAssignDisplay to write
-// to the registered editHwnd directly.
-//
-// (This change applies retroactively to PromptForShortcut too — same
-// behavior, just routed through the handle instead of the dialog control ID.)
+// Note: UpdateAssignDisplay writes to s_assign->editHwnd directly (set in each
+// dialog's WM_INITDIALOG), so both the assign and the find dialogs share the
+// same key-capture subclass and display update path without duplication.
 
 // =============================================================================
 // Population helpers

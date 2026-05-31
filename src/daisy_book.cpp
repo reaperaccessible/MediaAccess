@@ -108,13 +108,6 @@ std::wstring TrimW(const std::wstring& s) {
     return s.substr(a, b - a);
 }
 
-std::string TrimA(const std::string& s) {
-    size_t a = 0, b = s.size();
-    while (a < b && (s[a] == ' ' || s[a] == '\t' || s[a] == '\r' || s[a] == '\n')) ++a;
-    while (b > a && (s[b - 1] == ' ' || s[b - 1] == '\t' || s[b - 1] == '\r' || s[b - 1] == '\n')) --b;
-    return s.substr(a, b - a);
-}
-
 bool EndsWith(const std::wstring& s, const std::wstring& suffix) {
     if (s.size() < suffix.size()) return false;
     return _wcsicmp(s.c_str() + s.size() - suffix.size(), suffix.c_str()) == 0;
@@ -1023,13 +1016,11 @@ bool ParseDaisy202(const std::wstring& folder, DaisyBook& book) {
         auto t = SelectSingleNode(doc.Get(), L"//*[local-name()='title']");
         if (t) book.title = NodeText(t.Get());
     }
-    // Metadata
+    // Metadata. ExtractMetaContent does its own case-insensitive name match,
+    // so a single call per field handles both "dc:creator" and "dc:Creator".
     ExtractMetaContent(doc.Get(), L"dc:creator",  book.author);
-    ExtractMetaContent(doc.Get(), L"dc:Creator",  book.author);
     ExtractMetaContent(doc.Get(), L"dc:language", book.language);
-    ExtractMetaContent(doc.Get(), L"dc:Language", book.language);
     ExtractMetaContent(doc.Get(), L"dc:title",    book.title);
-    ExtractMetaContent(doc.Get(), L"dc:Title",    book.title);
 
     // Walk body in document order: every <h1>...<h6> and every <p class="page-...">
     // contains an <a href="something.smil#frag"> we need to resolve.

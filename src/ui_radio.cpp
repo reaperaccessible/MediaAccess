@@ -1165,6 +1165,59 @@ static LRESULT CALLBACK RadioSearchEditSubclassProc(HWND hwnd, UINT msg, WPARAM 
     return CallWindowProcW(g_origRadioSearchEditProc, hwnd, msg, wParam, lParam);
 }
 
+// Resolve a search result to a single stream URL, prompting the user with a
+// menu when multiple TuneIn / iHeartRadio options are available. Returns the
+// chosen URL (empty on failure or cancel). `outHadOptions` reports whether
+// any resolved URLs were found at all — callers use this to distinguish
+// "user cancelled" (silent) from "resolve failed" (speak an error).
+// `menuOwner` is the HWND that should own the popup menu (the dialog).
+static std::wstring ResolveAndPickStreamUrl(HWND menuOwner,
+                                            const RadioSearchResult& r,
+                                            bool& outHadOptions) {
+    std::wstring streamUrl;
+    outHadOptions = false;
+
+    if (r.source == 1 || r.source == 2) {
+        // TuneIn / iHeartRadio may expose several streams — let the user pick
+        SetCursor(LoadCursor(nullptr, IDC_WAIT));
+        auto urls = ResolveRadioStreamUrls(r);
+        SetCursor(LoadCursor(nullptr, IDC_ARROW));
+        outHadOptions = !urls.empty();
+        if (urls.size() > 1) {
+            streamUrl = ShowStreamSelectionMenu(menuOwner, urls);
+        } else if (!urls.empty()) {
+            streamUrl = urls[0].url;
+        }
+    } else {
+        // RadioBrowser - already a single direct URL
+        SetCursor(LoadCursor(nullptr, IDC_WAIT));
+        streamUrl = ResolveRadioStreamUrl(r);
+        SetCursor(LoadCursor(nullptr, IDC_ARROW));
+        outHadOptions = !streamUrl.empty();
+    }
+
+    return streamUrl;
+}
+
+// Copy a wide string to the clipboard. Returns true on success. Speaks
+// nothing — caller decides on the announcement.
+static bool CopyToClipboard(HWND owner, const std::wstring& text) {
+    if (!OpenClipboard(owner)) return false;
+    EmptyClipboard();
+    bool ok = false;
+    HGLOBAL hMem = GlobalAlloc(GMEM_MOVEABLE, (text.size() + 1) * sizeof(wchar_t));
+    if (hMem) {
+        wchar_t* pMem = static_cast<wchar_t*>(GlobalLock(hMem));
+        if (pMem) {
+            wcscpy(pMem, text.c_str());
+            GlobalUnlock(hMem);
+            if (SetClipboardData(CF_UNICODETEXT, hMem)) ok = true;
+        }
+    }
+    CloseClipboard();
+    return ok;
+}
+
 // Search list subclass proc
 static LRESULT CALLBACK RadioSearchListSubclassProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
     if (msg == WM_KEYDOWN) {
@@ -1173,27 +1226,8 @@ static LRESULT CALLBACK RadioSearchListSubclassProc(HWND hwnd, UINT msg, WPARAM 
             int sel = static_cast<int>(SendMessageW(hwnd, LB_GETCURSEL, 0, 0));
             if (sel >= 0 && sel < static_cast<int>(g_radioSearchResults.size())) {
                 const auto& r = g_radioSearchResults[sel];
-                std::wstring streamUrl;
                 bool hadOptions = false;
-
-                // For TuneIn and iHeartRadio, check for multiple streams
-                if (r.source == 1 || r.source == 2) {
-                    SetCursor(LoadCursor(nullptr, IDC_WAIT));
-                    auto urls = ResolveRadioStreamUrls(r);
-                    SetCursor(LoadCursor(nullptr, IDC_ARROW));
-                    hadOptions = !urls.empty();
-                    if (urls.size() > 1) {
-                        streamUrl = ShowStreamSelectionMenu(GetParent(hwnd), urls);
-                    } else if (!urls.empty()) {
-                        streamUrl = urls[0].url;
-                    }
-                } else {
-                    // RadioBrowser - single URL
-                    SetCursor(LoadCursor(nullptr, IDC_WAIT));
-                    streamUrl = ResolveRadioStreamUrl(r);
-                    SetCursor(LoadCursor(nullptr, IDC_ARROW));
-                    hadOptions = !streamUrl.empty();
-                }
+                std::wstring streamUrl = ResolveAndPickStreamUrl(GetParent(hwnd), r, hadOptions);
 
                 if (!streamUrl.empty()) {
                     // v1.60 — preset the station name BEFORE PlayTrack so
@@ -1216,38 +1250,12 @@ static LRESULT CALLBACK RadioSearchListSubclassProc(HWND hwnd, UINT msg, WPARAM 
             int sel = static_cast<int>(SendMessageW(hwnd, LB_GETCURSEL, 0, 0));
             if (sel >= 0 && sel < static_cast<int>(g_radioSearchResults.size())) {
                 const auto& r = g_radioSearchResults[sel];
-                std::wstring streamUrl;
-
-                // Resolve the stream URL
-                if (r.source == 1 || r.source == 2) {
-                    // TuneIn or iHeartRadio - may have multiple streams
-                    SetCursor(LoadCursor(nullptr, IDC_WAIT));
-                    auto urls = ResolveRadioStreamUrls(r);
-                    SetCursor(LoadCursor(nullptr, IDC_ARROW));
-                    if (urls.size() > 1) {
-                        streamUrl = ShowStreamSelectionMenu(GetParent(hwnd), urls);
-                    } else if (!urls.empty()) {
-                        streamUrl = urls[0].url;
-                    }
-                } else {
-                    // RadioBrowser - single URL
-                    SetCursor(LoadCursor(nullptr, IDC_WAIT));
-                    streamUrl = ResolveRadioStreamUrl(r);
-                    SetCursor(LoadCursor(nullptr, IDC_ARROW));
-                }
+                bool hadOptions = false;
+                std::wstring streamUrl = ResolveAndPickStreamUrl(GetParent(hwnd), r, hadOptions);
 
                 if (!streamUrl.empty()) {
-                    if (OpenClipboard(hwnd)) {
-                        EmptyClipboard();
-                        HGLOBAL hMem = GlobalAlloc(GMEM_MOVEABLE, (streamUrl.size() + 1) * sizeof(wchar_t));
-                        if (hMem) {
-                            wchar_t* pMem = static_cast<wchar_t*>(GlobalLock(hMem));
-                            wcscpy(pMem, streamUrl.c_str());
-                            GlobalUnlock(hMem);
-                            SetClipboardData(CF_UNICODETEXT, hMem);
-                            Speak(Ts("URL copied"));
-                        }
-                        CloseClipboard();
+                    if (CopyToClipboard(hwnd, streamUrl)) {
+                        Speak(Ts("URL copied"));
                     }
                 } else {
                     Speak(Ts("Could not get stream URL"));
@@ -1319,24 +1327,13 @@ static LRESULT CALLBACK RadioListSubclassProc(HWND hwnd, UINT msg, WPARAM wParam
                 g_editStationUrl = g_radioStations[sel].url;
                 if (DialogBoxW(GetModuleHandle(nullptr), MAKEINTRESOURCEW(IDD_RADIO_ADD),
                                GetParent(hwnd), EditStationDlgProc) == IDOK) {
-                    // Trim whitespace from name
-                    while (!g_editStationName.empty() &&
-                           (g_editStationName.front() == L' ' || g_editStationName.front() == L'\t')) {
-                        g_editStationName.erase(0, 1);
-                    }
-                    while (!g_editStationName.empty() &&
-                           (g_editStationName.back() == L' ' || g_editStationName.back() == L'\t')) {
-                        g_editStationName.pop_back();
-                    }
-                    // Trim whitespace from URL
-                    while (!g_editStationUrl.empty() &&
-                           (g_editStationUrl.front() == L' ' || g_editStationUrl.front() == L'\t')) {
-                        g_editStationUrl.erase(0, 1);
-                    }
-                    while (!g_editStationUrl.empty() &&
-                           (g_editStationUrl.back() == L' ' || g_editStationUrl.back() == L'\t')) {
-                        g_editStationUrl.pop_back();
-                    }
+                    // Trim leading/trailing whitespace from both fields
+                    auto trim = [](std::wstring& s) {
+                        while (!s.empty() && (s.front() == L' ' || s.front() == L'\t')) s.erase(0, 1);
+                        while (!s.empty() && (s.back()  == L' ' || s.back()  == L'\t')) s.pop_back();
+                    };
+                    trim(g_editStationName);
+                    trim(g_editStationUrl);
                     if (!g_editStationName.empty() && !g_editStationUrl.empty()) {
                         if (UpdateRadioStation(g_radioStations[sel].id, g_editStationName, g_editStationUrl)) {
                             Speak(Ts("Station updated"));
@@ -1389,18 +1386,8 @@ static LRESULT CALLBACK RadioListSubclassProc(HWND hwnd, UINT msg, WPARAM wParam
             // Copy stream URL to clipboard
             int sel = static_cast<int>(SendMessageW(hwnd, LB_GETCURSEL, 0, 0));
             if (sel >= 0 && sel < static_cast<int>(g_radioStations.size())) {
-                const std::wstring& url = g_radioStations[sel].url;
-                if (OpenClipboard(hwnd)) {
-                    EmptyClipboard();
-                    HGLOBAL hMem = GlobalAlloc(GMEM_MOVEABLE, (url.size() + 1) * sizeof(wchar_t));
-                    if (hMem) {
-                        wchar_t* pMem = static_cast<wchar_t*>(GlobalLock(hMem));
-                        wcscpy(pMem, url.c_str());
-                        GlobalUnlock(hMem);
-                        SetClipboardData(CF_UNICODETEXT, hMem);
-                        Speak(Ts("URL copied"));
-                    }
-                    CloseClipboard();
+                if (CopyToClipboard(hwnd, g_radioStations[sel].url)) {
+                    Speak(Ts("URL copied"));
                 }
             }
             return 0;
@@ -1869,27 +1856,8 @@ static INT_PTR CALLBACK RadioDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM 
                     int sel = static_cast<int>(SendMessageW(hSearchList, LB_GETCURSEL, 0, 0));
                     if (sel >= 0 && sel < static_cast<int>(g_radioSearchResults.size())) {
                         const auto& r = g_radioSearchResults[sel];
-                        std::wstring streamUrl;
                         bool hadOptions = false;
-
-                        // For TuneIn and iHeartRadio, check for multiple streams
-                        if (r.source == 1 || r.source == 2) {
-                            SetCursor(LoadCursor(nullptr, IDC_WAIT));
-                            auto urls = ResolveRadioStreamUrls(r);
-                            SetCursor(LoadCursor(nullptr, IDC_ARROW));
-                            hadOptions = !urls.empty();
-                            if (urls.size() > 1) {
-                                streamUrl = ShowStreamSelectionMenu(hwnd, urls);
-                            } else if (!urls.empty()) {
-                                streamUrl = urls[0].url;
-                            }
-                        } else {
-                            // RadioBrowser - single URL
-                            SetCursor(LoadCursor(nullptr, IDC_WAIT));
-                            streamUrl = ResolveRadioStreamUrl(r);
-                            SetCursor(LoadCursor(nullptr, IDC_ARROW));
-                            hadOptions = !streamUrl.empty();
-                        }
+                        std::wstring streamUrl = ResolveAndPickStreamUrl(hwnd, r, hadOptions);
 
                         if (!streamUrl.empty()) {
                             if (AddRadioStation(r.name, streamUrl) >= 0) {
@@ -1915,27 +1883,8 @@ static INT_PTR CALLBACK RadioDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM 
                         int sel = static_cast<int>(SendMessageW(hSearchList, LB_GETCURSEL, 0, 0));
                         if (sel >= 0 && sel < static_cast<int>(g_radioSearchResults.size())) {
                             const auto& r = g_radioSearchResults[sel];
-                            std::wstring streamUrl;
                             bool hadOptions = false;
-
-                            // For TuneIn and iHeartRadio, check for multiple streams
-                            if (r.source == 1 || r.source == 2) {
-                                SetCursor(LoadCursor(nullptr, IDC_WAIT));
-                                auto urls = ResolveRadioStreamUrls(r);
-                                SetCursor(LoadCursor(nullptr, IDC_ARROW));
-                                hadOptions = !urls.empty();
-                                if (urls.size() > 1) {
-                                    streamUrl = ShowStreamSelectionMenu(hwnd, urls);
-                                } else if (!urls.empty()) {
-                                    streamUrl = urls[0].url;
-                                }
-                            } else {
-                                // RadioBrowser - single URL
-                                SetCursor(LoadCursor(nullptr, IDC_WAIT));
-                                streamUrl = ResolveRadioStreamUrl(r);
-                                SetCursor(LoadCursor(nullptr, IDC_ARROW));
-                                hadOptions = !streamUrl.empty();
-                            }
+                            std::wstring streamUrl = ResolveAndPickStreamUrl(hwnd, r, hadOptions);
 
                             if (!streamUrl.empty()) {
                                 // v1.60 — preset the station name from

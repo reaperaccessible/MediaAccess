@@ -418,10 +418,6 @@ void RegisterRcTranslations() {
     AddTranslation("en", "1 c&hapter (if available)", L"1 c&hapter (if available)");
     AddTranslation("fr", "1 c&hapter (if available)", L"1 c&hapitre (si disponible)");
 
-    // Global Hotkeys tab
-    AddTranslation("en", "&Enable global hotkeys", L"&Enable global hotkeys");
-    AddTranslation("fr", "&Enable global hotkeys", L"Activer les raccourcis &globaux");
-
     AddTranslation("en", "&Add...", L"&Add...");
     AddTranslation("fr", "&Add...", L"&Ajouter...");
 
@@ -539,9 +535,6 @@ void RegisterRcTranslations() {
                    L"Réinitialiser l'&ordre des stations/podcasts (alphabétique)");
 
     // YouTube tab
-    AddTranslation("en", "&yt-dlp path:", L"&yt-dlp path:");
-    AddTranslation("fr", "&yt-dlp path:", L"Chemin de &yt-dlp :");
-
     AddTranslation("en", "YouTube Data &API key (optional, enables search):",
                    L"YouTube Data &API key (optional, enables search):");
     AddTranslation("fr", "YouTube Data &API key (optional, enables search):",
@@ -643,9 +636,6 @@ void RegisterRcTranslations() {
     AddTranslation("fr", "MIDI playback settings (BASSMIDI):",
                    L"Paramètres de lecture MIDI (BASSMIDI) :");
 
-    AddTranslation("en", "&SoundFont (.sf2/.sf3):", L"&SoundFont (.sf2/.sf3):");
-    AddTranslation("fr", "&SoundFont (.sf2/.sf3):", L"&SoundFont (.sf2/.sf3) :");
-
     AddTranslation("en", "&SoundFont (.sf2/.sf3) — leave empty to use bundled FluidR3_GM:",
                    L"&SoundFont (.sf2/.sf3) — leave empty to use bundled FluidR3_GM:");
     AddTranslation("fr", "&SoundFont (.sf2/.sf3) — leave empty to use bundled FluidR3_GM:",
@@ -681,16 +671,10 @@ void RegisterRcTranslations() {
     AddTranslation("fr", "Close", L"Fermer");
 
     // ===================================================================
-    // DIALOG: IDD_HOTKEY - "Assign Global Hotkey"
+    // DIALOG: IDD_SCHED_ADD - "Add Scheduled Event"
     // ===================================================================
-    AddTranslation("en", "Assign Global Hotkey", L"Assign Global Hotkey");
-    AddTranslation("fr", "Assign Global Hotkey", L"Affecter un raccourci global");
-
     AddTranslation("en", "&Action:", L"&Action:");
     AddTranslation("fr", "&Action:", L"&Action :");
-
-    AddTranslation("en", "&Hotkey:", L"&Hotkey:");
-    AddTranslation("fr", "&Hotkey:", L"&Raccourci :");
 
     // ===================================================================
     // DIALOG: IDD_URL - "Open URL"
@@ -972,9 +956,6 @@ void RegisterRcTranslations() {
 
     AddTranslation("en", "Movement", L"Movement");
     AddTranslation("fr", "Movement", L"Déplacement");
-
-    AddTranslation("en", "Global Hotkeys", L"Global Hotkeys");
-    AddTranslation("fr", "Global Hotkeys", L"Raccourcis globaux");
 
     AddTranslation("en", "Effects", L"Effects");
     AddTranslation("fr", "Effects", L"Effets");

@@ -176,19 +176,15 @@ void LoadSettings() {
     GetPrivateProfileStringW(L"Advanced", L"EQTrebleFreq", L"12000", eqBuf, 32, g_configPath.c_str());
     g_eqTrebleFreq = static_cast<float>(_wtof(eqBuf));
 
-    // Load YouTube settings
-    wchar_t ytBuf[512] = {0};
-    GetPrivateProfileStringW(L"YouTube", L"YtdlpPath", L"", ytBuf, 512, g_configPath.c_str());
-    g_ytdlpPath = ytBuf;
-
-    // Auto-detect yt-dlp.exe. Always run this — we ignore any saved path
-    // because yt-dlp is now bundled & auto-updated. The UI no longer exposes
+    // Auto-detect yt-dlp.exe. We ignore any saved [YouTube] YtdlpPath
+    // because yt-dlp is now bundled & auto-updated; the UI no longer exposes
     // a path field, so respecting an old INI value would just trap users on
     // a stale install. Detection order:
     //   1. %LOCALAPPDATA%\MediaAccess\yt-dlp.exe (auto-updated copy)
     //   2. <app>\lib\yt-dlp.exe (bundled fallback)
     //   3. <app>\yt-dlp.exe
     //   4. system PATH
+    wchar_t ytBuf[512] = {0};
     g_ytdlpPath.clear();
     wchar_t exePath[MAX_PATH];
     GetModuleFileNameW(nullptr, exePath, MAX_PATH);
@@ -554,8 +550,8 @@ void SaveSettings() {
     swprintf(buf, 32, L"%.1f", g_eqTrebleFreq);
     WritePrivateProfileStringW(L"Advanced", L"EQTrebleFreq", buf, g_configPath.c_str());
 
-    // Save YouTube settings
-    WritePrivateProfileStringW(L"YouTube", L"YtdlpPath", g_ytdlpPath.c_str(), g_configPath.c_str());
+    // Save YouTube settings — YtdlpPath is no longer persisted (auto-detected
+    // each run from %LOCALAPPDATA% / bundled lib / PATH).
     WritePrivateProfileStringW(L"YouTube", L"ApiKey", g_ytApiKey.c_str(), g_configPath.c_str());
 
     // Save downloads settings

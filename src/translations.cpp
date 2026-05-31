@@ -73,35 +73,16 @@ extern void RegisterRcTranslations();
 extern void RegisterUiTranslations();
 
 void InitTranslations() {
-    // Core button / common UI translations shared across the whole app.
-    // Domain-specific translations should be added by other modules in
-    // their own Register*Translations() functions, then invoked from here.
-    AddTranslation("en", "BTN_OK",       L"OK");
-    AddTranslation("fr", "BTN_OK",       L"OK");
-    AddTranslation("en", "BTN_CANCEL",   L"Cancel");
-    AddTranslation("fr", "BTN_CANCEL",   L"Annuler");
-    AddTranslation("en", "BTN_CLOSE",    L"Close");
-    AddTranslation("fr", "BTN_CLOSE",    L"Fermer");
-    AddTranslation("en", "BTN_SAVE",     L"Save");
-    AddTranslation("fr", "BTN_SAVE",     L"Enregistrer");
-    AddTranslation("en", "BTN_DELETE",   L"Delete");
-    AddTranslation("fr", "BTN_DELETE",   L"Supprimer");
-    AddTranslation("en", "BTN_ADD",      L"Add");
-    AddTranslation("fr", "BTN_ADD",      L"Ajouter");
-    AddTranslation("en", "BTN_EDIT",     L"Edit");
-    AddTranslation("fr", "BTN_EDIT",     L"Modifier");
-    AddTranslation("en", "BTN_REMOVE",   L"Remove");
-    AddTranslation("fr", "BTN_REMOVE",   L"Retirer");
+    // Core button translations shared across the whole app. Only the keys
+    // actually referenced from source remain; the BTN_OK / BTN_CANCEL /
+    // BTN_SAVE / BTN_CLOSE / BTN_ADD / BTN_EDIT / BTN_REMOVE / BTN_DELETE /
+    // BTN_BROWSE / LANG_ENGLISH / LANG_FRENCH stubs were dropped during the
+    // v1.67 cleanup since literal "OK"/"Cancel"/etc. registered elsewhere
+    // already drive dialog auto-localization.
     AddTranslation("en", "BTN_YES",      L"Yes");
     AddTranslation("fr", "BTN_YES",      L"Oui");
     AddTranslation("en", "BTN_NO",       L"No");
     AddTranslation("fr", "BTN_NO",       L"Non");
-    AddTranslation("en", "BTN_BROWSE",   L"Browse...");
-    AddTranslation("fr", "BTN_BROWSE",   L"Parcourir...");
-    AddTranslation("en", "LANG_ENGLISH", L"English");
-    AddTranslation("fr", "LANG_ENGLISH", L"Anglais");
-    AddTranslation("en", "LANG_FRENCH",  L"French");
-    AddTranslation("fr", "LANG_FRENCH",  L"Français");
 
     RegisterPlayerTranslations();
     RegisterUiTranslations();

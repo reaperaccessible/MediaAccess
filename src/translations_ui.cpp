@@ -22,8 +22,6 @@ void RegisterUiTranslations() {
     AddTranslation("fr", "Speech",          L"Parole");
     AddTranslation("en", "Movement",        L"Movement");
     AddTranslation("fr", "Movement",        L"Déplacement");
-    AddTranslation("en", "Global Hotkeys",  L"Global Hotkeys");
-    AddTranslation("fr", "Global Hotkeys",  L"Raccourcis globaux");
     AddTranslation("en", "Effects",         L"Effects");
     AddTranslation("fr", "Effects",         L"Effets");
     AddTranslation("en", "Advanced",        L"Advanced");
@@ -156,9 +154,6 @@ void RegisterUiTranslations() {
     AddTranslation("en", "1 c&hapter (if available)",               L"1 c&hapter (if available)");
     AddTranslation("fr", "1 c&hapter (if available)",               L"1 c&hapitre (si disponible)");
 
-    // Global hotkeys tab
-    AddTranslation("en", "&Enable global hotkeys",                  L"&Enable global hotkeys");
-    AddTranslation("fr", "&Enable global hotkeys",                  L"&Activer les raccourcis globaux");
     AddTranslation("en", "&Add...",                                 L"&Add...");
     AddTranslation("fr", "&Add...",                                 L"&Ajouter...");
     AddTranslation("en", "&Edit...",                                L"&Edit...");
@@ -308,10 +303,6 @@ void RegisterUiTranslations() {
                          L"Select downloads folder");
     AddTranslation("fr", "Select downloads folder",
                          L"Sélectionner le dossier de téléchargement");
-    AddTranslation("en", "Select yt-dlp executable",
-                         L"Select yt-dlp executable");
-    AddTranslation("fr", "Select yt-dlp executable",
-                         L"Sélectionner l'exécutable yt-dlp");
     AddTranslation("en", "Select SoundFont file",
                          L"Select SoundFont file");
     AddTranslation("fr", "Select SoundFont file",
@@ -507,14 +498,8 @@ void RegisterUiTranslations() {
         "yt-dlp not found.\n\nMediaAccess looks for it in:\n  - %LOCALAPPDATA%\\MediaAccess\\yt-dlp.exe\n  - <install>\\lib\\yt-dlp.exe\n  - system PATH",
         L"yt-dlp introuvable.\n\nMediaAccess le cherche dans :\n  - %LOCALAPPDATA%\\MediaAccess\\yt-dlp.exe\n  - <installation>\\lib\\yt-dlp.exe\n  - le PATH système");
 
-    AddTranslation("en", "yt-dlp is working.\n\nPath: ", L"yt-dlp is working.\n\nPath: ");
-    AddTranslation("fr", "yt-dlp is working.\n\nPath: ", L"yt-dlp fonctionne.\n\nChemin : ");
-
     AddTranslation("en", "Version: ", L"Version: ");
     AddTranslation("fr", "Version: ", L"Version : ");
-
-    AddTranslation("en", "libmpv (for video / fallback): ", L"libmpv (vidéo / repli) : ");
-    AddTranslation("fr", "libmpv (for video / fallback): ", L"libmpv (vidéo / repli) : ");
 
     AddTranslation("en", "available", L"available");
     AddTranslation("fr", "available", L"disponible");
@@ -526,9 +511,4 @@ void RegisterUiTranslations() {
                          L"If a YouTube video still fails, check the log file at:\n");
     AddTranslation("fr", "If a YouTube video still fails, check the log file at:\n",
                          L"Si une vidéo YouTube échoue encore, consultez le fichier journal :\n");
-
-    AddTranslation("en", "yt-dlp is present but failed to run.\n\nPath: ",
-                         L"yt-dlp is present but failed to run.\n\nPath: ");
-    AddTranslation("fr", "yt-dlp is present but failed to run.\n\nPath: ",
-                         L"yt-dlp est présent mais ne s'est pas exécuté.\n\nChemin : ");
 }

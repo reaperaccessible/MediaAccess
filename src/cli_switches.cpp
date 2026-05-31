@@ -227,10 +227,13 @@ void ApplyCliCommand(HWND hwnd, const CliCommand& cmd, bool fromRemote) {
 
         case CliVerb::Volume: {
             if (!cmd.hasIntParam) break;
+            // 0..100 = normal range, 100..400 = amplify (only honoured when
+            // the user has Options > Playback > Allow amplify enabled).
+            constexpr int kMaxAmplifyPct = (int)(MAX_VOLUME_AMPLIFY * 100.0f);
             int pct = cmd.intParam;
-            if (pct < 0)   pct = 0;
-            if (pct > 400) pct = 400;
-            float maxVol = g_allowAmplify ? 4.0f : 1.0f;
+            if (pct < 0)               pct = 0;
+            if (pct > kMaxAmplifyPct)  pct = kMaxAmplifyPct;
+            float maxVol = g_allowAmplify ? MAX_VOLUME_AMPLIFY : MAX_VOLUME_NORMAL;
             float v = (float)pct / 100.0f;
             if (v > maxVol) v = maxVol;
             SetVolume(v);
@@ -260,12 +263,12 @@ void ApplyCliCommand(HWND hwnd, const CliCommand& cmd, bool fromRemote) {
             break;
 
         case CliVerb::Slot:
-            // v1.67 — /slot:N switches to audio output slot N (1..10).
+            // v1.67 — /slot:N switches to audio output slot N (1..kAudioSlotCount).
             // ActivateAudioSlot speaks success / "not configured" /
             // "device not found" itself.
             if (cmd.hasIntParam) {
                 int slot = cmd.intParam;
-                if (slot >= 1 && slot <= 10) {
+                if (slot >= 1 && slot <= kAudioSlotCount) {
                     ActivateAudioSlot(slot - 1);
                 }
             }

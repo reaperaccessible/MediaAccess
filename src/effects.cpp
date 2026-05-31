@@ -218,15 +218,29 @@ void ToggleDSPEffect(DSPEffectType type) {
     Speak(msg);
 }
 
+// Helpers to drop an effect/DSP handle from g_fxStream and zero the handle.
+// Tolerant of the stream having already gone away (only the BASS call is
+// gated, not the handle reset — keeps the slot in a known-clean state).
+static inline void RemoveFXHandle(HFX& handle) {
+    if (handle) {
+        if (g_fxStream) BASS_ChannelRemoveFX(g_fxStream, handle);
+        handle = 0;
+    }
+}
+static inline void RemoveDSPHandle(HDSP& handle) {
+    if (handle) {
+        if (g_fxStream) BASS_ChannelRemoveDSP(g_fxStream, handle);
+        handle = 0;
+    }
+}
+
 // Set reverb algorithm (0=Off, 1=Freeverb, 2=DX8, 3=I3DL2)
 void SetReverbAlgorithm(int algorithm) {
     if (algorithm < 0 || algorithm > 3) return;
 
-    // Remove existing reverb effect if any
-    if (g_hfxReverb && g_fxStream) {
-        BASS_ChannelRemoveFX(g_fxStream, g_hfxReverb);
-        g_hfxReverb = 0;
-    }
+    // Remove existing reverb effect if any (RemoveFXHandle no-ops if either
+    // the stream or the handle is already gone).
+    RemoveFXHandle(g_hfxReverb);
 
     g_reverbAlgorithm = algorithm;
 
@@ -250,35 +264,20 @@ void EnableDSPEffect(DSPEffectType type, bool enable) {
         } else if (!enable && wasEnabled) {
             // Remove just this effect
             switch (type) {
-                case DSPEffectType::Reverb:
-                    if (g_hfxReverb) { BASS_ChannelRemoveFX(g_fxStream, g_hfxReverb); g_hfxReverb = 0; }
-                    break;
-                case DSPEffectType::Echo:
-                    if (g_hfxEcho) { BASS_ChannelRemoveFX(g_fxStream, g_hfxEcho); g_hfxEcho = 0; }
-                    break;
+                case DSPEffectType::Reverb:       RemoveFXHandle(g_hfxReverb); break;
+                case DSPEffectType::Echo:         RemoveFXHandle(g_hfxEcho); break;
                 case DSPEffectType::EQ:
-                    if (g_hfxEQPreamp) { BASS_ChannelRemoveFX(g_fxStream, g_hfxEQPreamp); g_hfxEQPreamp = 0; }
-                    if (g_hfxEQBass) { BASS_ChannelRemoveFX(g_fxStream, g_hfxEQBass); g_hfxEQBass = 0; }
-                    if (g_hfxEQMid) { BASS_ChannelRemoveFX(g_fxStream, g_hfxEQMid); g_hfxEQMid = 0; }
-                    if (g_hfxEQTreble) { BASS_ChannelRemoveFX(g_fxStream, g_hfxEQTreble); g_hfxEQTreble = 0; }
+                    RemoveFXHandle(g_hfxEQPreamp);
+                    RemoveFXHandle(g_hfxEQBass);
+                    RemoveFXHandle(g_hfxEQMid);
+                    RemoveFXHandle(g_hfxEQTreble);
                     break;
-                case DSPEffectType::Compressor:
-                    if (g_hfxCompressor) { BASS_ChannelRemoveFX(g_fxStream, g_hfxCompressor); g_hfxCompressor = 0; }
-                    break;
-                case DSPEffectType::StereoWidth:
-                    if (g_hdspStereoWidth) { BASS_ChannelRemoveDSP(g_fxStream, g_hdspStereoWidth); g_hdspStereoWidth = 0; }
-                    break;
-                case DSPEffectType::CenterCancel:
-                    if (g_hdspCenterCancel) { BASS_ChannelRemoveDSP(g_fxStream, g_hdspCenterCancel); g_hdspCenterCancel = 0; }
-                    break;
-                case DSPEffectType::Convolution:
-                    if (g_hdspConvolution) { BASS_ChannelRemoveDSP(g_fxStream, g_hdspConvolution); g_hdspConvolution = 0; }
-                    break;
-                case DSPEffectType::SpatialAudio:
-                    if (g_hdspSpatialAudio) { BASS_ChannelRemoveDSP(g_fxStream, g_hdspSpatialAudio); g_hdspSpatialAudio = 0; }
-                    break;
-                default:
-                    break;
+                case DSPEffectType::Compressor:   RemoveFXHandle(g_hfxCompressor); break;
+                case DSPEffectType::StereoWidth:  RemoveDSPHandle(g_hdspStereoWidth); break;
+                case DSPEffectType::CenterCancel: RemoveDSPHandle(g_hdspCenterCancel); break;
+                case DSPEffectType::Convolution:  RemoveDSPHandle(g_hdspConvolution); break;
+                case DSPEffectType::SpatialAudio: RemoveDSPHandle(g_hdspSpatialAudio); break;
+                default: break;
             }
         }
     }
@@ -648,48 +647,24 @@ void ApplyDSPEffects() {
                 BASS_FXSetParameters(g_hfxEQPreamp, &vol);
             }
         }
-        // Bass (60 Hz)
-        if (!g_hfxEQBass) {
-            g_hfxEQBass = BASS_ChannelSetFX(g_fxStream, BASS_FX_BFX_PEAKEQ, 0);
-            if (g_hfxEQBass) {
-                BASS_BFX_PEAKEQ eq = {0};
-                eq.lBand = 0;
-                eq.fBandwidth = 2.5f;  // Octaves
-                eq.fQ = 0.0f;
-                eq.fCenter = g_eqBassFreq;  // Bass center frequency
-                eq.fGain = g_paramValues[(int)ParamId::EQBass];
-                eq.lChannel = BASS_BFX_CHANALL;
-                BASS_FXSetParameters(g_hfxEQBass, &eq);
-            }
-        }
-        // Mid (1000 Hz)
-        if (!g_hfxEQMid) {
-            g_hfxEQMid = BASS_ChannelSetFX(g_fxStream, BASS_FX_BFX_PEAKEQ, 0);
-            if (g_hfxEQMid) {
-                BASS_BFX_PEAKEQ eq = {0};
-                eq.lBand = 0;
-                eq.fBandwidth = 2.5f;  // Octaves
-                eq.fQ = 0.0f;
-                eq.fCenter = g_eqMidFreq;   // Mid center frequency
-                eq.fGain = g_paramValues[(int)ParamId::EQMid];
-                eq.lChannel = BASS_BFX_CHANALL;
-                BASS_FXSetParameters(g_hfxEQMid, &eq);
-            }
-        }
-        // Treble (8000 Hz)
-        if (!g_hfxEQTreble) {
-            g_hfxEQTreble = BASS_ChannelSetFX(g_fxStream, BASS_FX_BFX_PEAKEQ, 0);
-            if (g_hfxEQTreble) {
-                BASS_BFX_PEAKEQ eq = {0};
-                eq.lBand = 0;
-                eq.fBandwidth = 2.5f;  // Octaves
-                eq.fQ = 0.0f;
-                eq.fCenter = g_eqTrebleFreq; // Treble center frequency
-                eq.fGain = g_paramValues[(int)ParamId::EQTreble];
-                eq.lChannel = BASS_BFX_CHANALL;
-                BASS_FXSetParameters(g_hfxEQTreble, &eq);
-            }
-        }
+        // Bass / Mid / Treble: identical peaking-EQ band setup, just different
+        // center frequency + gain parameter.
+        auto applyEqBand = [](HFX& handle, float centerFreq, ParamId gainParam) {
+            if (handle) return;
+            handle = BASS_ChannelSetFX(g_fxStream, BASS_FX_BFX_PEAKEQ, 0);
+            if (!handle) return;
+            BASS_BFX_PEAKEQ eq = {0};
+            eq.lBand = 0;
+            eq.fBandwidth = 2.5f;  // Octaves
+            eq.fQ = 0.0f;
+            eq.fCenter = centerFreq;
+            eq.fGain = g_paramValues[(int)gainParam];
+            eq.lChannel = BASS_BFX_CHANALL;
+            BASS_FXSetParameters(handle, &eq);
+        };
+        applyEqBand(g_hfxEQBass,   g_eqBassFreq,   ParamId::EQBass);
+        applyEqBand(g_hfxEQMid,    g_eqMidFreq,    ParamId::EQMid);
+        applyEqBand(g_hfxEQTreble, g_eqTrebleFreq, ParamId::EQTreble);
     }
 
     // Compressor
@@ -771,18 +746,18 @@ void ApplyDSPEffects() {
 
 // Remove all DSP effects from stream
 void RemoveDSPEffects() {
-    if (g_hfxReverb) { if (g_fxStream) BASS_ChannelRemoveFX(g_fxStream, g_hfxReverb); g_hfxReverb = 0; }
-    if (g_hfxEcho) { if (g_fxStream) BASS_ChannelRemoveFX(g_fxStream, g_hfxEcho); g_hfxEcho = 0; }
-    if (g_hfxEQPreamp) { if (g_fxStream) BASS_ChannelRemoveFX(g_fxStream, g_hfxEQPreamp); g_hfxEQPreamp = 0; }
-    if (g_hfxEQBass) { if (g_fxStream) BASS_ChannelRemoveFX(g_fxStream, g_hfxEQBass); g_hfxEQBass = 0; }
-    if (g_hfxEQMid) { if (g_fxStream) BASS_ChannelRemoveFX(g_fxStream, g_hfxEQMid); g_hfxEQMid = 0; }
-    if (g_hfxEQTreble) { if (g_fxStream) BASS_ChannelRemoveFX(g_fxStream, g_hfxEQTreble); g_hfxEQTreble = 0; }
-    if (g_hfxCompressor) { if (g_fxStream) BASS_ChannelRemoveFX(g_fxStream, g_hfxCompressor); g_hfxCompressor = 0; }
-    if (g_hdspStereoWidth) { if (g_fxStream) BASS_ChannelRemoveDSP(g_fxStream, g_hdspStereoWidth); g_hdspStereoWidth = 0; }
-    if (g_hdspCenterCancel) { if (g_fxStream) BASS_ChannelRemoveDSP(g_fxStream, g_hdspCenterCancel); g_hdspCenterCancel = 0; }
-    if (g_hdspConvolution) { if (g_fxStream) BASS_ChannelRemoveDSP(g_fxStream, g_hdspConvolution); g_hdspConvolution = 0; }
-    if (g_hdspSpatialAudio) { if (g_fxStream) BASS_ChannelRemoveDSP(g_fxStream, g_hdspSpatialAudio); g_hdspSpatialAudio = 0; }
-    if (g_hdspVolume) { if (g_fxStream) BASS_ChannelRemoveDSP(g_fxStream, g_hdspVolume); g_hdspVolume = 0; }
+    RemoveFXHandle(g_hfxReverb);
+    RemoveFXHandle(g_hfxEcho);
+    RemoveFXHandle(g_hfxEQPreamp);
+    RemoveFXHandle(g_hfxEQBass);
+    RemoveFXHandle(g_hfxEQMid);
+    RemoveFXHandle(g_hfxEQTreble);
+    RemoveFXHandle(g_hfxCompressor);
+    RemoveDSPHandle(g_hdspStereoWidth);
+    RemoveDSPHandle(g_hdspCenterCancel);
+    RemoveDSPHandle(g_hdspConvolution);
+    RemoveDSPHandle(g_hdspSpatialAudio);
+    RemoveDSPHandle(g_hdspVolume);
 }
 
 // Get parameter definition

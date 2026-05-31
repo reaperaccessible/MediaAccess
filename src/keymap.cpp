@@ -199,26 +199,19 @@ bool SaveKeyMap(const std::wstring& path, const KeyMap& km, std::string* errorOu
     oss << "\r\n";
 
     // Group bindings by category so the file is human-browsable.
-    static const ActionCategory kCats[] = {
-        ActionCategory::Main, ActionCategory::Radio,
-        ActionCategory::YouTube, ActionCategory::Global,
-        ActionCategory::Books
+    struct CatRow { ActionCategory cat; const char* name; };
+    static const CatRow kCats[] = {
+        { ActionCategory::Main,    "Main"    },
+        { ActionCategory::Radio,   "Radio"   },
+        { ActionCategory::YouTube, "YouTube" },
+        { ActionCategory::Global,  "Global"  },
+        { ActionCategory::Books,   "Books"   },
     };
-    for (ActionCategory cat : kCats) {
-        std::vector<const Action*> acts = ActionsInCategory(cat);
+    for (const CatRow& row : kCats) {
+        std::vector<const Action*> acts = ActionsInCategory(row.cat);
         if (acts.empty()) continue;
 
-        // Section header
-        const char* catName = "Main";
-        switch (cat) {
-            case ActionCategory::Main:    catName = "Main";    break;
-            case ActionCategory::Radio:   catName = "Radio";   break;
-            case ActionCategory::YouTube: catName = "YouTube"; break;
-            case ActionCategory::Global:  catName = "Global";  break;
-            case ActionCategory::Books:   catName = "Books";   break;
-            default: break;
-        }
-        oss << "# ----- " << catName << " -----\r\n";
+        oss << "# ----- " << row.name << " -----\r\n";
 
         for (const Action* a : acts) {
             auto it = km.bindings.find(a->stringId);

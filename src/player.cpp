@@ -125,6 +125,21 @@ std::wstring GetLoadedPluginsInfo() {
     return info;
 }
 
+// BASS reports device names in the active code page (CP_ACP). Convert to
+// wstring and drop the embedded trailing NUL that MultiByteToWideChar leaves
+// in the buffer, so comparisons against std::wstring literals just work.
+static std::wstring BassDeviceNameToWide(const char* deviceName) {
+    if (!deviceName) return L"";
+    int len = MultiByteToWideChar(CP_ACP, 0, deviceName, -1, nullptr, 0);
+    if (len <= 0) return L"";
+    std::wstring wideName(len, 0);
+    MultiByteToWideChar(CP_ACP, 0, deviceName, -1, &wideName[0], len);
+    if (!wideName.empty() && wideName.back() == L'\0') {
+        wideName.pop_back();
+    }
+    return wideName;
+}
+
 // Find device index by name, returns -1 if not found (use default)
 int FindDeviceByName(const std::wstring& name) {
     if (name.empty()) return -1;  // Empty name means default device
@@ -132,15 +147,7 @@ int FindDeviceByName(const std::wstring& name) {
     BASS_DEVICEINFO info;
     for (int i = 1; BASS_GetDeviceInfo(i, &info); i++) {
         if (info.flags & BASS_DEVICE_ENABLED) {
-            // Convert device name to wide string for comparison
-            int len = MultiByteToWideChar(CP_ACP, 0, info.name, -1, nullptr, 0);
-            std::wstring wideName(len, 0);
-            MultiByteToWideChar(CP_ACP, 0, info.name, -1, &wideName[0], len);
-            // Remove null terminator from wstring for comparison
-            if (!wideName.empty() && wideName.back() == L'\0') {
-                wideName.pop_back();
-            }
-            if (wideName == name) {
+            if (BassDeviceNameToWide(info.name) == name) {
                 return i;
             }
         }
@@ -154,14 +161,7 @@ std::wstring GetDeviceName(int device) {
 
     BASS_DEVICEINFO info;
     if (BASS_GetDeviceInfo(device, &info)) {
-        int len = MultiByteToWideChar(CP_ACP, 0, info.name, -1, nullptr, 0);
-        std::wstring wideName(len, 0);
-        MultiByteToWideChar(CP_ACP, 0, info.name, -1, &wideName[0], len);
-        // Remove null terminator
-        if (!wideName.empty() && wideName.back() == L'\0') {
-            wideName.pop_back();
-        }
-        return wideName;
+        return BassDeviceNameToWide(info.name);
     }
     return L"";
 }
@@ -176,13 +176,7 @@ void ShowAudioDeviceMenu(HWND hwnd) {
 
     for (int i = 1; BASS_GetDeviceInfo(i, &info); i++) {
         if (info.flags & BASS_DEVICE_ENABLED) {
-            // Convert device name to wide string
-            int len = MultiByteToWideChar(CP_ACP, 0, info.name, -1, nullptr, 0);
-            std::wstring wideName(len, 0);
-            MultiByteToWideChar(CP_ACP, 0, info.name, -1, &wideName[0], len);
-            if (!wideName.empty() && wideName.back() == L'\0') {
-                wideName.pop_back();
-            }
+            std::wstring wideName = BassDeviceNameToWide(info.name);
 
             UINT flags = MF_STRING;
             // Check if this is the current device
@@ -873,9 +867,12 @@ void ParseChapters(HSTREAM stream) {
 }
 
 // Load and play a file (or URL)
-// Load a video file via MPV engine
-static bool LoadVideoFile(const wchar_t* path) {
-    g_isLoading = true;
+
+// Shared preamble for the MPV loaders: tear down any BASS playback,
+// ensure MPV is initialized, show the video window and size it sensibly.
+// Returns false (with g_isLoading already cleared) if MPV could not be
+// brought up — caller should propagate that immediately.
+static bool PrepareForMpvLoad() {
     // Free existing BASS streams
     if (g_activeEngine == PlaybackEngine::BASS && g_fxStream) {
         if (g_endSync) { BASS_ChannelRemoveSync(g_fxStream, g_endSync); g_endSync = 0; }
@@ -900,6 +897,13 @@ static bool LoadVideoFile(const wchar_t* path) {
     GetWindowRect(g_hwnd, &wr);
     if ((wr.right - wr.left) < 640 || (wr.bottom - wr.top) < 400)
         SetWindowPos(g_hwnd, nullptr, 0, 0, 854, 530, SWP_NOMOVE | SWP_NOZORDER);
+    return true;
+}
+
+// Load a video file via MPV engine
+static bool LoadVideoFile(const wchar_t* path) {
+    g_isLoading = true;
+    if (!PrepareForMpvLoad()) return false;
     if (!MPVLoadFile(path)) {
         Speak(Ts("Failed to load video"));
         g_isLoading = false;
@@ -919,29 +923,7 @@ static bool LoadVideoFile(const wchar_t* path) {
 // Load a video URL via MPV engine
 static bool LoadVideoURL(const wchar_t* url) {
     g_isLoading = true;
-    if (g_activeEngine == PlaybackEngine::BASS && g_fxStream) {
-        if (g_endSync) { BASS_ChannelRemoveSync(g_fxStream, g_endSync); g_endSync = 0; }
-        RemoveDSPEffects();
-        BASS_ChannelStop(g_fxStream);
-        BASS_StreamFree(g_fxStream);
-        g_fxStream = 0;
-    }
-    if (g_stream) { BASS_StreamFree(g_stream); g_stream = 0; }
-    g_sourceStream = 0;
-    FreeTempoProcessor();
-
-    if (!IsMPVInitialized()) {
-        if (!InitMPV(g_videoHwnd)) {
-            Speak(Ts("Failed to initialize video engine"));
-            g_isLoading = false;
-            return false;
-        }
-    }
-    if (g_videoHwnd) ShowWindow(g_videoHwnd, SW_SHOW);
-    RECT wr;
-    GetWindowRect(g_hwnd, &wr);
-    if ((wr.right - wr.left) < 640 || (wr.bottom - wr.top) < 400)
-        SetWindowPos(g_hwnd, nullptr, 0, 0, 854, 530, SWP_NOMOVE | SWP_NOZORDER);
+    if (!PrepareForMpvLoad()) return false;
     if (!MPVLoadURL(url)) {
         Speak(Ts("Failed to load video URL"));
         g_isLoading = false;
@@ -3100,7 +3082,18 @@ void ToggleRecording() {
     // Start appropriate encoder based on format
     // Note: BASS_ENCODE_FP_16BIT converts floating-point audio to 16-bit integer
     // which is required for WAV and FLAC encoders
-    DWORD wavFlags = BASS_ENCODE_AUTOFREE | BASS_ENCODE_FP_16BIT;
+    const DWORD wavFlags = BASS_ENCODE_AUTOFREE | BASS_ENCODE_FP_16BIT;
+
+    // If the chosen lossy/lossless encoder fails to start, fall back to plain
+    // WAV with a fresh timestamped filename. Centralized so MP3/OGG/FLAC all
+    // surface the same neutral message and end up in the same recovery state.
+    auto fallbackToWav = [&](const wchar_t* failedFormatMsg) {
+        MessageBoxW(GetMessageBoxOwner(), failedFormatMsg, APP_NAME, MB_ICONWARNING);
+        fullPath = outputPath;
+        if (!fullPath.empty() && fullPath.back() != L'\\') fullPath += L'\\';
+        fullPath += GenerateRecordingFilename();
+        g_encoder = BASS_Encode_StartPCMFile(g_fxStream, wavFlags, fullPath.c_str());
+    };
 
     switch (g_recordFormat) {
         case 0: {
@@ -3113,15 +3106,7 @@ void ToggleRecording() {
             wchar_t options[64];
             swprintf(options, 64, L"--preset cbr %d", g_recordBitrate);
             g_encoder = BASS_Encode_MP3_StartFile(g_fxStream, options, BASS_ENCODE_AUTOFREE, fullPath.c_str());
-            if (!g_encoder) {
-                // Fall back to WAV if MP3 encoding fails
-                MessageBoxW(GetMessageBoxOwner(), T("MP3 encoding failed.\nFalling back to WAV format."),
-                            APP_NAME, MB_ICONWARNING);
-                fullPath = outputPath;
-                if (!fullPath.empty() && fullPath.back() != L'\\') fullPath += L'\\';
-                fullPath += GenerateRecordingFilename();
-                g_encoder = BASS_Encode_StartPCMFile(g_fxStream, wavFlags, fullPath.c_str());
-            }
+            if (!g_encoder) fallbackToWav(T("MP3 encoding failed.\nFalling back to WAV format."));
             break;
         }
         case 2: {
@@ -3129,29 +3114,13 @@ void ToggleRecording() {
             wchar_t options[64];
             swprintf(options, 64, L"--bitrate %d", g_recordBitrate);
             g_encoder = BASS_Encode_OGG_StartFile(g_fxStream, options, BASS_ENCODE_AUTOFREE, fullPath.c_str());
-            if (!g_encoder) {
-                // Fall back to WAV if OGG encoding fails
-                MessageBoxW(GetMessageBoxOwner(), T("OGG encoding failed.\nFalling back to WAV format."),
-                            APP_NAME, MB_ICONWARNING);
-                fullPath = outputPath;
-                if (!fullPath.empty() && fullPath.back() != L'\\') fullPath += L'\\';
-                fullPath += GenerateRecordingFilename();
-                g_encoder = BASS_Encode_StartPCMFile(g_fxStream, wavFlags, fullPath.c_str());
-            }
+            if (!g_encoder) fallbackToWav(T("OGG encoding failed.\nFalling back to WAV format."));
             break;
         }
         case 3: {
             // FLAC - use bassenc_flac (also needs FP conversion)
             g_encoder = BASS_Encode_FLAC_StartFile(g_fxStream, nullptr, wavFlags, fullPath.c_str());
-            if (!g_encoder) {
-                // Fall back to WAV if FLAC encoding fails
-                MessageBoxW(GetMessageBoxOwner(), T("FLAC encoding failed.\nFalling back to WAV format."),
-                            APP_NAME, MB_ICONWARNING);
-                fullPath = outputPath;
-                if (!fullPath.empty() && fullPath.back() != L'\\') fullPath += L'\\';
-                fullPath += GenerateRecordingFilename();
-                g_encoder = BASS_Encode_StartPCMFile(g_fxStream, wavFlags, fullPath.c_str());
-            }
+            if (!g_encoder) fallbackToWav(T("FLAC encoding failed.\nFalling back to WAV format."));
             break;
         }
     }

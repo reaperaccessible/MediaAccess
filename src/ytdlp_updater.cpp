@@ -30,6 +30,15 @@
 
 namespace {
 
+// Delay before contacting GitHub so the app finishes loading first and the
+// network check doesn't compete with media startup.
+constexpr DWORD kStartupGraceMs   = 5000;
+// Max chained HTTP 30x hops we'll follow (github.com → objects.githubusercontent.com
+// is exactly one hop; 3 leaves headroom for future GitHub topology changes).
+constexpr int   kMaxHttpRedirects = 3;
+constexpr DWORD kHttpReadChunk    = 8192;     // tiny body fetches (JSON)
+constexpr DWORD kHttpDownloadChunk = 32768;   // larger binary download
+
 // ---- HTTP helpers ---------------------------------------------------------
 
 bool HttpsGetText(const wchar_t* host, const wchar_t* path, std::string& outBody) {
@@ -50,7 +59,7 @@ bool HttpsGetText(const wchar_t* host, const wchar_t* path, std::string& outBody
               && WinHttpReceiveResponse(hReq, nullptr);
     if (ok) {
         DWORD avail = 0;
-        char buf[8192];
+        char buf[kHttpReadChunk];
         while (WinHttpQueryDataAvailable(hReq, &avail) && avail) {
             DWORD read = 0;
             DWORD toRead = (avail < sizeof(buf)) ? avail : sizeof(buf);
@@ -66,7 +75,7 @@ bool HttpsGetText(const wchar_t* host, const wchar_t* path, std::string& outBody
 
 // Download |path| from |host| to |destFile|. Follows one HTTP 302 redirect
 // (the GitHub /releases/latest/download/... URL always 302s to objects.githubusercontent.com).
-bool HttpsDownloadFile(const wchar_t* host, const wchar_t* path, const std::wstring& destFile, int redirectsLeft = 3) {
+bool HttpsDownloadFile(const wchar_t* host, const wchar_t* path, const std::wstring& destFile, int redirectsLeft = kMaxHttpRedirects) {
     if (redirectsLeft < 0) return false;
 
     HINTERNET hSession = WinHttpOpen(L"MediaAccess/1.0",
@@ -120,7 +129,7 @@ bool HttpsDownloadFile(const wchar_t* host, const wchar_t* path, const std::wstr
                                        CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
             if (hFile != INVALID_HANDLE_VALUE) {
                 DWORD avail = 0;
-                char buf[32768];
+                char buf[kHttpDownloadChunk];
                 bool failed = false;
                 while (WinHttpQueryDataAvailable(hReq, &avail) && avail) {
                     DWORD read = 0;
@@ -178,7 +187,7 @@ void EnsureMediaAccessAppDataDir(std::wstring& outDir) {
 
 void UpdateThread() {
     // Give the app a chance to finish loading before we hit the network.
-    Sleep(5000);
+    Sleep(kStartupGraceMs);
 
     std::string releaseJson;
     if (!HttpsGetText(L"api.github.com",

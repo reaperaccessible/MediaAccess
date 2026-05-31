@@ -7,6 +7,17 @@
 
 #pragma comment(lib, "wininet.lib")
 
+// HTTP timeouts and buffer sizes for a single download. 60s is generous
+// for podcast-MP3 connect/recv; the 8 KB read buffer is a sweet spot for
+// streaming-to-disk over WinINet.
+static constexpr DWORD   kDlConnectTimeoutMs = 60000;
+static constexpr DWORD   kDlReceiveTimeoutMs = 60000;
+static constexpr DWORD   kDlSendTimeoutMs    = 60000;
+static constexpr size_t  kDlReadBufferBytes  = 8192;
+// Per-thread wait when cancelling everything; matches the user-perceived
+// "Cancel all" responsiveness budget.
+static constexpr DWORD   kCancelWaitMs       = 3000;
+
 // Thread parameters
 struct DownloadThreadParams {
     int id;
@@ -33,18 +44,20 @@ static DWORD WINAPI DownloadThread(LPVOID lpParam) {
 
     HINTERNET hInternet = InternetOpenW(L"MediaAccess/1.0", INTERNET_OPEN_TYPE_PRECONFIG, nullptr, nullptr, 0);
     if (hInternet) {
-        // Set timeouts to prevent hanging (60 seconds each)
-        DWORD timeout = 60000;
-        InternetSetOptionW(hInternet, INTERNET_OPTION_CONNECT_TIMEOUT, &timeout, sizeof(timeout));
-        InternetSetOptionW(hInternet, INTERNET_OPTION_RECEIVE_TIMEOUT, &timeout, sizeof(timeout));
-        InternetSetOptionW(hInternet, INTERNET_OPTION_SEND_TIMEOUT, &timeout, sizeof(timeout));
+        // Timeouts prevent indefinite hangs on stalled servers.
+        DWORD connectTimeout = kDlConnectTimeoutMs;
+        DWORD receiveTimeout = kDlReceiveTimeoutMs;
+        DWORD sendTimeout    = kDlSendTimeoutMs;
+        InternetSetOptionW(hInternet, INTERNET_OPTION_CONNECT_TIMEOUT, &connectTimeout, sizeof(connectTimeout));
+        InternetSetOptionW(hInternet, INTERNET_OPTION_RECEIVE_TIMEOUT, &receiveTimeout, sizeof(receiveTimeout));
+        InternetSetOptionW(hInternet, INTERNET_OPTION_SEND_TIMEOUT,    &sendTimeout,    sizeof(sendTimeout));
 
         DWORD flags = INTERNET_FLAG_RELOAD | INTERNET_FLAG_NO_CACHE_WRITE;
         HINTERNET hUrl = InternetOpenUrlW(hInternet, params->url.c_str(), nullptr, 0, flags, 0);
         if (hUrl) {
             FILE* file = _wfopen(params->destPath.c_str(), L"wb");
             if (file) {
-                char buffer[8192];
+                char buffer[kDlReadBufferBytes];
                 DWORD bytesRead;
                 bool cancelled = false;
                 while (InternetReadFile(hUrl, buffer, sizeof(buffer), &bytesRead) && bytesRead > 0) {
@@ -206,9 +219,10 @@ void DownloadManager::CancelAll() {
 
     LeaveCriticalSection(&m_cs);
 
-    // Wait for threads to finish (3-second timeout per thread)
+    // Wait for threads to finish (best-effort; bounded so the user is
+    // never blocked by a wedged WinINet call on app exit / cancel).
     for (HANDLE h : threads) {
-        WaitForSingleObject(h, 3000);
+        WaitForSingleObject(h, kCancelWaitMs);
         CloseHandle(h);
     }
 

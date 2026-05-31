@@ -72,9 +72,6 @@ void RegisterPlayerTranslations() {
     AddTranslation("en", "Error: ", L"Error: ");
     AddTranslation("fr", "Error: ", L"Erreur : ");
 
-    AddTranslation("en", "code ", L"code ");
-    AddTranslation("fr", "code ", L"code ");
-
     // File load error messages
     AddTranslation("en", "Could not open the file.", L"Could not open the file.");
     AddTranslation("fr", "Could not open the file.", L"Impossible d'ouvrir le fichier.");
@@ -96,9 +93,6 @@ void RegisterPlayerTranslations() {
 
     AddTranslation("en", "Cannot play video file:", L"Cannot play video file:");
     AddTranslation("fr", "Cannot play video file:", L"Impossible de lire le fichier vidéo :");
-
-    AddTranslation("en", "MediaAccess needs libmpv to play video files.", L"MediaAccess needs libmpv to play video files.");
-    AddTranslation("fr", "MediaAccess needs libmpv to play video files.", L"MediaAccess a besoin de libmpv pour lire les fichiers vidéo.");
 
     AddTranslation("en", "The video playback engine could not be loaded. Please reinstall MediaAccess.",
                    L"The video playback engine could not be loaded. Please reinstall MediaAccess.");
@@ -235,16 +229,10 @@ void RegisterPlayerTranslations() {
     AddTranslation("fr", "Stop", L"Arrêter");
     AddTranslation("en", "Play/Pause", L"Play/Pause");
     AddTranslation("fr", "Play/Pause", L"Lecture/Pause");
-    AddTranslation("en", "Beginning of track", L"Beginning of track");
-    AddTranslation("fr", "Beginning of track", L"Début de la piste");
     AddTranslation("en", "Seek backward", L"Seek backward");
     AddTranslation("fr", "Seek backward", L"Reculer");
     AddTranslation("en", "Seek forward", L"Seek forward");
     AddTranslation("fr", "Seek forward", L"Avancer");
-    AddTranslation("en", "Decrease seek unit", L"Decrease seek unit");
-    AddTranslation("fr", "Decrease seek unit", L"Unité de déplacement précédente");
-    AddTranslation("fr", "Increase seek unit", L"Unité de déplacement suivante");
-    AddTranslation("en", "Increase seek unit", L"Increase seek unit");
     AddTranslation("en", "Cycle repeat mode", L"Cycle repeat mode");
     AddTranslation("fr", "Cycle repeat mode", L"Changer le mode de répétition");
     AddTranslation("en", "Toggle shuffle", L"Toggle shuffle");
@@ -261,8 +249,6 @@ void RegisterPlayerTranslations() {
     AddTranslation("fr", "Add bookmark", L"Ajouter un signet");
     AddTranslation("en", "Bookmarks manager", L"Bookmarks manager");
     AddTranslation("fr", "Bookmarks manager", L"Gestionnaire de signets");
-    AddTranslation("en", "Jump to time", L"Jump to time");
-    AddTranslation("fr", "Jump to time", L"Aller à un instant");
     AddTranslation("en", "Effect presets menu", L"Effect presets menu");
     AddTranslation("fr", "Effect presets menu", L"Menu des préréglages d'effets");
     AddTranslation("en", "Audio device menu", L"Audio device menu");
@@ -275,18 +261,10 @@ void RegisterPlayerTranslations() {
     AddTranslation("fr", "Increase current parameter", L"Augmenter le paramètre courant");
     AddTranslation("en", "Decrease current parameter", L"Decrease current parameter");
     AddTranslation("fr", "Decrease current parameter", L"Diminuer le paramètre courant");
-    AddTranslation("en", "Reset effect to default", L"Reset effect to default");
-    AddTranslation("fr", "Reset effect to default", L"Réinitialiser l'effet à sa valeur par défaut");
-    AddTranslation("en", "Set effect to minimum", L"Set effect to minimum");
-    AddTranslation("fr", "Set effect to minimum", L"Régler l'effet au minimum");
-    AddTranslation("en", "Set effect to maximum", L"Set effect to maximum");
-    AddTranslation("fr", "Set effect to maximum", L"Régler l'effet au maximum");
 
     // File menu
     AddTranslation("en", "Open file", L"Open file");
     AddTranslation("fr", "Open file", L"Ouvrir un fichier");
-    AddTranslation("en", "Add folder", L"Add folder");
-    AddTranslation("fr", "Add folder", L"Ajouter un dossier");
     AddTranslation("en", "Playlist", L"Playlist");
     AddTranslation("fr", "Playlist", L"Liste de lecture");
     AddTranslation("en", "Open URL", L"Open URL");
@@ -295,16 +273,12 @@ void RegisterPlayerTranslations() {
     AddTranslation("fr", "Add stream to favorites", L"Ajouter le flux aux favoris");
     AddTranslation("en", "Podcasts", L"Podcasts");
     AddTranslation("fr", "Podcasts", L"Podcasts");
-    AddTranslation("en", "Schedule", L"Schedule");
-    AddTranslation("fr", "Schedule", L"Planificateur");
     AddTranslation("en", "Hide to tray", L"Hide to tray");
     AddTranslation("fr", "Hide to tray", L"Réduire dans la zone de notification");
     AddTranslation("en", "Song history", L"Song history");
     AddTranslation("fr", "Song history", L"Historique des morceaux");
     AddTranslation("en", "Options", L"Options");
     AddTranslation("fr", "Options", L"Options");
-    AddTranslation("en", "Paste from clipboard", L"Paste from clipboard");
-    AddTranslation("fr", "Paste from clipboard", L"Coller depuis le presse-papiers");
     AddTranslation("en", "Radio", L"Radio");
     AddTranslation("fr", "Radio", L"Radio");
     AddTranslation("en", "YouTube", L"YouTube");
@@ -352,16 +326,10 @@ void RegisterPlayerTranslations() {
     AddTranslation("fr", "Speak album tag", L"Énoncer l'album");
     AddTranslation("en", "Speak year tag", L"Speak year tag");
     AddTranslation("fr", "Speak year tag", L"Énoncer l'année");
-    AddTranslation("en", "Speak track number tag", L"Speak track number tag");
-    AddTranslation("fr", "Speak track number tag", L"Énoncer le numéro de piste");
     AddTranslation("en", "Speak genre tag", L"Speak genre tag");
     AddTranslation("fr", "Speak genre tag", L"Énoncer le genre");
     AddTranslation("en", "Speak comment tag", L"Speak comment tag");
     AddTranslation("fr", "Speak comment tag", L"Énoncer le commentaire");
-    AddTranslation("en", "Speak bitrate tag", L"Speak bitrate tag");
-    AddTranslation("fr", "Speak bitrate tag", L"Énoncer le débit");
-    AddTranslation("en", "Speak duration tag", L"Speak duration tag");
-    AddTranslation("fr", "Speak duration tag", L"Énoncer la durée");
     AddTranslation("en", "Speak filename", L"Speak filename");
     AddTranslation("fr", "Speak filename", L"Énoncer le nom de fichier");
 
@@ -392,16 +360,12 @@ void RegisterPlayerTranslations() {
     AddTranslation("fr", "Toggle fullscreen", L"Activer/désactiver le plein écran");
     AddTranslation("en", "Cycle subtitles", L"Cycle subtitles");
     AddTranslation("fr", "Cycle subtitles", L"Changer de sous-titres");
-    AddTranslation("en", "Cycle audio track", L"Cycle audio track");
-    AddTranslation("fr", "Cycle audio track", L"Changer de piste audio");
     AddTranslation("en", "Take screenshot", L"Take screenshot");
     AddTranslation("fr", "Take screenshot", L"Capture d'écran");
 
     // Help
     AddTranslation("en", "Open manual", L"Open manual");
     AddTranslation("fr", "Open manual", L"Ouvrir le manuel");
-    AddTranslation("en", "Toggle keyboard help", L"Toggle keyboard help");
-    AddTranslation("fr", "Toggle keyboard help", L"Activer/désactiver l'aide clavier");
 
     // Help menu — Manual (F1) opens the bilingual HTML manual
     AddTranslation("en", "&Manual\tF1", L"&Manual\tF1");
@@ -854,14 +818,8 @@ void RegisterPlayerTranslations() {
     AddTranslation("en", "Playlist loaded", L"Playlist loaded");
     AddTranslation("fr", "Playlist loaded", L"Liste de lecture chargée");
 
-    AddTranslation("en", "Loading video", L"Loading video");
-    AddTranslation("fr", "Loading video", L"Chargement de la vidéo");
-
     AddTranslation("en", "Playing video", L"Playing video");
     AddTranslation("fr", "Playing video", L"Lecture de la vidéo");
-
-    AddTranslation("en", "Failed to get stream URL", L"Failed to get stream URL");
-    AddTranslation("fr", "Failed to get stream URL", L"Impossible d'obtenir l'URL du flux");
 
     AddTranslation("en", "No results or search failed", L"No results or search failed");
     AddTranslation("fr", "No results or search failed", L"Aucun résultat ou échec de la recherche");
@@ -871,9 +829,6 @@ void RegisterPlayerTranslations() {
 
     AddTranslation("en", "%d more loaded", L"%d more loaded");
     AddTranslation("fr", "%d more loaded", L"%d résultats supplémentaires chargés");
-
-    AddTranslation("en", "Loading", L"Loading");
-    AddTranslation("fr", "Loading", L"Chargement");
 
     // Generic YouTube extractor messages (impl detail = yt-dlp, but user
     // never sees the tool name — autonomy rule).
@@ -911,9 +866,6 @@ void RegisterPlayerTranslations() {
 
     AddTranslation("en", "YouTube", L"YouTube");
     AddTranslation("fr", "YouTube", L"YouTube");
-
-    AddTranslation("en", "Playing via video engine", L"Playing via video engine");
-    AddTranslation("fr", "Playing via video engine", L"Lecture via le moteur vidéo");
 
     // YouTubePlayById (new in v1.0.7)
     AddTranslation("en", "Downloading audio", L"Downloading audio");
@@ -1215,11 +1167,6 @@ void RegisterPlayerTranslations() {
                    L"Set as &default media player...");
     AddTranslation("fr", "Set as &default media player...",
                    L"Définir comme lecteur par &défaut...");
-
-    AddTranslation("en", "Opening Windows default-apps settings",
-                   L"Opening Windows default-apps settings");
-    AddTranslation("fr", "Opening Windows default-apps settings",
-                   L"Ouverture des paramètres d'applications par défaut de Windows");
 
     AddTranslation("en", "Set as default media player",
                    L"Set as default media player");
