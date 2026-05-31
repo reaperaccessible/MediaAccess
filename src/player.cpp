@@ -41,6 +41,11 @@ static HSOUNDFONT g_hSoundFont = 0;
 static std::vector<std::wstring> g_loadedPlugins;
 static std::vector<std::wstring> g_failedPlugins;
 
+// Load every optional BASS format plugin shipped in <exe>\lib\.
+// Failures are recorded in g_failedPlugins but don't abort startup — the
+// app simply won't be able to play formats backed by the missing DLLs.
+// Surfaced to the user via Help → Loaded modules using friendly format
+// names (autonomy rule: never mention DLL filenames).
 void LoadBassPlugins() {
     wchar_t exePath[MAX_PATH];
     GetModuleFileNameW(nullptr, exePath, MAX_PATH);
@@ -308,7 +313,18 @@ void ApplyMidiSettings() {
     }
 }
 
-// Initialize BASS library
+// Initialize BASS for the user's preferred audio device (or default).
+// Returns false (with a message box) only if BOTH the preferred device and
+// the system default fail to init — at that point we have no audio output.
+//
+// Order is important:
+//   1. BASS_SetConfig() for buffer/update/curve MUST happen before BASS_Init
+//      — these only take effect at init time.
+//   2. BASS_Init.
+//   3. LoadBassPlugins — needs an init'd BASS to register the plugin.
+//   4. ApplyMidiSettings — sets the default soundfont for any future MIDI
+//      streams; cheap to call even if no MIDI is ever loaded.
+//   5. Network configs for URL streaming.
 bool InitBass(HWND hwnd) {
     // Apply buffer settings before init
     BASS_SetConfig(BASS_CONFIG_BUFFER, g_bufferSize);
@@ -322,7 +338,9 @@ bool InitBass(HWND hwnd) {
     g_selectedDevice = device;
 
     if (!BASS_Init(device, 44100, 0, hwnd, nullptr)) {
-        // Try default device as fallback
+        // Fall back to default device if the saved one is gone (USB DAC
+        // unplugged, Bluetooth speaker out of range, etc.). Clear the saved
+        // selection so we don't repeat the failure on next startup.
         if (device != -1) {
             if (BASS_Init(-1, 44100, 0, hwnd, nullptr)) {
                 g_selectedDevice = -1;
@@ -352,10 +370,14 @@ bool InitBass(HWND hwnd) {
     return true;
 }
 
-// Free BASS resources.
+// Free all BASS resources at shutdown.
 // Always BASS_ChannelStop() before BASS_StreamFree() — without the explicit
 // stop, freeing a still-playing stream is racy: BASS may continue producing
 // samples from its internal buffer briefly. Belt-and-suspenders.
+//
+// g_sourceStream is intentionally NOT freed here — for the SoundTouch path
+// it's owned by g_fxStream via BASS_FX_FREESOURCE, and for Speedy/Signalsmith
+// it's owned by the tempo processor; double-freeing either way crashes.
 void FreeBass() {
     if (g_fxStream) {
         BASS_ChannelStop(g_fxStream);
@@ -367,7 +389,7 @@ void FreeBass() {
         BASS_StreamFree(g_stream);
         g_stream = 0;
     }
-    g_sourceStream = 0;  // Don't free - owned by tempo processor
+    g_sourceStream = 0;
     g_currentBitrate = 0;
     BASS_Free();
 }
@@ -384,7 +406,18 @@ bool IsURL(const wchar_t* path) {
 static bool LoadVideoFile(const wchar_t* path);
 static bool LoadVideoURL(const wchar_t* url);
 
-// Load and play a URL stream
+// Load and play an http(s) URL stream — internet radio, podcasts,
+// arbitrary HTTP audio, or a YouTube URL (which is forwarded to MPV).
+//
+// silentOnFail = true is used by the YouTube hybrid path: it tries BASS
+// first to grab fast-starting audio while libmpv extracts the higher-
+// quality video, and we don't want a BASS failure box if the YouTube
+// extraction is going to succeed anyway.
+//
+// Cleans up any prior stream and any in-flight MPV playback before opening
+// the new one. Format detection tries AAC first, then generic, with and
+// without BASS_STREAM_BLOCK — BLOCK mode is only useful for live streams
+// where seeking isn't expected.
 bool LoadURL(const wchar_t* url, bool silentOnFail) {
     // Validate URL scheme — only allow http:// and https://
     if (!url ||
@@ -674,14 +707,20 @@ static void ParseVorbisCommentChapters(HSTREAM stream) {
     }
 }
 
-// Parse ID3v2 CHAP frames (used by MP3)
-// CHAP frame structure:
+// Parse ID3v2 CHAP frames (used by MP3) into g_chapters.
+//
+// CHAP frame layout (per ID3v2 chapter spec):
 //   Element ID (null-terminated string)
-//   Start time (4 bytes, big-endian, milliseconds)
-//   End time (4 bytes)
-//   Start offset (4 bytes)
-//   End offset (4 bytes)
-//   Optional sub-frames (e.g., TIT2 for title)
+//   Start time     (4 bytes, big-endian, milliseconds)
+//   End time       (4 bytes)
+//   Start offset   (4 bytes)
+//   End offset     (4 bytes)
+//   Optional sub-frames (typically TIT2 for the chapter title)
+//
+// Tag size is decoded from the ID3v2 syncsafe integer header. Version 2.3
+// uses regular big-endian frame sizes, 2.4 uses syncsafe frame sizes —
+// we branch on `version` for both. Extended header (flag 0x40) is skipped.
+// Sub-frames are walked looking for TIT2; everything else is ignored.
 static void ParseID3v2Chapters(HSTREAM stream) {
     const unsigned char* id3v2 = (const unsigned char*)BASS_ChannelGetTags(stream, BASS_TAG_ID3V2);
     if (!id3v2) return;
@@ -834,10 +873,11 @@ static void ParseID3v2Chapters(HSTREAM stream) {
               [](const Chapter& a, const Chapter& b) { return a.position < b.position; });
 }
 
-// Parse chapters from the current stream
-// External chapters: populated by callers (e.g. Podcast 2.0 RSS chapter JSON)
-// BEFORE ParseChapters runs. ParseChapters then no-ops to preserve them.
-// Cleared automatically when a new file is loaded (LoadFile/LoadURL flow).
+// External chapters: a caller (Podcast 2.0 RSS chapter JSON, etc.) pre-loads
+// chapters via SetExternalChapters() BEFORE the file/URL load runs. We then
+// no-op the first ParseChapters() call so the in-file chapters don't
+// clobber the externally provided ones. The flag is one-shot — the NEXT
+// load goes through normal parsing.
 static bool g_chaptersExternal = false;
 
 void SetExternalChapters(const std::vector<Chapter>& chapters) {
@@ -845,9 +885,11 @@ void SetExternalChapters(const std::vector<Chapter>& chapters) {
     g_chaptersExternal = !chapters.empty();
 }
 
+// Fill g_chapters from whatever embedded-chapter format the stream uses.
+// VorbisComment is checked first (covers Ogg/FLAC/Opus); if nothing turns
+// up, fall back to ID3v2 CHAP (MP3). Other formats simply produce an empty
+// chapter list, which makes the chapter navigation hotkeys no-op.
 void ParseChapters(HSTREAM stream) {
-    // If the caller pre-loaded chapters (Podcast 2.0 RSS, etc.), preserve
-    // them. Consume the flag so the NEXT LoadFile/LoadURL parses normally.
     if (g_chaptersExternal) {
         g_chaptersExternal = false;
         return;
@@ -857,10 +899,8 @@ void ParseChapters(HSTREAM stream) {
 
     if (!stream) return;
 
-    // Try VorbisComment format (Ogg/FLAC/Opus)
     ParseVorbisCommentChapters(stream);
 
-    // If no chapters found, try ID3v2 format (MP3)
     if (g_chapters.empty()) {
         ParseID3v2Chapters(stream);
     }
@@ -975,11 +1015,19 @@ static bool IsVideoExtension(const wchar_t* path) {
     return false;
 }
 
+// Load a local file (audio, video, or — if the path is a URL — punt to
+// LoadURL/LoadVideoURL). Decides between BASS and MPV by extension, then
+// runs the appropriate loader. Stops any DAISY book and any rival engine
+// before starting so two media never play at once.
+//
+// Returns false on decode failure. The error box is suppressed when the
+// playlist has more than one entry — so a single corrupt track in a long
+// playlist doesn't spam the user; PlayTrack just advances past it.
 bool LoadFile(const wchar_t* path) {
     // Loading any other media unloads the current DAISY book first so the
     // user doesn't end up with overlapping audio streams.
     mediaaccess::DaisyClose();
-    // Check if this is a URL
+
     if (IsURL(path)) {
         return LoadURL(path);
     }
@@ -1036,7 +1084,10 @@ bool LoadFile(const wchar_t* path) {
         g_stream = 0;
     }
 
-    // Create source stream (use MIDI-specific function for MIDI files if sinc interp enabled)
+    // Decode stream: BASS_MIDI_StreamCreateFile is only used when the user
+    // wants sinc interpolation (Options → MIDI), which the generic
+    // BASS_StreamCreateFile path can't request. Otherwise generic handles
+    // every format including MIDI (lower CPU, lower quality).
     if (IsMidiFile(path) && g_midiSincInterp) {
         DWORD flags = BASS_UNICODE | BASS_STREAM_DECODE | BASS_SAMPLE_FLOAT | BASS_MIDI_SINCINTER;
         g_stream = BASS_MIDI_StreamCreateFile(FALSE, path, 0, 0, flags, 0);
@@ -1102,10 +1153,14 @@ bool LoadFile(const wchar_t* path) {
     processor->SetTempo(g_tempo);
     processor->SetPitch(g_pitch);
 
-    // Initialize processor - this creates the output stream
+    // Initialize processor — this creates g_fxStream, which is what the rest
+    // of the app (DSP, recording, position queries) operates on. For
+    // SoundTouch this wraps g_stream via BASS_FX_FREESOURCE; for
+    // Speedy/Signalsmith it's a fresh BASS_StreamCreate fed from g_stream.
     g_fxStream = processor->Initialize(g_stream, g_originalFreq);
     if (!g_fxStream) {
-        // Fall back to SoundTouch if selected algorithm fails
+        // Algorithm init failure (rare — usually a build without USE_SPEEDY
+        // or USE_SIGNALSMITH). Fall back to SoundTouch which always compiles.
         if (algo != TempoAlgorithm::SoundTouch) {
             FreeTempoProcessor();
             SetCurrentAlgorithm(TempoAlgorithm::SoundTouch);
@@ -1126,17 +1181,21 @@ bool LoadFile(const wchar_t* path) {
         }
     }
 
-    // For SoundTouch, g_stream is now owned by g_fxStream (BASS_FX_FREESOURCE)
+    // For SoundTouch, g_stream is now owned by g_fxStream via BASS_FX_FREESOURCE;
+    // null our copy so FreeBass/LoadFile cleanup doesn't double-free it.
+    // Speedy/Signalsmith keep g_stream alive separately (they pull from it
+    // in their own StreamProc), so we leave it set in those cases.
     if (processor->GetAlgorithm() == TempoAlgorithm::SoundTouch) {
-        g_stream = 0;  // Prevent double-free
+        g_stream = 0;
     }
 
-    // Apply rate using native BASS frequency attribute
+    // Rate is handled separately from tempo (which lives in the processor):
+    // it just scales the playback frequency, affecting both speed and pitch.
+    // Cheap and lossless, runs on the BASS sample-rate converter.
     if (g_rate != 1.0f) {
         BASS_ChannelSetAttribute(g_fxStream, BASS_ATTRIB_FREQ, g_originalFreq * g_rate);
     }
 
-    // Apply DSP effects (including volume DSP which handles g_volume/g_muted)
     ApplyDSPEffects();
 
     // Set up end sync for auto-advance on output stream
@@ -1172,21 +1231,24 @@ bool LoadFile(const wchar_t* path) {
     return true;
 }
 
-// Sync callback when track ends
+// BASS_SYNC_END callback. Runs on a BASS worker thread — we cannot touch
+// g_fxStream directly here (BASS forbids freeing streams from inside their
+// own sync callback), so we just PostMessage the main thread to advance.
+// lParam=1 signals "load the next track but don't auto-play", used when
+// auto-advance is disabled to leave the user in a paused state.
 void CALLBACK OnTrackEnd(HSYNC handle, DWORD channel, DWORD data, void* user) {
-    // Post message to main thread to advance track
-    // Use a custom message if auto-advance is disabled to load but not play
     if (g_autoAdvance || g_repeatMode != 0) {
         PostMessage(g_hwnd, WM_COMMAND, IDM_PLAY_NEXT, 0);
     } else {
-        // Load next track but don't auto-play - use lParam=1 to indicate no auto-play
         PostMessage(g_hwnd, WM_COMMAND, IDM_PLAY_NEXT, 1);
     }
 }
 
-// Sync callback when stream metadata changes (for internet radio)
+// BASS_SYNC_META callback. Fires when internet radio stations send a new
+// ICY StreamTitle (typically a new song). Runs on a BASS thread so we
+// route through the message loop to do the actual announce/UI update.
+
 void CALLBACK OnMetaChange(HSYNC handle, DWORD channel, DWORD data, void* user) {
-    // Post message to main thread to announce new track
     PostMessage(g_hwnd, WM_META_CHANGED, 0, 0);
 }
 
@@ -1225,7 +1287,11 @@ void AnnounceStreamMetadata() {
     }
 }
 
-// Play or pause current track
+// Toggle play/pause. Routes to MPV when video is active. With no stream
+// loaded, falls back to Play() which tries to restart the current track or
+// the first playlist item. Live streams use Stop() instead of Pause() —
+// pausing a live stream would keep the network connection burning data
+// in the background.
 void PlayPause() {
     if (g_activeEngine == PlaybackEngine::MPV) { MPVPlayPause(); UpdateStatusBar(); return; }
     if (!g_fxStream) {
@@ -1289,7 +1355,10 @@ void FreeCurrentStream() {
     FreeTempoProcessor();
 }
 
-// Play (restart if playing, resume if paused/stopped)
+// Play. If already playing, restarts from position 0. If nothing is loaded
+// but there's a current track in the playlist, reloads it first (recovers
+// from the case where a live stream was Stop()'d and freed). If even that
+// fails, starts the first playlist item.
 void Play() {
     if (g_activeEngine == PlaybackEngine::MPV) { MPVPlay(); UpdateStatusBar(); return; }
     if (!g_fxStream) {
@@ -1329,7 +1398,10 @@ void Play() {
     UpdateStatusBar();
 }
 
-// Pause playback
+// Pause. No-op on live streams (we Speak() an explanation rather than
+// silently failing). Optionally rewinds a configurable number of ms on
+// pause — handy for users who pause to take notes, so resume starts a bit
+// before where they stopped paying attention.
 void Pause() {
     if (g_activeEngine == PlaybackEngine::MPV) { MPVPause(); UpdateStatusBar(); return; }
     if (g_fxStream) {
@@ -1349,7 +1421,11 @@ void Pause() {
     }
 }
 
-// Stop playback
+// Stop. For local/seekable content, BASS_ChannelStop + rewind to 0 so the
+// next Play() starts from the beginning. For LIVE STREAMS we must free the
+// stream entirely — otherwise BASS keeps the network buffer warm and a
+// subsequent Stop/Play acts like Pause/Resume, replaying buffered content
+// instead of reconnecting to the live feed.
 void Stop() {
     if (g_activeEngine == PlaybackEngine::MPV) {
         MPVStop();
@@ -1378,7 +1454,12 @@ void Stop() {
     UpdateStatusBar();
 }
 
-// Seek relative to current position
+// Seek `seconds` (signed) relative to current position. Clamped to [0, len].
+// On the MPV path we have to read pos/length BEFORE issuing the seek (MPV
+// seeks are async — querying after MPVSeek may return the pre-seek position
+// for a few hundred ms) so the position announcement reports the target,
+// not the stale current.
+// Position announcement is gated by g_speechSeekPosition (Options).
 void Seek(double seconds) {
     if (g_activeEngine == PlaybackEngine::MPV) {
         // v1.64 — capture the target position so we can announce it
@@ -1676,7 +1757,17 @@ void SpeakTotal() {
     Speak(WideToUtf8(lenStr));
 }
 
-// Play a specific track by index
+// Play the playlist track at `index`. On load failure, walks forward up to
+// 10 entries skipping broken files so a single corrupt track doesn't trap
+// the user. After load, refreshes the Now Playing infrastructure (window
+// title + speech announcement) and optionally announces the new track via
+// TTS if g_speechTrackChange is on.
+//
+// autoPlay=false loads and immediately pauses — used by the BASS_SYNC_END
+// callback when auto-advance is disabled, so the next track is queued but
+// playback halts.
+//
+// g_isBusy gate prevents re-entrancy from rapid Next/Prev presses.
 void PlayTrack(int index, bool autoPlay) {
     if (g_isBusy) return;  // Prevent re-entrancy
     if (index < 0 || index >= static_cast<int>(g_playlist.size())) {
@@ -1795,7 +1886,10 @@ void PlayTrack(int index, bool autoPlay) {
     g_isBusy = false;
 }
 
-// Play next track
+// Advance to the next track in the playlist, respecting shuffle and repeat
+// modes. Repeat-one restarts the current track. Repeat-all wraps from the
+// last entry back to the first. No-repeat stops playback at the end.
+// Shuffle picks a random entry other than the current one.
 void NextTrack(bool autoPlay) {
     if (g_playlist.empty() || g_isBusy) return;
 
@@ -1835,7 +1929,10 @@ void ToggleRepeatMode() {
     SaveSettings();
 }
 
-// Play previous track
+// "Previous" behaviour matches every other media player: if we're > 3
+// seconds into the current track, jump to the start of THIS track;
+// otherwise actually go to the prior track. Most users expect this even
+// though "Previous" sounds like it should always step backwards.
 void PrevTrack() {
     if (g_playlist.empty() || g_isBusy) return;
 
@@ -1857,7 +1954,14 @@ void PrevTrack() {
     PlayTrack(prev);
 }
 
-// Reinitialize BASS with a different device
+// Tear down BASS and re-init it on a different output device.
+// Used by the audio-device popup (Help → Audio device) so users can switch
+// outputs without restarting the app.
+//
+// Process: save playback state → free FX/stream/processor → BASS_Free →
+// BASS_Init on new device → reload the same file → restore position and
+// the previous play/pause state. Falls back to the default device if the
+// requested one fails.
 bool ReinitBass(int device) {
     // Save current state
     bool wasPlaying = g_fxStream && (BASS_ChannelIsActive(g_fxStream) == BASS_ACTIVE_PLAYING);
@@ -2274,7 +2378,13 @@ static void ParseStreamTitle(const std::string& streamTitle, std::string& artist
     }
 }
 
-// Helper: Try to get a tag from any available format
+// Universal tag accessor: walks every tag format BASS exposes for the
+// stream in turn, returning the first non-empty match for `tagName` (e.g.
+// "TITLE", "ARTIST", "ALBUM"). Order matters — modern container formats
+// (OGG/APE/MP4/WMA/RIFF/MF) win over ID3v2, and ID3v2 wins over ICY/HTTP
+// header heuristics. For internet radio, ICY META is consulted for
+// TITLE/ARTIST so the currently-playing song shows up, with a fall-back
+// to the station name (icy-name) when no song info is present.
 static std::string GetMetadataTag(HSTREAM stream, const char* tagName) {
     if (!stream) return "";
 
@@ -2439,10 +2549,14 @@ static int GetStreamBitrate(HSTREAM stream) {
     return 0;
 }
 
-// Get the underlying stream (before tempo processing) for tag reading
+// Pick the right stream handle for tag reading.
+// BASS_ChannelGetTags only returns ID3v2/Vorbis/etc. blocks from the
+// original decoder stream — the BASS_FX tempo wrapper does not forward
+// them. So when we still have g_stream (Speedy/Signalsmith path, or before
+// SoundTouch nulled it via BASS_FX_FREESOURCE), use it. Otherwise fall back
+// to g_fxStream, which works for SoundTouch where g_fxStream actually IS
+// the decoder stream wrapped by tempo, and BASS forwards tag access through.
 static HSTREAM GetTagStream() {
-    // For tag reading, we need the original stream, not the tempo stream
-    // g_stream is the original file stream, g_fxStream is the tempo-processed one
     return g_stream ? g_stream : g_fxStream;
 }
 
@@ -2699,9 +2813,12 @@ void SpeakTagBitrate() {
     Speak(buf);
 }
 
+// Best-effort current bitrate in kbps for the status bar.
+// Tries the live BASS attribute first (updates per-frame for VBR files),
+// then the cached value captured at load time, then ICY headers for
+// internet streams. Returns 0 if none of those produce a value (e.g.
+// lossless source where the concept doesn't apply).
 int GetCurrentBitrate() {
-    // Try to get live bitrate from source stream (updates for VBR files)
-    // g_sourceStream is the original decode stream before tempo processing
     if (g_sourceStream) {
         float bitrate = 0;
         if (BASS_ChannelGetAttribute(g_sourceStream, BASS_ATTRIB_BITRATE, &bitrate) && bitrate > 0) {
@@ -3030,7 +3147,16 @@ void StopRecording() {
     UpdateStatusBar();
 }
 
-// Toggle recording on/off
+// Start (or stop) recording the current playback to a file. Format is
+// chosen from g_recordFormat (0=WAV, 1=MP3, 2=OGG, 3=FLAC); MP3/OGG/FLAC
+// fall back to WAV with a fresh timestamped filename if the lossy encoder
+// can't be started (missing encoder plugin, unusable parameters).
+//
+// The encoder taps into g_fxStream at the default priority (0). The volume
+// DSP runs at -2000000000 (effectively last), so the recording captures
+// audio at full pre-volume amplitude regardless of the user's playback
+// volume — unless legacy volume mode is on, in which case BASS_ATTRIB_VOL
+// attenuates earlier and the recording inherits the playback volume.
 void ToggleRecording() {
     // If already recording, stop
     if (g_isRecording) {
@@ -3140,7 +3266,10 @@ void ToggleRecording() {
 
 
 // ============================================================
-// Dual-engine facade query functions (work with BASS or MPV)
+// Dual-engine facade query functions.
+// Audio playback runs through BASS, video through libmpv. These accessors
+// dispatch on g_activeEngine so the rest of the app (status bar, hotkeys,
+// announcements) never has to care which engine owns the current media.
 // ============================================================
 
 double GetTrackLength() {

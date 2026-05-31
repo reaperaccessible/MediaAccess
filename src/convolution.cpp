@@ -7,17 +7,20 @@
 #define M_PI 3.14159265358979323846
 #endif
 
-// Global processor instance
+// Singleton — owned by FreeConvolutionReverb at shutdown. Lazy-created on
+// first GetConvolutionReverb() call so an unused effect costs nothing.
 static ConvolutionReverb* g_convolutionReverb = nullptr;
 
 ConvolutionReverb* GetConvolutionReverb() {
-    // Lazy initialization
     if (!g_convolutionReverb) {
         g_convolutionReverb = new ConvolutionReverb();
     }
     return g_convolutionReverb;
 }
 
+// Construct (if needed) and immediately Init() the processor with the given
+// output sample rate. Called by the DSP path when the effect is enabled and
+// no IR has been loaded yet — Init() allocates the FFT scratch buffers.
 void InitConvolutionReverb(int sampleRate) {
     if (!g_convolutionReverb) {
         g_convolutionReverb = new ConvolutionReverb();
@@ -50,9 +53,20 @@ ConvolutionReverb::ConvolutionReverb()
 ConvolutionReverb::~ConvolutionReverb() {
 }
 
-// Load IR from any format BASS supports (WAV, FLAC, MP3, OGG, etc.)
+// Load an impulse response from any format BASS supports (WAV, FLAC, MP3, OGG, ...).
+// Decodes the entire file into RAM, deinterleaves to L/R, then runs an FFT
+// on each blockSize-sized partition so the realtime Process() path only has
+// to do per-block convolutions in the frequency domain.
+//
+// Side effects: stores the IR spectrum in m_irSpectrumL/R, sets m_irLoaded,
+// and clears m_initialized to force Init() to re-allocate scratch buffers
+// against the new partition count. Returns false on decode failure, on
+// missing/zero length, or if the IR exceeds MAX_IR_BYTES (100 MB).
+//
+// Thread safety: not thread-safe; caller must ensure no Process() is in
+// flight (in practice this is called from the UI thread before the DSP is
+// hooked up).
 bool ConvolutionReverb::LoadIR(const wchar_t* path) {
-    // Use BASS to decode the file (supports many formats)
     HSTREAM stream = BASS_StreamCreateFile(FALSE, path, 0, 0,
         BASS_STREAM_DECODE | BASS_SAMPLE_FLOAT | BASS_UNICODE);
     if (!stream) {
@@ -113,16 +127,18 @@ bool ConvolutionReverb::LoadIR(const wchar_t* path) {
     m_irChannels = channels;
     m_irSamples = numSamples;
 
-    // Compute number of partitions needed
+    // Partitioned-convolution layout: chop the IR into m_blockSize-sample
+    // partitions, FFT each to 2*m_blockSize complex bins (zero-padded to
+    // avoid circular convolution wrap, classic overlap-save setup). Per-block
+    // realtime cost then becomes M complex multiplies and one IFFT, instead
+    // of an FFT over the full IR length every block.
     m_blockSize = 1024;
     m_fftSize = m_blockSize * 2;
     m_numPartitions = (numSamples + m_blockSize - 1) / m_blockSize;
 
-    // Pad IR to multiple of block size
     irDataL.resize(m_numPartitions * m_blockSize, 0.0f);
     irDataR.resize(m_numPartitions * m_blockSize, 0.0f);
 
-    // Pre-compute FFT of each IR partition
     m_irSpectrumL.resize(m_numPartitions);
     m_irSpectrumR.resize(m_numPartitions);
     std::vector<std::complex<float>> fftBuf(m_fftSize);
@@ -207,9 +223,13 @@ void ConvolutionReverb::Reset() {
     std::fill(m_outputR.begin(), m_outputR.end(), 0.0f);
 }
 
-// Cooley-Tukey radix-2 FFT (same as center_cancel.cpp)
+// In-place radix-2 Cooley-Tukey FFT (or IFFT when inverse=true).
+// n MUST be a power of two — m_fftSize is always 2*m_blockSize (= 2048)
+// here so that's guaranteed. Same algorithm is duplicated in
+// center_cancel.cpp; if a third caller appears, extract to a shared header.
 void ConvolutionReverb::FFT(std::complex<float>* data, int n, bool inverse) {
-    // Bit-reversal permutation
+    // Bit-reversal permutation: rearrange input so the butterfly loop below
+    // can write outputs in natural order.
     int j = 0;
     for (int i = 0; i < n - 1; i++) {
         if (i < j) {
@@ -223,7 +243,8 @@ void ConvolutionReverb::FFT(std::complex<float>* data, int n, bool inverse) {
         j += k;
     }
 
-    // Cooley-Tukey iterative FFT
+    // Iterative butterfly: doubles the transform length each outer iteration
+    // until the full n-point DFT is computed.
     for (int len = 2; len <= n; len *= 2) {
         float angle = (inverse ? 2.0f : -2.0f) * (float)M_PI / len;
         std::complex<float> wn(cosf(angle), sinf(angle));
@@ -253,8 +274,13 @@ float ConvolutionReverb::GetIRLengthMs() const {
     return (float)m_irSamples / m_irSampleRate * 1000.0f;
 }
 
+// Process `frames` stereo frames in-place (interleaved L,R,L,R,...).
+// Called from the BASS DSP callback on the audio thread for every block.
+// Accumulates input into m_inputBuffer; once a full blockSize has arrived,
+// runs one FFT/multiply-accumulate/IFFT cycle and overlap-adds the result
+// into m_outputL/R, which is drained one sample per input sample.
 void ConvolutionReverb::Process(float* buffer, int frames) {
-    // Passthrough if not properly initialized
+    // Passthrough until both Init() and LoadIR() have completed successfully.
     if (!m_initialized || !m_irLoaded || m_numPartitions == 0) {
         return;
     }
@@ -303,15 +329,18 @@ void ConvolutionReverb::Process(float* buffer, int frames) {
             FFT(m_fftBuffer.data(), m_fftSize, false);
             m_fdlR[m_fdlPos] = m_fftBuffer;
 
-            // Partitioned convolution: accumulate products of all partitions
+            // Frequency-domain convolution: Y[k] = sum_p ( X_{n-p}[k] * H_p[k] )
+            // where H_p is the p-th IR partition spectrum and X_{n-p} is the
+            // FDL entry from p blocks ago. This is the per-block cost of
+            // partitioned convolution — O(M*N) complex muls vs O(N*irLen) in
+            // the time domain.
             std::vector<std::complex<float>> accumL(m_fftSize, std::complex<float>(0.0f, 0.0f));
             std::vector<std::complex<float>> accumR(m_fftSize, std::complex<float>(0.0f, 0.0f));
 
             for (int p = 0; p < m_numPartitions; p++) {
-                // Index into FDL (circular buffer going backwards)
+                // FDL is a circular ring buffer indexed backwards in time.
                 int fdlIdx = (m_fdlPos - p + m_numPartitions) % m_numPartitions;
 
-                // Multiply and accumulate in frequency domain
                 for (int k = 0; k < m_fftSize; k++) {
                     accumL[k] += m_fdlL[fdlIdx][k] * m_irSpectrumL[p][k];
                     accumR[k] += m_fdlR[fdlIdx][k] * m_irSpectrumR[p][k];

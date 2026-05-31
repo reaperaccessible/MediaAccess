@@ -39,12 +39,24 @@ static void UpdateMidiBundledLabel(HWND hwnd) {
     }
 }
 
-// Helper to show/hide tab controls
+// Show only the controls for the currently-active tab and hide all others.
+//
+// Why this is one giant function instead of separate per-tab dialogs:
+// keeping every control on a single dialog template lets NVDA's tab-order
+// follow a single linear path. If we split into multiple sub-dialogs the
+// screen-reader virtual cursor has to bounce in and out of child windows
+// and announce extra "dialog" framing for each tab switch. The trade-off
+// is a long array per tab, but the accessibility win is worth it.
+//
+// IMPORTANT: every IDC_* control in the Options dialog template MUST appear
+// in exactly one of the arrays below. A control listed nowhere stays visible
+// across all tabs (looks like a layout bug); a control listed twice gets
+// shown when either tab is active.
 void ShowTabControls(HWND hwnd, int tab) {
     // Tab indices: 0=Playback, 1=Recording, 2=Downloads, 3=Speech, 4=Movement,
     //              5=Effects, 6=Advanced, 7=YouTube, 8=SoundTouch, 9=Speedy,
     //              10=Signalsmith, 11=MIDI, 12=Books
-    // (Global Hotkeys tab removed in v1.41 — see Tools → Actions instead.)
+    // (Global Hotkeys tab removed — accessible via Tools → Actions instead.)
 
     // Playback tab controls (tab 0)
     int playbackCtrls[] = {IDC_SOUNDCARD, IDC_ALLOW_AMPLIFY, IDC_REMEMBER_STATE, IDC_REMEMBER_POS, IDC_BRING_TO_FRONT, IDC_LOAD_FOLDER, IDC_MINIMIZE_TO_TRAY, IDC_VOLUME_STEP, IDC_SHOW_TITLE, IDC_AUTO_ADVANCE, IDC_PLAYLIST_FOLLOW, IDC_CHECK_UPDATES, IDC_MULTI_INSTANCE, IDC_REGISTER_FILE_TYPES, IDC_ANNOUNCE_ON_FOCUS, IDC_DOWNLOAD_PATH, IDC_DOWNLOAD_BROWSE, IDC_REWIND_ON_PAUSE, IDC_REWIND_LABEL,
@@ -250,8 +262,10 @@ INT_PTR CALLBACK OptionsDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
                            mediaaccess::BookTextWindowGetAlwaysHide()
                                ? BST_CHECKED : BST_UNCHECKED);
 
-            // Phase 4 — skip checkboxes. Bit layout: Page=bit0, Note=bit1,
-            // Sidebar=bit2, Prodnote=bit3, Footnote=bit4, Reference=bit5.
+            // DAISY "skip" checkboxes. Bit layout in g_bookSkipMask:
+            //   Page=bit0, Note=bit1, Sidebar=bit2, Prodnote=bit3,
+            //   Footnote=bit4, Reference=bit5.
+            // Must stay in sync with daisy_player.cpp's skip-class check.
             CheckDlgButton(hwnd, IDC_BOOK_SKIP_PAGES,
                            (g_bookSkipMask & (1u << 0)) ? BST_CHECKED : BST_UNCHECKED);
             CheckDlgButton(hwnd, IDC_BOOK_SKIP_NOTES,
@@ -265,7 +279,7 @@ INT_PTR CALLBACK OptionsDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
             CheckDlgButton(hwnd, IDC_BOOK_SKIP_REFERENCES,
                            (g_bookSkipMask & (1u << 5)) ? BST_CHECKED : BST_UNCHECKED);
 
-            // (Global Hotkeys tab removed in v1.41 — see Tools → Actions.)
+            // (Global Hotkeys tab removed — see Tools → Actions instead.)
 
             // Populate sound card combo box
             HWND hCombo = GetDlgItem(hwnd, IDC_SOUNDCARD);
@@ -514,7 +528,7 @@ INT_PTR CALLBACK OptionsDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
             CheckDlgButton(hwnd, IDC_SPEECH_VOLUME, g_speechVolume ? BST_CHECKED : BST_UNCHECKED);
             CheckDlgButton(hwnd, IDC_SPEECH_EFFECT, g_speechEffect ? BST_CHECKED : BST_UNCHECKED);
             CheckDlgButton(hwnd, IDC_SPEECH_YT_HYBRID, g_speechYTHybrid ? BST_CHECKED : BST_UNCHECKED);
-            CheckDlgButton(hwnd, IDC_SPEECH_SEEK_POSITION, g_speechSeekPosition ? BST_CHECKED : BST_UNCHECKED);  // v1.65
+            CheckDlgButton(hwnd, IDC_SPEECH_SEEK_POSITION, g_speechSeekPosition ? BST_CHECKED : BST_UNCHECKED);
 
             // Initialize SoundTouch tab
             {
@@ -850,7 +864,7 @@ INT_PTR CALLBACK OptionsDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
                     g_speechVolume = (IsDlgButtonChecked(hwnd, IDC_SPEECH_VOLUME) == BST_CHECKED);
                     g_speechEffect = (IsDlgButtonChecked(hwnd, IDC_SPEECH_EFFECT) == BST_CHECKED);
                     g_speechYTHybrid = (IsDlgButtonChecked(hwnd, IDC_SPEECH_YT_HYBRID) == BST_CHECKED);
-                    g_speechSeekPosition = (IsDlgButtonChecked(hwnd, IDC_SPEECH_SEEK_POSITION) == BST_CHECKED);  // v1.65
+                    g_speechSeekPosition = (IsDlgButtonChecked(hwnd, IDC_SPEECH_SEEK_POSITION) == BST_CHECKED);
 
                     // Get SoundTouch settings
                     {
@@ -925,8 +939,9 @@ INT_PTR CALLBACK OptionsDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
                         }
                     }
 
-                    // Phase 4 — gather skippable-content checkboxes into the
-                    // global bitmask before persisting.
+                    // Gather DAISY skippable-content checkboxes into the
+                    // global bitmask before persisting. Bit layout must
+                    // match daisy_player.cpp's skip-class test.
                     g_bookSkipMask = 0;
                     if (IsDlgButtonChecked(hwnd, IDC_BOOK_SKIP_PAGES)      == BST_CHECKED) g_bookSkipMask |= (1u << 0);
                     if (IsDlgButtonChecked(hwnd, IDC_BOOK_SKIP_NOTES)      == BST_CHECKED) g_bookSkipMask |= (1u << 1);
@@ -999,7 +1014,8 @@ INT_PTR CALLBACK OptionsDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
                 }
 
                 // -----------------------------------------------------------
-                // Books library tab (v1.49 Phase 1)
+                // Books library tab — Add/Remove a folder of DAISY/EPUB
+                // books, and Rescan to refresh the SQLite catalogue.
                 // -----------------------------------------------------------
                 case IDC_BOOK_FOLDER_ADD: {
                     BROWSEINFOW bi = {0};
@@ -1154,8 +1170,8 @@ INT_PTR CALLBACK OptionsDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
                     return TRUE;
                 }
 
-                // (IDC_HOTKEY_* button handlers removed in v1.41 — global
-                // hotkeys are now managed from Tools → Actions, Global category.)
+                // (Global hotkeys are managed from Tools → Actions in the
+                // Global category — no dedicated tab here.)
             }
             break;
     }

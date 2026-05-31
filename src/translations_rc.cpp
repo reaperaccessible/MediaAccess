@@ -1,7 +1,23 @@
-// Auto-generated style: all RC (MediaAccess.rc) translations registered here.
-// English text IS the lookup key (as it appears in MediaAccess.rc).
-// LocalizeDialog() and LocalizeMenu() at runtime swap English for the
-// active-language string returned by T().
+// translations_rc.cpp -- French translations for every string baked into
+// MediaAccess.rc (menus + dialog controls).
+//
+// The English source text (exactly as it appears in MediaAccess.rc) doubles
+// as the lookup key. LocalizeDialog() / LocalizeMenu() walk the live HMENU /
+// HWND tree and swap each English string for the active-language string
+// returned by T().
+//
+// Accelerator hygiene: a menu's "&" hotkey letter must be unique within
+// that menu (Windows ignores duplicates). When adding or editing a
+// translation, scan the surrounding entries in the same MENU block and
+// pick an "&" letter that isn't already used. Mismatched accelerators
+// (e.g. EN "&File" → FR "&Fichier", both using 'F') are fine because each
+// language renders only its own bindings.
+//
+// Tab-width abbreviations: some entries here intentionally use shorter
+// phrasings than translations_ui.cpp because the .rc dialog control they
+// drive has fixed pixel width. RegisterRcTranslations() runs LAST in
+// InitTranslations() (see translations.cpp) so these abbreviated forms
+// override any longer duplicates registered earlier.
 
 #include "translations.h"
 

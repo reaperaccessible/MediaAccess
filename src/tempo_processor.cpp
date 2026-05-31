@@ -48,6 +48,18 @@ const char* GetAlgorithmDescription(TempoAlgorithm algo) {
 
 // ============================================================================
 // SoundTouch (BASS_FX) Implementation
+//
+// Trade-offs:
+//   + Lowest CPU of the three algorithms.
+//   + Pull-based: BASS owns the data flow, just wrap the source stream and
+//     forget. Tempo/pitch attributes are set live with no glitching.
+//   + Works on any source BASS can decode, including live streams.
+//   - Quality degrades on music (phasing, slap-back) at extreme tempo.
+//   - "Sequence/seek window/overlap" parameters need tuning per content.
+//
+// Used by: default for new files; mandatory for live/internet streams (the
+// other two algorithms use push-based StreamProc callbacks that don't play
+// well with network buffering).
 // ============================================================================
 class SoundTouchProcessor : public TempoProcessor {
 private:
@@ -67,7 +79,10 @@ public:
         m_sourceStream = sourceStream;
         m_sampleRate = sampleRate;
 
-        // Create tempo stream wrapping the source (use float for DSP effects)
+        // BASS_FX_FREESOURCE transfers ownership of sourceStream to the new
+        // tempo stream — Shutdown() will free both via a single BASS_StreamFree
+        // call. BASS_SAMPLE_FLOAT keeps the pipeline in float so downstream
+        // BFX effects don't have to round-trip through 16-bit.
         m_fxStream = BASS_FX_TempoCreate(sourceStream, BASS_FX_FREESOURCE | BASS_SAMPLE_FLOAT);
         if (!m_fxStream) {
             return 0;
@@ -152,7 +167,22 @@ public:
 };
 
 // ============================================================================
-// Speedy (Google) Implementation - Push-based stream approach
+// Speedy (Google) Implementation — push-based stream approach
+//
+// Trade-offs:
+//   + Nonlinear speedup: at high speed (e.g. 2x+), Speedy keeps consonants
+//     near-native rate and only compresses vowels/silence, so speech stays
+//     intelligible far past where SoundTouch starts to smear.
+//   + Designed by Google specifically for accessibility playback.
+//   - Heuristic is speech-tuned; sounds worse than SoundTouch on music.
+//   - Push-based: we decode source ourselves, push to Sonic, pull processed
+//     samples out in a BASS StreamProc. Doesn't fit live URL streams well
+//     (LoadURL forces SoundTouch instead).
+//   - Doesn't support BASS_FX_FREESOURCE — the source stream is freed
+//     manually in Shutdown().
+//
+// Wraps Sonic2 (libsonic with Speedy extensions enabled via
+// sonicEnableNonlinearSpeedup).
 // ============================================================================
 #ifdef USE_SPEEDY
 
@@ -232,7 +262,11 @@ private:
         return true;
     }
 
-    // BASS stream callback
+    // BASS pull callback: invoked on the audio thread whenever BASS needs
+    // more samples for the output stream. We drain m_outputQueue first;
+    // when empty, decode another block from source and push it through
+    // Sonic. Returns BASS_STREAMPROC_END once the source is exhausted AND
+    // our queue is empty, which lets the SYNC_END callback fire.
     static DWORD CALLBACK StreamProc(HSTREAM handle, void* buffer, DWORD length, void* user) {
         SpeedyProcessor* proc = static_cast<SpeedyProcessor*>(user);
         if (!proc) return BASS_STREAMPROC_END;
@@ -400,7 +434,9 @@ public:
         QWORD bytes = BASS_ChannelSeconds2Bytes(m_sourceStream, seconds);
         BASS_ChannelSetPosition(m_sourceStream, bytes, BASS_POS_BYTE | BASS_POS_FLUSH);
 
-        // Recreate sonic stream to reset state
+        // Sonic has no documented "flush state" entry point — destroy and
+        // recreate is the cleanest way to discard internal frame state
+        // (otherwise the first samples after a seek leak audio from before).
         sonicDestroyStream(m_sonicStream);
         m_sonicStream = sonicCreateStream(static_cast<int>(m_sampleRate), m_channels);
         if (m_sonicStream && m_nonlinearEnabled) {
@@ -433,6 +469,18 @@ private:
 
 // ============================================================================
 // Signalsmith Stretch Implementation
+//
+// Trade-offs:
+//   + Highest audio quality of the three on music — phase-coherent STFT
+//     stretching with built-in transient detection.
+//   + Independent pitch + time control via setTransposeSemitones() and the
+//     input/output sample ratio in process().
+//   + Low latency mode available (presetCheaper).
+//   - Highest CPU; on weak hardware this can underflow the BASS playback
+//     buffer at extreme rate.
+//   - Push-based like Speedy, same limitations on live streams.
+//   - Stretcher state must be reset() on seek and recreated on parameter
+//     changes — see SetPosition() for the reset dance.
 // ============================================================================
 #ifdef USE_SIGNALSMITH
 
@@ -577,14 +625,20 @@ public:
         }
         m_channels = info.chans;
 
-        // Configure Signalsmith based on global settings
+        // Configure Signalsmith based on global settings.
+        // "Cheaper" preset trades a small quality loss for ~half the CPU; it's
+        // what we recommend on weak hardware. "Default" is the high-quality
+        // setup with longer FFT windows.
         if (g_ssPreset == 1) {
             m_stretcher.presetCheaper(m_channels, (int)sampleRate);
         } else {
             m_stretcher.presetDefault(m_channels, (int)sampleRate);
         }
 
-        // Set tonality limit if specified (0 = auto)
+        // tonalityLimit (Hz) caps the upper frequency where pitch shifting
+        // tries to remain phase-coherent. Above the limit, content is
+        // resampled instead. 0 = auto-pick from sample rate. Users with
+        // sibilant artifacts on speech sometimes drop this to ~6kHz.
         float tonalityLimit = g_ssTonalityLimit > 0 ? static_cast<float>(g_ssTonalityLimit) / sampleRate : 0.0f;
         m_stretcher.setTransposeSemitones(m_pitch, tonalityLimit);
         m_stretcher.reset();
@@ -595,8 +649,11 @@ public:
         m_inputChannels.resize(m_channels);
         m_outputChannels.resize(m_channels);
 
-        // Pre-fill the stretcher to handle latency
-        // Process some initial audio to prime the internal buffers
+        // Prime: Signalsmith reports an intrinsic input+output latency in
+        // samples. We push that many source samples through process() and
+        // discard the output, so the very first user-audible sample comes
+        // out aligned with t=0 of the source — otherwise the file appears
+        // to start a few hundred ms late on the first play.
         int latencySamples = m_stretcher.inputLatency() + m_stretcher.outputLatency();
         if (latencySamples > 0) {
             std::vector<float> primeBuffer(latencySamples * m_channels, 0.0f);
@@ -736,6 +793,10 @@ public:
 // ============================================================================
 // Factory and Global Management
 // ============================================================================
+
+// Allocate a processor of the requested algorithm. If the algorithm is not
+// compiled in (USE_SPEEDY / USE_SIGNALSMITH off), silently falls back to
+// SoundTouch so callers never get nullptr.
 TempoProcessor* CreateTempoProcessor(TempoAlgorithm algorithm) {
     switch (algorithm) {
         case TempoAlgorithm::SoundTouch:

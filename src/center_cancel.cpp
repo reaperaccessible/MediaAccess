@@ -6,7 +6,10 @@
 #define M_PI 3.14159265358979323846
 #endif
 
-// Global processor instance
+// Singleton, owned by FreeCenterCancelProcessor() at shutdown.
+// Unlike the convolution singleton this one is NOT lazily created — the DSP
+// callback (effects.cpp::CenterCancelDSPProc) must call InitCenterCancelProcessor()
+// first, so GetCenterCancelProcessor() returns null until init runs.
 static CenterCancelProcessor* g_centerCancelProcessor = nullptr;
 
 CenterCancelProcessor* GetCenterCancelProcessor() {
@@ -40,16 +43,21 @@ CenterCancelProcessor::CenterCancelProcessor()
 CenterCancelProcessor::~CenterCancelProcessor() {
 }
 
+// Allocate FFT scratch buffers and build the Hann analysis/synthesis window.
+// Default fftSize=4096 with hopSize = fftSize/4 gives 75% overlap, which is
+// the standard sweet spot for Hann-windowed STFT: yields perfect (or near-
+// perfect after the scale factor in ProcessFrame()) overlap-add reconstruction
+// when the signal is passed through unmodified.
 bool CenterCancelProcessor::Init(int sampleRate, int fftSize) {
     m_sampleRate = sampleRate;
     m_fftSize = fftSize;
     m_hopSize = fftSize / 4;  // 75% overlap
 
-    // Allocate buffers
     m_inputBufferL.resize(fftSize, 0.0f);
     m_inputBufferR.resize(fftSize, 0.0f);
 
-    // Output buffer needs to be larger to handle overlap-add
+    // Output ring needs > fftSize because the overlap-add can wrap further
+    // forward than a single FFT length when frames pile up at process time.
     int outputBufSize = fftSize * 2;
     m_outputBufferL.resize(outputBufSize, 0.0f);
     m_outputBufferR.resize(outputBufSize, 0.0f);
@@ -57,7 +65,9 @@ bool CenterCancelProcessor::Init(int sampleRate, int fftSize) {
     m_fftL.resize(fftSize);
     m_fftR.resize(fftSize);
 
-    // Create Hann window
+    // Hann window — used both for analysis (pre-FFT) and synthesis (post-IFFT)
+    // so the effective per-sample window is Hann^2; the scale factor in
+    // ProcessFrame() compensates so unprocessed audio plays back at unity gain.
     m_window.resize(fftSize);
     for (int i = 0; i < fftSize; i++) {
         m_window[i] = 0.5f * (1.0f - cosf(2.0f * (float)M_PI * i / (fftSize - 1)));
@@ -84,9 +94,13 @@ void CenterCancelProcessor::Reset() {
     m_outputAvail = 0;
 }
 
-// Cooley-Tukey radix-2 FFT
+// In-place radix-2 Cooley-Tukey FFT (or IFFT when inverse=true).
+// n must be a power of two — here it's always m_fftSize (default 4096).
+// Same implementation as convolution.cpp::FFT; kept duplicated for now since
+// extracting a header for a 30-line function is overkill.
 void CenterCancelProcessor::FFT(std::complex<float>* data, int n, bool inverse) {
-    // Bit-reversal permutation
+    // Bit-reversal permutation so the iterative butterflies write outputs
+    // in natural order.
     int j = 0;
     for (int i = 0; i < n - 1; i++) {
         if (i < j) {
@@ -131,18 +145,24 @@ void CenterCancelProcessor::ApplyWindow(float* data, int n) {
     }
 }
 
+// Run one STFT frame: window → FFT → spectral Mid/Side processing → IFFT →
+// windowed overlap-add into the output ring buffer. Called by ProcessFloat()
+// whenever m_inputBufferL/R is full.
 void CenterCancelProcessor::ProcessFrame() {
-    // Copy input to FFT buffers and apply window
+    // Window the time-domain input as the real part of a complex FFT input.
     for (int i = 0; i < m_fftSize; i++) {
         m_fftL[i] = std::complex<float>(m_inputBufferL[i] * m_window[i], 0.0f);
         m_fftR[i] = std::complex<float>(m_inputBufferR[i] * m_window[i], 0.0f);
     }
 
-    // Forward FFT
     FFT(m_fftL.data(), m_fftSize, false);
     FFT(m_fftR.data(), m_fftSize, false);
 
-    // Process each frequency bin using Mid/Side in frequency domain
+    // Per-bin processing in frequency-domain Mid/Side. Vocals and other
+    // center-panned content concentrate energy in Mid (L+R), while reverb,
+    // ambience, and panned instruments dominate Side (L-R). We use that
+    // imbalance to decide how much each bin is "centery", then either
+    // attenuate Mid (cancel mode) or attenuate Side (extract mode).
     float amount = m_amount;
     bool cancel = amount > 0.0f;
     float strength = fabsf(amount);
@@ -215,9 +235,11 @@ void CenterCancelProcessor::ProcessFrame() {
     FFT(m_fftL.data(), m_fftSize, true);
     FFT(m_fftR.data(), m_fftSize, true);
 
-    // Overlap-add to output buffer
-    // Apply synthesis window and add to output
-    float scale = 1.0f / (m_fftSize / m_hopSize * 0.5f);  // Normalize for overlap-add
+    // Overlap-add: apply synthesis window (so we're effectively Hann^2 across
+    // analysis+synthesis, which sums to a flat envelope at 75% overlap) and
+    // accumulate into the output ring. The scale factor cancels the gain from
+    // 4 overlapping Hann^2 frames so unprocessed audio comes out at unity.
+    float scale = 1.0f / (m_fftSize / m_hopSize * 0.5f);
 
     for (int i = 0; i < m_fftSize; i++) {
         int outIdx = (m_outputPos + i) % (int)m_outputBufferL.size();
@@ -228,9 +250,17 @@ void CenterCancelProcessor::ProcessFrame() {
     m_outputAvail += m_hopSize;
 }
 
+// Process stereo float samples (L,R interleaved). Writes processed frames to
+// `output` and returns the count in `outputFrames`.
+//
+// Behaviour by amount:
+//   amount == 0     → memcpy passthrough
+//   amount  < 0     → time-domain Mid/Side extract (cheap, no STFT latency)
+//   amount  > 0     → FFT-based cancel via STFT pipeline (introduces fftSize
+//                     latency on the first call — first ~fftSize-hopSize output
+//                     samples are silence while the buffer fills)
 void CenterCancelProcessor::ProcessFloat(float* input, int inputFrames, float* output, int& outputFrames) {
     if (!m_initialized || m_amount == 0.0f) {
-        // Passthrough
         for (int i = 0; i < inputFrames * 2; i++) {
             output[i] = input[i];
         }
@@ -238,8 +268,10 @@ void CenterCancelProcessor::ProcessFloat(float* input, int inputFrames, float* o
         return;
     }
 
-    // For extraction mode (negative amount), use simple time-domain processing
-    // This is more reliable and produces cleaner mono extraction
+    // Extract-only mode runs as a pure time-domain Mid/Side reduction. The
+    // FFT path can also extract, but at -100% it sometimes leaks side energy
+    // through bin smearing — the time-domain version produces a cleanly
+    // mono'd output at full strength.
     if (m_amount < 0.0f) {
         float strength = -m_amount;  // 0.0 to 1.0
         for (int i = 0; i < inputFrames; i++) {
@@ -305,8 +337,9 @@ void CenterCancelProcessor::ProcessFloat(float* input, int inputFrames, float* o
     outputFrames = outIdx;
 }
 
+// 16-bit wrapper around ProcessFloat: scales s16 → float, processes, clamps,
+// and scales back. Used when the BASS stream is not float-format.
 void CenterCancelProcessor::ProcessInt16(short* input, int inputFrames, short* output, int& outputFrames) {
-    // Convert to float, process, convert back
     std::vector<float> floatIn(inputFrames * 2);
     std::vector<float> floatOut(inputFrames * 2);
 

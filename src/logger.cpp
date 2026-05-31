@@ -1,3 +1,13 @@
+// =============================================================================
+// logger.cpp — append-only diagnostic log at %LOCALAPPDATA%\MediaAccess\
+//              mediaaccess.log, rotated when it grows past 1 MB.
+//
+// Used as a low-overhead trace channel for tricky code paths (mpv DLL
+// loading, BASS init failure, network errors) so we can diagnose user
+// reports without asking for verbose debug dumps. CRITICAL_SECTION guards
+// concurrent writes from worker threads.
+// =============================================================================
+
 #include "mediaaccess/logger.h"
 #include <windows.h>
 #include <shlobj.h>
@@ -8,6 +18,9 @@
 static CRITICAL_SECTION g_logLock;
 static bool g_logReady = false;
 static std::wstring g_logPath;
+// Soft cap. When exceeded the active log is renamed to .old (single
+// generation kept) and a fresh file is started — total disk usage is
+// bounded at ~2 MB.
 static const DWORD MAX_LOG_BYTES = 1024 * 1024;  // 1 MB
 
 static std::wstring BuildLogPath() {

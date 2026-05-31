@@ -2,13 +2,20 @@
 // actions_window.cpp — REAPER-style Actions / Keymap dialog
 //
 // Layout (see IDD_ACTIONS in MediaAccess.rc):
-//   - Section combo (Main / Radio / YouTube / Global)
-//   - Filter edit box
-//   - Actions listbox  (Action name + first bound shortcut between brackets)
+//   - Section combo (Main / Radio / YouTube / Global / Books)
+//   - Filter edit box (substring match on action name + bound shortcut text)
+//   - Actions listbox  (action name + currently bound shortcuts in brackets)
 //   - Shortcuts listbox for selected action
-//   - Add / Edit / Delete buttons
+//   - Add / Edit / Delete buttons (each spawns the learn-shortcut sub-dialog)
+//   - Find-by-shortcut button (reverse lookup, scoped to the current section)
 //   - Keymap name label
 //   - Load / Save As / Reset to defaults / Close buttons
+//
+// Two sub-dialogs share AssignEditProc (the key-capture subclass) via the
+// s_assign global: PromptForShortcut (Add/Edit) and the Find-by-shortcut
+// dialog. The subclass swallows WM_CHAR, samples Ctrl/Shift/Alt/Win on every
+// WM_KEYDOWN (v1.66 added Win+ — Jack's bug), and Backspace-with-no-modifier
+// is the "clear capture" gesture.
 // =============================================================================
 
 #include "mediaaccess/actions_window.h"

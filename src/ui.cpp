@@ -7,9 +7,9 @@
 // Constants
 const wchar_t* const APP_NAME_INTERNAL = L"MediaAccess";
 
-// v1.60 — pull the localized source label. For SourceType::Local with no
-// explicit source provided, resolve "(Local)" at display time via T() so a
-// language change is reflected immediately on the next refresh.
+// Pull the localized source label. For SourceType::Local with no explicit
+// source provided, resolve "(Local)" at display time via T() so a language
+// change is reflected immediately on the next refresh.
 static std::wstring NowPlayingSourceLabel() {
     if (g_nowPlayingType == SourceType::Local && g_nowPlayingSource.empty()) {
         return T("(Local)");
@@ -18,9 +18,9 @@ static std::wstring NowPlayingSourceLabel() {
 }
 
 // Update window title — composes "MediaAccess - <source> - <item>" using
-// the v1.60 now-playing globals. Falls back to GetTagTitle() / MPV title /
+// the now-playing globals. Falls back to GetTagTitle() / MPV title /
 // filename when the explicit item is empty (e.g. between Play and the
-// first ICY metadata event).
+// first ICY metadata event for net streams).
 void UpdateWindowTitle() {
     std::wstring title = APP_NAME_INTERNAL;
 
@@ -62,8 +62,9 @@ void UpdateWindowTitle() {
     SetWindowTextW(g_hwnd, title.c_str());
 }
 
-// v1.60 — now-playing helpers. Each one updates the relevant globals and
-// then refreshes the window title in one go so callers can't forget.
+// Now-playing helpers. Each one updates the relevant globals and then
+// refreshes the window title in one go so callers can't forget to mirror
+// the change in the title bar.
 void SetNowPlaying(SourceType type,
                    const std::wstring& source,
                    const std::wstring& item) {
@@ -388,7 +389,11 @@ void UnregisterAllFileTypes() {
     }
 }
 
-// Show file open dialog
+// Show the file-open dialog and play the chosen file(s). Handles three
+// selection modes: a single playlist file (parsed), a single audio/video
+// file (optionally expanded to its containing folder when g_loadFolder is
+// set), or a multi-selection (Explorer-style — first wstring is the
+// directory, subsequent strings are filenames).
 void ShowOpenDialog() {
     // Buffer for multiple file selection
     wchar_t szFile[32768] = {0};
@@ -529,7 +534,10 @@ void ShowAddFolderDialog() {
     }
 }
 
-// Get files from clipboard (supports files, folders, and text URLs/paths)
+// Get files from clipboard (supports files, folders, and text URLs/paths).
+// Tries CF_HDROP first (Explorer copy/cut); if nothing usable was found,
+// falls back to CF_UNICODETEXT and treats each non-empty line as a URL or
+// path. Folders are expanded recursively to their audio files.
 std::vector<std::wstring> GetFilesFromClipboard() {
     std::vector<std::wstring> files;
 
@@ -684,7 +692,12 @@ bool IsPlaylistFile(const std::wstring& path) {
     return (ext == L".m3u" || ext == L".m3u8" || ext == L".pls");
 }
 
-// Parse M3U playlist file
+// Parse M3U / M3U8 playlist file.
+// Format: plain-text, one entry per line; lines starting with '#' are
+// comments (#EXTM3U header, #EXTINF metadata) and are skipped. Auto-detects
+// a UTF-8 BOM and falls back to ACP for legacy M3Us. Relative paths are
+// resolved against the playlist's directory. Directory entries are
+// recursively expanded to their audio files.
 static std::vector<std::wstring> ParseM3U(const std::wstring& playlistPath) {
     std::vector<std::wstring> entries;
 
@@ -766,7 +779,11 @@ static std::vector<std::wstring> ParseM3U(const std::wstring& playlistPath) {
     return entries;
 }
 
-// Parse PLS playlist file
+// Parse PLS playlist file.
+// Format: INI-style with [playlist] section and File1, File2, ... keys.
+// We reuse GetPrivateProfileString rather than rolling our own parser so
+// quoted/escaped values are handled per the Windows INI rules. Stops at
+// the first missing FileN key (capped at 1000 entries as a safety).
 static std::vector<std::wstring> ParsePLS(const std::wstring& playlistPath) {
     std::vector<std::wstring> entries;
 

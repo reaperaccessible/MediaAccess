@@ -99,14 +99,18 @@ static float g_paramValues[(int)ParamId::COUNT];
 // Current parameter index for cycling
 static int g_currentParamIndex = 0;
 
-// Initialize parameter values to defaults
+// Seed g_paramValues from g_paramDefs[]. Called once at app startup before
+// any effect-toggling UI runs.
+//
+// IMPORTANT ordering: this runs AFTER LoadSettings(), and LoadSettings reads
+// the stream-effect globals (g_tempo, g_pitch, g_rate, g_volume) directly.
+// We deliberately don't overwrite those four here — they're routed through
+// the GetParamValue() switch for stream effects rather than being mirrored
+// in g_paramValues[], so the seeding loop only affects DSP params.
 bool InitEffects() {
     for (int i = 0; i < g_paramDefCount; i++) {
         g_paramValues[(int)g_paramDefs[i].id] = g_paramDefs[i].defaultValue;
     }
-    // Note: g_tempo, g_pitch, g_rate are loaded from settings in LoadSettings()
-    // Only set defaults if they haven't been loaded yet (all zero means uninitialized)
-    // Actually, these are loaded before InitEffects, so don't overwrite them
     return true;
 }
 
@@ -234,7 +238,13 @@ static inline void RemoveDSPHandle(HDSP& handle) {
     }
 }
 
-// Set reverb algorithm (0=Off, 1=Freeverb, 2=DX8, 3=I3DL2)
+// Set the active reverb algorithm and re-apply it to the running stream.
+//   0 = Off (removes any existing reverb FX)
+//   1 = Freeverb (best general quality)
+//   2 = DX8 Reverb (cheap, basic)
+//   3 = I3DL2 Reverb (rich, preset-driven)
+// The previously applied reverb FX is removed unconditionally so switching
+// algorithms is a clean swap, not a layered stack.
 void SetReverbAlgorithm(int algorithm) {
     if (algorithm < 0 || algorithm > 3) return;
 
@@ -250,7 +260,9 @@ void SetReverbAlgorithm(int algorithm) {
     }
 }
 
-// Enable or disable a DSP effect
+// Enable or disable a DSP effect and (if a stream is live) wire the change
+// into BASS immediately. Reverb is handled by SetReverbAlgorithm instead;
+// passing DSPEffectType::Reverb here has no effect on g_reverbAlgorithm.
 void EnableDSPEffect(DSPEffectType type, bool enable) {
     if ((int)type < 0 || (int)type >= (int)DSPEffectType::COUNT) return;
 
@@ -565,14 +577,21 @@ bool IsDSPEffectEnabled(DSPEffectType type) {
     return g_dspEnabled[(int)type];
 }
 
-// Apply DSP effects to current stream
+// Walk the per-DSP-type enabled flags and attach any missing handles to
+// g_fxStream. Idempotent — for each effect, only attaches if the handle is
+// currently 0 (so calling this twice doesn't add duplicate FX). Called once
+// after stream creation and again whenever an effect is toggled on so the
+// new handle gets created. Must be paired with RemoveDSPEffects() before
+// freeing g_fxStream or the handles dangle.
 void ApplyDSPEffects() {
     if (!g_fxStream) return;
 
     // Reverb (based on selected algorithm)
     if (g_reverbAlgorithm > 0 && !g_hfxReverb) {
         switch (g_reverbAlgorithm) {
-            case 1:  // Freeverb
+            case 1:  // Freeverb — Schroeder/Moorer-style algorithmic reverb,
+                     // dense early reflections + diffuse tail. Best general
+                     // choice; sounds natural on music and speech.
                 g_hfxReverb = BASS_ChannelSetFX(g_fxStream, BASS_FX_BFX_FREEVERB, 0);
                 if (g_hfxReverb) {
                     BASS_BFX_FREEVERB reverb;
@@ -586,7 +605,8 @@ void ApplyDSPEffects() {
                     BASS_FXSetParameters(g_hfxReverb, &reverb);
                 }
                 break;
-            case 2:  // DX8 Reverb
+            case 2:  // DX8 Reverb — DirectX 8 "Waves" simple reverb. Cheap
+                     // CPU; controls limited to time/HF-ratio/mix.
                 g_hfxReverb = BASS_ChannelSetFX(g_fxStream, BASS_FX_DX8_REVERB, 0);
                 if (g_hfxReverb) {
                     BASS_DX8_REVERB reverb;
@@ -597,7 +617,10 @@ void ApplyDSPEffects() {
                     BASS_FXSetParameters(g_hfxReverb, &reverb);
                 }
                 break;
-            case 3:  // I3DL2 Reverb
+            case 3:  // I3DL2 Reverb — IASIG Interactive 3D Audio Level 2
+                     // preset reverb (room/decay/diffusion/density). Richer
+                     // than plain DX8 reverb; uses many more params (we set
+                     // the seldom-touched ones to sensible defaults below).
                 g_hfxReverb = BASS_ChannelSetFX(g_fxStream, BASS_FX_DX8_I3DL2REVERB, 0);
                 if (g_hfxReverb) {
                     BASS_DX8_I3DL2REVERB reverb;
@@ -619,7 +642,9 @@ void ApplyDSPEffects() {
         }
     }
 
-    // Echo
+    // Echo — BFX_ECHO4 is the stereo-aware echo with separate delay/feedback
+    // per channel. We feed it identical params on both channels for now
+    // (lChannel = BASS_BFX_CHANALL) since there's no UI for asymmetric echo.
     if (g_dspEnabled[(int)DSPEffectType::Echo] && !g_hfxEcho) {
         g_hfxEcho = BASS_ChannelSetFX(g_fxStream, BASS_FX_BFX_ECHO4, 0);
         if (g_hfxEcho) {
@@ -634,9 +659,13 @@ void ApplyDSPEffects() {
         }
     }
 
-    // EQ (3-band using peaking EQ)
+    // EQ — 3-band (bass/mid/treble) using BFX_PEAKEQ, preceded by a
+    // BFX_VOLUME stage acting as preamp. The preamp lets users compensate
+    // for the clipping headroom lost when boosting bands at +15 dB. Each
+    // band's center frequency is configurable in Options (g_eqBassFreq etc).
     if (g_dspEnabled[(int)DSPEffectType::EQ]) {
-        // Preamp (gain reduction to prevent clipping)
+        // Preamp: BFX_VOLUME applied first in the chain to attenuate before
+        // peak EQ boosts, preventing clipping at the EQ output.
         if (!g_hfxEQPreamp) {
             g_hfxEQPreamp = BASS_ChannelSetFX(g_fxStream, BASS_FX_BFX_VOLUME, 0);
             if (g_hfxEQPreamp) {
@@ -667,7 +696,9 @@ void ApplyDSPEffects() {
         applyEqBand(g_hfxEQTreble, g_eqTrebleFreq, ParamId::EQTreble);
     }
 
-    // Compressor
+    // Compressor — BFX_COMPRESSOR2 is the standard threshold/ratio/attack/
+    // release dynamic-range compressor with makeup gain. Useful for taming
+    // loud sections in audiobooks and podcasts, or evening out music dynamics.
     if (g_dspEnabled[(int)DSPEffectType::Compressor] && !g_hfxCompressor) {
         g_hfxCompressor = BASS_ChannelSetFX(g_fxStream, BASS_FX_BFX_COMPRESSOR2, 0);
         if (g_hfxCompressor) {
@@ -735,16 +766,23 @@ void ApplyDSPEffects() {
         BASS_ChannelSetAttribute(g_fxStream, BASS_ATTRIB_VOL, curvedVolume);
     }
 
-    // Volume DSP - added with very low priority so it runs LAST (after encoder)
-    // This ensures encoders capture full-volume audio, while playback is adjusted
-    // Only used when legacy volume mode is disabled
-    // Priority -2000000000 ensures it runs after encoder (priority 0)
+    // Volume DSP — runs LAST in the chain (very low priority) so that the
+    // BASS_Encode recording path, which taps in earlier at the default
+    // priority of 0, sees full-volume samples. Without this the recorded
+    // file would track the user's playback volume (mute = silent recording).
+    // In legacy mode, BASS_ATTRIB_VOL is used instead — faster, but it
+    // attenuates BEFORE the encoder tap, so recordings inherit the user's
+    // volume slider.
     if (!g_legacyVolume && !g_hdspVolume) {
         g_hdspVolume = BASS_ChannelSetDSP(g_fxStream, VolumeDSPProc, nullptr, -2000000000);
     }
 }
 
-// Remove all DSP effects from stream
+// Tear down every BFX/DSP handle attached to g_fxStream and zero the
+// globals. Safe to call when no stream exists (RemoveFXHandle/RemoveDSPHandle
+// no-op when g_fxStream is 0). MUST be called before BASS_StreamFree on
+// g_fxStream — leaving handles attached to a freed stream causes undefined
+// behaviour in BASS on the next ApplyDSPEffects().
 void RemoveDSPEffects() {
     RemoveFXHandle(g_hfxReverb);
     RemoveFXHandle(g_hfxEcho);
@@ -792,11 +830,19 @@ const char* GetParamUnit(ParamId id) {
     return def ? def->unit : "";
 }
 
+// Write a new value for a parameter, clamp to the param's allowed range,
+// and push the change into whatever underlying effect owns it (BASS_ATTRIB
+// for stream effects, BASS_FXSetParameters for BFX, custom DSP globals for
+// stereo width / center cancel / convolution / spatial).
+//
+// For Volume the upper bound is dynamic — it depends on g_allowAmplify
+// (MAX_VOLUME_NORMAL = 1.0, MAX_VOLUME_AMPLIFY = up to 4.0). Tempo and Rate
+// are silently no-op on live streams (handled by caller; this function will
+// still update the stored value, but the BASS attribute write is skipped).
 void SetParamValue(ParamId id, float value) {
     const ParamDef* def = GetParamDef(id);
     if (!def) return;
 
-    // For Volume, respect the allow amplify setting
     float maxVal = def->maxValue;
     if (id == ParamId::Volume) {
         maxVal = g_allowAmplify ? MAX_VOLUME_AMPLIFY : MAX_VOLUME_NORMAL;
@@ -1276,7 +1322,13 @@ void AdjustCurrentEffect(int direction) {
 
 // ---------------------------------------------------------------------------
 // Effect presets: save/load/delete named sets of all enabled effects + params.
-// Stored in MediaAccess.ini under [Presets] (index) and [Preset_<name>] (values).
+// Stored in MediaAccess.ini under:
+//   [Presets]            — Count, Name0, Name1, ... (the preset index)
+//   [Preset_<name>]      — one section per preset, holds StreamEnabled*,
+//                          Pitch, Tempo, Rate, ReverbAlgorithm, DSPEnabled*,
+//                          and Param<id>= values for every DSP param.
+// Volume is deliberately excluded from presets — a loud preset shouldn't
+// hijack the user's playback volume on apply.
 // ---------------------------------------------------------------------------
 
 static std::wstring PresetSectionName(const std::wstring& name) {

@@ -1,3 +1,22 @@
+// =============================================================================
+// main.cpp — wWinMain entry point, single-instance plumbing, and WndProc.
+//
+// Responsibilities, in order:
+//   1) wWinMain: DLL search hardening, single-instance gate (mutex + WM_COPYDATA
+//      relay using dwData sentinels 1/2/3/4 — see WM_COPYDATA below for the
+//      schema), translations + keymap startup, message loop with conditional
+//      accelerator translation.
+//   2) WndProc: dispatch for every message the main window handles —
+//      WM_CREATE init chain, WM_KEYDOWN keymap lookup, WM_COMMAND giant menu
+//      switch, WM_DESTROY ordered shutdown (audio MUST die first), plus all
+//      the niche handlers documented inline at each case.
+//   3) Help-menu helpers (manual/readme/contact/donate/etc.) extracted here so
+//      WM_COMMAND stays readable.
+//
+// Anything heavier (player, settings, video, accessibility, ...) lives in its
+// own translation unit — this file is the wiring, not the logic.
+// =============================================================================
+
 #ifndef UNICODE
 #define UNICODE
 #endif
@@ -355,10 +374,13 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
         }
 
         case WM_SIZE:
+            // Forward to the status bar so its built-in autosize layout runs,
+            // then resize the video child to fill what's left above it.
+            // When minimized AND the user opted in to tray-on-minimize, hide
+            // the window now (returns 0 to suppress default behavior).
             if (g_statusBar) {
                 SendMessageW(g_statusBar, WM_SIZE, 0, 0);
             }
-            // Resize video child window to fill client area above status bar
             if (wParam != SIZE_MINIMIZED && g_videoHwnd) {
                 RECT rc;
                 GetClientRect(hwnd, &rc);
@@ -482,6 +504,18 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
             break;
 
         case WM_TIMER:
+            // Multiplexed timer handler — wParam is the timer ID:
+            //   IDT_UPDATE_TITLE         — periodic status-bar refresh.
+            //   IDT_BATCH_FILES          — coalesce a burst of WM_COPYDATA file
+            //                              drops into one PlayTrack() call so
+            //                              "Open with…" of 30 files doesn't
+            //                              start/stop the engine 30 times.
+            //   IDT_SCHEDULER            — once-per-minute scheduled-event check.
+            //   IDT_SCHED_DURATION       — scheduled fade/stop fire.
+            //   IDT_FULLSCREEN_CURSOR_HIDE — auto-hide cursor during fullscreen
+            //                              video after FULLSCREEN_CURSOR_HIDE_MS
+            //                              of mouse inactivity.
+            //   IDT_SLEEP_TIMER          — sleep-timer 1s tick.
             if (wParam == IDT_UPDATE_TITLE) {
                 UpdateStatusBar();
             } else if (wParam == IDT_BATCH_FILES) {
@@ -596,9 +630,13 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
             return 0;
 
         case WM_HOTKEY: {
+            // System-wide hotkey fired (RegisterHotKey from hotkeys.cpp).
+            // IDs 0x7F00..0x7F03 are reserved for the always-on media keys
+            // (Play/Pause / Stop / Prev / Next); everything else matches a
+            // user-defined entry in g_hotkeys produced by
+            // SyncGlobalHotkeysFromKeymap() out of the keymap's Global category.
             int hotkeyId = static_cast<int>(wParam);
 
-            // Handle media keys (registered with special IDs)
             switch (hotkeyId) {
                 case 0x7F00: // HOTKEY_ID_MEDIA_PLAYPAUSE
                     PostMessage(hwnd, WM_COMMAND, IDM_PLAY_PLAYPAUSE, 0);
@@ -630,6 +668,9 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
         }
 
         case WM_TRAYICON:
+            // Notification icon callback. lParam is the mouse event the shell
+            // forwarded; we only care about double-click (restore) and right-up
+            // (context menu).
             if (lParam == WM_LBUTTONDBLCLK) {
                 RestoreFromTray(hwnd);
             } else if (lParam == WM_RBUTTONUP) {
@@ -638,6 +679,15 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
             return 0;
 
         case WM_COPYDATA: {
+            // Cross-process inbox from a second launch of MediaAccess.exe.
+            // The launcher in wWinMain encodes intent via cds->dwData:
+            //   1 — first file in a "Open with..." batch (lpData = wide path)
+            //   2 — subsequent file in that same batch
+            //   3 — bare relaunch (no payload) → restore window, foreground it
+            //   4 — CLI switch payload ("verb\0param\0" UTF-16) — see cli_switches
+            // Sentinels 1/2 funnel through a brief BATCH_DELAY coalescing
+            // window (IDT_BATCH_FILES) so Explorer's per-file SendMessage
+            // storm doesn't restart playback once per file.
             COPYDATASTRUCT* cds = reinterpret_cast<COPYDATASTRUCT*>(lParam);
             // v1.63 — if we're already tearing down (WM_DESTROY in flight),
             // drop late deliveries silently rather than touch a half-freed
@@ -688,8 +738,11 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
         }
 
         case WM_INITMENUPOPUP:
-            // Update recent files menu when File menu is opened
-            if (HIWORD(lParam) == FALSE) {  // Not a system menu
+            // Lazy-populate the "Recent files" submenu the instant a top-level
+            // menu is about to open. Avoids dynamically tracking recent-files
+            // changes during normal playback — we just rebuild on demand.
+            // HIWORD(lParam) is TRUE for the window menu (Alt+Space); skip it.
+            if (HIWORD(lParam) == FALSE) {
                 HMENU hMenu = GetMenu(hwnd);
                 if (hMenu) {
                     UpdateRecentFilesMenu(hMenu);
@@ -698,6 +751,11 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
             break;
 
         case WM_COMMAND:
+            // Giant menu/action dispatch. Most IDM_* ids come from either the
+            // menu bar, the accelerator table, the keymap dispatcher above, or
+            // global hotkeys (WM_HOTKEY). Dynamic-range IDs (recent files,
+            // audio devices, effect presets) fall through to the default and
+            // are routed by DispatchDynamicRangeCommand.
             switch (LOWORD(wParam)) {
                 case IDM_FILE_OPEN:
                     ShowOpenDialog();

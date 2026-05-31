@@ -20,11 +20,24 @@ namespace mediaaccess {
 // Stable string IDs MUST NEVER change after release.
 // =============================================================================
 //
-// Default-shortcut convention: this column is the USA keymap default.
-// FR-CA and FR-FR keymaps ship as separate text files in the KeyMaps/
-// folder and can override any of these defaults.
+// Row schema (see Action in actions.h):
+//   { stringId,        commandId (IDM_*),    category,
+//     "English name",  "Nom français",
+//     { defaultUsa.vk, ctrl, shift, alt[, win] } }
 //
-// vk==0 means the action has no default shortcut on USA.
+// stringId  — opaque key persisted to <name>.MediaAccessKeyMap files. NEVER
+//             rename after a public release; doing so silently orphans every
+//             user's saved binding for that action.
+// commandId — IDM_ value posted via WM_COMMAND when the action fires. Two
+//             actions may share a commandId (e.g. PLAYER_PLAY_PAUSE in Main +
+//             GLOBAL_PLAY_PAUSE in Global) — that's how a Global hotkey reuses
+//             the Main handler.
+// category  — controls which dispatcher honors the binding (Main = window
+//             keymap, Global = RegisterHotKey, Books = active only when a
+//             DAISY/EPUB book is loaded, Radio/YouTube = future placeholders).
+// defaultUsa— USA keymap default. FR-CA inherits unchanged (Canadian
+//             Multilingual is QWERTY); FR-FR remaps specific physical keys
+//             in BuildDefaultFrFrKeyMap (keymap.cpp). vk==0 → no default.
 // -----------------------------------------------------------------------------
 
 static const Action g_actions[] = {

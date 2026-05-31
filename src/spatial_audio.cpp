@@ -43,7 +43,16 @@ static IPLVector3 DirectionFromAngleWithListener(float angleDeg, float lx, float
     return {dx / len, dy / len, dz / len};
 }
 
-// Function pointers for Steam Audio — resolved manually to avoid delay-load issues
+// Function pointers for Steam Audio.
+//
+// We deliberately do NOT link against phonon.lib (no implicit imports and no
+// /DELAYLOAD): both routes throw a hard load failure at exe startup if
+// phonon.dll is missing or has unresolved dependencies, and an end user
+// without the runtime would never see MediaAccess launch. Instead we
+// LoadLibraryW the DLL lazily from EnsurePhononLoaded() and resolve every
+// entry point via GetProcAddress. If the load fails, Initialize() just
+// returns false and Spatial Audio is silently unavailable — the rest of the
+// app keeps working.
 typedef IPLerror (IPLCALL *pfn_iplContextCreate)(IPLContextSettings*, IPLContext*);
 typedef void    (IPLCALL *pfn_iplContextRelease)(IPLContext*);
 typedef IPLerror (IPLCALL *pfn_iplHRTFCreate)(IPLContext, IPLAudioSettings*, IPLHRTFSettings*, IPLHRTF*);
@@ -60,6 +69,10 @@ static pfn_iplBinauralEffectCreate  p_iplBinauralEffectCreate = nullptr;
 static pfn_iplBinauralEffectRelease p_iplBinauralEffectRelease = nullptr;
 static pfn_iplBinauralEffectApply   p_iplBinauralEffectApply = nullptr;
 
+// One-shot loader for phonon.dll and its exports.
+// Idempotent — guarded by the `attempted` flag so repeated Init() retries
+// (after the user toggles 3D off and on) don't keep calling LoadLibrary.
+// Returns true only if every required entry point was resolved.
 static bool EnsurePhononLoaded() {
     static bool attempted = false;
     static bool loaded = false;
@@ -71,7 +84,10 @@ static bool EnsurePhononLoaded() {
     if (!slash) return false;
     *(slash + 1) = L'\0';
 
-    // Add lib subfolder to DLL search path for phonon.dll's own dependencies
+    // phonon.dll itself depends on several other DLLs that ship next to it
+    // in <exe>\lib\. SetDllDirectoryW puts that folder on the search path so
+    // Windows resolves them when phonon.dll loads. We don't restore the old
+    // value — none of the rest of MediaAccess cares.
     wchar_t libDir[MAX_PATH];
     wcscpy_s(libDir, exePath);
     wcscat_s(libDir, MAX_PATH, L"lib");
@@ -125,12 +141,18 @@ SpatialAudio::~SpatialAudio() {
     DeleteCriticalSection(&m_cs);
 }
 
+// Switch between Binaural (2-speaker HRTF) and 5.1 Surround upmix modes.
+// Triggered from the UI (param SpatialMode).
+//
+// Threading: the BASS DSP callback (Process) and SetMode race for the
+// effect handles, so we wrap both with m_cs. The early m_initialized = false
+// makes any in-flight DSP callback bail out at its TryEnterCriticalSection
+// check before we tear down the Steam Audio effects.
 void SpatialAudio::SetMode(SpatialMode mode) {
     EnterCriticalSection(&m_cs);
     if (m_mode != mode) {
         bool wasInit = m_initialized;
         int sr = m_sampleRate;
-        // Mark uninitialized first so DSP callback bails out immediately
         m_initialized = false;
         // Release old effects
         if (m_effectL)  { p_iplBinauralEffectRelease(&m_effectL);  m_effectL  = nullptr; }
@@ -168,14 +190,33 @@ void SpatialAudio::SetMode(SpatialMode mode) {
     LeaveCriticalSection(&m_cs);
 }
 
+// Initialize Steam Audio for the given sample rate and the current mode.
+// Returns true on success; on failure populates m_lastError with a
+// user-facing message (no DLL names — autonomy rule) and returns false.
+//
+// The init dance is deliberately defensive because Steam Audio is the most
+// fragile dependency we ship:
+//   1. Load phonon.dll lazily.
+//   2. Create context with the user's SIMD level capped at AVX2.
+//   3. Create the HRTF database.
+//   4. Create the binaural effects for the current mode (2 or 6 effects).
+//   5. Allocate scratch buffers.
+//   6. Run a SILENT smoke-test frame through every effect wrapped in __try
+//      to catch the case where creation succeeded but apply crashes due to
+//      a DLL/CPU mismatch or broken HRTF. Without this, a broken install
+//      crashes the audio thread on the first real sample.
+//   7. Pre-fill the output queue with one frame of silence so the first
+//      callback can deliver audio immediately without underflowing.
 bool SpatialAudio::Initialize(int sampleRate) {
     EnterCriticalSection(&m_cs);
     m_lastError[0] = L'\0';
 
     if (m_initialized) {
         if (m_sampleRate == sampleRate) { LeaveCriticalSection(&m_cs); return true; }
+        // Sample rate changed — tear down and rebuild against the new rate.
+        // Inline cleanup (not via Shutdown()) so we keep holding m_cs the
+        // whole time, otherwise a DSP callback could squeeze in.
         m_initialized = false;
-        // Inline shutdown while holding lock
         if (m_effectL)  { p_iplBinauralEffectRelease(&m_effectL);  m_effectL  = nullptr; }
         if (m_effectR)  { p_iplBinauralEffectRelease(&m_effectR);  m_effectR  = nullptr; }
         if (m_effectFL) { p_iplBinauralEffectRelease(&m_effectFL); m_effectFL = nullptr; }
@@ -278,9 +319,12 @@ bool SpatialAudio::Initialize(int sampleRate) {
     m_outAccL = new float[FRAME_SIZE]();
     m_outAccR = new float[FRAME_SIZE]();
 
-    // Verify effects actually work by processing a silent test frame.
-    // This catches DLL version mismatches, missing dependencies, or corrupt
-    // effects that passed creation but crash during apply.
+    // Smoke test: process a silent frame through every effect inside SEH
+    // (__try/__except). Steam Audio has been observed to crash on the FIRST
+    // iplBinauralEffectApply call when the user runs an AVX2-capable build
+    // on a CPU missing AVX (or a hardened-runtime DLL substitution); we'd
+    // rather fail loudly here, mark 3D as unsupported, and surface a clean
+    // message than crash the audio thread the moment the user hits play.
     {
         bool testOk = true;
         DWORD exCode = 0;
@@ -334,6 +378,11 @@ bool SpatialAudio::Initialize(int sampleRate) {
     return true;
 }
 
+// Lend a heap-allocated float scratch buffer of at least `samples` floats.
+// Used by the int16 audio path to avoid allocating on the audio thread
+// every callback. The buffer grows monotonically — only ever reallocates
+// when a larger size is requested. Caller must NOT free; ownership stays
+// with this SpatialAudio.
 float* SpatialAudio::GetConversionBuffer(int samples) {
     if (samples > m_convBufSize) {
         delete[] m_convBuf;
@@ -435,7 +484,11 @@ void SpatialAudio::ProcessSurroundFrame(float* frameL, float* frameR) {
         surroundAngle = 90.0f + (width * 0.33f);
     }
 
-    // Upmix stereo to 6 channels using pre-allocated m_upmix buffer
+    // Naive stereo→5.1 upmix. Real 5.1 sources would feed each speaker its
+    // own bed; for stereo we synthesize a center bed from Mid and panned
+    // ambience for the surrounds from Side. Gain coefficients were tuned by
+    // ear — the goal is "stereo content sounds like it's in a small room",
+    // not exact channel separation.
     static constexpr int STRIDE = FRAME_SIZE;
     float* fl = m_upmix;
     float* fr = m_upmix + STRIDE;
@@ -506,6 +559,23 @@ void SpatialAudio::ProcessSurroundFrame(float* frameL, float* frameR) {
     }
 }
 
+// Process one BASS DSP buffer in-place. Handles the impedance mismatch
+// between the variable callback size (anywhere from a few hundred to
+// thousands of frames) and Steam Audio's fixed FRAME_SIZE quantum.
+//
+// Strategy: carry leftover samples between calls in m_carryL/R, build full
+// FRAME_SIZE frames from carry + new input, process each frame, append to
+// m_queueL/R. At the end, copy queue → output buffer with optional dry/wet
+// blend. The queue is pre-primed with one frame of silence in Initialize()
+// to cover the first-call deficit.
+//
+// m_debugStep is updated throughout so a crash report from the outer SEH
+// wrapper in effects.cpp::SpatialAudioDSPProc can localise where things
+// went wrong.
+//
+// Threading: TryEnterCriticalSection (non-blocking) — if Initialize/SetMode
+// is already holding the lock we just skip this callback. Audio glitches
+// briefly but it's better than blocking the audio thread.
 void SpatialAudio::Process(float* buffer, int frameCount, float blend) {
     m_debugStep = 100;
     if (!m_initialized || frameCount <= 0) return;

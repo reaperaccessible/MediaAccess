@@ -1,36 +1,63 @@
+// =============================================================================
+// globals.cpp — definitions for the extern declarations in globals.h.
+//
+// Thread-safety model: nearly every global below is touched exclusively from
+// the main UI thread. The few exceptions are explicitly noted (search for
+// "thread-safe" / "background thread"). Background workers (downloader,
+// updater, hybrid YT swap, song-history capture) either run via Post-/
+// SendMessage to the main thread or use their own dedicated synchronization
+// primitives — they do NOT directly mutate the variables here unless noted.
+// =============================================================================
+
 #include "globals.h"
 #include "resource.h"
 
-// Constants
+// App-wide string constants. MUTEX_NAME is the named mutex used for the
+// single-instance guard; new launches detect an existing instance via this
+// name and forward arguments through WM_COPYDATA instead of starting fresh.
 const wchar_t* APP_NAME = L"MediaAccess";
 const wchar_t* WINDOW_CLASS = L"MediaAccessWindow";
 const wchar_t* MUTEX_NAME = L"MediaAccessSingleInstance";
 
-// Window handles
+// Main window handles. g_hwnd is set early in WM_CREATE; g_statusBar is
+// the child created by InitStatusBar(). Both are nullptr before init and
+// after WM_DESTROY — guard reads accordingly.
 HWND g_hwnd = nullptr;
 HWND g_statusBar = nullptr;
 
+// Pick the best parent HWND for a MessageBox call so it appears modal to
+// whatever the user is currently looking at (typically a sub-dialog).
+// Falls back to the main window if no top-level is active.
 HWND GetMessageBoxOwner() {
     HWND active = GetActiveWindow();
     if (active) return active;
     return g_hwnd;
 }
 
-// Video/MPV state
+// Active playback engine + video state. PlaybackEngine::None means
+// stopped or never-played. g_videoHwnd is the child window mpv renders
+// into; created on demand.
 PlaybackEngine g_activeEngine = PlaybackEngine::None;
 HWND g_videoHwnd = nullptr;
 bool g_isVideoPlaying = false;
 bool g_isFullscreen = false;
 
-// BASS state
-HSTREAM g_stream = 0;      // Source stream
-HSTREAM g_fxStream = 0;    // Tempo stream (wraps g_stream for pitch/tempo)
+// BASS handle pipeline. Layered so DSP and tempo processing wrap a raw
+// decoder:
+//   g_sourceStream → decode stream from file/URL (bitrate, raw samples)
+//   g_stream       → may equal g_sourceStream OR a derived chain stream
+//   g_fxStream     → BASS_FX tempo stream that consumes g_stream
+// Callers that just want "the audible stream" should use g_fxStream when
+// non-zero, else g_stream. HSYNC handles are released alongside their
+// owning HSTREAM (BASS auto-cleans on stream free).
+HSTREAM g_stream = 0;       // Source / wrapped stream
+HSTREAM g_fxStream = 0;     // Tempo stream (wraps g_stream for pitch/tempo)
 HSTREAM g_sourceStream = 0; // Original decode stream (for bitrate queries)
 HSYNC g_endSync = 0;
-HSYNC g_metaSync = 0;      // Sync for stream metadata changes
-HSYNC g_dlSync = 0;        // Sync for URL download complete (re-parse chapters)
+HSYNC g_metaSync = 0;       // Sync for ICY stream metadata changes (BASS_SYNC_META)
+HSYNC g_dlSync = 0;         // Sync for URL download complete (re-parse chapters)
 float g_volume = 1.0f;
-bool g_muted = false;      // Muted state (recording still works)
+bool g_muted = false;       // Muted state (recording still works)
 bool g_legacyVolume = false;  // Use legacy volume (faster, but affects recordings)
 bool g_disableBatchDelay = false; // Skip batch delay when opening files from explorer
 

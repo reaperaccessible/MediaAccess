@@ -1,3 +1,21 @@
+// =============================================================================
+// database.cpp — SQLite-backed persistence (bookmarks, favorites, schedules,
+//                book library, song history, per-file resume positions).
+//
+// The DB lives at:
+//   - Installed:  %APPDATA%\MediaAccess\MediaAccess.db
+//   - Portable:   <exe-dir>\MediaAccess.db
+//
+// Schema philosophy: every CREATE statement uses IF NOT EXISTS, and every
+// post-v1 column addition uses ALTER TABLE ADD COLUMN (ignored when the
+// column already exists). This means InitDatabase is idempotent and safely
+// handles fresh installs, mid-version upgrades, and downgrades that simply
+// ignore newer columns.
+//
+// All text columns store UTF-8 (paths, names, URLs); wide-string conversion
+// happens at the API boundary via Utf8ToWide / WideToUtf8.
+// =============================================================================
+
 #include "database.h"
 #include "sqlite3.h"
 #include "utils.h"
@@ -10,13 +28,17 @@
 static sqlite3* g_db = nullptr;
 static std::wstring g_dbPath;
 
-// Initialize database
+// Open the SQLite file (creating it if missing), set pragmas, then run all
+// CREATE-TABLE-IF-NOT-EXISTS and ALTER-TABLE migrations. Safe to call once
+// at startup; returns false only if the file cannot be opened OR the
+// foundational `file_positions` table cannot be created.
 bool InitDatabase() {
     if (g_db) return true;  // Already initialized
 
-    // Get database path
+    // Resolve DB path. Installed mode lives next to MediaAccess.ini in
+    // %APPDATA%; portable mode sits next to the EXE so an USB-stick install
+    // carries its data with it.
     if (IsInstalledMode()) {
-        // Installed mode: use AppData\Roaming\MediaAccess
         wchar_t appDataPath[MAX_PATH];
         if (SUCCEEDED(SHGetFolderPathW(NULL, CSIDL_APPDATA, NULL, 0, appDataPath))) {
             g_dbPath = appDataPath;
@@ -26,7 +48,6 @@ bool InitDatabase() {
         }
     }
 
-    // Portable mode or fallback: use exe directory
     if (g_dbPath.empty()) {
         wchar_t exePath[MAX_PATH];
         GetModuleFileNameW(nullptr, exePath, MAX_PATH);
@@ -38,7 +59,7 @@ bool InitDatabase() {
         g_dbPath += L"MediaAccess.db";
     }
 
-    // Open database (UTF-8 path)
+    // sqlite3_open expects UTF-8; our path is wide.
     std::string dbPathUtf8 = WideToUtf8(g_dbPath);
     int rc = sqlite3_open(dbPathUtf8.c_str(), &g_db);
     if (rc != SQLITE_OK) {
@@ -47,15 +68,23 @@ bool InitDatabase() {
         return false;
     }
 
-    // Set busy timeout to prevent hangs (5 seconds)
+    // 5 s busy timeout: lets concurrent writers (e.g. SaveFilePositionDB
+    // racing with bookmark add) serialize cleanly instead of returning
+    // SQLITE_BUSY to callers that have no retry path.
     sqlite3_busy_timeout(g_db, 5000);
 
-    // Enable WAL mode for better concurrency
+    // WAL gives readers non-blocking access while a writer is active —
+    // essential because the UI thread reads bookmarks/favorites while
+    // background threads (podcast refresh, history capture) write.
     char* errMsg = nullptr;
     sqlite3_exec(g_db, "PRAGMA journal_mode=WAL;", nullptr, nullptr, &errMsg);
     if (errMsg) sqlite3_free(errMsg);
 
-    // Create tables if not exists
+    // ---- v1.0 — file_positions ---------------------------------------
+    // Per-file resume position keyed by absolute path. last_updated is a
+    // unix timestamp used by any future cleanup of stale entries.
+    // This is the only table whose failure aborts InitDatabase, because
+    // nothing else can work without a writable DB.
     const char* sql =
         "CREATE TABLE IF NOT EXISTS file_positions ("
         "  path TEXT PRIMARY KEY,"
@@ -72,7 +101,10 @@ bool InitDatabase() {
         return false;
     }
 
-    // Create bookmarks table
+    // ---- v1.0 — bookmarks --------------------------------------------
+    // User-created jump points; one row per bookmark, surfaced via the
+    // Bookmarks dialog. `path` is intentionally not UNIQUE — multiple
+    // bookmarks per file are allowed.
     const char* bookmarkSql =
         "CREATE TABLE IF NOT EXISTS bookmarks ("
         "  id INTEGER PRIMARY KEY AUTOINCREMENT,"
@@ -85,10 +117,11 @@ bool InitDatabase() {
     rc = sqlite3_exec(g_db, bookmarkSql, nullptr, nullptr, &errMsg);
     if (rc != SQLITE_OK) {
         if (errMsg) sqlite3_free(errMsg);
-        // Don't fail completely, just log
+        // Non-fatal: bookmarks degrade gracefully if the table is missing.
     }
 
-    // Create radio favorites table
+    // ---- v1.0 — radio_favorites --------------------------------------
+    // Saved internet-radio stations. sort_order added later (see below).
     const char* radioSql =
         "CREATE TABLE IF NOT EXISTS radio_favorites ("
         "  id INTEGER PRIMARY KEY AUTOINCREMENT,"
@@ -103,7 +136,9 @@ bool InitDatabase() {
         if (errMsg) sqlite3_free(errMsg);
     }
 
-    // Create podcast subscriptions table
+    // ---- v1.0 — podcast_subscriptions --------------------------------
+    // feed_url UNIQUE prevents accidental double-subscription. image_url
+    // is the channel artwork (cached separately on disk).
     const char* podcastSql =
         "CREATE TABLE IF NOT EXISTS podcast_subscriptions ("
         "  id INTEGER PRIMARY KEY AUTOINCREMENT,"
@@ -119,7 +154,11 @@ bool InitDatabase() {
         if (errMsg) sqlite3_free(errMsg);
     }
 
-    // Create scheduled events table
+    // ---- v1.0 — scheduled_events -------------------------------------
+    // Timed actions (play/stop/etc) used by the Scheduler dialog.
+    // duration + stop_action were added in a later release via the ALTER
+    // statements below; the CREATE statement here is the post-migration
+    // shape so fresh installs match upgraded ones.
     const char* scheduleSql =
         "CREATE TABLE IF NOT EXISTS scheduled_events ("
         "  id INTEGER PRIMARY KEY AUTOINCREMENT,"
@@ -142,19 +181,29 @@ bool InitDatabase() {
         if (errMsg) sqlite3_free(errMsg);
     }
 
-    // Migration: Add duration and stop_action columns if they don't exist
+    // ---- Migrations --------------------------------------------------
+    // Each ALTER returns SQLITE_ERROR ("duplicate column name") on already-
+    // migrated DBs; we intentionally ignore the return code. New code that
+    // SELECTs these columns assumes they exist after InitDatabase runs.
+    //
+    // scheduled_events: duration + stop_action enable timed-stop events
+    // (e.g. "play radio at 18:00 for 30 min then stop").
     sqlite3_exec(g_db, "ALTER TABLE scheduled_events ADD COLUMN duration INTEGER DEFAULT 0;",
                  nullptr, nullptr, nullptr);
     sqlite3_exec(g_db, "ALTER TABLE scheduled_events ADD COLUMN stop_action INTEGER DEFAULT 0;",
                  nullptr, nullptr, nullptr);
 
-    // Migration: Add sort_order column to radio_favorites and podcast_subscriptions
+    // radio_favorites + podcast_subscriptions: sort_order lets users
+    // reorder entries with the Up/Down buttons. 0 means "use natural
+    // (alphabetic) order"; non-zero forces explicit ranking.
     sqlite3_exec(g_db, "ALTER TABLE radio_favorites ADD COLUMN sort_order INTEGER DEFAULT 0;",
                  nullptr, nullptr, nullptr);
     sqlite3_exec(g_db, "ALTER TABLE podcast_subscriptions ADD COLUMN sort_order INTEGER DEFAULT 0;",
                  nullptr, nullptr, nullptr);
 
-    // Create song_history table (stream metadata capture)
+    // ---- song_history ------------------------------------------------
+    // Captured stream metadata (ICY title changes from BASS_SYNC_META).
+    // Append-only; the Now Playing dialog truncates display to the last N.
     const char* songHistorySql =
         "CREATE TABLE IF NOT EXISTS song_history ("
         "id INTEGER PRIMARY KEY AUTOINCREMENT, "
@@ -163,9 +212,10 @@ bool InitDatabase() {
         ");";
     sqlite3_exec(g_db, songHistorySql, nullptr, nullptr, nullptr);
 
-    // -------------------------------------------------------------------
-    // Book library tables (DAISY / EPUB reader — Phase 1)
-    // -------------------------------------------------------------------
+    // ---- Book library (DAISY / EPUB reader) --------------------------
+    // `books` is the canonical row per imported book. position_clip +
+    // position_offset together form a resume bookmark (clip index inside
+    // the smil flow + seconds into that clip).
     const char* booksSql =
         "CREATE TABLE IF NOT EXISTS books ("
         "  id INTEGER PRIMARY KEY AUTOINCREMENT,"
@@ -180,6 +230,9 @@ bool InitDatabase() {
         ");";
     sqlite3_exec(g_db, booksSql, nullptr, nullptr, nullptr);
 
+    // User-placed bookmarks inside a book; idx_book_bookmarks_book speeds
+    // up the per-book lookup that the Bookmarks-in-book dialog performs
+    // on every open.
     const char* bookBookmarksSql =
         "CREATE TABLE IF NOT EXISTS book_bookmarks ("
         "  id INTEGER PRIMARY KEY AUTOINCREMENT,"
@@ -193,6 +246,8 @@ bool InitDatabase() {
     sqlite3_exec(g_db, "CREATE INDEX IF NOT EXISTS idx_book_bookmarks_book ON book_bookmarks(book_id);",
                  nullptr, nullptr, nullptr);
 
+    // Folders the user has added to the book library; rescanned on
+    // startup and via the "Refresh library" command.
     const char* bookFoldersSql =
         "CREATE TABLE IF NOT EXISTS book_library_folders ("
         "  path TEXT PRIMARY KEY"

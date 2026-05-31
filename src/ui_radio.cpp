@@ -2,6 +2,28 @@
 
 // ============================================================================
 // Radio Dialog
+//
+// Three independent search backends, all dispatched from the same dialog:
+//
+//   1. RadioBrowser  (https://api.radio-browser.info)
+//      JSON shape: array of station objects with name, url, url_resolved,
+//      country, codec, bitrate, language, tags.
+//      Filters: name, country, tag (genre), language, bitrateMin, order.
+//
+//   2. TuneIn  (http://opml.radiotime.com/Search.ashx)
+//      OPML/XML response with <outline> elements; each carries a URL
+//      attribute pointing at a .pls/.m3u that must be resolved to a
+//      direct stream (ResolveTuneInUrl follows redirects up to 3 deep).
+//
+//   3. iHeartRadio  (api.iheart.com)
+//      JSON response of "hits"; a separate station-detail call resolves
+//      the streams list. Returns multiple bitrate/codec variants per
+//      station — we surface them in a chooser when the user picks the
+//      station.
+//
+// The unified RadioSearchResult struct flattens all three into a single
+// type with a `source` discriminator (0=RadioBrowser, 1=TuneIn, 2=iHeart);
+// playback code in ResolveStreamUrl() / PlayRadioResult() switches on it.
 // ============================================================================
 
 static std::vector<RadioStation> g_radioStations;
@@ -90,7 +112,9 @@ static volatile bool g_radioCountriesFetched = false;
 static volatile bool g_radioCountriesFetching = false;
 static const UINT WM_RADIO_COUNTRIES_READY = WM_APP + 11;
 
-// v1.61 — extended filter caches (tags and languages, same fetch pattern).
+// Extended filter caches (tags and languages, same lazy-fetch pattern as
+// countries: one HTTP call per session, results pushed back to the dialog
+// via a WM_APP message so the UI thread never blocks).
 static std::vector<std::wstring> g_radioTags;
 static volatile bool g_radioTagsFetched  = false;
 static volatile bool g_radioTagsFetching = false;
@@ -101,8 +125,8 @@ static volatile bool g_radioLanguagesFetched  = false;
 static volatile bool g_radioLanguagesFetching = false;
 static const UINT WM_RADIO_LANGUAGES_READY = WM_APP + 13;
 
-// v1.61 — show/hide the advanced filters section. Persisted in the INI
-// under [Radio] AdvancedSearchOpen.
+// Show/hide the advanced filters section (genre/language/bitrate/sort).
+// Persisted in the INI under [Radio] AdvancedSearchOpen.
 static bool g_radioAdvancedOpen = false;
 
 // HTTP GET request (reused from youtube.cpp pattern)
@@ -290,8 +314,8 @@ static void EnsureRadioCountriesFetched(HWND hwnd) {
     else g_radioCountriesFetching = false;
 }
 
-// v1.61 — generic list fetcher for /tags and /languages. Same JSON-array
-// parsing logic as countries (each object has a "name" field).
+// Generic list fetcher for RadioBrowser's /tags and /languages endpoints.
+// Same JSON-array parsing logic as countries (each object has a "name").
 static void FetchRadioListInto(const std::wstring& url,
                                std::vector<std::wstring>& out) {
     std::wstring json = RadioHttpGet(url);
@@ -361,7 +385,9 @@ static void EnsureRadioLanguagesFetched(HWND hwnd) {
     else g_radioLanguagesFetching = false;
 }
 
-// v1.61 — populate genre + language combos from the cached lists.
+// Populate genre + language combos from the cached lists; preserves the
+// user's currently-typed text so an in-progress filter isn't clobbered
+// when the async fetch completes.
 static void PopulateGenreCombo(HWND hwnd) {
     HWND hCombo = GetDlgItem(hwnd, IDC_RADIO_SEARCH_GENRE);
     if (!hCombo) return;
@@ -425,7 +451,7 @@ static void PopulateSortCombo(HWND hwnd) {
     SendMessageW(hCombo, CB_SETCURSEL, 0, 0);
 }
 
-// v1.61 — sort keys parallel to the PopulateSortCombo labels above.
+// Sort keys parallel to the PopulateSortCombo labels above.
 // 0 = Popularity (clickcount desc), 1 = Name asc, 2 = Bitrate desc,
 // 3 = Last checked (lastchangetime desc).
 static const struct { const char* name; bool reverse; } kSortKeys[] = {
@@ -435,13 +461,22 @@ static const struct { const char* name; bool reverse; } kSortKeys[] = {
     { "lastchangetime",  true  },
 };
 
-// Search RadioBrowser API
-// v1.61 — accepts extra optional filters. Pass empty / 0 to disable each.
+// =========================================================================
+// Backend 1: RadioBrowser  (https://api.radio-browser.info)
+// =========================================================================
+//
+// Search RadioBrowser's /stations/search endpoint.
+// All named filters are optional. Pass empty / 0 to disable each:
 //   tag         genre / category (RadioBrowser tag field)
 //   language    language name
 //   bitrateMin  in kbps; 0 = no floor
 //   sortKey     index into kSortKeys; -1 = default (popularity when query
 //               is empty, otherwise let RadioBrowser pick relevance)
+//
+// JSON shape (one entry per station):
+//   { "name": "...", "url": "...", "url_resolved": "...",
+//     "country": "...", "codec": "...", "bitrate": 128, ... }
+// We prefer url_resolved (already redirect-followed by the API).
 static bool SearchRadioBrowser(const std::wstring& query,
                                const std::wstring& country,
                                const std::wstring& tag,
@@ -477,8 +512,8 @@ static bool SearchRadioBrowser(const std::wstring& query,
         if (kSortKeys[sortKey].reverse) url += L"&reverse=true";
     } else if (query.empty() && (!country.empty() || !tag.empty() || !language.empty())) {
         // No explicit sort but a filter is present without a name search —
-        // surface the most popular stations first (preserves the pre-v1.61
-        // behaviour for the country-only browse case).
+        // surface the most popular stations first (the country-only
+        // browse case used to ship without any explicit sort).
         url += L"&order=clickcount&reverse=true";
     }
     std::wstring json = RadioHttpGet(url);
@@ -673,6 +708,16 @@ static std::vector<StreamOption> ParsePlaylistContentMultiple(const std::string&
     return urls;
 }
 
+// =========================================================================
+// Backend 2: TuneIn  (http://opml.radiotime.com/Search.ashx)
+// =========================================================================
+//
+// TuneIn's public search returns OPML (XML) where each <outline> for a
+// station carries a URL attribute pointing at a .pls / .m3u file. That
+// playlist must then be fetched and parsed to extract one or more direct
+// stream URLs. ResolveTuneInUrl walks up to 3 levels of nested playlists
+// before giving up.
+
 // Resolve a TuneIn playlist URL to get the actual stream URL
 static std::wstring ResolveTuneInUrl(const std::wstring& playlistUrl) {
     std::wstring currentUrl = playlistUrl;
@@ -825,6 +870,16 @@ static bool SearchTuneIn(const std::wstring& query, std::vector<RadioSearchResul
 
     return !results.empty();
 }
+
+// =========================================================================
+// Backend 3: iHeartRadio  (api.iheart.com)
+// =========================================================================
+//
+// Two-step API: /api/v3/search/all for the station list, then a
+// per-station call to fetch the streams[] array (each entry has a codec,
+// bitrate and a direct URL). We surface every variant when the user
+// picks a station so they can choose between, e.g., 64 kbps AAC and
+// 128 kbps MP3.
 
 // Get stream URL for an iHeartRadio station by ID
 static std::wstring GetIHeartStreamUrl(const std::wstring& stationId) {
@@ -1122,7 +1177,7 @@ static void UpdateRadioTabVisibility(HWND hwnd, int tab) {
     ShowWindow(GetDlgItem(hwnd, IDC_RADIO_SEARCH_COUNTRY), isRadioBrowser ? SW_SHOW : SW_HIDE);
     ShowWindow(GetDlgItem(hwnd, IDC_RADIO_SEARCH_COUNTRY_LABEL), isRadioBrowser ? SW_SHOW : SW_HIDE);
 
-    // v1.61 — Advanced-filters checkbox: only meaningful for RadioBrowser.
+    // Advanced-filters checkbox: only meaningful for RadioBrowser.
     // The expanded row below it is shown only when both conditions hold:
     // we're on search/RadioBrowser AND the user ticked the checkbox.
     ShowWindow(GetDlgItem(hwnd, IDC_RADIO_SEARCH_ADVANCED),
@@ -1230,8 +1285,8 @@ static LRESULT CALLBACK RadioSearchListSubclassProc(HWND hwnd, UINT msg, WPARAM 
                 std::wstring streamUrl = ResolveAndPickStreamUrl(GetParent(hwnd), r, hadOptions);
 
                 if (!streamUrl.empty()) {
-                    // v1.60 — preset the station name BEFORE PlayTrack so
-                    // the title shows "Station - ..." from the get-go.
+                    // Preset the station name BEFORE PlayTrack so the
+                    // title shows "Station - ..." from the get-go.
                     SetNowPlaying(SourceType::RadioFavorite, r.name, L"");
                     g_playlist.clear();
                     g_playlist.push_back(streamUrl);
@@ -1311,7 +1366,8 @@ static LRESULT CALLBACK RadioListSubclassProc(HWND hwnd, UINT msg, WPARAM wParam
             // Play selected station
             int sel = static_cast<int>(SendMessageW(hwnd, LB_GETCURSEL, 0, 0));
             if (sel >= 0 && sel < static_cast<int>(g_radioStations.size())) {
-                // v1.60 — preset favorite name before PlayTrack.
+                // Preset favorite name before PlayTrack so the title bar
+                // reads "Station - ..." immediately.
                 SetNowPlaying(SourceType::RadioFavorite,
                               g_radioStations[sel].name, L"");
                 g_playlist.clear();
@@ -1457,8 +1513,8 @@ static INT_PTR CALLBACK RadioDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM 
                 EnsureRadioCountriesFetched(hwnd);
             }
 
-            // v1.61 — initialize the advanced-filters combos. Bitrate and
-            // Sort are static; Genre and Language are lazily fetched in the
+            // Initialize the advanced-filters combos. Bitrate and Sort are
+            // static; Genre and Language are lazily fetched in the
             // background (population happens when WM_RADIO_*_READY fires).
             PopulateBitrateCombo(hwnd);
             PopulateSortCombo(hwnd);
@@ -1506,9 +1562,9 @@ static INT_PTR CALLBACK RadioDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM 
 
                 case IDC_RADIO_SEARCH_ADVANCED:
                     if (HIWORD(wParam) == BN_CLICKED) {
-                        // v1.61 — flip the global, persist, re-evaluate
-                        // which controls are visible. Speak the new state
-                        // so a screen-reader user gets immediate feedback.
+                        // Flip the global, persist, re-evaluate which
+                        // controls are visible. Speak the new state so a
+                        // screen-reader user gets immediate feedback.
                         g_radioAdvancedOpen =
                             (IsDlgButtonChecked(hwnd, IDC_RADIO_SEARCH_ADVANCED) == BST_CHECKED);
                         WritePrivateProfileStringW(L"Radio", L"AdvancedSearchOpen",
@@ -1720,7 +1776,8 @@ static INT_PTR CALLBACK RadioDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM 
                         HWND hList = GetDlgItem(hwnd, IDC_RADIO_LIST);
                         int sel = static_cast<int>(SendMessageW(hList, LB_GETCURSEL, 0, 0));
                         if (sel >= 0 && sel < static_cast<int>(g_radioStations.size())) {
-                            // v1.60 — preset favorite name before PlayTrack.
+                            // Preset favorite name before PlayTrack so the title bar
+                // reads "Station - ..." immediately.
                             SetNowPlaying(SourceType::RadioFavorite,
                                           g_radioStations[sel].name, L"");
                             g_playlist.clear();
@@ -1752,9 +1809,9 @@ static INT_PTR CALLBACK RadioDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM 
                         if (countryFilter == L"(Any)") countryFilter.clear();
                     }
 
-                    // v1.61 — read the advanced filters (only when the
-                    // section is open AND RadioBrowser is selected; empty
-                    // strings / 0 / -1 disable each filter).
+                    // Read the advanced filters (only when the section is
+                    // open AND RadioBrowser is selected; empty strings /
+                    // 0 / -1 disable each filter).
                     std::wstring tagFilter, languageFilter;
                     int bitrateMin = 0;
                     int sortKey = -1;
@@ -1832,9 +1889,9 @@ static INT_PTR CALLBACK RadioDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM 
                         wchar_t msg[128];
                         swprintf(msg, 128, T("Found %d stations"), static_cast<int>(g_radioSearchResults.size()));
                         Speak(WideToUtf8(msg).c_str());
-                        // v1.61 — mirror the count into the static so a
-                        // sighted user sees it too, and so the screen
-                        // reader can read it back via standard navigation.
+                        // Mirror the count into the static so a sighted
+                        // user sees it too, and so the screen reader can
+                        // read it back via standard navigation.
                         SetDlgItemTextW(hwnd, IDC_RADIO_SEARCH_RESULT_COUNT, msg);
 
                         // Select first item
@@ -1887,8 +1944,9 @@ static INT_PTR CALLBACK RadioDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM 
                             std::wstring streamUrl = ResolveAndPickStreamUrl(hwnd, r, hadOptions);
 
                             if (!streamUrl.empty()) {
-                                // v1.60 — preset the station name from
-                                // the search result before PlayTrack.
+                                // Preset the station name from the search
+                                // result before PlayTrack so the window
+                                // title is correct from the first frame.
                                 SetNowPlaying(SourceType::RadioFavorite,
                                               r.name, L"");
                                 g_playlist.clear();

@@ -1,3 +1,19 @@
+// =============================================================================
+// accessibility.cpp — screen-reader output routed through UniversalSpeech.
+//
+// UniversalSpeech tries (in priority order) NVDA → JAWS → Window-Eyes →
+// Microsoft SAPI when none of the dedicated screen readers are running.
+// We don't pick a backend ourselves — speechSay() picks whichever is alive.
+//
+// Why the queue + WM_SPEAK indirection: callers fire Speak() from any
+// thread (BASS sync callbacks, background download threads, etc.) but the
+// screen reader bridges must be invoked on the UI thread. We push the text
+// onto a guarded queue and post WM_SPEAK so DoSpeak() drains it on the
+// main thread. Multiple announcements that pile up between drains get
+// concatenated with ", " so the user hears one fluent utterance instead of
+// a stuttering sequence.
+// =============================================================================
+
 #include "accessibility.h"
 #include "globals.h"
 #include "resource.h"
@@ -18,6 +34,10 @@ static CRITICAL_SECTION g_speechCS;
 static bool g_speechCSInitialized = false;
 static bool g_speechInitialized = false;
 
+// Drain the queue and speak. Called on the UI thread in response to
+// WM_SPEAK. The "interrupt" flag of the FIRST queued message wins — if any
+// upstream caller asked to interrupt, we stop the current utterance before
+// speaking the merged batch.
 void DoSpeak() {
     if (!g_speechInitialized) return;
 
@@ -28,10 +48,10 @@ void DoSpeak() {
         return;
     }
 
-    // Determine interrupt from the first entry
     bool interrupt = g_speechQueue.front().interrupt;
 
-    // Concatenate all queued messages
+    // Merge all queued messages into a single utterance so rapid-fire
+    // calls (e.g. effect tweaks with key auto-repeat) don't stutter.
     std::wstring combined;
     while (!g_speechQueue.empty()) {
         if (!combined.empty()) combined += L", ";
@@ -49,6 +69,9 @@ void DoSpeak() {
     }
 }
 
+// Thread-safe: enqueue + wake the UI thread via WM_SPEAK. Drops the
+// message silently if speech isn't initialized or the main HWND is gone
+// (e.g. shutdown is in progress).
 void Speak(const char* text, bool interrupt) {
     if (g_speechInitialized && g_hwnd) {
         EnterCriticalSection(&g_speechCS);

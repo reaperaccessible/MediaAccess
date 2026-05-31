@@ -19,7 +19,12 @@ static void RefreshScheduleList(HWND hwnd) {
     }
 }
 
-// Calculate next schedule time for repeating events
+// After a scheduled event fires, compute when it should next fire based on
+// its repeat policy and persist the new time. One-time events are simply
+// disabled. Daily/Weekly add a fixed interval; Weekdays/Weekends advance
+// day-by-day until the next matching weekday is found (handles
+// week-crossings naturally); Monthly bumps the month field and lets
+// mktime() normalise (so a Feb 31 schedule rolls into early March).
 void CalculateNextScheduleTime(int id, int64_t lastRun, ScheduleRepeat repeat) {
     if (repeat == ScheduleRepeat::None) {
         // One-time event, just disable it
@@ -114,7 +119,15 @@ void HandleScheduledDurationEnd() {
     }
 }
 
-// Check for and execute scheduled events
+// Poll the database for events whose scheduledTime has elapsed and fire
+// them. Marks each event "last run = now" BEFORE executing to prevent a
+// re-trigger if the action itself blocks long enough for the next tick.
+//
+// Recording-only mode is a special case: BASS needs an active playback
+// stream for the encoder to receive samples, so we still call PlayTrack()
+// but force g_muted=true beforehand (saving the flag in g_schedulerMuted
+// so HandleScheduledDurationEnd can restore it). The user hears nothing
+// but the file streams through the encoder.
 void CheckScheduledEvents() {
     std::vector<ScheduledEvent> pending = GetPendingScheduledEvents();
 

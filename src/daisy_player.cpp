@@ -15,12 +15,12 @@
 #include "mediaaccess/accessibility.h"
 #include "mediaaccess/translations.h"
 #include "mediaaccess/logger.h"
-#include "mediaaccess/tts_player.h"          // Phase 2 — TTS for text-only books
-#include "mediaaccess/book_text_window.h"    // Phase 2 — text display window
-#include "mediaaccess/player.h"              // Phase 4 — GetEffectivePlaybackSpeed
-#include "mediaaccess/globals.h"             // Phase 4 — g_bookSkipMask / g_bookSkipBypass
-#include "mediaaccess/ui.h"                  // v1.60 — SetNowPlaying et al.
-#include "mediaaccess/utils.h"               // v1.64 — FormatTime for seek announcements
+#include "mediaaccess/tts_player.h"          // TTS for text-only books
+#include "mediaaccess/book_text_window.h"    // synced text-display window
+#include "mediaaccess/player.h"              // GetEffectivePlaybackSpeed
+#include "mediaaccess/globals.h"             // g_bookSkipMask / g_bookSkipBypass
+#include "mediaaccess/ui.h"                  // SetNowPlaying et al.
+#include "mediaaccess/utils.h"               // FormatTime for seek announcements
 #include "bass.h"
 
 #include <windows.h>
@@ -67,7 +67,7 @@ struct DaisyState {
     // can compute "global" book time without re-summing every call.
     double   clipsBeforeDuration = 0.0;
 
-    // Phase 2 — TTS path for text-only books / EPUB without Media Overlays.
+    // TTS path for text-only books / EPUB without Media Overlays.
     // When textOnlyMode is true, currentClip / stream / endSync are unused;
     // currentSegment indexes into book->textSegments and SAPI handles
     // playback via the tts_player module. WM_TTS_END_OF_STREAM advances
@@ -85,7 +85,7 @@ static DaisyState g_d;
 
 // Forward declaration — BuildLocationLabel is defined further down with
 // the rest of the navigation helpers but used by StartClipPaused /
-// StartTtsSegment (v1.60 now-playing item refresh).
+// StartTtsSegment for the now-playing item refresh.
 static std::wstring BuildLocationLabel();
 
 static double ClipDuration(const DaisyClip& c) {
@@ -162,7 +162,7 @@ static bool StartClipPaused(int clipIdx) {
     // Push the clip's text to the text window for audio+text books.
     // (Empty string clears the display for audio-only clips.)
     BookTextWindowSetText(c.textContent);
-    // v1.60 — refresh the title's "item" to the latest chapter/page label.
+    // Refresh the title's "item" to the latest chapter/page label.
     // Cheap; the label only changes at chapter boundaries inside a long
     // book, and the window title comparison short-circuits no-op writes.
     if (g_d.book) SetNowPlayingItem(BuildLocationLabel());
@@ -184,7 +184,7 @@ static bool StartTtsSegment(int segIdx) {
         return false;
     }
     g_d.ttsPaused = false;
-    // v1.60 — refresh title with the segment's chapter / page label.
+    // Refresh title with the segment's chapter / page label.
     SetNowPlayingItem(BuildLocationLabel());
     return true;
 }
@@ -255,8 +255,8 @@ void DaisyClose() {
         SaveCurrentPosition();
         FreeStream();
     }
-    // Phase 3 — clean up the per-book temp folder if EPUB Media Overlays
-    // extracted audio there. Done after FreeStream() so no files are held open.
+    // Clean up the per-book temp folder if EPUB Media Overlays extracted
+    // audio there. Done after FreeStream() so no files are held open.
     if (g_d.book && !g_d.book->tempAudioDir.empty()) {
         RemoveDirectoryRecursive(g_d.book->tempAudioDir);
     }
@@ -268,8 +268,8 @@ void DaisyClose() {
     g_d.textOnlyMode = false;
     g_d.currentSegment = 0;
     g_d.ttsPaused = false;
-    // v1.60 — drop the now-playing state when a book closes. If the caller
-    // is about to start another piece of media (DaisyLoadAndPlay or
+    // Drop the now-playing state when a book closes. If the caller is
+    // about to start another piece of media (DaisyLoadAndPlay or
     // LoadFile), the next SetNowPlaying will restore it immediately.
     ClearNowPlaying();
 }
@@ -307,8 +307,8 @@ bool DaisyLoadAndPlay(std::unique_ptr<DaisyBook> book, int bookId) {
         }
         if (!StartTtsSegment(startSeg)) return false;
         MarkBookOpened(bookId);
-        // v1.60 — show the book title + initial location in the window
-        // title and announce path.
+        // Show the book title + initial location in the window title
+        // and announce path.
         SetNowPlaying(SourceType::Book, g_d.book->title, BuildLocationLabel());
         return true;
     }
@@ -334,7 +334,7 @@ bool DaisyLoadAndPlay(std::unique_ptr<DaisyBook> book, int bookId) {
 
     BASS_ChannelPlay(g_d.stream, FALSE);
     MarkBookOpened(bookId);
-    // v1.60 — book title + initial location.
+    // Book title + initial location.
     SetNowPlaying(SourceType::Book, g_d.book->title, BuildLocationLabel());
     return true;
 }
@@ -423,9 +423,9 @@ void DaisySeekRelative(double delta) {
         BASS_ChannelSetPosition(g_d.stream, b, BASS_POS_BYTE);
     }
     if (wasPlaying) BASS_ChannelPlay(g_d.stream, FALSE);
-    // v1.64 — announce the new position so the user knows where the
-    // seek landed without having to query the status bar.
-    // v1.65 — gated by Options > Speech > "Announce position after seek".
+    // Announce the new position so the user knows where the seek
+    // landed without having to query the status bar. Gated by
+    // Options > Speech > "Announce position after seek".
     if (g_speechSeekPosition) SpeakW(FormatTime(target));
 }
 
@@ -551,8 +551,9 @@ void DaisyCycleNavLevel(int direction) {
 
 void DaisyNavigateForward() {
     if (!g_d.book) return;
-    // Text-only path — Phase 4: dispatch by navLevel just like the audio
-    // path, so Shift+Right at heading-1 jumps to the next chapter.
+    // Text-only path — dispatch by navLevel just like the audio path,
+    // so Shift+Right at heading-1 jumps to the next chapter, navLevel=0
+    // moves page-by-page, and navLevel=-1 (phrase) moves segment-by-segment.
     if (g_d.textOnlyMode) {
         if (g_d.navLevel == -1) {
             // Phrase mode = next paragraph
@@ -685,7 +686,7 @@ void DaisyAnnounceCurrentLocation() {
     std::wstring msg = BuildLocationLabel();
     if (msg.empty()) msg = g_d.book->title;
     SpeakW(msg);
-    // v1.60 — keep the now-playing item synced with the spoken location.
+    // Keep the now-playing item synced with the spoken location.
     SetNowPlayingItem(msg);
 }
 
@@ -742,7 +743,8 @@ void DaisyJumpToBookmark(int clipIndex, double offsetSeconds) {
     DaisyAnnounceCurrentLocation();
 }
 
-// Phase 3 — bookmarks management helpers
+// Bookmarks management helpers — used by ui_bookmarks to render labels
+// for the bookmark list dialog.
 std::wstring DaisyLocationLabelForClip(int clipIndex) {
     return BuildLocationLabelForIndex(clipIndex);
 }
@@ -751,7 +753,7 @@ int DaisyCurrentBookId() {
     return g_d.bookId;
 }
 
-// Phase 4 — Reading progress announcement
+// Reading progress announcement (Ctrl+P from main menu).
 //
 // Format: "<P> percent, <location label>, about <H> hours <M> minutes remaining"
 // (localized via T()/Ts()). Falls back gracefully when duration is unknown
@@ -841,8 +843,8 @@ void DaisyAnnounceProgress() {
 // -----------------------------------------------------------------------------
 // Page-by-label lookup, exposed for books_dialog.cpp's "Go to page" prompt.
 //
-// Phase 3 — accepts a variety of user inputs and falls back to the nearest
-// numeric match when no exact label exists:
+// Accepts a variety of user inputs and falls back to the nearest numeric
+// match when no exact label exists:
 //   - "47"                 → numeric, exact or nearest
 //   - "p. 47" / "page 47"  → strip prefix, numeric
 //   - "iii"                → roman numeral, numeric
@@ -1008,8 +1010,9 @@ bool DaisyJumpToPageLabel(const std::wstring& qIn) {
 // -----------------------------------------------------------------------------
 // C-linkage hook for the WM_DAISY_NEXT_CLIP handler in main.cpp.
 // -----------------------------------------------------------------------------
-// Phase 4 — true if the user has asked to skip this category and the
-// runtime bypass isn't currently disabling the skip filter.
+// True if the user has asked to skip this category (via g_bookSkipMask
+// set from Options > Books) and the runtime bypass isn't temporarily
+// disabling the skip filter.
 static inline bool BookSkipShouldSkip(mediaaccess::SkipKind k) {
     if (k == mediaaccess::SkipKind::None) return false;
     if (g_bookSkipBypass)    return false;
@@ -1024,9 +1027,9 @@ extern "C" void DaisyOnClipEnded(int endedClipIndex) {
     // currently think is playing (avoids races on user-initiated skips).
     if (endedClipIndex != g_d.currentClip) return;
     int next = g_d.currentClip + 1;
-    // Phase 4 — skip categories the user has opted out of (page numbers,
-    // footnotes, etc.). Bounded by kClipSkipSafetyBound to avoid infinite
-    // loops on pathological books.
+    // Skip categories the user has opted out of (page numbers, footnotes,
+    // etc.). Bounded by kClipSkipSafetyBound to avoid infinite loops on
+    // pathological books where every clip is in a skip category.
     int safety = 0;
     while (next < (int)g_d.book->clips.size() && safety < kClipSkipSafetyBound &&
            BookSkipShouldSkip(g_d.book->clips[next].skipKind)) {

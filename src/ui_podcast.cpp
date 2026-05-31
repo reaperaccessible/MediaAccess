@@ -1,6 +1,22 @@
 #include "ui_internal.h"
 
-// ========== Podcast Dialog ==========
+// ============================================================================
+// Podcast Dialog
+//
+// Subscriptions: stored in the SQLite catalogue (database.cpp). The dialog
+// has two tabs — Subscriptions (saved feeds + episode list) and Search
+// (iTunes lookup, returning feeds the user can subscribe to).
+//
+// Feed format: RSS 2.0 with optional iTunes namespace (itunes:duration,
+// itunes:image, ...) and the "Podcast 2.0" namespace
+// (https://podcastindex.org/namespace/1.0) — we read <podcast:chapters>
+// for chapter marks. Episode artwork falls back from <itunes:image> to
+// the channel image; duration falls back from itunes:duration to
+// length-from-enclosure or just zero.
+//
+// HTTP layer: WinInet with optional Basic Auth (some private feeds need
+// user:pass embedded in the URL — PodcastHttpGetWithAuth handles that).
+// ============================================================================
 
 // Podcast search result (from iTunes API)
 struct PodcastSearchResult {
@@ -547,7 +563,23 @@ static bool FetchPodcast20Chapters(const std::wstring& chaptersUrl,
     return !outChapters.empty();
 }
 
-// Parse RSS feed and extract episodes (with optional authentication)
+// Parse an RSS 2.0 podcast feed and extract episodes.
+//
+// Recognised elements per <item>:
+//   <title>             episode title (required)
+//   <description>       summary (HTML allowed; we keep raw text)
+//   <pubDate>           RFC 822 date string (left as-is for display)
+//   <guid>              episode identifier (used for de-duplication)
+//   <enclosure url="">  audio file URL (required — without it we drop)
+//   <itunes:duration>   HH:MM:SS, MM:SS or seconds (ParseDuration)
+//   <podcast:chapters url="..."/>
+//                       Podcast 2.0 chapter file (JSON, fetched lazily
+//                       just before playback by FetchPodcast20Chapters)
+//
+// Items missing either an enclosure URL or a title are dropped. Channel
+// <title> is captured as outTitle for the subscription record.
+// Optional username/password are forwarded to PodcastHttpGetAuth for
+// HTTP Basic on private feeds.
 static bool ParsePodcastFeed(const std::wstring& feedUrl, std::wstring& outTitle,
                              std::vector<PodcastEpisode>& episodes,
                              const std::wstring& username = L"", const std::wstring& password = L"",
@@ -1177,8 +1209,9 @@ static INT_PTR CALLBACK PodcastDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARA
                                         }
                                     }
                                 }
-                                // v1.60 — preset podcast name + first
-                                // episode title before PlayTrack.
+                                // Preset podcast name + first episode title
+                                // before PlayTrack so the title bar is
+                                // correct from the first frame.
                                 std::wstring podName = GetPodcastNameById(g_currentPodcastId);
                                 std::wstring epTitle;
                                 if (!selItems.empty() && selItems[0] >= 0 &&
@@ -1208,8 +1241,8 @@ static INT_PTR CALLBACK PodcastDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARA
                             std::wstring title;
                             Speak(Ts("Loading preview"));
                             if (ParsePodcastFeed(g_podcastSearchResults[sel].feedUrl, title, eps) && !eps.empty()) {
-                                // v1.60 — title returned by ParsePodcastFeed
-                                // is the podcast (channel) name; eps[0].title
+                                // The title returned by ParsePodcastFeed is
+                                // the podcast (channel) name; eps[0].title
                                 // is the episode.
                                 SetNowPlaying(SourceType::Podcast,
                                               title.empty()
@@ -1638,7 +1671,9 @@ static INT_PTR CALLBACK PodcastDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARA
                         HWND hList = GetDlgItem(hwnd, IDC_PODCAST_EPISODES);
                         int sel = static_cast<int>(SendMessageW(hList, LB_GETCARETINDEX, 0, 0));
                         if (sel >= 0 && sel < static_cast<int>(g_podcastEpisodes.size())) {
-                            // v1.60 — preset podcast + episode names.
+                            // Preset podcast + episode names before
+                            // PlayTrack so the window title is correct
+                            // from the first frame.
                             std::wstring podName = GetPodcastNameById(g_currentPodcastId);
                             SetNowPlaying(SourceType::Podcast, podName,
                                           g_podcastEpisodes[sel].title);

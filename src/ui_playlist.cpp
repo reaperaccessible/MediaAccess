@@ -37,7 +37,19 @@ static std::vector<int> GetSelectedIndices(HWND hwnd) {
     return indices;
 }
 
-// Subclassed listbox procedure for playlist manager
+// Subclassed listbox procedure for the playlist manager.
+//
+// Adds keyboard shortcuts that a vanilla listbox doesn't offer and that
+// screen-reader users expect:
+//   Enter         play the highlighted track and close the dialog
+//   Delete        remove the selected track(s)
+//   Escape        close the dialog
+//   Ctrl+A        select all
+//   Ctrl+V        paste files/URLs from clipboard, inserted after the
+//                 current selection
+//   Alt+Up/Down   reorder the selected track(s); g_currentTrack is
+//                 adjusted so playback continues pointing at the same
+//                 file even after a move
 static LRESULT CALLBACK PlaylistListProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
     if (msg == WM_KEYDOWN) {
         int sel = (int)SendMessageW(hwnd, LB_GETCURSEL, 0, 0);

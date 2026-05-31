@@ -358,9 +358,10 @@ void PromptGoToPage(HWND owner) {
                            MAKEINTRESOURCEW(IDD_BOOK_GO_TO_PAGE), owner, proc);
     if (r != IDOK || s_pageBuf.empty()) return;
 
-    // Phase 1: page lookup goes through DaisyJumpToPageLabel, which walks the
-    // book's page-typed nav points and matches by label. Implementation lives
-    // in daisy_player.cpp where it can touch the book state directly.
+    // Page lookup goes through DaisyJumpToPageLabel, which walks the
+    // book's page-typed nav points and matches by label (arabic, roman,
+    // substring). Implementation lives in daisy_player.cpp where it can
+    // touch the book state directly.
     extern bool DaisyJumpToPageLabel(const std::wstring& q);
     if (!DaisyJumpToPageLabel(s_pageBuf)) {
         std::wstring msg = std::wstring(T("Page not found:")) + L" " + s_pageBuf;
@@ -463,7 +464,7 @@ void FindNextInBook() {
 }
 
 // -----------------------------------------------------------------------------
-// Phase 3 — Bookmarks management dialog
+// Bookmarks management dialog (Books menu → Manage bookmarks)
 //
 // Lists bookmarks for the currently loaded book sorted by clip index. Each
 // row is "[Chapter X, page Y] note" so the user can recognise where in the

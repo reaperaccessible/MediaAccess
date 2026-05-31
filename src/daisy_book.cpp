@@ -35,9 +35,9 @@
 #include <unordered_set>
 #include <vector>
 
-// miniz: DEFLATE / ZIP support for EPUB (Phase 2). Single-source amalgamation
-// dropped in deps/miniz/. We only need the inflate side, but the amalgamation
-// is small and well-tested so we include it whole.
+// miniz: DEFLATE / ZIP support for EPUB containers. Single-source
+// amalgamation dropped in deps/miniz/. We only need the inflate side,
+// but the amalgamation is small and well-tested so we include it whole.
 #include "miniz.h"
 
 #pragma comment(lib, "shlwapi.lib")
@@ -591,9 +591,11 @@ int HeadingLevel(const std::wstring& tag) {
     return -1;
 }
 
-// Phase 4 — SMIL <par> skippability. Walks the par's ancestor chain
+// Classify a SMIL <par>'s skippability. Walks the par's ancestor chain
 // looking for a <seq class="..."> or <par class="..."> with a known
-// skippable category. EPUB MO uses epub:type instead of class.
+// skippable category (pagebreak, prodnote, sidebar, footnote, noteref,
+// note). EPUB Media Overlays use epub:type instead of class — we check
+// both. Returns SkipKind::None if no marker is found within 6 ancestors.
 //
 // Manages raw pointer AddRef/Release manually for the ancestor walk —
 // our ComPtr wrapper doesn't support adoption of a borrowed raw pointer.
@@ -628,8 +630,9 @@ SkipKind ClassifySmilParSkipKind(IXMLDOMNode* par) {
     return result;
 }
 
-// Phase 4 — classify an element's epub:type + class attributes into a
+// Classify an XHTML element's epub:type + class attributes into a
 // SkipKind so the reader can optionally bypass it during playback.
+// epub:type values may be space-separated so we use substring match.
 // Returns SkipKind::None when no marker is present.
 SkipKind ClassifySkipKind(IXMLDOMNode* el, int navLevel) {
     if (!el) return SkipKind::None;
@@ -889,6 +892,29 @@ struct SmilResult {
     int                                      firstClip = -1;  // first clip emitted by this SMIL
 };
 
+// Parse a single SMIL file (DAISY 2.02 or DAISY 3).
+//
+// SMIL structure we care about:
+//   <par>                          one "synchronisation point"
+//     <text src="x.html#fragId"/>  the visible text reference
+//     <audio src="x.mp3"
+//            clipBegin="npt=12.5s"
+//            clipEnd="npt=18.2s"/> the audible clip
+//   </par>
+//
+// Spec details handled here:
+//   - DAISY 2.02 uses hyphenated attrs (clip-begin/clip-end),
+//     DAISY 3 uses camelCase (clipBegin/clipEnd) — AttrAny tries all
+//     spellings.
+//   - One <par> may contain multiple <audio> children (very rare; mostly
+//     in concatenated narrations). We emit one DaisyClip per <audio>.
+//   - The fragToClip map lets the NCC/NCX nav parser resolve
+//     "file.smil#anchor" hrefs to a concrete clip index later.
+//   - We don't recurse into nested <seq>/<par> for ordering — DAISY
+//     production tools emit flat <par> lists, and SelectNodes already
+//     returns document-order.
+//   - Audio file existence is verified; missing files are logged and
+//     skipped so a partially-corrupt book is still navigable.
 bool ParseSmilFile(const std::wstring& smilPath, SmilResult& out) {
     auto doc = LoadXmlFromFile(smilPath, /*htmlFallback*/false);
     if (!doc) return false;
@@ -954,7 +980,7 @@ bool ParseSmilFile(const std::wstring& smilPath, SmilResult& out) {
             if (clip.clipEnd   < 0) clip.clipEnd   = 0;
             clip.textFile   = textFile;
             clip.textFragId = textFrag;
-            clip.skipKind   = ClassifySmilParSkipKind(par.Get());  // Phase 4
+            clip.skipKind   = ClassifySmilParSkipKind(par.Get());
 
             if (!FileExists(clip.audioFile)) {
                 LogF("daisy", "skipping clip, audio not found: %s",
@@ -998,6 +1024,22 @@ void ExtractMetaContent(IXMLDOMNode* root, const wchar_t* nameLower,
     }
 }
 
+// Parse a DAISY 2.02 talking book rooted at `folder`.
+//
+// DAISY 2.02 layout:
+//   ncc.html          Navigation Control Center — the table of contents.
+//                     Body contains h1..h6 (chapter hierarchy) and
+//                     p class="page-..." (page numbers); each wraps an
+//                     <a href="file.smil#parId"> linking into a SMIL file.
+//   *.smil            Synchronisation between audio and text — parsed by
+//                     ParseSmilFile to produce DaisyClip records.
+//   *.mp3 / *.wav     The actual audio.
+//   *.html / *.smil   Optional full-text content.
+//
+// We resolve every navigation anchor to a clip index, build a flat
+// DaisyNavPoint list with heading levels intact for tree navigation, and
+// populate book.clips in playback order. Returns false only when the
+// NCC can't be found or contains no useful content.
 bool ParseDaisy202(const std::wstring& folder, DaisyBook& book) {
     book.format = DaisyFormat::Daisy202;
 
@@ -1163,8 +1205,9 @@ bool ParseDaisy202(const std::wstring& folder, DaisyBook& book) {
         book.navPoints.push_back(np);
     }
 
-    // Phase 2: populate textContent for every clip whose <text> pointed into a
-    // resolvable XHTML fragment. Each unique XHTML file is parsed once.
+    // Populate textContent for every clip whose <text> pointed into a
+    // resolvable XHTML fragment. Each unique XHTML file is parsed once and
+    // cached so a 500-clip SMIL doesn't reparse the same XHTML 500 times.
     {
         XhtmlCache xcache;
         PopulateClipTextContent(book.clips, xcache);
@@ -1316,6 +1359,26 @@ void WalkNcxPageList(IXMLDOMNode* root,
     }
 }
 
+// Parse a DAISY 3 talking book given the path to its OPF (Open Packaging
+// Format) file.
+//
+// DAISY 3 / ANSI/NISO Z39.86 layout:
+//   *.opf       Manifest + spine. Lists every resource (audio, smil,
+//               text, ncx) with an id, points the reader at the NCX,
+//               and gives the spine order — though for audio books the
+//               spine is mostly informational; navigation happens
+//               through the NCX.
+//   *.ncx       Navigation Control file for XML — table of contents
+//               (navMap → navPoint tree) and pageList. Each navPoint
+//               carries a class="h1".."h6" indicating heading depth.
+//   *.smil      Synchronisation between audio and text; one per spine
+//               item typically.
+//   *.mp3/wav   Audio clips referenced by SMIL.
+//
+// Strategy: parse all SMILs once into smilCache (keyed by lowercased
+// absolute path), build clip indices in spine order, then walk the NCX
+// navMap and pageList to populate book.navPoints with resolved
+// clipIndex values. Heading levels are preserved for tree navigation.
 bool ParseDaisy3(const std::wstring& opfPath, DaisyBook& book) {
     book.format = DaisyFormat::Daisy3;
     std::wstring opfFolder = ParentFolderImpl(opfPath);
@@ -1433,7 +1496,7 @@ bool ParseDaisy3(const std::wstring& opfPath, DaisyBook& book) {
         }
     }
 
-    // Phase 2: text content + text-only fallback.
+    // Text content + text-only fallback.
     {
         XhtmlCache xcache;
         PopulateClipTextContent(book.clips, xcache);
@@ -1459,9 +1522,11 @@ bool ParseDaisy3(const std::wstring& opfPath, DaisyBook& book) {
 // -----------------------------------------------------------------------------
 // EPUB 3 parser (miniz-backed ZIP reader)
 //
-// EPUB is a ZIP. miniz gives us read access to STORED and DEFLATE entries, so
-// we can pull container.xml, the OPF, and (in Phase 2) every XHTML spine file
-// for TTS playback when no Media Overlays are present.
+// EPUB is a ZIP. miniz gives us read access to STORED and DEFLATE entries,
+// so we can pull META-INF/container.xml (locates the OPF), the OPF
+// (manifest + spine + optional media-overlay attrs), then either each
+// XHTML spine file for TTS playback or every SMIL media-overlay for
+// pre-recorded audio sync.
 // -----------------------------------------------------------------------------
 
 // Open the .epub as a miniz archive on disk. miniz handles the file I/O so we
@@ -1555,13 +1620,13 @@ bool WriteTempXhtml(const std::vector<uint8_t>& buf, std::wstring& outPath) {
 }
 
 // =========================================================================
-// Phase 3 — EPUB Media Overlays helpers
+// EPUB Media Overlays helpers
 //
-// Media Overlays are SMIL files that pair XHTML fragments with audio clip
-// ranges. The audio (typically MP3) lives inside the .epub ZIP, so to feed
-// it to BASS we extract each unique audio entry to a per-book temp folder
-// the first time we encounter it. The temp folder is cleaned up by
-// DaisyClose() (player) when the book is unloaded.
+// Media Overlays (EPUB 3) are SMIL files that pair XHTML fragments with
+// audio clip ranges (npt times). The audio (typically MP3) lives inside
+// the .epub ZIP, so to feed it to BASS we extract each unique audio entry
+// to a per-book temp folder the first time we encounter it. The temp
+// folder is cleaned up by DaisyClose() (player) when the book is unloaded.
 // =========================================================================
 
 // Resolve a zip-relative href like "audio/track1.mp3" against a base entry
@@ -1778,7 +1843,7 @@ bool ParseEpubSmilFromZip(EpubZip& zip, const std::string& smilEntry,
             if (clip.clipEnd   < 0) clip.clipEnd   = 0;
             clip.textFile   = textFile;
             clip.textFragId = textFrag;
-            clip.skipKind   = ClassifySmilParSkipKind(par.Get());  // Phase 4
+            clip.skipKind   = ClassifySmilParSkipKind(par.Get());
             outClips.push_back(clip);
         }
     }
@@ -1786,7 +1851,7 @@ bool ParseEpubSmilFromZip(EpubZip& zip, const std::string& smilEntry,
 }
 
 // =========================================================================
-// Phase 4 — EPUB Navigation Document / NCX parsing
+// EPUB Navigation Document / NCX parsing
 //
 // EPUB navigation lives in one of two places (in order of preference):
 //   1. A Navigation Document — an XHTML file with the OPF manifest
@@ -1803,7 +1868,8 @@ bool ParseEpubSmilFromZip(EpubZip& zip, const std::string& smilEntry,
 // headings already detected during the textSegments walk.
 // =========================================================================
 
-// Match originLabel format used by Phase 2 / Phase 3 segment+MO clip walks.
+// Match originLabel format used by the spine segment + MO clip walks
+// (epubPath + "!/" + zipEntryName, like a JAR URL).
 inline std::wstring EpubOriginLabel(const std::wstring& epubPath,
                                     const std::string& entryName) {
     return epubPath + L"!/" + Utf8ToWide(entryName);
@@ -1973,6 +2039,30 @@ int BuildEpubHeadingNavPoints(DaisyBook& book) {
     return (int)(book.navPoints.size() - before);
 }
 
+// Parse an EPUB 3 file (ZIP container). Despite the name, this populates
+// the entire DaisyBook (metadata, text segments, optional Media Overlay
+// clips, and navigation), not just metadata.
+//
+// EPUB 3 layout inside the .epub ZIP:
+//   META-INF/container.xml   Tiny XML pointing at the OPF (rootfile).
+//   <something>.opf          Manifest + spine + metadata.
+//                            Items may carry properties="nav" (the EPUB 3
+//                            Navigation Document) and media-overlay="..."
+//                            (the id of a SMIL item for audio sync).
+//   OEBPS/...xhtml           Spine content (text).
+//   OEBPS/...smil            Optional Media Overlays (text↔audio sync).
+//   OEBPS/...mp3             Audio referenced by overlays.
+//
+// Strategy:
+//   1. Pull container.xml → find OPF path → parse OPF.
+//   2. Extract every XHTML spine entry to a temp file, walk it for
+//      DaisyTextSegments (for TTS playback and full-text search).
+//   3. If any spine item has a media-overlay attr, extract referenced
+//      audio entries to a per-book temp folder and parse the SMIL files
+//      into DaisyClips. Clips take precedence over text-only TTS at
+//      playback time.
+//   4. Walk the Navigation Document (or synthesise from h1-h6 headings)
+//      to populate book.navPoints with chapter/page entries.
 bool ParseEpub3Metadata(const std::wstring& epubPath, DaisyBook& book) {
     book.format = DaisyFormat::Epub3;
 
@@ -2017,7 +2107,7 @@ bool ParseEpub3Metadata(const std::wstring& epubPath, DaisyBook& book) {
     if (!a.empty()) book.author   = a;
     if (!l.empty()) book.language = l;
 
-    // Phase 2: read the spine and build textSegments from every XHTML entry.
+    // Read the spine and build textSegments from every XHTML entry.
     // The OPF base directory inside the zip is the parent of the .opf path.
     std::string opfBaseUtf8;
     {
@@ -2027,10 +2117,10 @@ bool ParseEpub3Metadata(const std::wstring& epubPath, DaisyBook& book) {
     }
 
     // Manifest: id -> (href, mediaType, mediaOverlay, properties).
-    // mediaOverlay is the id of another manifest item (a SMIL file) — present
-    // on EPUBs with audio sync (Phase 3 Media Overlays support).
+    // mediaOverlay is the id of another manifest item (a SMIL file) —
+    // present on EPUBs with audio sync (Media Overlays).
     // properties carries the "nav" token when the item is the EPUB 3
-    // Navigation Document (Phase 4 chapter navigation).
+    // Navigation Document (used for chapter navigation).
     struct ManifestItem {
         std::string href, mediaType, mediaOverlay, properties;
     };
@@ -2100,7 +2190,7 @@ bool ParseEpub3Metadata(const std::wstring& epubPath, DaisyBook& book) {
     // DOMs are parsed and the text content has been copied into segments.
 
     // ----------------------------------------------------------------------
-    // Phase 3 — Media Overlays. If any spine entry has a media-overlay attr,
+    // Media Overlays. If any spine entry has a media-overlay attr,
     // build clips from the referenced SMIL files in spine order. When this
     // produces at least one clip we drop the text-only TTS fallback (clips
     // take priority in DaisyLoadAndPlay).
@@ -2149,7 +2239,7 @@ bool ParseEpub3Metadata(const std::wstring& epubPath, DaisyBook& book) {
     }
 
     // ----------------------------------------------------------------------
-    // Phase 4 — Chapter navigation. Build navPoints from:
+    // Chapter navigation. Build navPoints from:
     //   1. EPUB 3 Navigation Document if present (manifest item with
     //      properties="nav") — preferred.
     //   2. Otherwise synthesize from h1-h6 / page spans detected in the

@@ -19,40 +19,43 @@
 #include "resource.h"
 #include <cstdio>
 
-// Media key hotkey IDs (use high values to avoid conflicts)
+// Reserved IDs for the always-on media transport keys. Chosen well above the
+// range produced by g_nextHotkeyId so they can't collide with user bindings.
+// WndProc's WM_HOTKEY handler hardcodes these same constants.
 #define HOTKEY_ID_MEDIA_PLAYPAUSE   0x7F00
 #define HOTKEY_ID_MEDIA_STOP        0x7F01
 #define HOTKEY_ID_MEDIA_PREV        0x7F02
 #define HOTKEY_ID_MEDIA_NEXT        0x7F03
 
-// Register all global hotkeys
+// Register the always-on media keys plus every user-defined entry currently
+// in g_hotkeys. Called from WM_CREATE and from SyncGlobalHotkeysFromKeymap
+// after the user edits Global-category bindings in the Actions window.
 void RegisterGlobalHotkeys() {
     if (!g_hwnd) return;
 
-    // Always register media keys (no modifiers needed)
     RegisterHotKey(g_hwnd, HOTKEY_ID_MEDIA_PLAYPAUSE, 0, VK_MEDIA_PLAY_PAUSE);
-    RegisterHotKey(g_hwnd, HOTKEY_ID_MEDIA_STOP, 0, VK_MEDIA_STOP);
-    RegisterHotKey(g_hwnd, HOTKEY_ID_MEDIA_PREV, 0, VK_MEDIA_PREV_TRACK);
-    RegisterHotKey(g_hwnd, HOTKEY_ID_MEDIA_NEXT, 0, VK_MEDIA_NEXT_TRACK);
+    RegisterHotKey(g_hwnd, HOTKEY_ID_MEDIA_STOP,      0, VK_MEDIA_STOP);
+    RegisterHotKey(g_hwnd, HOTKEY_ID_MEDIA_PREV,      0, VK_MEDIA_PREV_TRACK);
+    RegisterHotKey(g_hwnd, HOTKEY_ID_MEDIA_NEXT,      0, VK_MEDIA_NEXT_TRACK);
 
-    // Register user-defined hotkeys from the keymap-driven g_hotkeys vector.
+    // g_hotkeysEnabled gates only the user-defined entries — media keys stay
+    // live even when the user disables hotkeys in Options.
     if (!g_hotkeysEnabled) return;
     for (const auto& hk : g_hotkeys) {
         RegisterHotKey(g_hwnd, hk.id, hk.modifiers, hk.vk);
     }
 }
 
-// Unregister all global hotkeys
+// Mirror of RegisterGlobalHotkeys: tear down media keys + user-defined entries.
+// Safe to call when g_hwnd is null (early startup / late shutdown).
 void UnregisterGlobalHotkeys() {
     if (!g_hwnd) return;
 
-    // Unregister media keys
     UnregisterHotKey(g_hwnd, HOTKEY_ID_MEDIA_PLAYPAUSE);
     UnregisterHotKey(g_hwnd, HOTKEY_ID_MEDIA_STOP);
     UnregisterHotKey(g_hwnd, HOTKEY_ID_MEDIA_PREV);
     UnregisterHotKey(g_hwnd, HOTKEY_ID_MEDIA_NEXT);
 
-    // Unregister user-defined hotkeys
     for (const auto& hk : g_hotkeys) {
         UnregisterHotKey(g_hwnd, hk.id);
     }
