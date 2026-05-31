@@ -1,3 +1,16 @@
+1.75
+Fix two shortcut conflicts and make the rule "no two actions in the same category may share a shortcut" enforceable from now on.
+
+Two conflicts were silently shadowing one of the two bound actions on every press:
+- Ctrl+Shift+T was assigned to BOTH "Speak total duration" and "Cycle subtitles" (all three keymaps). The dispatcher resolved this in favor of "Speak total duration" because of the internal lexicographic order, so "Cycle subtitles" never fired through that shortcut. "Cycle subtitles" is now Ctrl+Shift+L (mnemonic Language, neutral EN/FR).
+- On the FR-FR keymap, the comma key was assigned to BOTH "Decrease seek unit" and "Add bookmark" because the AZERTY remapping moved "Add bookmark" off the M key onto the physical comma key, colliding with the inherited US default for "Decrease seek unit". The AZERTY remap is removed: "Add bookmark" stays on the M key on FR-FR, exactly like USA and FR-CA. A French AZERTY user now presses the same logical M key as a US QWERTY user to add a bookmark.
+
+The Actions dialog no longer offers a "keep both" choice when the user assigns a shortcut already used by another action in the same category. The previous three-button dialog (Replace / Keep both / Cancel) is now a two-button "Replace / Cancel" with Cancel selected by default — pressing Enter accidentally does NOT overwrite the existing binding.
+
+When MediaAccess loads a keymap file (at startup, when switching via the combo, or after an import), it now silently resolves any intra-category duplicate shortcut it finds: the first occurrence wins, the others are dropped, and the cleaned file is saved back to disk. This protects against hand-edited files, imported keymaps from older versions, and any future drift in the shipped defaults. Cross-category duplicates remain allowed (e.g. M for "Add bookmark" in Main AND "Bookmark list" in Books — the dispatcher chooses based on whether a book is currently playing).
+
+The three shipped keymap files (USA, FR-CA, FR-FR) have been regenerated to match the current action set. Existing personalized keymaps in %APPDATA%\MediaAccess\KeyMaps\ are untouched; any duplicate they happen to contain will be cleaned up the first time MediaAccess loads them in v1.75.
+
 1.74
 Two improvements to the keymap system, both invisible in normal use but important when you have a customized keymap.
 

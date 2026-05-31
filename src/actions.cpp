@@ -339,7 +339,11 @@ static const Action g_actions[] = {
       { VK_F11, false, false, false } },
     { "VIDEO_SUB_CYCLE",          IDM_VIDEO_SUB_CYCLE,        ActionCategory::Main,
       "Cycle subtitles",              "Changer les sous-titres",
-      { 'T', true,  true,  false } },
+      // v1.75 — was Ctrl+Shift+T, which collided with SPEAK_TOTAL in Main
+      // category (the dispatcher is first-match-wins, so the duplicate
+      // silently shadowed VIDEO_SUB_CYCLE on every press). Moved to
+      // Ctrl+Shift+L for the Language mnemonic, neutral EN/FR.
+      { 'L', true,  true,  false } },
     { "VIDEO_AUDIO_CYCLE",        IDM_VIDEO_AUDIO_CYCLE,      ActionCategory::Main,
       "Cycle audio tracks",           "Changer la piste audio",
       { 'A', true,  true,  false } },

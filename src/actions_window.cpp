@@ -462,7 +462,15 @@ static bool IsValidKeymapName(const std::wstring& name)
 
 static bool ResolveConflictAndAssign(HWND dlg, const Action* target, const Shortcut& sc)
 {
-    // Look for existing binding in the same category.
+    // v1.75 — Same-category duplicates are forbidden by policy. The previous
+    // 3-button dialog (Yes / No / Cancel) had a "No = keep both" branch that
+    // silently created intra-category duplicates; the dispatcher (which is
+    // first-match-wins on std::map order) would then quietly shadow one of
+    // the two bindings, defeating the user's intent without warning.
+    // FindActionFor is already scoped to target->category (see
+    // keymap.cpp:69), so cross-category duplicates such as M for
+    // BOOKMARK_ADD in Main AND BOOK_BOOKMARK_LIST in Books remain legal
+    // (the dispatch is contextual).
     KeyMap& km = GetActiveKeyMapMut();
     std::string existingId = km.FindActionFor(sc, target->category);
     if (!existingId.empty() && existingId != target->stringId) {
@@ -476,13 +484,15 @@ static bool ResolveConflictAndAssign(HWND dlg, const Action* target, const Short
             msg = Ts("This shortcut is already assigned. Replace it?");
         }
         std::wstring wmsg = U8ToW(msg);
+        // Two-button OK/Cancel with Cancel as default (MB_DEFBUTTON2):
+        // pressing Enter accidentally does NOT overwrite the existing
+        // binding — the destructive action requires an explicit click or
+        // arrow-key + Enter. ICON_WARNING (yellow triangle) signals the
+        // severity better than the previous ICON_QUESTION (blue ?).
         int r = MessageBoxW(dlg, wmsg.c_str(), U8ToW(Ts("Shortcut conflict")).c_str(),
-                            MB_YESNOCANCEL | MB_ICONQUESTION);
-        if (r == IDCANCEL) return false;
-        if (r == IDYES) {
-            km.RemoveShortcut(existingId, sc);
-        }
-        // IDNO = keep both. Falls through to assign.
+                            MB_OKCANCEL | MB_ICONWARNING | MB_DEFBUTTON2);
+        if (r != IDOK) return false;        // Cancel / Escape / dialog close
+        km.RemoveShortcut(existingId, sc);  // OK = always remove the duplicate
     }
     km.AddShortcut(target->stringId, sc);
     NotifyKeymapChanged();

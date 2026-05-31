@@ -338,7 +338,16 @@ KeyMap BuildDefaultFrFrKeyMap()
     // Winamp transport row — physical positions held constant
     remap("PLAYER_PREV", 'Z', 'W');        // physical 0x2C: AZERTY W
     // PLAYER_PLAY / PAUSE / STOP / NEXT (X, C, V, B) stay the same on AZERTY.
-    remap("BOOKMARK_ADD", 'M', VK_OEM_COMMA); // physical 0x32: AZERTY ','
+    // v1.75 — BOOKMARK_ADD intentionally NOT remapped. The original remap
+    // (M physical → VK_OEM_COMMA) followed the "physical-position" doctrine
+    // used for the Winamp row above, but BOOKMARK_ADD is a letter-semantic
+    // binding (M = Mark/Marquer), not a positional one. Worse, VK_OEM_COMMA
+    // was already claimed by SEEK_UNIT_DECREASE in the cloned USA defaults,
+    // so the remap silently created an intra-category duplicate that the
+    // dispatcher resolved in favour of BOOKMARK_ADD (B < S in std::map
+    // order). User reported the bug on FR-FR. Solution: leave BOOKMARK_ADD
+    // on VK 'M' so a French AZERTY user presses the same logical M key as
+    // a US QWERTY user — aligns FR-FR with USA/FR-CA for this action.
 
     // EFFECT_PREV / EFFECT_NEXT live at physical scancodes 0x1A and 0x1B
     // (right of P). On AZERTY those keys send VK_OEM_6 (^) and VK_OEM_1 ($)
@@ -533,6 +542,77 @@ static std::wstring ResolveKeyMapPath(const std::string& name)
     return std::wstring();
 }
 
+// v1.75 — Detect and silently resolve intra-category duplicate shortcuts.
+//
+// The dispatcher (FindCommandFor / FindActionFor below) is first-match-wins
+// on std::map iteration order, so a duplicate shortcut in the same category
+// silently shadows whichever action sorts later in lexicographic stringId
+// order. Symptom in the wild (user "Seb", FR-FR): pressing ',' triggered
+// BOOKMARK_ADD instead of SEEK_UNIT_DECREASE because 'B' < 'S'. We now
+// scan every loaded keymap, keep the first occurrence of each (category,
+// shortcut) pair, and drop subsequent duplicates in memory. Callers that
+// own a writable km.path persist the cleaned version on next save.
+//
+// Cross-category duplicates remain allowed (e.g. M for BOOKMARK_ADD in
+// Main AND BOOK_BOOKMARK_LIST in Books) — the contextual dispatcher
+// (a book player vs the audio main loop) decides which to fire.
+//
+// Tombstones (entries the user explicitly cleared, see KeyMap::RemoveShortcut)
+// are preserved untouched: their vec is already empty so no shortcut can
+// duplicate from inside it.
+//
+// Returns true if at least one duplicate was dropped.
+static bool ResolveSameCategoryDuplicates(KeyMap& km)
+{
+    bool changed = false;
+    // For each category, build a (serialised shortcut → first-claimer stringId)
+    // index. Iterating g_actions[] via ActionAt() gives a stable, predictable
+    // order; we then traverse km.bindings sorted by stringId for determinism
+    // across runs. First-wins: the action that registered the shortcut first
+    // (in std::map iteration order = lex on stringId) keeps it.
+    for (int catIdx = 0; catIdx < (int)ActionCategory::Count; ++catIdx) {
+        ActionCategory cat = (ActionCategory)catIdx;
+        std::map<std::string, std::string> firstOwner; // serialised shortcut → stringId
+        for (auto& kv : km.bindings) {
+            const Action* a = ActionByStringId(kv.first);
+            if (!a) continue;                  // unknown action — skip
+            if (a->category != cat) continue;  // only this category in this pass
+            auto& vec = kv.second;
+            std::vector<Shortcut> kept;
+            kept.reserve(vec.size());
+            for (const Shortcut& s : vec) {
+                if (!s.valid()) continue;
+                std::string key = ShortcutToKeymapText(s);
+                auto own = firstOwner.find(key);
+                if (own == firstOwner.end()) {
+                    firstOwner.emplace(key, kv.first);
+                    kept.push_back(s);
+                } else if (own->second == kv.first) {
+                    // Same action listing the same shortcut twice (impossible
+                    // via AddShortcut but possible if the file was hand-edited).
+                    // Silently dedup.
+                    changed = true;
+                } else {
+                    // Another action already owns this shortcut in this
+                    // category. Drop this binding and log for diagnostics.
+                    wchar_t buf[256];
+                    _snwprintf_s(buf, 256, _TRUNCATE,
+                        L"[MediaAccess] Keymap dedup: dropped %S from '%S' "
+                        L"(already on '%S' in category %d)\n",
+                        key.c_str(), kv.first.c_str(),
+                        own->second.c_str(), (int)cat);
+                    OutputDebugStringW(buf);
+                    changed = true;
+                }
+            }
+            vec.swap(kept);
+            // Do NOT erase empty entries — they are tombstones; see
+            // KeyMap::RemoveShortcut.
+        }
+    }
+    return changed;
+}
+
 // v1.74 — Extracted from LoadActiveKeyMapAtStartup so the same logic runs
 // for every keymap load path (startup AND combo switch via LoadKeyMapByName).
 //
@@ -588,13 +668,21 @@ bool LoadKeyMapByName(const std::string& name, std::string* errorOut)
     if (path == GetShippedKeyMapPath(name)) {
         km.path = GetUserKeyMapPath(name);
     }
+    // v1.75 — drop any intra-category duplicate shortcut (silently keeps
+    // the first occurrence). Same step the startup loader runs; without
+    // it, a keymap selected through the combo would carry forward any
+    // duplicate present in the file and the dispatcher would shadow one
+    // of the actions unpredictably.
+    bool dedupedAtLoad = ResolveSameCategoryDuplicates(km);
+
     // v1.74 — same merge step the startup loader runs. Without this, a
     // keymap selected through the combo would silently miss defaults for
     // any action added in a version newer than the file on disk (the user
     // would see the action listed without a shortcut, even though a default
     // is defined). Tombstones — entries the user explicitly cleared — are
     // skipped by MergeMissingDefaults, so a deliberate "unbind" survives.
-    if (MergeMissingDefaults(km) && !km.path.empty()) {
+    bool mergedAtLoad = MergeMissingDefaults(km);
+    if ((dedupedAtLoad || mergedAtLoad) && !km.path.empty()) {
         SaveKeyMap(km.path, km, nullptr);
     }
     SetActiveKeyMap(km);
@@ -766,10 +854,16 @@ void LoadActiveKeyMapAtStartup()
         km.path = GetUserKeyMapPath(chosen);
     }
 
+    // v1.75 — drop any intra-category duplicate shortcut left over from
+    // hand-edited files, imported keymaps, or stale shipped defaults.
+    // Silent first-wins resolution; see ResolveSameCategoryDuplicates.
+    bool dedupedAtStartup = ResolveSameCategoryDuplicates(km);
+
     // v1.74 — merge step extracted to MergeMissingDefaults so the combo
     // switch path (LoadKeyMapByName) gets the same self-healing behaviour.
     // Tombstone-aware: actions the user explicitly cleared are skipped.
-    if (MergeMissingDefaults(km) && !km.path.empty()) {
+    bool mergedAtStartup = MergeMissingDefaults(km);
+    if ((dedupedAtStartup || mergedAtStartup) && !km.path.empty()) {
         SaveKeyMap(km.path, km, nullptr);
     }
 
