@@ -479,6 +479,143 @@ void NotifyKeymapChanged()
 }
 
 // =============================================================================
+// v1.72 — combo-driven keymap management (used by the Actions dialog)
+// =============================================================================
+//
+// These helpers replace the free file-picker round-trip that v1.71 exposed
+// to the user. The Actions dialog now offers a Keymap combo listing every
+// available keymap (user dir union shipped dir, dedup, sorted) with Import /
+// Delete / New buttons that route through these functions. All disk
+// activity is confined to %APPDATA%\MediaAccess\KeyMaps\ so the loader
+// always finds what the user just created.
+
+// Returns the on-disk path for `name`, preferring the user dir over the
+// shipped dir (matches LoadActiveKeyMapAtStartup precedence). Empty if
+// neither file exists.
+static std::wstring ResolveKeyMapPath(const std::string& name)
+{
+    std::wstring p = GetUserKeyMapPath(name);
+    if (GetFileAttributesW(p.c_str()) != INVALID_FILE_ATTRIBUTES) return p;
+    p = GetShippedKeyMapPath(name);
+    if (GetFileAttributesW(p.c_str()) != INVALID_FILE_ATTRIBUTES) return p;
+    return std::wstring();
+}
+
+bool LoadKeyMapByName(const std::string& name, std::string* errorOut)
+{
+    if (name.empty()) {
+        if (errorOut) *errorOut = "Empty keymap name.";
+        return false;
+    }
+    std::wstring path = ResolveKeyMapPath(name);
+    if (path.empty()) {
+        if (errorOut) *errorOut = "Keymap file not found.";
+        return false;
+    }
+    std::string loadErr;
+    KeyMap km = LoadKeyMap(path, &loadErr);
+    if (km.bindings.empty()) {
+        if (errorOut) *errorOut = loadErr.empty() ? "Empty or unparseable keymap." : loadErr;
+        return false;
+    }
+    // v1.67 migration: if we loaded from the install dir, redirect future
+    // saves to %APPDATA% so the next installer update cannot wipe the user's
+    // edits. SetActiveKeyMap then persists the name to MediaAccess.ini.
+    if (path == GetShippedKeyMapPath(name)) {
+        km.path = GetUserKeyMapPath(name);
+    }
+    SetActiveKeyMap(km);
+    return true;
+}
+
+bool ImportKeyMapFromFile(const std::wstring& sourcePath,
+                          std::string* importedName,
+                          std::string* errorOut)
+{
+    if (sourcePath.empty()) {
+        if (errorOut) *errorOut = "Empty source path.";
+        return false;
+    }
+    // Extension guard — accept only the canonical .MediaAccessKeyMap suffix
+    // (case-insensitive). Other formats (.txt, .ini, .reg, etc.) are
+    // rejected to keep the user dir clean and the loader predictable.
+    {
+        std::wstring ext;
+        size_t dot = sourcePath.find_last_of(L'.');
+        if (dot != std::wstring::npos) ext = sourcePath.substr(dot);
+        std::wstring lower = ext;
+        for (wchar_t& c : lower) if (c >= L'A' && c <= L'Z') c = (wchar_t)(c - L'A' + L'a');
+        if (lower != L".mediaaccesskeymap") {
+            if (errorOut) *errorOut = "Wrong extension (expected .MediaAccessKeyMap).";
+            return false;
+        }
+    }
+    // Parseability probe — refuse to import a file the loader would silently
+    // discard on next startup. Cheap (the bindings vector is empty if the
+    // header is missing or every line is malformed).
+    {
+        std::string loadErr;
+        KeyMap probe = LoadKeyMap(sourcePath, &loadErr);
+        if (probe.bindings.empty()) {
+            if (errorOut) *errorOut = loadErr.empty() ? "Source file is empty or invalid." : loadErr;
+            return false;
+        }
+    }
+    // Derive the destination stem from the source file name. We deliberately
+    // do NOT honour the NAME= header in the file — the on-disk stem is the
+    // identity used by ListAvailableKeyMaps and the INI persistence layer.
+    std::wstring stem = sourcePath;
+    size_t slash = stem.find_last_of(L"\\/");
+    if (slash != std::wstring::npos) stem = stem.substr(slash + 1);
+    size_t dot = stem.find_last_of(L'.');
+    if (dot != std::wstring::npos) stem = stem.substr(0, dot);
+    if (stem.empty()) {
+        if (errorOut) *errorOut = "Could not derive name from filename.";
+        return false;
+    }
+    std::string stemUtf8 = WideToUtf8(stem);
+    std::wstring dest = GetUserKeyMapPath(stemUtf8);
+    if (GetFileAttributesW(dest.c_str()) != INVALID_FILE_ATTRIBUTES) {
+        if (errorOut) *errorOut = "A keymap with that name already exists.";
+        return false;
+    }
+    EnsureUserKeyMapsDir();
+    // CopyFileW with bFailIfExists=TRUE is redundant with the check above
+    // but defends against a TOCTOU race (another process creating the file
+    // between the GetFileAttributes and the copy). Cheap insurance.
+    if (!CopyFileW(sourcePath.c_str(), dest.c_str(), TRUE)) {
+        if (errorOut) *errorOut = "Could not copy the file.";
+        return false;
+    }
+    if (importedName) *importedName = stemUtf8;
+    return true;
+}
+
+bool DeleteKeyMapByName(const std::string& name, std::string* errorOut)
+{
+    if (name.empty()) {
+        if (errorOut) *errorOut = "Empty keymap name.";
+        return false;
+    }
+    if (name == g_activeKeymap.name) {
+        if (errorOut) *errorOut = "Cannot delete the active keymap.";
+        return false;
+    }
+    std::wstring userPath = GetUserKeyMapPath(name);
+    if (GetFileAttributesW(userPath.c_str()) == INVALID_FILE_ATTRIBUTES) {
+        // No user-dir copy — the shipped file (if any) stays untouched and
+        // the keymap will still appear in the combo via ListAvailableKeyMaps.
+        // Treat as success so the caller can refresh the UI uniformly.
+        return true;
+    }
+    if (!DeleteFileW(userPath.c_str())) {
+        if (errorOut) *errorOut = "Could not delete the file.";
+        return false;
+    }
+    return true;
+}
+
+// =============================================================================
 // Startup: ship defaults if missing, load active keymap
 // =============================================================================
 

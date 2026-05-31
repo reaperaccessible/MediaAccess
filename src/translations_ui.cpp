@@ -517,4 +517,42 @@ void RegisterUiTranslations() {
                          L"If a YouTube video still fails, check the log file at:\n");
     AddTranslation("fr", "If a YouTube video still fails, check the log file at:\n",
                          L"Si une vidéo YouTube échoue encore, consultez le fichier journal :\n");
+
+    // v1.72 — Keymap combo handlers (actions_window.cpp). Single-word atoms
+    // ("Keymap", "active", "imported"...) are composed at runtime into the
+    // spoken announcements ("Keymap USA active, 287 shortcuts").
+    AddTranslation("en", "Could not import keymap", L"Could not import keymap");
+    AddTranslation("fr", "Could not import keymap", L"Impossible d'importer le keymap");
+
+    AddTranslation("en", "Could not delete keymap", L"Could not delete keymap");
+    AddTranslation("fr", "Could not delete keymap", L"Impossible de supprimer le keymap");
+
+    AddTranslation("en", "Cannot delete the active keymap.",
+                         L"Cannot delete the active keymap.");
+    AddTranslation("fr", "Cannot delete the active keymap.",
+                         L"Impossible de supprimer le keymap actif.");
+
+    AddTranslation("en", "Delete keymap", L"Delete keymap");
+    AddTranslation("fr", "Delete keymap", L"Supprimer le keymap");
+
+    AddTranslation("en", "Invalid keymap name.", L"Invalid keymap name.");
+    AddTranslation("fr", "Invalid keymap name.", L"Nom de keymap invalide.");
+
+    AddTranslation("en", "A keymap with that name already exists.",
+                         L"A keymap with that name already exists.");
+    AddTranslation("fr", "A keymap with that name already exists.",
+                         L"Un keymap avec ce nom existe déjà.");
+
+    AddTranslation("en", "Keymap",    L"Keymap");
+    AddTranslation("fr", "Keymap",    L"Keymap");
+    AddTranslation("en", "active",    L"active");
+    AddTranslation("fr", "active",    L"activé");
+    AddTranslation("en", "imported",  L"imported");
+    AddTranslation("fr", "imported",  L"importé");
+    AddTranslation("en", "deleted",   L"deleted");
+    AddTranslation("fr", "deleted",   L"supprimé");
+    AddTranslation("en", "created",   L"created");
+    AddTranslation("fr", "created",   L"créé");
+    AddTranslation("en", "shortcuts", L"shortcuts");
+    AddTranslation("fr", "shortcuts", L"raccourcis");
 }

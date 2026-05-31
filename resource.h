@@ -639,8 +639,8 @@
 #define IDC_ACTIONS_ADD                     1415
 #define IDC_ACTIONS_DELETE                  1416
 #define IDC_ACTIONS_EDIT                    1417
-#define IDC_ACTIONS_LOAD                    1418
-#define IDC_ACTIONS_SAVE_AS                 1419
+// IDC_ACTIONS_LOAD (was 1418) — retired in v1.72; replaced by the combo + Import button.
+#define IDC_ACTIONS_NEW_KEYMAP              1419   // v1.72 — renamed from IDC_ACTIONS_SAVE_AS
 #define IDC_ACTIONS_RESET                   1420
 #define IDC_ACTIONS_GLOBAL_CHECK            1421
 #define IDC_LABEL_ACTIONS_CATEGORY          1422
@@ -663,6 +663,17 @@
 #define IDC_LABEL_FIND_SHORTCUT_PROMPT      1443
 #define IDC_LABEL_FIND_SHORTCUT_HINT        1444
 #define IDC_FIND_SHORTCUT_SEARCH            1445
+
+// v1.72 — Actions dialog keymap-selector combo + side buttons
+#define IDC_ACTIONS_KEYMAP_COMBO            1446
+#define IDC_LABEL_ACTIONS_KEYMAP_COMBO      1447
+#define IDC_ACTIONS_KEYMAP_IMPORT           1448
+#define IDC_ACTIONS_KEYMAP_DELETE           1449
+
+// v1.72 — "New keymap..." prompt sub-dialog
+#define IDD_NEW_KEYMAP_NAME                 1450
+#define IDC_NEW_KEYMAP_LABEL                1451
+#define IDC_NEW_KEYMAP_EDIT                 1452
 
 #define IDOK                1
 #define IDCANCEL            2

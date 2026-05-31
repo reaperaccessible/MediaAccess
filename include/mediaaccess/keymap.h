@@ -123,6 +123,31 @@ void EnsureUserKeyMapsDir();
 // name is the bare stem (file name without extension).
 std::vector<std::string> ListAvailableKeyMaps();
 
+// v1.72 — combo-driven keymap management used by the Actions dialog.
+//
+// LoadKeyMapByName: resolves `name` against the user dir first, then the
+// shipped dir, loads the file, and installs it as active (via
+// SetActiveKeyMap so global hotkeys re-register and the choice persists
+// to MediaAccess.ini). Returns false and sets *errorOut if the file is
+// missing or unparseable; the previous active keymap stays in place.
+bool LoadKeyMapByName(const std::string& name, std::string* errorOut = nullptr);
+
+// ImportKeyMapFromFile: copies `sourcePath` (any folder the user picked
+// in a file dialog) to %APPDATA%\MediaAccess\KeyMaps\<stem>.MediaAccessKeyMap.
+// Refuses if the source extension is not .MediaAccessKeyMap, if the file
+// is unreadable, or if a user-dir file with that stem already exists
+// (shipped collisions are allowed — the user copy will shadow the shipped
+// one). On success, *importedName (if non-null) receives the stem (UTF-8).
+bool ImportKeyMapFromFile(const std::wstring& sourcePath,
+                          std::string* importedName = nullptr,
+                          std::string* errorOut = nullptr);
+
+// DeleteKeyMapByName: refuses if `name` matches the active keymap, then
+// deletes the user-dir file only (the shipped file is never touched). If
+// only the shipped copy exists, returns true without doing anything — the
+// shipped keymap stays available via the union enumeration.
+bool DeleteKeyMapByName(const std::string& name, std::string* errorOut = nullptr);
+
 // Reads [Actions] CurrentKeyMap from MediaAccess.ini, falls back to layout
 // auto-detection, loads the file, and installs it as active. Generates
 // the shipped defaults on disk if they're missing (so the user always sees

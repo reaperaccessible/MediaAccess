@@ -371,6 +371,80 @@ static void UpdateKeymapLabel(HWND dlg)
 }
 
 // =============================================================================
+// v1.72 — Keymap selector combo helpers
+// =============================================================================
+//
+// PopulateKeymapCombo rebuilds the combo's items from ListAvailableKeyMaps
+// (user dir union shipped dir, dedup, sorted) and pre-selects the row whose
+// stem matches the active keymap. Called at WM_INITDIALOG and after any
+// action that mutates the keymap set (Import, Delete, New keymap, switch).
+
+static void PopulateKeymapCombo(HWND dlg)
+{
+    HWND combo = GetDlgItem(dlg, IDC_ACTIONS_KEYMAP_COMBO);
+    SendMessageW(combo, CB_RESETCONTENT, 0, 0);
+    std::vector<std::string> names = ListAvailableKeyMaps();
+    int activeIdx = -1;
+    const std::string& active = GetActiveKeyMap().name;
+    for (size_t i = 0; i < names.size(); ++i) {
+        SendMessageW(combo, CB_ADDSTRING, 0, (LPARAM)U8ToW(names[i]).c_str());
+        if (names[i] == active) activeIdx = (int)i;
+    }
+    if (activeIdx >= 0) SendMessageW(combo, CB_SETCURSEL, (WPARAM)activeIdx, 0);
+}
+
+// v1.72 — Modal "New keymap..." sub-dialog. Captures a bare stem into
+// s_newKeymapOut (set by the caller before DialogBoxW). The caller then
+// validates the name, checks for collisions, and clones the active keymap
+// under the new stem inside %APPDATA%\MediaAccess\KeyMaps\.
+
+static std::wstring* s_newKeymapOut = nullptr;
+
+static INT_PTR CALLBACK NewKeymapDlgProc(HWND dlg, UINT msg, WPARAM wp, LPARAM /*lp*/)
+{
+    switch (msg) {
+        case WM_INITDIALOG:
+            LocalizeDialog(dlg);
+            SetFocus(GetDlgItem(dlg, IDC_NEW_KEYMAP_EDIT));
+            return FALSE;
+        case WM_COMMAND:
+            if (LOWORD(wp) == IDOK) {
+                wchar_t buf[256] = {0};
+                GetDlgItemTextW(dlg, IDC_NEW_KEYMAP_EDIT, buf, 256);
+                if (s_newKeymapOut) *s_newKeymapOut = buf;
+                EndDialog(dlg, IDOK);
+                return TRUE;
+            }
+            if (LOWORD(wp) == IDCANCEL) { EndDialog(dlg, IDCANCEL); return TRUE; }
+            break;
+        case WM_CLOSE:
+            EndDialog(dlg, IDCANCEL);
+            return TRUE;
+    }
+    return FALSE;
+}
+
+// Filename-safety predicate for new keymap names. Rejects empty, "." / "..",
+// control characters, the nine Windows-reserved punctuation characters, and
+// anything over 200 chars (leaves headroom for the %APPDATA% prefix + the
+// .MediaAccessKeyMap extension under the 260-char MAX_PATH ceiling).
+static bool IsValidKeymapName(const std::wstring& name)
+{
+    if (name.empty()) return false;
+    if (name == L"." || name == L"..") return false;
+    if (name.size() > 200) return false;
+    for (wchar_t c : name) {
+        if (c < 32) return false;
+        switch (c) {
+            case L'<': case L'>': case L':': case L'"':
+            case L'/': case L'\\': case L'|': case L'?': case L'*':
+                return false;
+        }
+    }
+    return true;
+}
+
+// =============================================================================
 // Add / Edit / Delete logic with REAPER-style conflict prompt
 // =============================================================================
 
@@ -456,83 +530,153 @@ static void OnDelete(HWND dlg)
 }
 
 // =============================================================================
-// Load / Save As / Reset
+// v1.72 — Keymap combo handlers (replace OnLoad / OnSaveAs from v1.71)
 // =============================================================================
+//
+// The Actions dialog now exposes a "Keymap:" combo at the top with Import /
+// Delete buttons next to it, and a "New keymap..." button at the bottom
+// (where Save As used to live). The file picker is only shown for Import.
+// Both the combo population and the dropdown semantics are documented in
+// PopulateKeymapCombo above.
 
-static void OnLoad(HWND dlg)
+static void OnKeymapComboChanged(HWND dlg)
+{
+    HWND combo = GetDlgItem(dlg, IDC_ACTIONS_KEYMAP_COMBO);
+    int sel = (int)SendMessageW(combo, CB_GETCURSEL, 0, 0);
+    if (sel < 0) return;
+    wchar_t buf[256] = {0};
+    SendMessageW(combo, CB_GETLBTEXT, (WPARAM)sel, (LPARAM)buf);
+    std::string name = WToU8(buf);
+    if (name.empty() || name == GetActiveKeyMap().name) return;
+
+    std::string err;
+    if (!LoadKeyMapByName(name, &err)) {
+        std::wstring msg = U8ToW(Ts("Could not load keymap") +
+                                 (err.empty() ? "" : (": " + err)));
+        MessageBoxW(dlg, msg.c_str(), L"MediaAccess", MB_OK | MB_ICONWARNING);
+        // Revert combo selection to the still-active keymap.
+        PopulateKeymapCombo(dlg);
+        return;
+    }
+    UpdateKeymapLabel(dlg);
+    PopulateActionsList(dlg);
+    PopulateShortcutsList(dlg);
+
+    // Announce for NVDA / JAWS / Narrator: "Keymap X active, N shortcuts".
+    size_t total = 0;
+    for (const auto& kv : GetActiveKeyMap().bindings) total += kv.second.size();
+    std::string spoken = Ts("Keymap") + " " + name + " " + Ts("active") + ", " +
+                         std::to_string(total) + " " + Ts("shortcuts");
+    Speak(spoken);
+}
+
+static void OnKeymapImport(HWND dlg)
 {
     OPENFILENAMEW ofn{};
     wchar_t buf[MAX_PATH] = L"";
-    std::wstring initDir = GetUserKeyMapPath("").c_str();
-    // Strip trailing filename portion to use folder as initial dir.
-    {
-        size_t slash = initDir.find_last_of(L"\\/");
-        if (slash != std::wstring::npos) initDir = initDir.substr(0, slash);
-    }
     ofn.lStructSize = sizeof(ofn);
     ofn.hwndOwner   = dlg;
     ofn.lpstrFile   = buf;
     ofn.nMaxFile    = MAX_PATH;
     ofn.lpstrFilter = L"MediaAccess KeyMap\0*.MediaAccessKeyMap\0All files\0*.*\0";
-    ofn.lpstrInitialDir = initDir.c_str();
     ofn.Flags       = OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST | OFN_HIDEREADONLY;
     if (!GetOpenFileNameW(&ofn)) return;
 
-    std::string err;
-    KeyMap km = LoadKeyMap(buf, &err);
-    if (km.bindings.empty()) {
-        std::wstring msg = U8ToW(Ts("Could not load keymap") + (err.empty() ? "" : (": " + err)));
+    std::string importedName, err;
+    if (!ImportKeyMapFromFile(buf, &importedName, &err)) {
+        std::wstring msg = U8ToW(Ts("Could not import keymap") +
+                                 (err.empty() ? "" : (": " + err)));
         MessageBoxW(dlg, msg.c_str(), L"MediaAccess", MB_OK | MB_ICONWARNING);
         return;
     }
-    SetActiveKeyMap(km);
-    UpdateKeymapLabel(dlg);
-    PopulateActionsList(dlg);
-    PopulateShortcutsList(dlg);
+    PopulateKeymapCombo(dlg);
+    std::string spoken = Ts("Keymap") + " " + importedName + " " + Ts("imported");
+    Speak(spoken);
 }
 
-static void OnSaveAs(HWND dlg)
+static void OnKeymapDelete(HWND dlg)
 {
-    OPENFILENAMEW ofn{};
-    wchar_t buf[MAX_PATH] = L"";
-    {
-        std::wstring def = U8ToW(GetActiveKeyMap().name + ".MediaAccessKeyMap");
-        wcsncpy_s(buf, def.c_str(), _TRUNCATE);
+    HWND combo = GetDlgItem(dlg, IDC_ACTIONS_KEYMAP_COMBO);
+    int sel = (int)SendMessageW(combo, CB_GETCURSEL, 0, 0);
+    if (sel < 0) return;
+    wchar_t buf[256] = {0};
+    SendMessageW(combo, CB_GETLBTEXT, (WPARAM)sel, (LPARAM)buf);
+    std::string name = WToU8(buf);
+    if (name.empty()) return;
+    if (name == GetActiveKeyMap().name) {
+        MessageBoxW(dlg, U8ToW(Ts("Cannot delete the active keymap.")).c_str(),
+                    L"MediaAccess", MB_OK | MB_ICONWARNING);
+        return;
     }
-    std::wstring initDir = GetUserKeyMapPath("").c_str();
-    {
-        size_t slash = initDir.find_last_of(L"\\/");
-        if (slash != std::wstring::npos) initDir = initDir.substr(0, slash);
-    }
-    ofn.lStructSize = sizeof(ofn);
-    ofn.hwndOwner   = dlg;
-    ofn.lpstrFile   = buf;
-    ofn.nMaxFile    = MAX_PATH;
-    ofn.lpstrFilter = L"MediaAccess KeyMap\0*.MediaAccessKeyMap\0";
-    ofn.lpstrDefExt = L"MediaAccessKeyMap";
-    ofn.lpstrInitialDir = initDir.c_str();
-    ofn.Flags       = OFN_OVERWRITEPROMPT | OFN_PATHMUSTEXIST | OFN_HIDEREADONLY;
-    if (!GetSaveFileNameW(&ofn)) return;
-
-    KeyMap toSave = GetActiveKeyMap();
-    // Derive name from filename.
-    std::wstring stem = buf;
-    size_t slash = stem.find_last_of(L"\\/");
-    if (slash != std::wstring::npos) stem = stem.substr(slash + 1);
-    size_t dot = stem.find_last_of(L'.');
-    if (dot != std::wstring::npos) stem = stem.substr(0, dot);
-    toSave.name = WToU8(stem);
-    toSave.path = buf;
+    std::wstring prompt = U8ToW(Ts("Delete keymap") + " \"" + name + "\" ?");
+    if (MessageBoxW(dlg, prompt.c_str(), L"MediaAccess",
+                    MB_YESNO | MB_ICONQUESTION) != IDYES) return;
 
     std::string err;
-    if (!SaveKeyMap(buf, toSave, &err)) {
-        std::wstring msg = U8ToW(Ts("Could not save keymap") + (err.empty() ? "" : (": " + err)));
+    if (!DeleteKeyMapByName(name, &err)) {
+        std::wstring msg = U8ToW(Ts("Could not delete keymap") +
+                                 (err.empty() ? "" : (": " + err)));
         MessageBoxW(dlg, msg.c_str(), L"MediaAccess", MB_OK | MB_ICONWARNING);
         return;
     }
-    // Switch to the saved keymap so further edits go there.
-    SetActiveKeyMap(toSave);
+    PopulateKeymapCombo(dlg);
+    std::string spoken = Ts("Keymap") + " " + name + " " + Ts("deleted");
+    Speak(spoken);
+}
+
+static void OnNewKeymap(HWND dlg)
+{
+    std::wstring chosen;
+    s_newKeymapOut = &chosen;
+    INT_PTR r = DialogBoxW(GetModuleHandleW(nullptr),
+                           MAKEINTRESOURCEW(IDD_NEW_KEYMAP_NAME), dlg, NewKeymapDlgProc);
+    s_newKeymapOut = nullptr;
+    if (r != IDOK) return;
+
+    // Trim leading/trailing whitespace.
+    while (!chosen.empty() && (chosen.front() == L' ' || chosen.front() == L'\t')) chosen.erase(chosen.begin());
+    while (!chosen.empty() && (chosen.back()  == L' ' || chosen.back()  == L'\t')) chosen.pop_back();
+
+    if (!IsValidKeymapName(chosen)) {
+        MessageBoxW(dlg, U8ToW(Ts("Invalid keymap name.")).c_str(),
+                    L"MediaAccess", MB_OK | MB_ICONWARNING);
+        return;
+    }
+    std::string nameUtf8 = WToU8(chosen);
+    // Collision check — both user dir and shipped dir.
+    {
+        std::wstring p = GetUserKeyMapPath(nameUtf8);
+        if (GetFileAttributesW(p.c_str()) != INVALID_FILE_ATTRIBUTES) {
+            MessageBoxW(dlg, U8ToW(Ts("A keymap with that name already exists.")).c_str(),
+                        L"MediaAccess", MB_OK | MB_ICONWARNING);
+            return;
+        }
+        p = GetShippedKeyMapPath(nameUtf8);
+        if (GetFileAttributesW(p.c_str()) != INVALID_FILE_ATTRIBUTES) {
+            MessageBoxW(dlg, U8ToW(Ts("A keymap with that name already exists.")).c_str(),
+                        L"MediaAccess", MB_OK | MB_ICONWARNING);
+            return;
+        }
+    }
+    // Clone the active keymap under the new name in %APPDATA%.
+    KeyMap clone = GetActiveKeyMap();
+    clone.name = nameUtf8;
+    clone.path = GetUserKeyMapPath(nameUtf8);
+    EnsureUserKeyMapsDir();
+    std::string err;
+    if (!SaveKeyMap(clone.path, clone, &err)) {
+        std::wstring msg = U8ToW(Ts("Could not save keymap") +
+                                 (err.empty() ? "" : (": " + err)));
+        MessageBoxW(dlg, msg.c_str(), L"MediaAccess", MB_OK | MB_ICONWARNING);
+        return;
+    }
+    SetActiveKeyMap(clone);
     UpdateKeymapLabel(dlg);
+    PopulateKeymapCombo(dlg);
+    PopulateActionsList(dlg);
+    PopulateShortcutsList(dlg);
+    std::string spoken = Ts("Keymap") + " " + nameUtf8 + " " + Ts("created");
+    Speak(spoken);
 }
 
 static void OnFindShortcut(HWND dlg)
@@ -618,6 +762,7 @@ static INT_PTR CALLBACK ActionsDlgProc(HWND dlg, UINT msg, WPARAM wp, LPARAM lp)
     switch (msg) {
         case WM_INITDIALOG: {
             LocalizeDialog(dlg);
+            PopulateKeymapCombo(dlg);   // v1.72 — keymap selector row
             PopulateCategoryCombo(dlg);
             PopulateActionsList(dlg);
             PopulateShortcutsList(dlg);
@@ -652,11 +797,19 @@ static INT_PTR CALLBACK ActionsDlgProc(HWND dlg, UINT msg, WPARAM wp, LPARAM lp)
                 case IDC_ACTIONS_LIST:
                     if (code == LBN_SELCHANGE) PopulateShortcutsList(dlg);
                     return TRUE;
+                case IDC_ACTIONS_KEYMAP_COMBO:            // v1.72
+                    if (code == CBN_SELCHANGE) OnKeymapComboChanged(dlg);
+                    return TRUE;
+                case IDC_ACTIONS_KEYMAP_IMPORT:           // v1.72
+                    OnKeymapImport(dlg);
+                    return TRUE;
+                case IDC_ACTIONS_KEYMAP_DELETE:           // v1.72
+                    OnKeymapDelete(dlg);
+                    return TRUE;
                 case IDC_ACTIONS_ADD:           OnAdd(dlg);           return TRUE;
                 case IDC_ACTIONS_EDIT:          OnEdit(dlg);          return TRUE;
                 case IDC_ACTIONS_DELETE:        OnDelete(dlg);        return TRUE;
-                case IDC_ACTIONS_LOAD:          OnLoad(dlg);          return TRUE;
-                case IDC_ACTIONS_SAVE_AS:       OnSaveAs(dlg);        return TRUE;
+                case IDC_ACTIONS_NEW_KEYMAP:    OnNewKeymap(dlg);     return TRUE;   // v1.72 (was IDC_ACTIONS_SAVE_AS / IDC_ACTIONS_LOAD)
                 case IDC_ACTIONS_RESET:         OnReset(dlg);         return TRUE;
                 case IDC_ACTIONS_FIND_SHORTCUT: OnFindShortcut(dlg);  return TRUE;
                 case IDOK:

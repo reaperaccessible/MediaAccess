@@ -1087,6 +1087,26 @@ void RegisterRcTranslations() {
     AddTranslation("en", "Close", L"Close");
     AddTranslation("fr", "Close", L"Fermer");
 
+    // v1.72 — IDD_ACTIONS keymap combo row + new buttons
+    AddTranslation("en", "Keymap:", L"Keymap:");
+    AddTranslation("fr", "Keymap:", L"Keymap :");
+
+    AddTranslation("en", "&Import...", L"&Import...");
+    AddTranslation("fr", "&Import...", L"&Importer...");
+
+    AddTranslation("en", "De&lete", L"De&lete");
+    AddTranslation("fr", "De&lete", L"Su&pprimer");
+
+    AddTranslation("en", "&New keymap...", L"&New keymap...");
+    AddTranslation("fr", "&New keymap...", L"&Nouveau keymap...");
+
+    // v1.72 — IDD_NEW_KEYMAP_NAME
+    AddTranslation("en", "New keymap", L"New keymap");
+    AddTranslation("fr", "New keymap", L"Nouveau keymap");
+
+    AddTranslation("en", "Enter name for new keymap:", L"Enter name for new keymap:");
+    AddTranslation("fr", "Enter name for new keymap:", L"Nom du nouveau keymap :");
+
     // ===================================================================
     // DIALOG: IDD_SHORTCUT_ASSIGN - "Assign shortcut"
     // ===================================================================

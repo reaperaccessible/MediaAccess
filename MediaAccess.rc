@@ -593,36 +593,60 @@ END
 // =========================================================================
 // Actions / Keymap window — REAPER-style customizable shortcuts (Tools→Actions, F4)
 // =========================================================================
-IDD_ACTIONS DIALOGEX 0, 0, 480, 320
+IDD_ACTIONS DIALOGEX 0, 0, 480, 340
 STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "Actions"
 FONT 9, "MS Shell Dlg"
 BEGIN
-    LTEXT           "Section:", IDC_LABEL_ACTIONS_CATEGORY, 10, 10, 50, 10
-    COMBOBOX        IDC_ACTIONS_CATEGORY, 65, 8, 110, 100, CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    // v1.72 — Keymap selector row. The combo lists every available keymap
+    // (user dir union shipped dir, dedup, sorted); the active one is always
+    // the selected item. Import copies an external file into %APPDATA%;
+    // Delete removes the user-dir copy (shipped files are never touched).
+    LTEXT           "Keymap:", IDC_LABEL_ACTIONS_KEYMAP_COMBO, 10, 10, 30, 10
+    COMBOBOX        IDC_ACTIONS_KEYMAP_COMBO, 45, 8, 200, 200, CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    PUSHBUTTON      "&Import...", IDC_ACTIONS_KEYMAP_IMPORT, 255, 7, 60, 14
+    PUSHBUTTON      "De&lete",    IDC_ACTIONS_KEYMAP_DELETE, 320, 7, 50, 14
 
-    LTEXT           "Filter:", IDC_LABEL_ACTIONS_SEARCH, 190, 10, 30, 10
-    EDITTEXT        IDC_ACTIONS_SEARCH, 220, 8, 160, 12, ES_AUTOHSCROLL
-    PUSHBUTTON      "Find &shortcut...", IDC_ACTIONS_FIND_SHORTCUT, 385, 7, 85, 14
+    LTEXT           "Section:", IDC_LABEL_ACTIONS_CATEGORY, 10, 30, 50, 10
+    COMBOBOX        IDC_ACTIONS_CATEGORY, 65, 28, 110, 100, CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
 
-    LTEXT           "Actions:", IDC_LABEL_ACTIONS_LIST, 10, 28, 60, 10
-    LISTBOX         IDC_ACTIONS_LIST, 10, 40, 290, 220, LBS_NOTIFY | LBS_USETABSTOPS | WS_VSCROLL | WS_TABSTOP | WS_BORDER
+    LTEXT           "Filter:", IDC_LABEL_ACTIONS_SEARCH, 190, 30, 30, 10
+    EDITTEXT        IDC_ACTIONS_SEARCH, 220, 28, 160, 12, ES_AUTOHSCROLL
+    PUSHBUTTON      "Find &shortcut...", IDC_ACTIONS_FIND_SHORTCUT, 385, 27, 85, 14
 
-    LTEXT           "Shortcuts for selected action:", IDC_LABEL_ACTIONS_SHORTCUTS, 310, 28, 160, 10
-    LISTBOX         IDC_ACTIONS_SHORTCUTS, 310, 40, 160, 110, LBS_NOTIFY | WS_VSCROLL | WS_TABSTOP | WS_BORDER
+    LTEXT           "Actions:", IDC_LABEL_ACTIONS_LIST, 10, 48, 60, 10
+    LISTBOX         IDC_ACTIONS_LIST, 10, 60, 290, 220, LBS_NOTIFY | LBS_USETABSTOPS | WS_VSCROLL | WS_TABSTOP | WS_BORDER
 
-    PUSHBUTTON      "&Add...",    IDC_ACTIONS_ADD,    310, 158, 50, 14
-    PUSHBUTTON      "&Edit...",   IDC_ACTIONS_EDIT,   365, 158, 50, 14
-    PUSHBUTTON      "&Delete",    IDC_ACTIONS_DELETE, 420, 158, 50, 14
+    LTEXT           "Shortcuts for selected action:", IDC_LABEL_ACTIONS_SHORTCUTS, 310, 48, 160, 10
+    LISTBOX         IDC_ACTIONS_SHORTCUTS, 310, 60, 160, 110, LBS_NOTIFY | WS_VSCROLL | WS_TABSTOP | WS_BORDER
 
-    LTEXT           "Current keymap:", IDC_LABEL_ACTIONS_KEYMAP, 10, 272, 70, 10
-    LTEXT           "USA",        IDC_ACTIONS_KEYMAP_NAME, 82, 272, 150, 10
+    PUSHBUTTON      "&Add...",    IDC_ACTIONS_ADD,    310, 178, 50, 14
+    PUSHBUTTON      "&Edit...",   IDC_ACTIONS_EDIT,   365, 178, 50, 14
+    PUSHBUTTON      "&Delete",    IDC_ACTIONS_DELETE, 420, 178, 50, 14
 
-    PUSHBUTTON      "&Load...",         IDC_ACTIONS_LOAD,    10, 288, 65, 14
-    PUSHBUTTON      "&Save as...",      IDC_ACTIONS_SAVE_AS, 80, 288, 65, 14
-    PUSHBUTTON      "&Reset to defaults", IDC_ACTIONS_RESET, 150, 288, 100, 14
+    LTEXT           "Current keymap:", IDC_LABEL_ACTIONS_KEYMAP, 10, 292, 70, 10
+    LTEXT           "USA",        IDC_ACTIONS_KEYMAP_NAME, 82, 292, 150, 10
 
-    DEFPUSHBUTTON   "Close", IDOK, 420, 300, 50, 14
+    PUSHBUTTON      "&New keymap...",     IDC_ACTIONS_NEW_KEYMAP, 10, 308, 80, 14
+    PUSHBUTTON      "&Reset to defaults", IDC_ACTIONS_RESET,      95, 308, 100, 14
+
+    DEFPUSHBUTTON   "Close", IDOK, 420, 320, 50, 14
+END
+
+// =========================================================================
+// New-keymap-name prompt (v1.72) — shown when the user clicks "New keymap..."
+// in the Actions dialog. Prompts for a bare stem; the new file is created
+// in %APPDATA%\MediaAccess\KeyMaps\ as a clone of the currently active keymap.
+// =========================================================================
+IDD_NEW_KEYMAP_NAME DIALOGEX 0, 0, 260, 80
+STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "New keymap"
+FONT 9, "MS Shell Dlg"
+BEGIN
+    LTEXT           "Enter name for new keymap:", IDC_NEW_KEYMAP_LABEL, 10, 10, 240, 10
+    EDITTEXT        IDC_NEW_KEYMAP_EDIT, 10, 25, 240, 14, ES_AUTOHSCROLL
+    DEFPUSHBUTTON   "OK",     IDOK,     145, 55, 50, 14
+    PUSHBUTTON      "Cancel", IDCANCEL, 200, 55, 50, 14
 END
 
 // =========================================================================
