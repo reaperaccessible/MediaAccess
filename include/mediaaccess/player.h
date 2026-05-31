@@ -32,6 +32,14 @@ void FreeCurrentStream();
 void Seek(double seconds);
 void SeekTracks(int tracks);
 void SeekToPosition(double seconds);
+
+// v1.79 — Granular seek. unitIdx in [0..12]: 0..8 map 1:1 to the time entries
+// of g_seekAmounts (1 s, 5 s, 10 s, 30 s, 1 m, 5 m, 10 m, 30 m, 1 h); 9..11
+// are 1/5/10 tracks; 12 is "1 chapter". direction is -1 (back) or +1 (forward).
+// Fallbacks mirror the legacy IDM_PLAY_SEEKBACK/FWD handler: track jumps fall
+// back to the first enabled time unit when the playlist has 0/1 item, and
+// chapter jumps no-op silently when the current file has no chapters.
+void PerformGranularSeek(int unitIdx, int direction);
 double GetCurrentPosition();
 
 // Chapter support

@@ -268,10 +268,19 @@ void DaisyClose() {
     g_d.textOnlyMode = false;
     g_d.currentSegment = 0;
     g_d.ttsPaused = false;
-    // Drop the now-playing state when a book closes. If the caller is
-    // about to start another piece of media (DaisyLoadAndPlay or
-    // LoadFile), the next SetNowPlaying will restore it immediately.
-    ClearNowPlaying();
+    // v1.78 — Only clear the now-playing state if we were actually
+    // showing a book. The comment below assumed every caller would
+    // call SetNowPlaying right after (and many do), but YouTube cache
+    // hit and similar paths set SetNowPlaying BEFORE calling LoadFile,
+    // which calls DaisyClose first. Unconditionally clearing here wiped
+    // out the caller's SetNowPlaying (e.g. the YouTube video title) and
+    // left the main window blank — reported by user testing v1.78.
+    // Now: if the current state isn't a book, leave it alone — the caller
+    // knows better. If it IS a book, we still clear because the book is
+    // genuinely closing.
+    if (g_nowPlayingType == SourceType::Book) {
+        ClearNowPlaying();
+    }
 }
 
 bool DaisyLoadAndPlay(std::unique_ptr<DaisyBook> book, int bookId) {

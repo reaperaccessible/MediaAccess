@@ -1,3 +1,24 @@
+1.79
+Two batches of new keyboard actions, both driven by user requests.
+
+First, 26 granular seek actions. Each binds a single seek unit — 1 s, 5 s, 10 s, 30 s, 1 min, 5 min, 10 min, 30 min, 1 h, 1 / 5 / 10 tracks, and 1 chapter — to its own back/forward action, so a user no longer has to press the seek-unit comma/period to switch units before pressing left/right. Spring asked for "skip 5 seconds with one key" without juggling the active seek unit; this answers it. The four most common units come with default shortcuts: Alt+Left / Alt+Right jump 1 minute back/forward, Ctrl+Left / Ctrl+Right jump 5 minutes; the other 22 are unbound and assignable through Tools > Actions. Behaviour matches the legacy left/right seek: track jumps fall back to the first enabled time unit when the playlist has only one item, and chapter jumps are a silent no-op when the file has no chapters. The 26 actions are also mirrored in the Global category so any of them can be triggered via a system-wide hotkey.
+
+Second, 21 additional Global mirrors of existing Main actions. Sèb asked specifically for system-wide bookmark add/list; the request expanded to cover the rest of the obvious transport, video, sleep timer and file actions that did not yet have a Global twin: Play, Pause, Repeat toggle, Jump to time, the seven effect parameter controls (Prev/Next/Up/Down/Reset/Min/Max), Add bookmark, Bookmarks manager, Toggle fullscreen, Cycle subtitles, Cycle audio tracks, Sleep timer open / cancel / speak, Add stream to favorites, and Paste media from clipboard. All are unbound by default and reuse the same handlers as their Main counterparts, so a user-assigned Global hotkey does exactly what the Main action does — just from outside the MediaAccess window.
+
+Existing personal keymap files keep working unchanged: the new action IDs are simply absent from them, and the merge-missing-defaults step will add the four new default bindings (Alt+/Ctrl+ arrows for 1 min / 5 min seek) the first time v1.79 loads the file. The three shipped regional keymaps (USA, FR-CA, FR-FR) have been regenerated to include all 73 new actions.
+
+1.78
+Three fixes in the file-loading path.
+
+First, video files refusing to play silently since 1.76 (regression). The video engine was being told to use a demuxer whose name was an empty string — instead of the auto-detection that was intended. Every .mkv, .ts, .mp4 video and other video container hit "load failed" instantly with no visible reason; the main window stayed on "No playback in progress". Now the auto-detection is properly requested (by leaving the option off entirely) and video files play again.
+
+Second, fix a related cosmetic bug where the file name shown in the main window could end up being literally "Aucune lecture en cours" (or "Nothing playing" in English) for some files. The placeholder comparison was hard-coded against the English string and missed the localised version; the file name is now used as fallback whichever language is active.
+
+Third, fix YouTube search results playing without their title showing in the main window. Long-standing bug, not a regression — the DAISY book teardown routine cleared the "now playing" state unconditionally on every file load, wiping out the YouTube title (or radio station name, or podcast episode title) that the caller had just set. The teardown now only clears the state if a book was actually playing; if the caller has already populated a non-book "now playing" entry (YouTube, radio, podcast), it is preserved through the load.
+
+1.77
+Fix the screen reader getting cut off mid-word when MediaAccess closes. Reported by a user who heard "téléchar..." instead of "Téléchargements" after pressing Alt+F4 on a file he had just started playing. Root cause: MediaAccess was calling a global "stop screen reader" API in its shutdown sequence, which purged whatever the screen reader was about to say about the new window taking focus (Explorer, the previous app, etc.). MediaAccess now drains only its own internal speech queue at shutdown and lets the screen reader keep speaking whatever it was saying. A belt-and-braces guard also drops any late MediaAccess speech messages once shutdown has started, so background timers or BASS sync callbacks firing on their way out cannot compete with the screen reader's focus-transfer announcement.
+
 1.76
 Several improvements to video file playback, driven by user reports on TNT TV recordings and Captvty replay files.
 

@@ -466,9 +466,14 @@ bool InitMPV(HWND parentHwnd)
     fn_mpv_set_option_string(g_mpv, "demuxer-lavf-o",
         "fflags=+discardcorrupt+genpts,err_detect=ignore_err,"
         "scan_all_pmts=0,resync_size=16777216");
-    fn_mpv_set_option_string(g_mpv, "demuxer-lavf-format", "");  // auto-detect
-    fn_mpv_set_option_string(g_mpv, "vid", "auto");
-    fn_mpv_set_option_string(g_mpv, "aid", "auto");
+    // v1.78 — DO NOT set demuxer-lavf-format here. In v1.76 we set it to ""
+    // thinking the empty string meant "auto-detect", but it actually tells
+    // libavformat to look up a demuxer whose name is the empty string —
+    // which obviously doesn't exist, so EVERY video file failed silently
+    // with MPV_END_FILE_REASON_ERROR right after loadfile. The correct way
+    // to ask for auto-detection is to omit the option entirely; libavformat
+    // then probes the file content. (Same applies to vid/aid auto: the
+    // default is already auto, no need to set it.)
 
     /* Subtitle auto-detection */
     fn_mpv_set_option_string(g_mpv, "sub-auto", "fuzzy");

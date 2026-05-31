@@ -58,6 +58,37 @@
 #define IDM_PLAY_MUTE       218
 #define IDM_PLAY_REPEAT_TOGGLE 219
 #define IDM_PLAY_TOGGLE_SEEK_ANNOUNCE 1800
+
+// v1.79 — Granular seek actions (26 IDs, 1810-1835).
+// Spring's request: bind individual seek units (5 s, 1 min, etc.) to a single
+// keystroke without first having to change the active seek unit. Indexes 0..12
+// map 1:1 to (g_seekAmounts[0..11], chapter). Back = base ID, Fwd = base + 13.
+#define IDM_SEEK_BACK_1S         1810
+#define IDM_SEEK_BACK_5S         1811
+#define IDM_SEEK_BACK_10S        1812
+#define IDM_SEEK_BACK_30S        1813
+#define IDM_SEEK_BACK_1M         1814
+#define IDM_SEEK_BACK_5M         1815
+#define IDM_SEEK_BACK_10M        1816
+#define IDM_SEEK_BACK_30M        1817
+#define IDM_SEEK_BACK_1H         1818
+#define IDM_SEEK_BACK_1T         1819
+#define IDM_SEEK_BACK_5T         1820
+#define IDM_SEEK_BACK_10T        1821
+#define IDM_SEEK_BACK_CHAPTER    1822
+#define IDM_SEEK_FWD_1S          1823
+#define IDM_SEEK_FWD_5S          1824
+#define IDM_SEEK_FWD_10S         1825
+#define IDM_SEEK_FWD_30S         1826
+#define IDM_SEEK_FWD_1M          1827
+#define IDM_SEEK_FWD_5M          1828
+#define IDM_SEEK_FWD_10M         1829
+#define IDM_SEEK_FWD_30M         1830
+#define IDM_SEEK_FWD_1H          1831
+#define IDM_SEEK_FWD_1T          1832
+#define IDM_SEEK_FWD_5T          1833
+#define IDM_SEEK_FWD_10T         1834
+#define IDM_SEEK_FWD_CHAPTER     1835
 #define IDM_EFFECT_PRESETS  238
 
 // Accelerator table

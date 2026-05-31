@@ -1056,6 +1056,34 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
                         Seek(GetCurrentSeekAmount());
                     }
                     break;
+                // v1.79 — Granular seek actions (Spring's request). Each IDM
+                // maps to a fixed (unit, direction) pair; back = base..base+12,
+                // fwd = base+13..base+25. The handler delegates to
+                // PerformGranularSeek which reproduces the legacy
+                // SEEKBACK/FWD fallback rules (track→time fallback when
+                // playlist is empty, silent no-op when no chapters).
+                case IDM_SEEK_BACK_1S:  case IDM_SEEK_BACK_5S:
+                case IDM_SEEK_BACK_10S: case IDM_SEEK_BACK_30S:
+                case IDM_SEEK_BACK_1M:  case IDM_SEEK_BACK_5M:
+                case IDM_SEEK_BACK_10M: case IDM_SEEK_BACK_30M:
+                case IDM_SEEK_BACK_1H:
+                case IDM_SEEK_BACK_1T:  case IDM_SEEK_BACK_5T:
+                case IDM_SEEK_BACK_10T:
+                case IDM_SEEK_BACK_CHAPTER:
+                case IDM_SEEK_FWD_1S:   case IDM_SEEK_FWD_5S:
+                case IDM_SEEK_FWD_10S:  case IDM_SEEK_FWD_30S:
+                case IDM_SEEK_FWD_1M:   case IDM_SEEK_FWD_5M:
+                case IDM_SEEK_FWD_10M:  case IDM_SEEK_FWD_30M:
+                case IDM_SEEK_FWD_1H:
+                case IDM_SEEK_FWD_1T:   case IDM_SEEK_FWD_5T:
+                case IDM_SEEK_FWD_10T:
+                case IDM_SEEK_FWD_CHAPTER: {
+                    int rel = LOWORD(wParam) - IDM_SEEK_BACK_1S;
+                    bool fwd = rel >= 13;
+                    int unitIdx = fwd ? rel - 13 : rel;
+                    PerformGranularSeek(unitIdx, fwd ? +1 : -1);
+                    break;
+                }
                 case IDM_SEEK_DECREASE:
                     CycleSeekAmount(-1);
                     break;

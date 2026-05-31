@@ -1681,6 +1681,64 @@ void SeekTracks(int tracks) {
     }
 }
 
+// v1.79 — Spring's "skip exactly N seconds with one keystroke" path.
+// Mirrors the IDM_PLAY_SEEKBACK / IDM_PLAY_SEEKFWD handler in main.cpp but
+// takes the unit from a fixed index instead of g_currentSeekIndex. Indices:
+//   0..8   → g_seekAmounts[0..8]  (1 s, 5 s, 10 s, 30 s, 1 m, 5 m, 10 m,
+//                                  30 m, 1 h)
+//   9..11  → g_seekAmounts[9..11] (1, 5, 10 tracks)
+//   12     → "1 chapter"
+// direction is -1 (backward) or +1 (forward); anything else is treated as +1.
+// Fallback rules — kept identical to the legacy seek so existing user habits
+// keep working:
+//   * Track jump when playlist has <= 1 entry  → fall back to the first
+//     enabled time unit in g_seekAmounts (Spring requested explicit units
+//     anyway, but the fallback still helps if the playlist later drops to
+//     a single file).
+//   * Chapter jump when no chapters are parsed → silent no-op.
+// Daisy/EPUB books reuse DaisySeekRelative for time jumps; chapter and
+// track jumps no-op while a book is active (the Books category already
+// owns Shift+arrows for nav).
+void PerformGranularSeek(int unitIdx, int direction) {
+    if (unitIdx < 0 || unitIdx > 12) return;
+    int dir = (direction < 0) ? -1 : +1;
+
+    // Chapter jump (unit 12).
+    if (unitIdx == 12) {
+        if (mediaaccess::DaisyIsActive()) return;  // Books own their nav.
+        if (g_chapters.empty()) return;            // Silent no-op per design.
+        if (dir > 0) SeekToNextChapter();
+        else         SeekToPrevChapter();
+        return;
+    }
+
+    // Track jumps (units 9..11 → 1/5/10 tracks).
+    if (unitIdx >= 9 && unitIdx <= 11) {
+        if (mediaaccess::DaisyIsActive()) return;
+        int trackStep = static_cast<int>(g_seekAmounts[unitIdx].value);
+        if (g_playlist.size() <= 1) {
+            // Fallback to first enabled time unit, same as legacy SEEKBACK/FWD.
+            for (int i = 0; i < g_seekAmountCount; ++i) {
+                if (g_seekEnabled[i] && !g_seekAmounts[i].isTrack) {
+                    Seek(dir * g_seekAmounts[i].value);
+                    return;
+                }
+            }
+            return;  // No enabled time unit either — nothing to do.
+        }
+        SeekTracks(dir * trackStep);
+        return;
+    }
+
+    // Time jumps (units 0..8).
+    double secs = g_seekAmounts[unitIdx].value;
+    if (mediaaccess::DaisyIsActive()) {
+        mediaaccess::DaisySeekRelative(dir * secs);
+        return;
+    }
+    Seek(dir * secs);
+}
+
 // Seek to absolute position in seconds
 void SeekToPosition(double seconds) {
     if (g_activeEngine == PlaybackEngine::MPV) {
@@ -1982,8 +2040,19 @@ void PlayTrack(int index, bool autoPlay) {
         if (!isUrl) {
             // Local audio file: source is "(Local)" (resolved at display
             // time via T()), item is the tag title or filename fallback.
+            // v1.78 — Compare against the LOCALISED placeholder strings
+            // (T()), not the English literals. In French, GetTagTitle()
+            // can return "Aucune lecture en cours" (= "Nothing playing"
+            // localised) for a video file whose stream is not yet
+            // available to BASS; comparing against the English literal
+            // missed that case and the user-visible title ended up being
+            // the placeholder itself instead of the file name.
             std::wstring item = GetTagTitle();
-            if (item.empty() || item == L"No title" || item == L"Nothing playing") {
+            if (item.empty() ||
+                item == L"No title" ||
+                item == L"Nothing playing" ||
+                item == T("No title") ||
+                item == T("Nothing playing")) {
                 item = GetFileName(path);
             }
             SetNowPlaying(SourceType::Local, L"", item);
