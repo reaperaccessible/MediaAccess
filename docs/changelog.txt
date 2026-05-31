@@ -1,3 +1,14 @@
+1.76
+Several improvements to video file playback, driven by user reports on TNT TV recordings and Captvty replay files.
+
+The first bug only triggered when the "Load folder" option in Preferences was enabled. Picking a single video file through File > Open then left MediaAccess with an empty playlist and nothing playing, because the folder-expansion routine was filtering its scan to audio-only extensions — the video file the user had just picked was silently dropped on the way to the playlist. The workaround until now was to paste the file from Explorer with Ctrl+V, which bypasses the folder expansion. The expansion is now skipped when the picked file is not audio, so opening a video file works the same way regardless of whether "Load folder" is on or off.
+
+The second bug affected .mp4 files that contain BOTH video and audio (typical Captvty TV replay downloads). MediaAccess deliberately routes .mp4 to its BASS audio engine because most .mp4 files in an audio library are M4B-style audiobooks where BASS gives you the full tempo/pitch/effects pipeline. But on a video .mp4, BASS would happily extract the audio track and the user would get sound only — the video stream silently lost. MediaAccess now probes the MP4 container's `moov` atom on load; if a video track is present, the file is routed to the libmpv video engine instead. Audio-only .mp4 files (and all .m4b audiobooks) keep the BASS audio path unchanged. A defensive secondary fallback also tries libmpv as a last resort if BASS rejects an .mp4 outright — covers rare cases where the probe missed (corrupted moov, unusual layout, etc.).
+
+The libmpv video engine is now configured with more permissive ffmpeg options (analyzeduration=30s, probesize=100MB, fflags=+discardcorrupt+genpts, err_detect=ignore_err). These help with MPEG-TS captures that start mid-stream (live recordings) or contain non-standard private-data PIDs that confuse the demuxer's default analysis budget. Most TNT TV recordings now play correctly. A small subset of recordings with non-standard DVB private PIDs (codec types 0x0B / 0x0C) still cannot be played — those files would need to be pre-converted with an external tool. The cost of these new options on a healthy file is a few extra milliseconds of startup probing.
+
+libmpv now also routes its own warnings and errors into the MediaAccess log file (%LOCALAPPDATA%\MediaAccess\mediaaccess.log). When a video file fails to play, the log captures the demuxer/codec error message — useful for future bug reports and diagnosis.
+
 1.75
 Fix two shortcut conflicts and make the rule "no two actions in the same category may share a shortcut" enforceable from now on.
 

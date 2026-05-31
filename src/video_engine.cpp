@@ -42,6 +42,7 @@ static pfn_mpv_get_property        fn_mpv_get_property        = nullptr;
 static pfn_mpv_get_property_string fn_mpv_get_property_string = nullptr;
 static pfn_mpv_observe_property    fn_mpv_observe_property    = nullptr;
 static pfn_mpv_wait_event          fn_mpv_wait_event          = nullptr;
+static pfn_mpv_request_log_messages fn_mpv_request_log_messages = nullptr;
 static pfn_mpv_free                fn_mpv_free                = nullptr;
 static pfn_mpv_free_node_contents  fn_mpv_free_node_contents  = nullptr;
 static pfn_mpv_error_string        fn_mpv_error_string        = nullptr;
@@ -188,6 +189,7 @@ static bool LoadMPVLibrary()
     LOAD_FN(g_mpvDll, mpv_get_property_string);
     LOAD_FN(g_mpvDll, mpv_observe_property);
     LOAD_FN(g_mpvDll, mpv_wait_event);
+    LOAD_FN(g_mpvDll, mpv_request_log_messages);
     LOAD_FN(g_mpvDll, mpv_free);
     LOAD_FN(g_mpvDll, mpv_free_node_contents);
     LOAD_FN(g_mpvDll, mpv_error_string);
@@ -334,8 +336,36 @@ static DWORD WINAPI MPVEventThread(LPVOID /*param*/)
 
         case MPV_EVENT_END_FILE: {
             auto* ef = static_cast<mpv_event_end_file*>(ev->data);
-            if (ef && ef->reason == MPV_END_FILE_REASON_EOF)
+            if (ef && ef->reason == MPV_END_FILE_REASON_EOF) {
                 PostMessageW(g_hwnd, WM_COMMAND, MAKEWPARAM(204, 0), 0);
+            } else if (ef && ef->reason == MPV_END_FILE_REASON_ERROR) {
+                // v1.77 — surface load failures (the bug Sèb reported on
+                // W9 .ts: MPV silently rejected the file). Capture the
+                // mpv_error code + textual reason via mpv_error_string.
+                const char* errStr = fn_mpv_error_string
+                    ? fn_mpv_error_string(ef->error) : "(no decoder)";
+                LogF("MPV", "END_FILE error=%d (%s)", ef->error,
+                     errStr ? errStr : "(null)");
+            }
+            break;
+        }
+
+        case MPV_EVENT_LOG_MESSAGE: {
+            // v1.77 — Forward libmpv's own log lines into MediaAccess's log
+            // so we can see why a file like W9.ts is rejected (typically
+            // an ffmpeg demuxer message about unknown PIDs or codec).
+            auto* lm = static_cast<mpv_event_log_message*>(ev->data);
+            if (lm && lm->text) {
+                // text usually carries a trailing newline — strip for the
+                // single-line log format.
+                std::string t = lm->text;
+                while (!t.empty() && (t.back() == '\n' || t.back() == '\r'))
+                    t.pop_back();
+                LogF("MPV", "[%s/%s] %s",
+                     lm->prefix ? lm->prefix : "?",
+                     lm->level  ? lm->level  : "?",
+                     t.c_str());
+            }
             break;
         }
 
@@ -415,6 +445,31 @@ bool InitMPV(HWND parentHwnd)
     fn_mpv_set_option_string(g_mpv, "cache", "yes");
     fn_mpv_set_option_string(g_mpv, "demuxer-max-bytes", "150MiB");
 
+    /* v1.77 — Help ffmpeg play MPEG-TS captures from DVB TNT (W9, France 5,
+     * etc.) and similar live-recorded streams that start in the middle of a
+     * GOP. The default behaviour gives up with "No video or audio streams
+     * selected" because (a) the first frames reference a PPS the demuxer
+     * hasn't seen yet (capture started mid-stream, so the PPS appears later),
+     * and (b) the TS contains private-data PIDs of unknown codec type
+     * (0x0B / 0x0C) that distract the analyser. The three knobs below:
+     *   - analyzeduration=10 seconds (vs the default ~5) and probesize=50MB
+     *     give ffmpeg enough headroom to find the real H.264 + E-AC-3
+     *     streams behind the unknown PIDs.
+     *   - fflags=+discardcorrupt+genpts tells ffmpeg to drop the leading
+     *     PPS-missing frames as expected garbage and synthesise timestamps
+     *     when the TS PCR is broken. err_detect=ignore_err keeps the
+     *     demuxer running through these errors instead of declaring the
+     *     whole file unplayable.
+     * Diagnosed via mpv_request_log_messages on W9 .ts (Sèb's report). */
+    fn_mpv_set_option_string(g_mpv, "demuxer-lavf-analyzeduration", "30");
+    fn_mpv_set_option_string(g_mpv, "demuxer-lavf-probesize", "100000000");
+    fn_mpv_set_option_string(g_mpv, "demuxer-lavf-o",
+        "fflags=+discardcorrupt+genpts,err_detect=ignore_err,"
+        "scan_all_pmts=0,resync_size=16777216");
+    fn_mpv_set_option_string(g_mpv, "demuxer-lavf-format", "");  // auto-detect
+    fn_mpv_set_option_string(g_mpv, "vid", "auto");
+    fn_mpv_set_option_string(g_mpv, "aid", "auto");
+
     /* Subtitle auto-detection */
     fn_mpv_set_option_string(g_mpv, "sub-auto", "fuzzy");
 
@@ -422,6 +477,15 @@ bool InitMPV(HWND parentHwnd)
         fn_mpv_destroy(g_mpv);
         g_mpv = nullptr;
         return false;
+    }
+
+    /* v1.77 — Request log messages from libmpv at "warn" level. This surfaces
+       demuxer/codec failures (e.g. a TS file with odd PIDs that libmpv
+       refuses) into MediaAccess's log via the MPV_EVENT_LOG_MESSAGE handler
+       in MPVEventThread. Cost is negligible; the log is rate-limited by mpv
+       itself and almost silent on healthy files. */
+    if (fn_mpv_request_log_messages) {
+        fn_mpv_request_log_messages(g_mpv, "warn");
     }
 
     /* Observe properties we need to track */

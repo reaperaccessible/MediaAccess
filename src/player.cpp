@@ -27,6 +27,8 @@ static void TeardownMpvBeforeLoad();
 #include <shlobj.h>
 #include <map>
 #include <algorithm>
+#include <vector>
+#include <cstdint>
 
 // Forward declarations for tag reading helpers (defined later in file)
 static std::string GetMetadataTag(HSTREAM stream, const char* tagName);
@@ -1015,6 +1017,139 @@ static bool IsVideoExtension(const wchar_t* path) {
     return false;
 }
 
+// v1.76 — Extensions that share an MP4-style container and can legitimately
+// carry either audio-only (M4B-style audiobook) or audio+video (Captvty
+// recording, screencast, etc.). LoadFile probes these for a video track
+// (HasMp4VideoTrack below) before deciding between MPV and BASS, so the
+// user never silently loses the video track of a recorded TV show.
+// .m4b is NOT included on purpose: by convention it's an audiobook in an
+// MP4 container, BASS handles it fine with full tempo/pitch/DSP support,
+// and the probe would be wasted work.
+static bool IsAmbiguousMp4Ext(const wchar_t* path) {
+    if (!path) return false;
+    const wchar_t* ext = wcsrchr(path, L'.');
+    if (!ext) return false;
+    return _wcsicmp(ext, L".mp4") == 0;
+}
+
+// Recursively scan an ISO-BMFF (MP4) container atom for a `hdlr` atom with
+// handler_type == 'vide'. Used to detect a video track in an MP4 file when
+// the extension alone is ambiguous. Designed for the moov atom payload only;
+// caller has already extracted moov from the file.
+//
+// Atom layout: 4 bytes big-endian size, 4 bytes type, then payload. Size of
+// 1 means a 64-bit extended size follows; size of 0 means "extends to EOF".
+// `hdlr` payload: 4 bytes version+flags, 4 bytes pre_defined, 4 bytes
+// handler_type — so handler_type sits at offset 8 inside the payload.
+static bool ScanMp4ForVideoHandler(const uint8_t* buf, size_t len) {
+    size_t p = 0;
+    while (p + 8 <= len) {
+        uint64_t atomSize = ((uint64_t)buf[p] << 24) | ((uint64_t)buf[p+1] << 16) |
+                            ((uint64_t)buf[p+2] << 8)  | (uint64_t)buf[p+3];
+        size_t headerLen = 8;
+        if (atomSize == 1) {
+            if (p + 16 > len) break;
+            atomSize = 0;
+            for (int i = 0; i < 8; i++) atomSize = (atomSize << 8) | buf[p+8+i];
+            headerLen = 16;
+        } else if (atomSize == 0) {
+            atomSize = len - p;
+        }
+        if (atomSize < headerLen || p + atomSize > len) break;
+        const uint8_t* atomType = buf + p + 4;
+        if (memcmp(atomType, "hdlr", 4) == 0) {
+            if (atomSize >= headerLen + 12) {
+                const uint8_t* handlerType = buf + p + headerLen + 8;
+                if (memcmp(handlerType, "vide", 4) == 0) return true;
+            }
+        } else if (memcmp(atomType, "trak", 4) == 0 ||
+                   memcmp(atomType, "mdia", 4) == 0) {
+            if (ScanMp4ForVideoHandler(buf + p + headerLen,
+                                       (size_t)(atomSize - headerLen)))
+                return true;
+        }
+        p += (size_t)atomSize;
+    }
+    return false;
+}
+
+// v1.76 — Probe an MP4/ISO-BMFF file to see if it carries a video track.
+// Returns true only if at least one `trak` with handler_type 'vide' is
+// found inside the moov atom. Returns false on any I/O error or malformed
+// container — better to let BASS try (and possibly succeed with the audio
+// track) than to false-positive into MPV and hand the user a broken file.
+//
+// The moov atom is usually at the start (faststart MP4s) or at the very
+// end (recordings that flush moov last). We scan the first 64 MB, and if
+// not found, the last 4 MB. Anything weirder isn't worth chasing.
+static bool HasMp4VideoTrack(const wchar_t* path) {
+    HANDLE h = CreateFileW(path, GENERIC_READ,
+                           FILE_SHARE_READ | FILE_SHARE_WRITE,
+                           nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
+    if (h == INVALID_HANDLE_VALUE) return false;
+
+    LARGE_INTEGER fileSize;
+    if (!GetFileSizeEx(h, &fileSize)) { CloseHandle(h); return false; }
+    uint64_t size = (uint64_t)fileSize.QuadPart;
+
+    auto readAt = [&](uint64_t offset, void* buf, DWORD len) -> bool {
+        LARGE_INTEGER li; li.QuadPart = (LONGLONG)offset;
+        if (!SetFilePointerEx(h, li, nullptr, FILE_BEGIN)) return false;
+        DWORD got = 0;
+        return ReadFile(h, buf, len, &got, nullptr) && got == len;
+    };
+
+    // Scan top-level atoms in [startPos, startPos + scanLimit) for `moov`.
+    // Stores its payload offset and size in outOff/outSize. Returns true if found.
+    auto findMoov = [&](uint64_t startPos, uint64_t scanLimit,
+                        uint64_t& outOff, uint64_t& outSize) -> bool {
+        uint64_t pos = startPos;
+        uint64_t hardStop = (startPos + scanLimit > size) ? size : startPos + scanLimit;
+        while (pos + 8 <= hardStop) {
+            uint8_t hdr[8];
+            if (!readAt(pos, hdr, 8)) return false;
+            uint64_t atomSize = ((uint64_t)hdr[0] << 24) | ((uint64_t)hdr[1] << 16) |
+                                ((uint64_t)hdr[2] << 8)  | (uint64_t)hdr[3];
+            uint64_t headerLen = 8;
+            if (atomSize == 1) {
+                uint8_t ext[8];
+                if (!readAt(pos + 8, ext, 8)) return false;
+                atomSize = 0;
+                for (int i = 0; i < 8; i++) atomSize = (atomSize << 8) | ext[i];
+                headerLen = 16;
+            } else if (atomSize == 0) {
+                atomSize = size - pos;
+            }
+            if (atomSize < headerLen || pos + atomSize > size) return false;
+            if (memcmp(hdr + 4, "moov", 4) == 0) {
+                outOff = pos + headerLen;
+                outSize = atomSize - headerLen;
+                return true;
+            }
+            pos += atomSize;
+        }
+        return false;
+    };
+
+    uint64_t moovOffset = 0, moovSize = 0;
+    findMoov(0, 64ULL * 1024 * 1024, moovOffset, moovSize);
+    if (moovOffset == 0 && size > 4ULL * 1024 * 1024) {
+        findMoov(size - 4ULL * 1024 * 1024, 4ULL * 1024 * 1024, moovOffset, moovSize);
+    }
+
+    if (moovOffset == 0 || moovSize == 0 || moovSize > 16ULL * 1024 * 1024) {
+        CloseHandle(h);
+        return false;
+    }
+
+    std::vector<uint8_t> moovBuf((size_t)moovSize);
+    bool ok = readAt(moovOffset, moovBuf.data(), (DWORD)moovSize);
+    CloseHandle(h);
+    if (!ok) return false;
+
+    return ScanMp4ForVideoHandler(moovBuf.data(), moovBuf.size());
+}
+
 // Load a local file (audio, video, or — if the path is a URL — punt to
 // LoadURL/LoadVideoURL). Decides between BASS and MPV by extension, then
 // runs the appropriate loader. Stops any DAISY book and any rival engine
@@ -1033,6 +1168,19 @@ bool LoadFile(const wchar_t* path) {
     }
     // Route unambiguous video files to MPV engine
     if (IsVideoFile(path)) {
+        return LoadVideoFile(path);
+    }
+    // v1.76 — Smart routing for ambiguous MP4 containers. The .mp4 extension
+    // is deliberately NOT in IsVideoFile because it may be an audio-only
+    // file (an M4B-style audiobook in an MP4 wrapper, a podcast, etc.) that
+    // BASS handles with full tempo/pitch/DSP. But a .mp4 may equally be a
+    // recorded TV show with both AVC video and AAC audio — in which case
+    // BASS would happily extract the audio track and the user would lose
+    // the video silently. Probe the moov atom to detect a video track; if
+    // present, route to MPV. If absent (true audio-only MP4), continue to
+    // BASS. Triggered for Sèb's Captvty replay .mp4 in particular.
+    if (IsAmbiguousMp4Ext(path) && IsMPVAvailable() && HasMp4VideoTrack(path)) {
+        LogF("LoadFile", "ambiguous MP4 has video track, routing to MPV: %ls", path);
         return LoadVideoFile(path);
     }
     // Video file but mpv DLL failed to load — this should never happen on a
@@ -1104,6 +1252,17 @@ bool LoadFile(const wchar_t* path) {
     }
     if (!g_stream) {
         g_isLoading = false;
+        // v1.76 — Defensive fallback for ambiguous MP4 containers. The moov
+        // probe above tries to route MP4s with video to MPV proactively,
+        // but it may miss in rare cases (corrupted moov, unusual layout,
+        // or a video track BASS rejects for codec reasons before we can
+        // detect it). If BASS refused an .mp4, give MPV one last chance
+        // — it can usually play what BASS cannot.
+        if (IsAmbiguousMp4Ext(path) && IsMPVAvailable()) {
+            LogF("LoadFile", "BASS rejected .mp4 (error %d), trying MPV fallback: %ls",
+                 BASS_ErrorGetCode(), path);
+            return LoadVideoFile(path);
+        }
         // Only show error if this is the only file in the playlist
         if (g_playlist.size() <= 1) {
             int error = BASS_ErrorGetCode();

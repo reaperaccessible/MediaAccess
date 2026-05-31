@@ -427,8 +427,18 @@ void ShowOpenDialog() {
             // Check if it's a playlist file
             if (IsPlaylistFile(dir)) {
                 g_playlist = ParsePlaylist(dir);
-            } else if (g_loadFolder) {
-                // Expand to folder if option enabled
+            } else if (g_loadFolder && IsSupportedAudioExt(
+                           dir.substr(dir.find_last_of(L'.')))) {
+                // v1.76 — "Load folder" only makes sense for audio
+                // (the use case is "play the whole album when I pick a
+                // track"). For a video file selected through File > Open,
+                // ExpandFileToFolder would filter the video out of the
+                // resulting playlist (its scan only keeps audio extensions),
+                // leaving an empty playlist and nothing to play. The user
+                // could only work around this by pasting the file from
+                // Explorer, which bypasses the folder-expansion path.
+                // Skip the expansion for non-audio targets and just load
+                // the single file.
                 startIndex = ExpandFileToFolder(dir, g_playlist);
             } else {
                 g_playlist.push_back(dir);

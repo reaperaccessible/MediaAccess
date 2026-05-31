@@ -121,6 +121,16 @@ typedef struct mpv_event_end_file {
     int error;      /* mpv_error, valid when reason == ERROR */
 } mpv_event_end_file;
 
+/* MPV_EVENT_LOG_MESSAGE payload (sent when mpv_request_log_messages enabled).
+   v1.77 — used to surface "this TS file confuses our demuxer" errors that
+   MPV otherwise swallows silently before MPV_EVENT_END_FILE fires. */
+typedef struct mpv_event_log_message {
+    const char* prefix;    /* e.g. "ffmpeg", "stream", "demux" */
+    const char* level;     /* e.g. "warn", "error", "info" */
+    const char* text;      /* may contain trailing newline */
+    int log_level;         /* mpv_log_level enum, not exposed here */
+} mpv_event_log_message;
+
 typedef struct mpv_event {
     mpv_event_id    event_id;
     int             error;
@@ -163,6 +173,9 @@ typedef int            (*pfn_mpv_observe_property)(mpv_handle* ctx,
                                                     mpv_format format);
 
 typedef mpv_event*     (*pfn_mpv_wait_event)(mpv_handle* ctx, double timeout);
+
+typedef int            (*pfn_mpv_request_log_messages)(mpv_handle* ctx,
+                                                        const char* min_level);
 
 typedef void           (*pfn_mpv_free)(void* data);
 typedef void           (*pfn_mpv_free_node_contents)(mpv_node* node);
