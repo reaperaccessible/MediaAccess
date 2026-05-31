@@ -800,7 +800,7 @@
 
 <h3>Regional and custom keymaps</h3>
 <p>The installer ships three ready-to-use keymaps: <strong>USA</strong>, <strong>FR-CA</strong> (Canadian French), and <strong>FR-FR</strong> (France French). On first launch MediaAccess auto-detects your Windows keyboard layout and picks the matching keymap.</p>
-<p>The <strong>Load...</strong>, <strong>Save as...</strong>, and <strong>Reset to defaults</strong> buttons at the bottom of the Actions window manage your own keymaps. Files are plain-text <code>.MediaAccessKeyMap</code> files stored under <code>%APPDATA%\MediaAccess\KeyMaps\</code>, easy to share.</p>
+<p>At the top of the Actions window, a <strong>Keymap</strong> combo lists every available keymap (the union of the shipped ones and any you have created). The selected item is always the active keymap; changing the selection switches at runtime — the global hotkeys re-register immediately and the choice is persisted. Next to the combo, <strong>Import...</strong> copies an external <code>.MediaAccessKeyMap</code> file into your user folder, and <strong>Delete</strong> removes the user copy of the selected keymap (the shipped file is never touched). At the bottom of the window, <strong>New keymap...</strong> creates a fresh keymap by cloning the active one, and <strong>Reset to defaults</strong> restores the regional default for your keyboard layout. Files are plain-text <code>.MediaAccessKeyMap</code> files stored under <code>%APPDATA%\MediaAccess\KeyMaps\</code>, easy to share.</p>
 <p>Shortcut hints shown in menus auto-update to match the active keymap.</p>
 
 <h3>Global section</h3>

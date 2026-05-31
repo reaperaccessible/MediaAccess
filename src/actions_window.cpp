@@ -750,14 +750,18 @@ static void OnReset(HWND dlg)
     if      (region == "FR-CA") km = BuildDefaultFrCaKeyMap();
     else if (region == "FR-FR") km = BuildDefaultFrFrKeyMap();
     else                        km = BuildDefaultUsaKeyMap();
-    // Try the shipped path first, then fall back to the user dir if the
-    // install dir isn't writable (typical for admin-installed builds running
-    // as a normal user, where Program Files\...\KeyMaps\ is read-only).
-    km.path = GetShippedKeyMapPath(km.name);
-    if (!SaveKeyMap(km.path, km, nullptr)) {
-        km.path = GetUserKeyMapPath(km.name);
-        SaveKeyMap(km.path, km, nullptr);
-    }
+    // v1.73 — Write directly to %APPDATA%\MediaAccess\KeyMaps\ instead of
+    // trying the shipped Program Files\... path first. Under UAC the shipped
+    // path is read-only for normal users, but CreateFileW does not fail —
+    // Windows silently redirects the write to the per-user VirtualStore.
+    // SaveKeyMap then returns true, the fallback to user dir is never
+    // taken, and the real user-dir file is left untouched. Because both
+    // ResolveKeyMapPath and LoadActiveKeyMapAtStartup prefer user-dir over
+    // shipped, the loader keeps reading the stale file at next launch and
+    // the user sees Reset have no visible effect — exactly the bug Sèb
+    // reported on FR-CA. Writing user-dir first makes Reset actually work.
+    km.path = GetUserKeyMapPath(km.name);
+    SaveKeyMap(km.path, km, nullptr);
     SetActiveKeyMap(km);
 
     UpdateKeymapLabel(dlg);
