@@ -1,3 +1,6 @@
+1.80
+Hotfix for the v1.79 Alt+ default shortcuts. Alt+Left, Alt+Right (and any other Alt+key shortcut a user might assign through Tools > Actions) were silently doing nothing because Windows routes Alt+key combinations through WM_SYSKEYDOWN, not WM_KEYDOWN, and the keymap dispatcher only listened to the latter. The bug had been latent since the dispatcher was introduced (no shipped keymap used Alt+key before 1.79, so nobody hit it). WM_SYSKEYDOWN now feeds the same dispatcher; Alt+Left / Alt+Right correctly trigger the 1-minute seek defaults from 1.79, and Alt+anything assigned through Tools > Actions also works. Bare Alt (no other key) still falls through to the OS so the menu bar activation behavior is preserved.
+
 1.79
 Two batches of new keyboard actions, both driven by user requests.
 

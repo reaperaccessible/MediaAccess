@@ -398,6 +398,16 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
             }
             return 0;
 
+        case WM_SYSKEYDOWN:
+            // v1.80 — Windows routes any Alt+key combination through
+            // WM_SYSKEYDOWN instead of WM_KEYDOWN. Without this case,
+            // user-assigned Alt+ shortcuts (e.g. the v1.79 defaults
+            // Alt+Left = SEEK_BACK_1M, Alt+Right = SEEK_FWD_1M) never
+            // reached the dispatcher and silently did nothing. Falling
+            // through to the WM_KEYDOWN body covers them. Bare Alt with
+            // no other key still falls through to DefWindowProc below so
+            // the menu bar activation behavior is preserved.
+            [[fallthrough]];
         case WM_KEYDOWN:
             // -----------------------------------------------------------
             // Keyboard help (F12-toggled "describe key" mode)
