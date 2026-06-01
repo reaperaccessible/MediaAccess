@@ -298,7 +298,8 @@
 <tr><td><kbd>←</kbd> / <kbd>→</kbd></td><td>Reculer / Avancer d'une unité</td></tr>
 </tbody>
 </table>
-<p>Les unités disponibles : 1 s, 5 s, 10 s, 30 s, 1 min, 5 min, 10 min, 30 min, 1 h, 1 piste, 5 pistes, 10 pistes, 1 chapitre (si disponible). Vous activez celles que vous souhaitez dans <strong>Options → Déplacement</strong>. Par défaut, seul « 5 secondes » est activé.</p>
+<p>Les unités disponibles : 1 s, 5 s, 10 s, 30 s, 1 min, 5 min, 10 min, 30 min, 1 h, 1 piste, 5 pistes, 10 pistes, 1 chapitre (si disponible), 1 sous-titre (vidéo uniquement). Vous activez celles que vous souhaitez dans <strong>Options → Déplacement</strong>. Par défaut, « 5 secondes » et « 1 sous-titre » sont activées.</p>
+<p>L'unité « 1 sous-titre » n'apparaît dans le cycle que pendant la lecture vidéo. Quand elle est sélectionnée, <kbd>←</kbd> / <kbd>→</kbd> sautent respectivement au sous-titre précédent et au sous-titre suivant de la piste active. Sur les lectures audio (BASS) ou les livres DAISY, le cycle saute silencieusement cette unité — elle n'a alors aucun sens. Si « Énoncer les sous-titres » est activée, le sous-titre atteint est aussitôt prononcé.</p>
 
 <div class="note">
 <p><strong>Astuce :</strong> ce concept à deux curseurs sépare <em>quoi</em> modifier (le paramètre) de <em>de combien</em> (la valeur). Les touches d'ajustement (flèches) donnent un retour vocal immédiat via le lecteur d'écran.</p>
@@ -410,7 +411,12 @@
 </table>
 
 <h3>Sous-titres externes</h3>
-<p>MediaAccess détecte automatiquement les fichiers de sous-titres situés à côté du fichier vidéo (option <code>sub-auto=fuzzy</code> de mpv). Pour en charger un manuellement : <strong>Vidéo → Charger un fichier de sous-titres</strong>.</p>
+<p>MediaAccess détecte automatiquement les fichiers de sous-titres situés à côté du fichier vidéo (option <code>sub-auto=fuzzy</code> de mpv). Pour en charger un manuellement : <strong>Vidéo → Charger un fichier de sous-titres</strong>. Les pistes marquées comme « forcées » (typiques des .mkv où seules les répliques en langue étrangère sont sous-titrées) sont prises en charge.</p>
+
+<h3>Énoncer les sous-titres</h3>
+<p>MediaAccess peut envoyer chaque ligne de sous-titre directement au lecteur d'écran à mesure qu'elle apparaît à l'écran. C'est utile pour suivre un film en langue étrangère sans avoir à lire visuellement, ou simplement pour préférer l'oral au texte affiché.</p>
+<p>Pour l'activer : <strong>Outils → Options → onglet Parole → « Énoncer les sous-titres »</strong> (désactivé par défaut). Une fois la case cochée, lancez une vidéo dont la piste de sous-titres est active et chaque ligne sera prononcée. Le mode d'annonce est <em>interruption</em> : si une nouvelle ligne arrive avant la fin de la précédente, elle prend le relais — un comportement nécessaire car les sous-titres défilent vite et un enchaînement complet prendrait du retard sur l'image.</p>
+<p>Une action assignable, <strong>« Basculer énoncer les sous-titres »</strong> (catégorie Principale, et son miroir Global), permet d'activer ou de désactiver la fonction depuis un raccourci personnel. Aucun raccourci n'est attribué par défaut ; assignez-en un depuis <strong>Outils → Actions</strong>. Chaque bascule annonce « Énoncé des sous-titres activé » ou « désactivé ».</p>
 </section>
 
 <section id="effets" aria-labelledby="effets-h">
@@ -928,10 +934,11 @@
   <li><strong>Annoncer le volume lors des ajustements</strong> (activé par défaut)</li>
   <li><strong>Annoncer la valeur d'effet lors des ajustements</strong> (activé par défaut)</li>
   <li><strong>Annoncer l'activation des effets YouTube</strong> (activé par défaut) — quand une vidéo YouTube est lue en mode hybride, la lecture commence d'abord via libmpv (sans effets) puis bascule vers BASS dès que le téléchargement est terminé. Cette annonce vous indique le moment où les effets BASS (tempo, hauteur, EQ, etc.) deviennent disponibles. Décochez si vous trouvez l'annonce répétitive.</li>
+  <li><strong>Énoncer les sous-titres</strong> (désactivé par défaut) — route chaque ligne de la piste de sous-titres active vers le lecteur d'écran à mesure qu'elle apparaît, en mode interruption. Voir <a href="#video">section 5</a> pour les détails.</li>
 </ul>
 
 <h3>Onglet Déplacement</h3>
-<p>Cases à cocher pour activer chaque unité de déplacement : 1 s, 5 s, 10 s, 30 s, 1 min, 5 min, 10 min, 30 min, 1 h, 1 piste, 5 pistes, 10 pistes, 1 chapitre. Par défaut, seul 5 s est activé.</p>
+<p>Cases à cocher pour activer chaque unité de déplacement : 1 s, 5 s, 10 s, 30 s, 1 min, 5 min, 10 min, 30 min, 1 h, 1 piste, 5 pistes, 10 pistes, 1 chapitre, 1 sous-titre. Par défaut, 5 s et 1 sous-titre sont activées. L'unité « 1 sous-titre » n'est offerte que pendant la lecture vidéo (voir <a href="#video">section 5</a>).</p>
 
 <h3>Onglet Effets</h3>
 <p>Cases pour ajouter Volume, Hauteur, Tempo, Vitesse au curseur d'effets, choix du pas de vitesse (0,01× ou demi-ton), cases pour activer chaque effet DSP, sélection de l'algorithme de réverbération, et chemin du fichier d'impulsion pour la réverbération à convolution.</p>

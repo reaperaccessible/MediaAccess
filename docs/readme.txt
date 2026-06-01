@@ -26,7 +26,9 @@ FEATURES
 * Audio: MP3, MP4, FLAC, AAC, OGG, Opus, WAV, WMA, AIFF, APE, ALAC, MIDI,
   and more via BASS audio plugins.
 * Video: MKV, AVI, MOV, WebM, FLV, TS, M2TS, MPG, M4V, and more via the
-  bundled video engine (no separate install).
+  bundled video engine (no separate install). Subtitles can be spoken
+  aloud by the screen reader (Options > Speech), and the Left/Right seek
+  cycle includes a "1 subtitle" unit to jump between subtitle lines.
 * YouTube: integrated search, streaming, and download — no external setup
   required.
 * Internet radio: built-in browser for RadioBrowser, TuneIn, and iHeartRadio.

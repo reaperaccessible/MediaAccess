@@ -18,6 +18,7 @@
 #include <cstring>
 #include <fstream>
 #include <sstream>
+#include <unordered_map>
 
 // Externs from the rest of MediaAccess (global namespace).
 extern std::wstring g_configPath;
@@ -565,6 +566,23 @@ static std::wstring ResolveKeyMapPath(const std::string& name)
 static bool ResolveSameCategoryDuplicates(KeyMap& km)
 {
     bool changed = false;
+    // v1.84 — Snapshot the initial binding-list sizes BEFORE the dedup runs.
+    // A key whose vector is empty at this point is an authentic user tombstone
+    // (see KeyMap::RemoveShortcut). A key whose vector becomes empty BECAUSE
+    // of the dedup below is a phantom tombstone — it would silently block
+    // MergeMissingDefaults from re-injecting the registry default on the
+    // next load. We erase only the phantom tombstones at the end.
+    //
+    // Background: v1.75 renamed VIDEO_SUB_CYCLE from Ctrl+Shift+T to
+    // Ctrl+Shift+L. Users whose personal keymap still had VIDEO_SUB_CYCLE on
+    // Ctrl+Shift+T had that line wiped by this dedup (Ctrl+Shift+T was already
+    // claimed by SPEAK_TOTAL), and MergeMissingDefaults then mistook the
+    // wiped-but-present key for a deliberate "unbind". Result: Ctrl+Shift+L
+    // never reappeared until the user clicked Reset.
+    std::unordered_map<std::string, size_t> initialSizes;
+    initialSizes.reserve(km.bindings.size());
+    for (const auto& kv : km.bindings) initialSizes[kv.first] = kv.second.size();
+
     // For each category, build a (serialised shortcut → first-claimer stringId)
     // index. Iterating g_actions[] via ActionAt() gives a stable, predictable
     // order; we then traverse km.bindings sorted by stringId for determinism
@@ -606,8 +624,22 @@ static bool ResolveSameCategoryDuplicates(KeyMap& km)
                 }
             }
             vec.swap(kept);
-            // Do NOT erase empty entries — they are tombstones; see
-            // KeyMap::RemoveShortcut.
+            // Genuine tombstones (kept.empty() && initialSizes was already 0)
+            // are preserved untouched; see end-of-function pass below.
+        }
+    }
+
+    // v1.84 — Erase phantom tombstones: keys whose list was non-empty before
+    // dedup but is empty after. These would otherwise block
+    // MergeMissingDefaults from reinjecting the registry default.
+    for (auto it = km.bindings.begin(); it != km.bindings.end(); ) {
+        auto sizeIt = initialSizes.find(it->first);
+        size_t originalSize = (sizeIt != initialSizes.end()) ? sizeIt->second : 0;
+        if (it->second.empty() && originalSize > 0) {
+            it = km.bindings.erase(it);
+            changed = true;
+        } else {
+            ++it;
         }
     }
     return changed;
@@ -637,7 +669,20 @@ static bool MergeMissingDefaults(KeyMap& km)
     for (int i = 0; i < total; ++i) {
         const Action* a = ActionAt(i);
         if (!a || !a->defaultUsa.valid()) continue;
-        if (km.bindings.find(a->stringId) != km.bindings.end()) continue;
+        // v1.84 — belt-and-braces with the phantom-tombstone fix in
+        // ResolveSameCategoryDuplicates. A user who already had a wiped
+        // "ACTION_ID =" line written to disk by v1.75-v1.83 will load that
+        // file with an empty vec for the action; ResolveSameCategoryDuplicates
+        // treats it as a genuine tombstone (initialSize==0) and won't erase
+        // it, so the bug would persist without this. Now we also treat a
+        // present-but-empty entry as "absent" — the action is eligible for
+        // the default merge. Trade-off: a user who deliberately cleared the
+        // last binding for an action will see the default reappear on next
+        // load. This is the retroactive migration the user explicitly
+        // requested to recover Ctrl+Shift+L (VIDEO_SUB_CYCLE) without a
+        // manual Reset.
+        auto it = km.bindings.find(a->stringId);
+        if (it != km.bindings.end() && !it->second.empty()) continue;
         if (!km.FindActionFor(a->defaultUsa, a->category).empty()) continue;
         km.AddShortcut(a->stringId, a->defaultUsa);
         changed = true;

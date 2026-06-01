@@ -298,7 +298,8 @@
 <tr><td><kbd>←</kbd> / <kbd>→</kbd></td><td>Seek backward / forward by one unit</td></tr>
 </tbody>
 </table>
-<p>Available units: 1 s, 5 s, 10 s, 30 s, 1 min, 5 min, 10 min, 30 min, 1 h, 1 track, 5 tracks, 10 tracks, 1 chapter (if available). Enable the ones you want in <strong>Options → Movement</strong>. By default only "5 seconds" is enabled.</p>
+<p>Available units: 1 s, 5 s, 10 s, 30 s, 1 min, 5 min, 10 min, 30 min, 1 h, 1 track, 5 tracks, 10 tracks, 1 chapter (if available), 1 subtitle (video only). Enable the ones you want in <strong>Options → Movement</strong>. By default "5 seconds" and "1 subtitle" are enabled.</p>
+<p>The "1 subtitle" unit only appears in the cycle while a video is playing. When selected, <kbd>←</kbd> / <kbd>→</kbd> jump to the previous and next subtitle event of the active track. For audio playback (BASS) or DAISY books the cycle skips this unit silently — it has no meaning there. If "Speak subtitles" is enabled, the subtitle you land on is spoken immediately.</p>
 
 <div class="note">
 <p><strong>Tip:</strong> the two-slider concept separates <em>what</em> to modify (the parameter) from <em>by how much</em> (the value). The adjust keys (arrows) give immediate speech feedback through the screen reader.</p>
@@ -410,7 +411,12 @@
 </table>
 
 <h3>External subtitles</h3>
-<p>MediaAccess auto-detects subtitle files next to the video file (mpv option <code>sub-auto=fuzzy</code>). To load one manually: <strong>Video → Load Subtitle File</strong>.</p>
+<p>MediaAccess auto-detects subtitle files next to the video file (mpv option <code>sub-auto=fuzzy</code>). To load one manually: <strong>Video → Load Subtitle File</strong>. Tracks marked "forced" (common on .mkv files where only foreign-language dialogue is subtitled) are supported.</p>
+
+<h3>Speak subtitles aloud</h3>
+<p>MediaAccess can route each subtitle line directly to the screen reader as it appears on screen. This is useful for following a foreign-language film without having to read visually, or simply when you prefer to hear text rather than read it.</p>
+<p>To enable: <strong>Tools → Options → Speech tab → "Speak subtitles"</strong> (off by default). Once the box is checked, play a video whose subtitle track is active and every line will be spoken. Announcement mode is <em>interrupt</em>: if a new line arrives before the previous one finishes, it takes over — necessary behaviour since subtitles flow quickly and queued playback would lag behind the picture.</p>
+<p>An assignable action, <strong>"Toggle speak subtitles"</strong> (Main category, with a Global mirror), lets you turn the feature on or off from a hotkey of your choice. No default shortcut is bound; assign one from <strong>Tools → Actions</strong>. Each toggle announces "Subtitle speech on" or "off".</p>
 </section>
 
 <section id="effects" aria-labelledby="effects-h">
@@ -928,10 +934,11 @@
   <li><strong>Speak volume when adjusted</strong> (on by default)</li>
   <li><strong>Speak effect value when adjusted</strong> (on by default)</li>
   <li><strong>Announce YouTube effects activation</strong> (on by default) — when a YouTube video plays in hybrid mode, playback starts via libmpv (no effects) then swaps to BASS once the download completes. This announcement tells you when the BASS effects (tempo, pitch, EQ, etc.) become available. Uncheck if you find the announcement repetitive.</li>
+  <li><strong>Speak subtitles</strong> (off by default) — routes each line of the active subtitle track to the screen reader as it appears, in interrupt mode. See <a href="#video">section 5</a> for details.</li>
 </ul>
 
 <h3>Movement tab</h3>
-<p>Checkboxes to enable each movement unit: 1 s, 5 s, 10 s, 30 s, 1 min, 5 min, 10 min, 30 min, 1 h, 1 track, 5 tracks, 10 tracks, 1 chapter. By default, only 5 s is enabled.</p>
+<p>Checkboxes to enable each movement unit: 1 s, 5 s, 10 s, 30 s, 1 min, 5 min, 10 min, 30 min, 1 h, 1 track, 5 tracks, 10 tracks, 1 chapter, 1 subtitle. By default, 5 s and 1 subtitle are enabled. The "1 subtitle" unit is only offered during video playback (see <a href="#video">section 5</a>).</p>
 
 <h3>Effects tab</h3>
 <p>Checkboxes to add Volume, Pitch, Tempo, Rate to the effects slider, choice of rate step (0.01× or semitone), checkboxes to enable each DSP effect, reverb algorithm selection, and impulse response file path for convolution reverb.</p>

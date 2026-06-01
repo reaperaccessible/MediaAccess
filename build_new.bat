@@ -4,6 +4,18 @@ REM Build script for MediaAccess with modular source files
 setlocal enabledelayedexpansion
 cd /d "%~dp0"
 
+REM v1.84 — pre-build keymap consistency check. Aborts the build if any
+REM shipped keymap is missing an action default, has a wrong default, lists
+REM an unknown / undefaulted action, or contains an intra-category duplicate
+REM shortcut. Catches the class of bug that bit v1.75-v1.83 where a hidden
+REM duplicate caused the runtime dedup to silently wipe a user's binding.
+echo Validating shipped keymaps...
+call scripts\validate_keymaps.bat
+if errorlevel 1 (
+    echo Keymap validation failed - fix above issues before building.
+    exit /b 1
+)
+
 REM Find Visual Studio using vswhere
 set "VSWHERE=%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe"
 if not exist "%VSWHERE%" (
