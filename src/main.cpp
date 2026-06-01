@@ -344,6 +344,14 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
             SetTimer(hwnd, IDT_UPDATE_TITLE, UPDATE_INTERVAL, nullptr);
             SetTimer(hwnd, IDT_SCHEDULER, 60000, nullptr);  // Check schedules every minute
             g_startupTime = GetTickCount();
+            // v1.85 — explicit flag for the batch-open coalescing window.
+            // Sèb reported that opening a .ts video from Explorer did nothing
+            // when the early-elapsed check + non-empty playlist condition was
+            // hit (file got pushed into g_playlist with no PlayTrack call).
+            // Using a deterministic flag instead of GetTickCount() arithmetic
+            // removes the wrap risk and makes the window unambiguous.
+            g_startupBatchOpen = true;
+            SetTimer(hwnd, IDT_STARTUP_OVER, BATCH_DELAY, nullptr);
 
             if (!g_playlist.empty()) {
                 int startIndex = 0;
@@ -567,6 +575,10 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
                 }
             } else if (wParam == IDT_SLEEP_TIMER) {
                 mediaaccess::SleepOnTick();
+            } else if (wParam == IDT_STARTUP_OVER) {
+                // v1.85 — end of the startup batch-open coalescing window.
+                KillTimer(hwnd, IDT_STARTUP_OVER);
+                g_startupBatchOpen = false;
             }
             return 0;
 
@@ -738,9 +750,15 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
             if (cds && (cds->dwData == 1 || cds->dwData == 2) && cds->lpData) {
                 const wchar_t* filePath = static_cast<const wchar_t*>(cds->lpData);
                 if (GetFileAttributesW(filePath) != INVALID_FILE_ATTRIBUTES) {
-                    DWORD elapsed = GetTickCount() - g_startupTime;
                     std::wstring path = filePath;
-                    if (!g_disableBatchDelay && elapsed < BATCH_DELAY && !g_playlist.empty()) {
+                    // v1.85 — explicit flag (set in WM_CREATE, cleared by
+                    // IDT_STARTUP_OVER after BATCH_DELAY ms). Replaces the
+                    // GetTickCount()-based check that misbehaved on the .ts
+                    // Explorer-open bug Sèb reported: when the elapsed window
+                    // was active and g_playlist had been pre-populated by the
+                    // first Explorer drop, the file silently got pushed into
+                    // g_playlist with no PlayTrack call ever scheduled.
+                    if (!g_disableBatchDelay && g_startupBatchOpen && !g_playlist.empty()) {
                         if (IsPlaylistFile(path)) {
                             auto entries = ParsePlaylist(path);
                             g_playlist.insert(g_playlist.end(), entries.begin(), entries.end());

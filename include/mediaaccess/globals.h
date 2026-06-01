@@ -56,6 +56,7 @@ extern float g_volume;
 extern bool g_muted;          // Muted state (recording still works)
 extern bool g_legacyVolume;   // Use legacy volume (faster, but affects recordings)
 extern bool g_disableBatchDelay; // Skip batch delay when opening files from explorer
+extern bool g_startupBatchOpen;  // v1.85 — true during the early startup batch-open coalescing window
 
 // Effect state (for BASS_FX)
 extern float g_tempo;

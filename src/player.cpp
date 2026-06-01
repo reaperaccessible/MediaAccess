@@ -1592,7 +1592,10 @@ void Stop() {
         g_isVideoPlaying = false;
         g_activeEngine = PlaybackEngine::None;
         SetWindowPos(g_hwnd, nullptr, 0, 0, 500, 150, SWP_NOMOVE | SWP_NOZORDER);
-        ClearNowPlaying();  // v1.60
+        // v1.86 — preserve NowPlaying on a video Stop, same as a local-audio
+        // Stop in v1.85. Play() will reload the file via LoadFile if the
+        // user resumes, and either way the window title stays meaningful
+        // (the file is still selected in the playlist).
         UpdateStatusBar();
         return;
     }
@@ -1601,15 +1604,22 @@ void Stop() {
         // (otherwise BASS buffers it and stop/play acts like pause/resume)
         if (g_isLiveStream) {
             FreeCurrentStream();
+            ClearNowPlaying();  // v1.60 — live: nothing to come back to
         } else {
             BASS_ChannelStop(g_fxStream);
             TempoProcessor* processor = GetTempoProcessor();
             if (processor && processor->IsActive()) {
                 processor->SetPosition(0);
             }
+            // v1.85 — preserve NowPlaying on a local-stream Stop so that a
+            // subsequent Play() (which re-uses g_fxStream from position 0)
+            // keeps the title visible in the window. Sèb: "Stop then Play"
+            // used to leave the window title as a bare "MediaAccess" because
+            // Play() did not call SetNowPlaying and Stop() had wiped it.
         }
+    } else {
+        ClearNowPlaying();  // v1.60 — no stream loaded: safe to clear
     }
-    ClearNowPlaying();  // v1.60
     UpdateStatusBar();
 }
 

@@ -60,6 +60,7 @@ float g_volume = 1.0f;
 bool g_muted = false;       // Muted state (recording still works)
 bool g_legacyVolume = false;  // Use legacy volume (faster, but affects recordings)
 bool g_disableBatchDelay = false; // Skip batch delay when opening files from explorer
+bool g_startupBatchOpen = false;  // v1.85 — flipped on in WM_CREATE, off after BATCH_DELAY by IDT_STARTUP_OVER
 
 // Effect state
 float g_tempo = 0.0f;

@@ -98,6 +98,7 @@
 #define IDT_UPDATE_TITLE    400
 #define IDT_BATCH_FILES     401
 #define IDT_SLEEP_TIMER     404   // v1.55 — sleep timer tick (1 s)
+#define IDT_STARTUP_OVER    405   // v1.85 — one-shot: ends startup batch-open coalescing window
 
 // Custom messages
 #define WM_SPEAK            (WM_USER + 1)

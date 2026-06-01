@@ -32,7 +32,14 @@ void UpdateWindowTitle() {
                 itm = MPVGetMediaTitle();
             } else {
                 std::wstring t = GetTagTitle();
-                if (!t.empty() && t != L"No title" && t != L"Nothing playing") {
+                // v1.85 — also compare against the localized placeholders so
+                // the French build does not display "Aucun titre" / "Aucune
+                // lecture en cours" as the now-playing item after a paste or
+                // Ctrl+O (companion fix to the v1.78 localized-fallback patch
+                // in PlayTrack — that one missed UpdateWindowTitle). Sèb.
+                if (!t.empty() &&
+                    t != L"No title" && t != L"Nothing playing" &&
+                    t != T("No title") && t != T("Nothing playing")) {
                     itm = t;
                 }
             }
