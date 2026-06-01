@@ -132,19 +132,21 @@ if defined ISCC (
         mkdir "dist_temp\KeyMaps" 2>nul
         copy /y "KeyMaps\*.MediaAccessKeyMap" "dist_temp\KeyMaps\" >nul 2>&1
     )
-    "%ISCC%" /DMyAppVersion=%APP_VERSION% /DSourceDir=dist_temp /DOutputDir=. installer.iss
+    if not exist "Output" mkdir "Output"
+    "%ISCC%" /DMyAppVersion=%APP_VERSION% /DSourceDir=dist_temp /DOutputDir=Output installer.iss
     if errorlevel 1 (
         echo Installer build failed!
     ) else (
-        REM Inno Setup writes MediaAccessInstaller_X.YZ.exe (OutputBaseFilename
-        REM is version-suffixed). Mirror it to the un-suffixed name so
-        REM `gh release create ... MediaAccessInstaller.exe` uploads THIS build
-        REM instead of whatever stale file was sitting in the folder. v1.49
-        REM through v1.51 were silently shipped with a leftover old installer
-        REM because of this — never again.
-        copy /y "MediaAccessInstaller_%APP_VERSION%.exe" "MediaAccessInstaller.exe" >nul
-        echo Installer built successfully: MediaAccessInstaller_%APP_VERSION%.exe
-        echo                       mirror: MediaAccessInstaller.exe ^(for release upload^)
+        REM Inno Setup writes Output\MediaAccessInstaller_X.YZ.exe (the
+        REM OutputBaseFilename is version-suffixed). Mirror it to the
+        REM un-suffixed Output\MediaAccessInstaller.exe so the release
+        REM upload picks THIS build instead of a stale file. v1.49 through
+        REM v1.51 were silently shipped with a leftover old installer
+        REM because of this — never again. The Output folder is the
+        REM canonical location for all installer artifacts.
+        copy /y "Output\MediaAccessInstaller_%APP_VERSION%.exe" "Output\MediaAccessInstaller.exe" >nul
+        echo Installer built successfully: Output\MediaAccessInstaller_%APP_VERSION%.exe
+        echo                       mirror: Output\MediaAccessInstaller.exe ^(for release upload^)
     )
     rmdir /s /q "dist_temp" 2>nul
 ) else (

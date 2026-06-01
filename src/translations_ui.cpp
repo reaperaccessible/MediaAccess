@@ -421,6 +421,9 @@ void RegisterUiTranslations() {
     // ============================================================
     AddTranslation("en", "1 chapter",                   L"1 chapter");
     AddTranslation("fr", "1 chapter",                   L"1 chapitre");
+    // v1.83 — Spoken label for the new subtitle cycle unit (Spring's request).
+    AddTranslation("en", "1 subtitle",                   L"1 subtitle");
+    AddTranslation("fr", "1 subtitle",                   L"1 sous-titre");
     AddTranslation("en", "1 second",                    L"1 second");
     AddTranslation("fr", "1 second",                    L"1 seconde");
     AddTranslation("en", "5 seconds",                   L"5 seconds");
@@ -478,6 +481,10 @@ void RegisterUiTranslations() {
     AddTranslation("fr", "Position announcement on",                L"Annonce de position activée");
     AddTranslation("en", "Position announcement off",               L"Position announcement off");
     AddTranslation("fr", "Position announcement off",               L"Annonce de position désactivée");
+    AddTranslation("en", "Subtitle speech on",                      L"Subtitle speech on");
+    AddTranslation("fr", "Subtitle speech on",                      L"Énoncé des sous-titres activé");
+    AddTranslation("en", "Subtitle speech off",                     L"Subtitle speech off");
+    AddTranslation("fr", "Subtitle speech off",                     L"Énoncé des sous-titres désactivé");
     AddTranslation("en", "Select YouTube downloads folder",         L"Select YouTube downloads folder");
     AddTranslation("fr", "Select YouTube downloads folder",         L"Sélectionner le dossier de téléchargement YouTube");
     AddTranslation("en", "Failed to register window class.",        L"Failed to register window class.");

@@ -93,6 +93,7 @@ extern bool     g_bookSkipBypass;          // Phase 4 — runtime toggle (Shift+
 extern bool     g_announceTrackOnFocus;    // v1.59 — speak track on WM_ACTIVATEAPP
 extern bool     g_isShuttingDown;          // v1.63 — gate WM_COPYDATA dwData=4 during shutdown
 extern bool     g_speechSeekPosition;      // v1.65 — speak new position after Seek
+extern bool     g_speakSubtitles;          // v1.81 — speak video subtitle lines as they appear
 
 // v1.60 — Now-playing display state. Forward-declared here; the SourceType
 // enum and the manipulator helpers live in mediaaccess/ui.h to keep this
@@ -235,5 +236,6 @@ struct Chapter {
 };
 extern std::vector<Chapter> g_chapters;     // Chapters for current file
 extern bool g_chapterSeekEnabled;           // Enable chapter seeking in movement options
+extern bool g_subtitleSeekEnabled;          // v1.83 — Enable "1 subtitle" cycle unit (MPV sub-seek)
 
 #endif // MEDIAACCESS_GLOBALS_H

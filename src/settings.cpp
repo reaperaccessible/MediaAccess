@@ -246,6 +246,7 @@ void LoadSettings() {
     g_speechTrackChange = GetPrivateProfileIntW(L"Speech", L"TrackChange", 0, g_configPath.c_str()) != 0;
     g_speechVolume = GetPrivateProfileIntW(L"Speech", L"Volume", 1, g_configPath.c_str()) != 0;
     g_speechSeekPosition = GetPrivateProfileIntW(L"Speech", L"AnnounceSeekPosition", 1, g_configPath.c_str()) != 0;  // v1.65
+    g_speakSubtitles = GetPrivateProfileIntW(L"Speech", L"SpeakSubtitles", 0, g_configPath.c_str()) != 0;  // v1.81
     g_speechEffect = GetPrivateProfileIntW(L"Speech", L"Effect", 1, g_configPath.c_str()) != 0;
     g_speechYTHybrid = GetPrivateProfileIntW(L"Speech", L"YTHybrid", 1, g_configPath.c_str()) != 0;
 
@@ -275,6 +276,8 @@ void LoadSettings() {
     g_seekEnabled[10] = GetPrivateProfileIntW(L"Movement", L"Seek5t", 0, g_configPath.c_str()) != 0;
     g_seekEnabled[11] = GetPrivateProfileIntW(L"Movement", L"Seek10t", 0, g_configPath.c_str()) != 0;
     g_chapterSeekEnabled = GetPrivateProfileIntW(L"Movement", L"ChapterSeek", 1, g_configPath.c_str()) != 0;
+    // v1.83 — Subtitle seek cycle unit (default on); only active when MPV is playing.
+    g_subtitleSeekEnabled = GetPrivateProfileIntW(L"Movement", L"Seek_Subtitle", 1, g_configPath.c_str()) != 0;
     g_currentSeekIndex = GetPrivateProfileIntW(L"Movement", L"CurrentSeek", 1, g_configPath.c_str());
 
     // Validate current seek index
@@ -578,6 +581,7 @@ void SaveSettings() {
     WritePrivateProfileStringW(L"Speech", L"TrackChange", g_speechTrackChange ? L"1" : L"0", g_configPath.c_str());
     WritePrivateProfileStringW(L"Speech", L"Volume", g_speechVolume ? L"1" : L"0", g_configPath.c_str());
     WritePrivateProfileStringW(L"Speech", L"AnnounceSeekPosition", g_speechSeekPosition ? L"1" : L"0", g_configPath.c_str());  // v1.65
+    WritePrivateProfileStringW(L"Speech", L"SpeakSubtitles", g_speakSubtitles ? L"1" : L"0", g_configPath.c_str());  // v1.81
     WritePrivateProfileStringW(L"Speech", L"Effect", g_speechEffect ? L"1" : L"0", g_configPath.c_str());
     WritePrivateProfileStringW(L"Speech", L"YTHybrid", g_speechYTHybrid ? L"1" : L"0", g_configPath.c_str());
 
@@ -611,6 +615,7 @@ void SaveSettings() {
     WritePrivateProfileStringW(L"Movement", L"Seek5t", g_seekEnabled[10] ? L"1" : L"0", g_configPath.c_str());
     WritePrivateProfileStringW(L"Movement", L"Seek10t", g_seekEnabled[11] ? L"1" : L"0", g_configPath.c_str());
     WritePrivateProfileStringW(L"Movement", L"ChapterSeek", g_chapterSeekEnabled ? L"1" : L"0", g_configPath.c_str());
+    WritePrivateProfileStringW(L"Movement", L"Seek_Subtitle", g_subtitleSeekEnabled ? L"1" : L"0", g_configPath.c_str());
 
     swprintf(buf, 32, L"%d", g_currentSeekIndex);
     WritePrivateProfileStringW(L"Movement", L"CurrentSeek", buf, g_configPath.c_str());
@@ -912,6 +917,14 @@ bool IsSeekAmountAvailable(int index) {
     if (index == 12) {
         return g_chapterSeekEnabled && !g_chapters.empty();
     }
+    // v1.83 — Index 13 is "1 subtitle" (virtual). Available only when MPV is the
+    // active engine (audio engines BASS/DAISY can't sub-seek). We don't gate on
+    // whether a subtitle track is currently loaded — mpv's sub-seek silently
+    // no-ops when there's nothing to jump to, and the user still wants the
+    // unit visible in the cycle so they can prep before enabling subtitles.
+    if (index == 13) {
+        return g_subtitleSeekEnabled && g_activeEngine == PlaybackEngine::MPV;
+    }
     if (index < 0 || index >= g_seekAmountCount) return false;
     if (!g_seekEnabled[index]) return false;
     // Track-based options only available with multiple tracks
@@ -919,8 +932,23 @@ bool IsSeekAmountAvailable(int index) {
     return true;
 }
 
-// Total number of seek options including chapter (index 12)
-constexpr int SEEK_AMOUNT_TOTAL = 13;
+// Total number of seek options including chapter (index 12) and subtitle (index 13)
+constexpr int SEEK_AMOUNT_TOTAL = 14;
+
+// v1.83 — Speak the label of the currently selected seek unit, handling the
+// two virtual entries (chapter at index 12, subtitle at index 13) that don't
+// live in g_seekAmounts. Centralises the four call sites that used to inline
+// `if (index == 12) Speak("1 chapter") else Speak(g_seekAmounts[...].label)`.
+static void SpeakCurrentSeekUnit() {
+    if (g_currentSeekIndex == 12) {
+        Speak(Ts("1 chapter"));
+    } else if (g_currentSeekIndex == 13) {
+        // Singular: we're naming the *unit of measure*, not announcing N items.
+        Speak(Ts("1 subtitle"));
+    } else if (g_currentSeekIndex >= 0 && g_currentSeekIndex < g_seekAmountCount) {
+        Speak(Ts(g_seekAmounts[g_currentSeekIndex].label));
+    }
+}
 
 // Cycle through enabled seek amounts
 void CycleSeekAmount(int direction) {
@@ -949,11 +977,7 @@ void CycleSeekAmount(int direction) {
 
     if (availableCount == 1) {
         // Only one available, just announce it
-        if (g_currentSeekIndex == 12) {
-            Speak(Ts("1 chapter"));
-        } else {
-            Speak(Ts(g_seekAmounts[g_currentSeekIndex].label));
-        }
+        SpeakCurrentSeekUnit();
         return;
     }
 
@@ -965,11 +989,7 @@ void CycleSeekAmount(int direction) {
         // Stop at boundaries instead of wrapping
         if (newIndex >= SEEK_AMOUNT_TOTAL || newIndex < 0) {
             // Already at the edge, just announce current
-            if (g_currentSeekIndex == 12) {
-                Speak(Ts("1 chapter"));
-            } else {
-                Speak(Ts(g_seekAmounts[g_currentSeekIndex].label));
-            }
+            SpeakCurrentSeekUnit();
             return;
         }
 
@@ -980,19 +1000,11 @@ void CycleSeekAmount(int direction) {
     }
 
     // Announce the new seek amount
-    if (g_currentSeekIndex == 12) {
-        Speak(Ts("1 chapter"));
-    } else {
-        Speak(Ts(g_seekAmounts[g_currentSeekIndex].label));
-    }
+    SpeakCurrentSeekUnit();
 }
 
 void SpeakSeekAmount() {
-    if (g_currentSeekIndex == 12) {
-        Speak(Ts("1 chapter"));
-    } else if (g_currentSeekIndex >= 0 && g_currentSeekIndex < g_seekAmountCount) {
-        Speak(Ts(g_seekAmounts[g_currentSeekIndex].label));
-    }
+    SpeakCurrentSeekUnit();
 }
 
 // Add a file to the recent files list

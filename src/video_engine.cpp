@@ -14,6 +14,7 @@
 #include "mediaaccess/translations.h"
 #include "mediaaccess/logger.h"
 #include "mpv/client.h"
+#include "resource.h"
 
 #include <windows.h>
 #include <string>
@@ -331,6 +332,37 @@ static DWORD WINAPI MPVEventThread(LPVOID /*param*/)
                 if (eof)
                     PostMessageW(g_hwnd, WM_COMMAND, MAKEWPARAM(204, 0), 0);
             }
+            else if (ev->reply_userdata == 0x5B5B5B &&
+                     strcmp(prop->name, "sub-text") == 0 &&
+                     prop->format == MPV_FORMAT_STRING && prop->data)
+            {
+                // v1.81 — speak subtitle lines. mpv passes a char** here that
+                // it frees as soon as we return from this event, so we must
+                // copy. The handler on the main thread frees the wide copy.
+                // De-dup against the last-spoken line so a re-render of the
+                // same subtitle (e.g. on seek) does not stutter; the empty
+                // string emitted when a subtitle disappears is filtered out
+                // here so we never speak silence.
+                static std::wstring s_lastSub;
+                const char* utf8 = *static_cast<char**>(prop->data);
+                if (utf8 && *utf8) {
+                    std::wstring w = Utf8ToWide(utf8);
+                    if (!w.empty() && w != s_lastSub) {
+                        s_lastSub = w;
+                        size_t bytes = (w.size() + 1) * sizeof(wchar_t);
+                        wchar_t* heap = static_cast<wchar_t*>(malloc(bytes));
+                        if (heap) {
+                            memcpy(heap, w.c_str(), bytes);
+                            PostMessageW(g_hwnd, WM_SPEAK_SUBTITLE, 0,
+                                         (LPARAM)heap);
+                        }
+                    }
+                } else {
+                    // subtitle cleared — reset de-dup so the same line
+                    // spoken again after a gap is announced fresh
+                    s_lastSub.clear();
+                }
+            }
             break;
         }
 
@@ -478,6 +510,22 @@ bool InitMPV(HWND parentHwnd)
     /* Subtitle auto-detection */
     fn_mpv_set_option_string(g_mpv, "sub-auto", "fuzzy");
 
+    /* v1.82 — Force the default subtitle track on at load time even when it is
+       marked "forced" and we have no preferred language configured. Without
+       these, libmpv's default heuristic (subs-with-matching-audio-forced=yes
+       requiring a language match it cannot compute when slang is empty) skips
+       tracks like the single "French.Forced" track in many TV recordings.
+       Result: sub-text stayed empty for the whole file and the v1.81 "Speak
+       subtitles aloud" feature had nothing to speak. Reported by Spring on
+       Bad.Blood.2017.S01E01 (NF WEBRip).
+
+       The options must be set BEFORE mpv_initialize. */
+    fn_mpv_set_option_string(g_mpv, "sid",                      "auto");
+    fn_mpv_set_option_string(g_mpv, "sub-visibility",           "yes");
+    fn_mpv_set_option_string(g_mpv, "subs-with-matching-audio", "yes");
+    fn_mpv_set_option_string(g_mpv, "subs-fallback",            "yes");
+    fn_mpv_set_option_string(g_mpv, "subs-fallback-forced",     "yes");
+
     if (fn_mpv_initialize(g_mpv) < 0) {
         fn_mpv_destroy(g_mpv);
         g_mpv = nullptr;
@@ -499,6 +547,11 @@ bool InitMPV(HWND parentHwnd)
     fn_mpv_observe_property(g_mpv, 0, "pause",        MPV_FORMAT_FLAG);
     fn_mpv_observe_property(g_mpv, 0, "idle-active",  MPV_FORMAT_FLAG);
     fn_mpv_observe_property(g_mpv, 0, "eof-reached",  MPV_FORMAT_FLAG);
+
+    /* v1.81 — observe sub-text so we can route each subtitle line to the
+       screen reader when the user enables "Speak subtitles aloud".
+       reply_userdata 0x5B5B5B lets the event handler filter precisely. */
+    fn_mpv_observe_property(g_mpv, 0x5B5B5B, "sub-text", MPV_FORMAT_STRING);
 
     /* Start event-processing thread */
     g_mpvThreadRunning.store(true);
@@ -996,6 +1049,19 @@ void MPVSeekToChapter(int index)
     __int64 ch = index;
     fn_mpv_set_property(g_mpv, "chapter", MPV_FORMAT_INT64, &ch);
     SpeakW(MPVGetChapterTitle(index).c_str());
+}
+
+// v1.83 — Subtitle jump (Spring's request). Dispatches `sub-seek <delta>` to
+// libmpv. The mpv property observer set up in v1.81 will fire WM_SPEAK_SUBTITLE
+// with the new sub line if subtitle speech is enabled, so the user hears
+// where they landed without us announcing anything explicit here.
+void MPVSubSeek(int delta)
+{
+    if (!g_mpv) return;
+    char buf[16];
+    _snprintf_s(buf, sizeof(buf), _TRUNCATE, "%d", delta);
+    const char* cmd[] = { "sub-seek", buf, nullptr };
+    fn_mpv_command(g_mpv, cmd);
 }
 
 /* ================================================================

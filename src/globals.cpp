@@ -114,6 +114,12 @@ bool g_isShuttingDown = false;
 // Speech > "Announce position after seek".
 bool g_speechSeekPosition = true;
 
+// v1.81 — speak each new video subtitle line via SpeakW(text, true).
+// Default OFF so existing users are not surprised; toggle in
+// Options > Speech > "Speak subtitles aloud" or via the user-defined
+// TOGGLE_SUBTITLE_SPEECH action. Persisted under [Speech] SpeakSubtitles.
+bool g_speakSubtitles = false;
+
 // v1.60 — Now-playing display state. Definitions; the SourceType enum is
 // in mediaaccess/ui.h so we have to include it here.
 #include "mediaaccess/ui.h"
@@ -382,3 +388,4 @@ int g_repeatMode = 0;                               // 0 = off, 1 = repeat one, 
 // Chapter support
 std::vector<Chapter> g_chapters;                    // Chapters for current file
 bool g_chapterSeekEnabled = true;                   // Enable chapter seeking (default on)
+bool g_subtitleSeekEnabled = true;                  // v1.83 — Enable "1 subtitle" cycle unit (default on)

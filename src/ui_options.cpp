@@ -70,11 +70,12 @@ void ShowTabControls(HWND hwnd, int tab) {
                             IDC_LABEL_DOWNLOADS_DESCRIPTION, IDC_LABEL_DOWNLOADS_FOLDER};
     // Speech tab controls (tab 3)
     int speechCtrls[] = {IDC_SPEECH_TRACKCHANGE, IDC_SPEECH_VOLUME, IDC_SPEECH_EFFECT, IDC_SPEECH_YT_HYBRID,
-                         IDC_SPEECH_SEEK_POSITION,
+                         IDC_SPEECH_SEEK_POSITION, IDC_SPEAK_SUBTITLES,
                          IDC_LABEL_SPEECH_DESCRIPTION};
     // Movement tab controls (tab 4)
     int movementCtrls[] = {IDC_SEEK_1S, IDC_SEEK_5S, IDC_SEEK_10S, IDC_SEEK_30S, IDC_SEEK_1M, IDC_SEEK_5M, IDC_SEEK_10M,
                            IDC_SEEK_30M, IDC_SEEK_1H, IDC_SEEK_1T, IDC_SEEK_5T, IDC_SEEK_10T, IDC_CHAPTER_SEEK,
+                           IDC_SEEK_SUBTITLE,
                            IDC_LABEL_MOVEMENT_DESCRIPTION};
     // Effects tab controls (tab 5)
     int effectCtrls[] = {IDC_EFFECT_VOLUME, IDC_EFFECT_PITCH, IDC_EFFECT_TEMPO, IDC_EFFECT_RATE, IDC_RATE_STEP_MODE,
@@ -369,6 +370,7 @@ INT_PTR CALLBACK OptionsDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
             CheckDlgButton(hwnd, IDC_SEEK_5T, g_seekEnabled[10] ? BST_CHECKED : BST_UNCHECKED);
             CheckDlgButton(hwnd, IDC_SEEK_10T, g_seekEnabled[11] ? BST_CHECKED : BST_UNCHECKED);
             CheckDlgButton(hwnd, IDC_CHAPTER_SEEK, g_chapterSeekEnabled ? BST_CHECKED : BST_UNCHECKED);
+            CheckDlgButton(hwnd, IDC_SEEK_SUBTITLE, g_subtitleSeekEnabled ? BST_CHECKED : BST_UNCHECKED);
 
             // Set file types registration checkbox
             CheckDlgButton(hwnd, IDC_REGISTER_FILE_TYPES, g_registerFileTypes ? BST_CHECKED : BST_UNCHECKED);
@@ -533,6 +535,7 @@ INT_PTR CALLBACK OptionsDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
             CheckDlgButton(hwnd, IDC_SPEECH_EFFECT, g_speechEffect ? BST_CHECKED : BST_UNCHECKED);
             CheckDlgButton(hwnd, IDC_SPEECH_YT_HYBRID, g_speechYTHybrid ? BST_CHECKED : BST_UNCHECKED);
             CheckDlgButton(hwnd, IDC_SPEECH_SEEK_POSITION, g_speechSeekPosition ? BST_CHECKED : BST_UNCHECKED);
+            CheckDlgButton(hwnd, IDC_SPEAK_SUBTITLES, g_speakSubtitles ? BST_CHECKED : BST_UNCHECKED);  // v1.81
 
             // Initialize SoundTouch tab
             {
@@ -707,6 +710,7 @@ INT_PTR CALLBACK OptionsDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
                     g_seekEnabled[10] = (IsDlgButtonChecked(hwnd, IDC_SEEK_5T) == BST_CHECKED);
                     g_seekEnabled[11] = (IsDlgButtonChecked(hwnd, IDC_SEEK_10T) == BST_CHECKED);
                     g_chapterSeekEnabled = (IsDlgButtonChecked(hwnd, IDC_CHAPTER_SEEK) == BST_CHECKED);
+                    g_subtitleSeekEnabled = (IsDlgButtonChecked(hwnd, IDC_SEEK_SUBTITLE) == BST_CHECKED);
 
                     // Validate current seek index - ensure it points to an enabled amount
                     if (!g_seekEnabled[g_currentSeekIndex]) {
@@ -879,6 +883,7 @@ INT_PTR CALLBACK OptionsDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
                     g_speechEffect = (IsDlgButtonChecked(hwnd, IDC_SPEECH_EFFECT) == BST_CHECKED);
                     g_speechYTHybrid = (IsDlgButtonChecked(hwnd, IDC_SPEECH_YT_HYBRID) == BST_CHECKED);
                     g_speechSeekPosition = (IsDlgButtonChecked(hwnd, IDC_SPEECH_SEEK_POSITION) == BST_CHECKED);
+                    g_speakSubtitles = (IsDlgButtonChecked(hwnd, IDC_SPEAK_SUBTITLES) == BST_CHECKED);  // v1.81
 
                     // Get SoundTouch settings
                     {

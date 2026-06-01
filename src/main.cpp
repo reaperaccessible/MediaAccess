@@ -574,6 +574,20 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
             DoSpeak();
             return 0;
 
+        case WM_SPEAK_SUBTITLE: {
+            // v1.81 — a subtitle line just appeared in the video. The
+            // wchar_t* was malloc'd by MPVEventThread (video_engine.cpp)
+            // and we own it now. Speak with interrupt=true so the latest
+            // line cancels any in-flight one (subtitles flow fast; chaining
+            // would lag behind the picture). Gated by g_speakSubtitles.
+            wchar_t* text = reinterpret_cast<wchar_t*>(lParam);
+            if (text) {
+                if (g_speakSubtitles) SpeakW(text, true);
+                free(text);
+            }
+            return 0;
+        }
+
         case WM_META_CHANGED:
             AnnounceStreamMetadata();
             UpdateWindowTitle();
@@ -996,6 +1010,15 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
                                                : Ts("Position announcement off"));
                     SaveSettings();
                     break;
+                case IDM_TOGGLE_SUBTITLE_SPEECH:
+                    // v1.81 — Toggle g_speakSubtitles. When ON, every new
+                    // sub-text line spoken by libmpv is routed to the screen
+                    // reader via WM_SPEAK_SUBTITLE. Requested by user Spring.
+                    g_speakSubtitles = !g_speakSubtitles;
+                    Speak(g_speakSubtitles ? Ts("Subtitle speech on")
+                                           : Ts("Subtitle speech off"));
+                    SaveSettings();
+                    break;
                 case IDM_PLAY_REPEAT_TOGGLE:
                     ToggleRepeatMode();
                     break;
@@ -1030,6 +1053,14 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
                         if (!g_chapters.empty()) {
                             SeekToPrevChapter();
                         }
+                    } else if (g_currentSeekIndex == 13) {
+                        // v1.83 — Subtitle seek (MPV only). Audio engines hit
+                        // this branch silently when the user happens to land on
+                        // the subtitle unit during audio playback; that's
+                        // intentional, the cycle announcement already told them.
+                        if (g_activeEngine == PlaybackEngine::MPV) {
+                            MPVSubSeek(-1);
+                        }
                     } else if (g_seekAmounts[g_currentSeekIndex].isTrack && g_playlist.size() <= 1) {
                         for (int i = 0; i < g_seekAmountCount; i++) {
                             if (g_seekEnabled[i] && !g_seekAmounts[i].isTrack) {
@@ -1052,6 +1083,11 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
                         // Chapter seeking
                         if (!g_chapters.empty()) {
                             SeekToNextChapter();
+                        }
+                    } else if (g_currentSeekIndex == 13) {
+                        // v1.83 — Subtitle seek (MPV only). See SEEKBACK above.
+                        if (g_activeEngine == PlaybackEngine::MPV) {
+                            MPVSubSeek(+1);
                         }
                     } else if (g_seekAmounts[g_currentSeekIndex].isTrack && g_playlist.size() <= 1) {
                         for (int i = 0; i < g_seekAmountCount; i++) {

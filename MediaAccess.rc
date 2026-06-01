@@ -172,6 +172,7 @@ BEGIN
     AUTOCHECKBOX    "Speak &effect value when adjusted", IDC_SPEECH_EFFECT, 17, 90, 210, 10
     AUTOCHECKBOX    "Announce YouTube effects activation", IDC_SPEECH_YT_HYBRID, 17, 110, 260, 10
     AUTOCHECKBOX    "Announce &position after a seek", IDC_SPEECH_SEEK_POSITION, 17, 130, 260, 10
+    AUTOCHECKBOX    "Speak &subtitles", IDC_SPEAK_SUBTITLES, 17, 150, 260, 10
 
     // Movement tab controls (shown when tab 4 selected)
     LTEXT           "Seek amounts (use , and . to cycle):", IDC_LABEL_MOVEMENT_DESCRIPTION, 17, 30, 260, 10
@@ -188,6 +189,7 @@ BEGIN
     AUTOCHECKBOX    "5 t&racks", IDC_SEEK_5T, 17, 165, 60, 10
     AUTOCHECKBOX    "10 trac&ks", IDC_SEEK_10T, 80, 165, 60, 10
     AUTOCHECKBOX    "1 c&hapter (if available)", IDC_CHAPTER_SEEK, 150, 165, 110, 10
+    AUTOCHECKBOX    "1 &subtitle", IDC_SEEK_SUBTITLE, 150, 150, 110, 10
 
     // (Global Hotkeys tab removed in v1.41 — global hotkeys are now managed
     // exclusively from Tools → Actions, Global category.)

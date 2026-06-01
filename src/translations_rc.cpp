@@ -207,6 +207,12 @@ void RegisterRcTranslations() {
     AddTranslation("fr", "Announce &position after a seek",
                    L"Annoncer la &position après un déplacement");
 
+    // v1.81 — Speech tab: speak subtitles (renamed in v1.82 hotfix)
+    AddTranslation("en", "Speak &subtitles",
+                   L"Speak &subtitles");
+    AddTranslation("fr", "Speak &subtitles",
+                   L"Énoncer les &sous-titres");
+
     // v1.63 — Audio slots menu and dialog
     AddTranslation("en", "Audio &slots...", L"Audio &slots...");
     AddTranslation("fr", "Audio &slots...", L"&Slots audio...");
@@ -444,6 +450,10 @@ void RegisterRcTranslations() {
 
     AddTranslation("en", "1 c&hapter (if available)", L"1 c&hapter (if available)");
     AddTranslation("fr", "1 c&hapter (if available)", L"1 c&hapitre (si disponible)");
+
+    // v1.83 — Movement tab checkbox for the new subtitle cycle unit.
+    AddTranslation("en", "1 &subtitle", L"1 &subtitle");
+    AddTranslation("fr", "1 &subtitle", L"1 &sous-titre");
 
     AddTranslation("en", "&Add...", L"&Add...");
     AddTranslation("fr", "&Add...", L"&Ajouter...");

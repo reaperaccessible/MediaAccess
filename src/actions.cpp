@@ -121,6 +121,14 @@ static const Action g_actions[] = {
       "Toggle position announcement after seek",
       "Basculer l'annonce de position après un déplacement",
       {} },
+    // v1.81 — Toggles g_speakSubtitles. When ON, the active video subtitle
+    // track is routed to the screen reader line by line (interrupt mode).
+    // Requested by user Spring. No default shortcut; user-defined via
+    // Tools > Actions.
+    { "TOGGLE_SUBTITLE_SPEECH", IDM_TOGGLE_SUBTITLE_SPEECH, ActionCategory::Main,
+      "Toggle speak subtitles",
+      "Basculer énoncer les sous-titres",
+      {} },
     { "PLAYER_MUTE",              IDM_PLAY_MUTE,              ActionCategory::Main,
       "Toggle mute",                  "Basculer le mode muet",
       { 'U', false, false, false } },
@@ -464,6 +472,10 @@ static const Action g_actions[] = {
     { "GLOBAL_TOGGLE_SEEK_ANNOUNCE", IDM_PLAY_TOGGLE_SEEK_ANNOUNCE, ActionCategory::Global,
       "Toggle position announcement after seek (global)",
       "Basculer l'annonce de position après un déplacement (global)", {} },
+    // v1.81 — Same commandId as TOGGLE_SUBTITLE_SPEECH above.
+    { "GLOBAL_TOGGLE_SUBTITLE_SPEECH", IDM_TOGGLE_SUBTITLE_SPEECH, ActionCategory::Global,
+      "Toggle speak subtitles (global)",
+      "Basculer énoncer les sous-titres (global)", {} },
     { "GLOBAL_YOUTUBE",           IDM_FILE_YOUTUBE,           ActionCategory::Global,
       "YouTube search (global)",      "Recherche YouTube (global)", {} },
 

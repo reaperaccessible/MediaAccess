@@ -79,6 +79,13 @@ int MPVGetChapterCount();
 std::wstring MPVGetChapterTitle(int index);
 void MPVSeekToChapter(int index);
 
+// ===== Subtitle navigation (v1.83) =====
+// Jump to the previous (delta < 0) or next (delta > 0) subtitle event in the
+// currently active sub track. No-op when MPV isn't loaded or no sub track is
+// active. The new sub-text line is spoken automatically via WM_SPEAK_SUBTITLE
+// when g_speakSubtitles is on (v1.81 mechanism).
+void MPVSubSeek(int delta);
+
 // ===== Metadata =====
 std::wstring MPVGetMediaTitle();
 

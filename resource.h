@@ -106,6 +106,7 @@
 #define WM_PLAYLIST_TRACK_CHANGED (WM_USER + 4)
 #define WM_YT_HYBRID_READY  (WM_USER + 5)  // YouTube background download finished — swap mpv→BASS
 #define WM_YT_LOAD_MORE_DONE (WM_USER + 6) // Background "load more YouTube results" finished
+#define WM_SPEAK_SUBTITLE   (WM_USER + 7)  // v1.81 — speak a subtitle line (lParam = wchar_t* heap)
 
 // Playback tab controls
 #define IDC_BRING_TO_FRONT  531
@@ -179,6 +180,7 @@
 #define IDM_TOGGLE_CENTERCANCEL 249
 #define IDM_TOGGLE_SPATIAL      251
 #define IDM_TOGGLE_CONVOLUTION  252
+#define IDM_TOGGLE_SUBTITLE_SPEECH 253  // v1.81 — toggle g_speakSubtitles
 
 // Speak commands
 #define IDM_SPEAK_SEEK          250
@@ -298,6 +300,7 @@
 #define IDC_SPEECH_EFFECT       842
 #define IDC_SPEECH_YT_HYBRID    843
 #define IDC_SPEECH_SEEK_POSITION 844  // v1.65 — announce position after seek
+#define IDC_SPEAK_SUBTITLES      845  // v1.81 — speak video subtitle lines aloud
 
 // Radio dialog
 #define IDM_FILE_RADIO      107
@@ -493,6 +496,9 @@
 
 // Chapter seeking
 #define IDC_CHAPTER_SEEK    900
+
+// Subtitle seeking (v1.83 — Spring's request: cycle unit jumping to next/prev sub line via mpv sub-seek)
+#define IDC_SEEK_SUBTITLE   905
 
 // Auto-advance playlist
 #define IDC_AUTO_ADVANCE    901
