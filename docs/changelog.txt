@@ -1,3 +1,12 @@
+1.94
+New: the recording source is now switchable between "MediaAccess output" (the existing behavior, unchanged) and "Windows system output" — a full WASAPI loopback capture of whatever Windows is playing through your output device, encoded straight to a file with the same format and bitrate settings as normal recording. Requested by Seb.
+
+Pick the source in Options > Recording tab, or assign the new "Cycle recording source" action a shortcut in the Actions dialog (no default key) and toggle it on the fly; the choice is announced and persisted. Your existing recording key keeps working — when "Windows system output" is selected it drives the system capture instead, and the regular "MediaAccess output" recording is completely unchanged.
+
+The system device follows your active MediaAccess output device automatically, or you can force a specific loopback device in the same tab. If the device is lost mid-recording (unplugged or disabled), capture stops cleanly and finalizes the file, and a message is announced. The status bar shows a "REC system" indicator while a system capture runs.
+
+Important limitation: DRM-protected services (for example Netflix, Apple Music and some protected streams) may record as silence, because their audio is protected by Windows and cannot be captured via loopback. Unprotected audio — web players, games, calls, podcasts, most music apps — records normally.
+
 1.93
 Fix passing a folder path on the command line: MediaAccess used to accept the path, push it into the playlist as a string, then fail to play it silently. Reported by Jack while scripting playback automation through Total Commander. The CLI and inter-instance WM_COPYDATA handler now both detect folders and recursively enumerate their contents the same way Ctrl+V (paste from clipboard) has always done. MediaAccess.exe "C:\Music\Album" now works exactly like dragging the folder into the window.
 

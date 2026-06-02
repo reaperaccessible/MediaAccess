@@ -216,6 +216,12 @@ extern int g_recordBitrate;             // MP3/OGG bitrate in kbps (128, 192, 25
 extern bool g_isRecording;              // Currently recording?
 extern HENCODE g_encoder;               // BASS encoder handle
 
+// v1.94 — system-audio (WASAPI loopback) recording. These are SEPARATE from
+// the existing "MediaAccess output" recording above; the legacy path is
+// unchanged. g_recordSource selects which engine ToggleRecording() drives.
+extern int g_recordSource;       // 0 = MediaAccess output (legacy), 1 = Windows system audio
+extern int g_systemRecordDevice; // -1 = auto (follow MediaAccess's active output device), >=0 = forced BASSWASAPI index
+
 // Speech settings
 extern bool g_speechTrackChange;        // Announce track changes
 extern bool g_speechVolume;             // Speak volume when adjusted

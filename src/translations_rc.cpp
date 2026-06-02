@@ -350,6 +350,12 @@ void RegisterRcTranslations() {
     AddTranslation("en", "&Bitrate:", L"&Bitrate:");
     AddTranslation("fr", "&Bitrate:", L"&Débit :");
 
+    // v1.94 — recording source + system device labels (Recording tab).
+    AddTranslation("en", "Recording &source:", L"Recording &source:");
+    AddTranslation("fr", "Recording &source:", L"&Source d'enregistrement :");
+    AddTranslation("en", "System de&vice:", L"System de&vice:");
+    AddTranslation("fr", "System de&vice:", L"Périphérique s&ystème :");
+
     AddTranslation("en", "(Bitrate only applies to MP3 and OGG formats)",
                    L"(Bitrate only applies to MP3 and OGG formats)");
     AddTranslation("fr", "(Bitrate only applies to MP3 and OGG formats)",

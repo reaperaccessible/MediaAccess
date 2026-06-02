@@ -1,3 +1,3 @@
-version=1.93
+version=1.94
 download=https://github.com/reaperaccessible/MediaAccess/releases/latest/download/MediaAccessInstaller.exe
 installer=https://github.com/reaperaccessible/MediaAccess/releases/latest/download/MediaAccessInstaller.exe

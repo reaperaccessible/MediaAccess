@@ -59,6 +59,7 @@
 #include "mediaaccess/book_text_window.h"
 #include "mediaaccess/cli_switches.h"   // v1.63
 #include "mediaaccess/audio_slots.h"    // v1.63
+#include "mediaaccess/wasapi_loopback.h" // v1.94 — system-audio capture state
 #include <utility>  // for std::pair
 
 // Custom message posted from daisy_player.cpp BASS sync (worker thread).
@@ -544,6 +545,11 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
             //                              of mouse inactivity.
             //   IDT_SLEEP_TIMER          — sleep-timer 1s tick.
             if (wParam == IDT_UPDATE_TITLE) {
+                // v1.94 — if a system capture self-stopped because its device was
+                // lost, announce it once (NVDA) on the UI thread.
+                if (mediaaccess::ConsumeSystemCaptureLost()) {
+                    Speak(Ts("Recording stopped, device lost"));
+                }
                 UpdateStatusBar();
             } else if (wParam == IDT_BATCH_FILES) {
                 KillTimer(hwnd, IDT_BATCH_FILES);
@@ -1331,6 +1337,20 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
                     break;
                 case IDM_SHOW_AUDIO_DEVICES:
                     ShowAudioDeviceMenu(hwnd);
+                    break;
+                // v1.94 — cycle the recording source (MediaAccess output /
+                // Windows system audio). Refuse while ANY recording is active so
+                // we never swap engines mid-capture.
+                case IDM_CYCLE_RECORD_SOURCE:
+                    if (g_isRecording || mediaaccess::IsSystemCapturing()) {
+                        Speak(Ts("Cannot change recording source while recording"));
+                    } else {
+                        g_recordSource = (g_recordSource == 0) ? 1 : 0;
+                        SaveSettings();
+                        Speak(g_recordSource == 1
+                                  ? Ts("Recording source: Windows system")
+                                  : Ts("Recording source: MediaAccess output"));
+                    }
                     break;
                 // ===== Video commands =====
                 case IDM_VIDEO_FULLSCREEN:

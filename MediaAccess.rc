@@ -157,6 +157,11 @@ BEGIN
     LTEXT           "&Bitrate:", IDC_LABEL_RECORDING_BITRATE, 130, 108, 30, 10
     COMBOBOX        IDC_REC_BITRATE, 163, 106, 70, 80, CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
     LTEXT           "(Bitrate only applies to MP3 and OGG formats)", IDC_LABEL_RECORDING_BITRATE_NOTE, 17, 125, 200, 10
+    // v1.94 — recording source + system loopback device
+    LTEXT           "Recording &source:", IDC_REC_SOURCE_LABEL, 17, 145, 70, 10
+    COMBOBOX        IDC_REC_SOURCE, 90, 143, 188, 80, CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    LTEXT           "System de&vice:", IDC_REC_SYSTEM_DEVICE_LABEL, 17, 165, 70, 10
+    COMBOBOX        IDC_REC_SYSTEM_DEVICE, 90, 163, 188, 120, CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
 
     // Downloads tab controls (shown when tab 2 selected)
     LTEXT           "Configure podcast episode download settings.", IDC_LABEL_DOWNLOADS_DESCRIPTION, 17, 30, 290, 10

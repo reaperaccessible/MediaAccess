@@ -405,6 +405,10 @@ static const Action g_actions[] = {
     { "AUDIO_DEVICE_MENU",        IDM_SHOW_AUDIO_DEVICES,     ActionCategory::Main,
       "Audio device menu",            "Menu de périphériques audio",
       { 'A', false, false, false } },
+    // v1.94 — cycle recording source (MediaAccess output / Windows system). No
+    // default shortcut: users assign one via Actions if desired.
+    { "CYCLE_RECORD_SOURCE",      IDM_CYCLE_RECORD_SOURCE,    ActionCategory::Main,
+      "Cycle recording source",       "Changer la source d'enregistrement", {} },
 
     // ========================================================================
     // CATEGORY: Main — video
@@ -465,6 +469,10 @@ static const Action g_actions[] = {
       "Show / hide MediaAccess window","Afficher / cacher la fenêtre MediaAccess", {} },
     { "GLOBAL_RECORD_TOGGLE",     IDM_RECORD_TOGGLE,          ActionCategory::Global,
       "Toggle recording (global)",    "Basculer l'enregistrement (global)", {} },
+    // v1.94 — Same commandId as CYCLE_RECORD_SOURCE above.
+    { "GLOBAL_CYCLE_RECORD_SOURCE", IDM_CYCLE_RECORD_SOURCE,  ActionCategory::Global,
+      "Cycle recording source (global)",
+      "Changer la source d'enregistrement (global)", {} },
     { "GLOBAL_SHUFFLE",           IDM_PLAY_SHUFFLE,           ActionCategory::Global,
       "Toggle shuffle (global)",      "Basculer la lecture aléatoire (global)", {} },
     // Same commandId as PLAYER_TOGGLE_SEEK_ANNOUNCE above; WM_HOTKEY → WM_COMMAND

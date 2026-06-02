@@ -372,6 +372,11 @@ int g_recordBitrate = 192;                          // Bitrate for MP3/OGG
 bool g_isRecording = false;                         // Currently recording?
 HENCODE g_encoder = 0;                              // BASS encoder handle
 
+// v1.94 — system-audio (WASAPI loopback) recording selectors. Separate from
+// the legacy recording state above; see globals.h for the contract.
+int g_recordSource = 0;        // 0 = MediaAccess output (legacy), 1 = Windows system audio
+int g_systemRecordDevice = -1; // -1 = auto, >=0 = forced BASSWASAPI loopback index
+
 // Speech settings
 bool g_speechTrackChange = false;                   // Announce track changes (default off)
 bool g_speechVolume = true;                         // Speak volume when adjusted (default on)

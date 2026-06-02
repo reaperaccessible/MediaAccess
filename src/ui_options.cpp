@@ -6,6 +6,7 @@
 #include "mediaaccess/books_dialog.h"      // RescanBookLibrary
 #include "mediaaccess/tts_player.h"        // SAPI voice list / set active
 #include "mediaaccess/book_text_window.h"  // theme + always-hide
+#include "mediaaccess/wasapi_loopback.h"   // v1.94 — system loopback device list
 
 // Update the small hint under the SoundFont path field that tells the user
 // what will actually be used when the field is empty. Three cases:
@@ -65,7 +66,8 @@ void ShowTabControls(HWND hwnd, int tab) {
                            IDC_LANGUAGE_COMBO, IDC_LABEL_LANGUAGE};
     // Recording tab controls (tab 1)
     int recordingCtrls[] = {IDC_REC_PATH, IDC_REC_BROWSE, IDC_REC_TEMPLATE, IDC_REC_FORMAT, IDC_REC_BITRATE,
-                            IDC_LABEL_RECORDING_DESCRIPTION, IDC_LABEL_RECORDING_OUTPUT_FOLDER, IDC_LABEL_RECORDING_TEMPLATE, IDC_LABEL_RECORDING_TEMPLATE_HELP, IDC_LABEL_RECORDING_FORMAT, IDC_LABEL_RECORDING_BITRATE, IDC_LABEL_RECORDING_BITRATE_NOTE};
+                            IDC_LABEL_RECORDING_DESCRIPTION, IDC_LABEL_RECORDING_OUTPUT_FOLDER, IDC_LABEL_RECORDING_TEMPLATE, IDC_LABEL_RECORDING_TEMPLATE_HELP, IDC_LABEL_RECORDING_FORMAT, IDC_LABEL_RECORDING_BITRATE, IDC_LABEL_RECORDING_BITRATE_NOTE,
+                            IDC_REC_SOURCE, IDC_REC_SOURCE_LABEL, IDC_REC_SYSTEM_DEVICE, IDC_REC_SYSTEM_DEVICE_LABEL};  // v1.94
     // Downloads tab controls (tab 2)
     int downloadsCtrls[] = {IDC_DOWNLOAD_PATH, IDC_DOWNLOAD_BROWSE, IDC_DOWNLOAD_ORGANIZE,
                             IDC_LABEL_DOWNLOADS_DESCRIPTION, IDC_LABEL_DOWNLOADS_FOLDER};
@@ -549,6 +551,36 @@ INT_PTR CALLBACK OptionsDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
                 // Enable bitrate only for lossy formats (MP3=1, OGG=2)
                 BOOL enableBitrate = (g_recordFormat == 1 || g_recordFormat == 2);
                 EnableWindow(hBitrateCombo, enableBitrate);
+
+                // v1.94 — Recording source combo (0 = MediaAccess output, 1 = system).
+                HWND hSourceCombo = GetDlgItem(hwnd, IDC_REC_SOURCE);
+                SendMessageW(hSourceCombo, CB_RESETCONTENT, 0, 0);
+                SendMessageW(hSourceCombo, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(T("MediaAccess output")));
+                SendMessageW(hSourceCombo, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(T("Windows system output")));
+                SendMessageW(hSourceCombo, CB_SETCURSEL, (g_recordSource == 1) ? 1 : 0, 0);
+
+                // v1.94 — System loopback device combo. Item 0 = "Automatic"
+                // (bwaIndex sentinel -1); each subsequent item stores its real
+                // BASSWASAPI index in the item data so OK can read it back.
+                HWND hSysDevCombo = GetDlgItem(hwnd, IDC_REC_SYSTEM_DEVICE);
+                SendMessageW(hSysDevCombo, CB_RESETCONTENT, 0, 0);
+                int autoItem = (int)SendMessageW(hSysDevCombo, CB_ADDSTRING, 0,
+                    reinterpret_cast<LPARAM>(T("Automatic (follow MediaAccess output)")));
+                SendMessageW(hSysDevCombo, CB_SETITEMDATA, autoItem, (LPARAM)-1);
+                int selDevItem = 0;  // default to Automatic
+                {
+                    auto devices = mediaaccess::EnumerateLoopbackDevices();
+                    for (const auto& d : devices) {
+                        int item = (int)SendMessageW(hSysDevCombo, CB_ADDSTRING, 0,
+                            reinterpret_cast<LPARAM>(d.name.c_str()));
+                        SendMessageW(hSysDevCombo, CB_SETITEMDATA, item, (LPARAM)d.bwaIndex);
+                        if (d.bwaIndex == g_systemRecordDevice) selDevItem = item;
+                    }
+                }
+                SendMessageW(hSysDevCombo, CB_SETCURSEL, selDevItem, 0);
+
+                // The device combo only matters when the source is the system.
+                EnableWindow(hSysDevCombo, g_recordSource == 1);
             }
 
             // Initialize Speech tab
@@ -903,6 +935,22 @@ INT_PTR CALLBACK OptionsDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
                         int bitrateSel = static_cast<int>(SendMessageW(hBitrateCombo, CB_GETCURSEL, 0, 0));
                         int bitrates[] = {128, 160, 192, 224, 256, 320};
                         if (bitrateSel >= 0 && bitrateSel < 6) g_recordBitrate = bitrates[bitrateSel];
+
+                        // v1.94 — recording source + system device. Be defensive:
+                        // never change the source while a recording is in progress
+                        // (legacy OR system), so we can't swap engines mid-capture.
+                        bool recActive = g_isRecording || mediaaccess::IsSystemCapturing();
+                        if (!recActive) {
+                            int srcSel = static_cast<int>(SendMessageW(GetDlgItem(hwnd, IDC_REC_SOURCE), CB_GETCURSEL, 0, 0));
+                            if (srcSel == 0 || srcSel == 1) g_recordSource = srcSel;
+                        }
+                        // The device choice is harmless to update anytime; it only
+                        // takes effect at the next system capture start.
+                        HWND hSysDevCombo = GetDlgItem(hwnd, IDC_REC_SYSTEM_DEVICE);
+                        int devSel = static_cast<int>(SendMessageW(hSysDevCombo, CB_GETCURSEL, 0, 0));
+                        if (devSel >= 0) {
+                            g_systemRecordDevice = (int)SendMessageW(hSysDevCombo, CB_GETITEMDATA, devSel, 0);
+                        }
                     }
 
                     // Get Speech settings
@@ -1175,6 +1223,14 @@ INT_PTR CALLBACK OptionsDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
                         int format = static_cast<int>(SendMessageW(GetDlgItem(hwnd, IDC_REC_FORMAT), CB_GETCURSEL, 0, 0));
                         BOOL enableBitrate = (format == 1 || format == 2);
                         EnableWindow(GetDlgItem(hwnd, IDC_REC_BITRATE), enableBitrate);
+                    }
+                    return TRUE;
+
+                // v1.94 — live-toggle the system-device combo with the source.
+                case IDC_REC_SOURCE:
+                    if (HIWORD(wParam) == CBN_SELCHANGE) {
+                        int src = static_cast<int>(SendMessageW(GetDlgItem(hwnd, IDC_REC_SOURCE), CB_GETCURSEL, 0, 0));
+                        EnableWindow(GetDlgItem(hwnd, IDC_REC_SYSTEM_DEVICE), src == 1);
                     }
                     return TRUE;
 

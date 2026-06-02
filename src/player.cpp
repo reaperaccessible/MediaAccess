@@ -11,6 +11,7 @@
 #include "mediaaccess/youtube.h"  // YouTubeCancelHybrid()
 #include "mediaaccess/logger.h"   // LogF
 #include "mediaaccess/daisy_player.h"  // DaisyClose() when loading other media
+#include "mediaaccess/wasapi_loopback.h"  // v1.94 — system-audio (loopback) recording
 
 // Forward declaration so LoadURL (earlier in the file) can call it.
 static void TeardownMpvBeforeLoad();
@@ -3395,7 +3396,99 @@ void StopRecording() {
 // audio at full pre-volume amplitude regardless of the user's playback
 // volume — unless legacy volume mode is on, in which case BASS_ATTRIB_VOL
 // attenuates earlier and the recording inherits the playback volume.
+// v1.94 — system-audio (WASAPI loopback) recording helper. This is the
+// SEPARATE path; it never touches g_isRecording / g_encoder / StopRecording.
+// IsSystemCapturing() is the source of truth for its state. Output folder and
+// filename reuse the exact same logic as the legacy ToggleRecording() below.
+static void ToggleSystemRecording() {
+    // Already capturing? Stop and finalize.
+    if (mediaaccess::IsSystemCapturing()) {
+        mediaaccess::StopSystemCapture();
+        Speak(Ts("Recording stopped"));
+        UpdateStatusBar();
+        return;
+    }
+
+    // Determine output directory (same logic as legacy ToggleRecording).
+    std::wstring outputPath;
+    if (g_recordPath.empty()) {
+        wchar_t musicPath[MAX_PATH];
+        if (SUCCEEDED(SHGetFolderPathW(nullptr, CSIDL_MYMUSIC, nullptr, 0, musicPath))) {
+            outputPath = musicPath;
+        } else {
+            wchar_t currentDir[MAX_PATH];
+            GetCurrentDirectoryW(MAX_PATH, currentDir);
+            outputPath = currentDir;
+        }
+    } else {
+        outputPath = g_recordPath;
+    }
+    CreateDirectoryW(outputPath.c_str(), nullptr);
+
+    std::wstring fullPath = outputPath;
+    if (!fullPath.empty() && fullPath.back() != L'\\' && fullPath.back() != L'/') {
+        fullPath += L'\\';
+    }
+    fullPath += GenerateRecordingFilename();
+
+    // Resolve the loopback device to capture.
+    bool fellBackToDefault = false;
+    int bwaIndex = g_systemRecordDevice;
+    if (bwaIndex < 0) {
+        // Auto: follow MediaAccess's active output device.
+        bwaIndex = mediaaccess::FindLoopbackForCurrentBassDevice();
+        if (bwaIndex < 0) {
+            // Could not correlate — fall back to the default output device's
+            // loopback and warn.
+            auto devices = mediaaccess::EnumerateLoopbackDevices();
+            for (const auto& d : devices) {
+                if (d.isDefault) { bwaIndex = d.bwaIndex; break; }
+            }
+            if (bwaIndex < 0 && !devices.empty()) bwaIndex = devices.front().bwaIndex;
+            fellBackToDefault = true;
+        }
+    }
+
+    if (bwaIndex < 0) {
+        Speak(Ts("No audio devices found"));
+        return;
+    }
+
+    std::wstring capturedName;
+    if (!mediaaccess::StartSystemCapture(bwaIndex, fullPath, g_recordFormat,
+                                         g_recordBitrate, capturedName)) {
+        MessageBoxW(GetMessageBoxOwner(),
+                    T("Failed to start system audio recording."),
+                    APP_NAME, MB_ICONERROR);
+        return;
+    }
+
+    // Announce: "Recording started, source system, device <name>".
+    std::wstring msg = T("Recording started");
+    msg += L", ";
+    msg += T("source system");
+    if (!capturedName.empty()) {
+        msg += L", ";
+        msg += capturedName;
+    }
+    SpeakW(msg);
+    if (fellBackToDefault) {
+        SpeakW(T("Warning: could not match the MediaAccess output device; "
+                 "capturing the default device instead."), false);
+    }
+    UpdateStatusBar();
+}
+
 void ToggleRecording() {
+    // v1.94 — system-audio recording is a SEPARATE path. When the user has
+    // selected source 1 (Windows system audio), dispatch to the loopback
+    // engine and return. The "MediaAccess output" recording below is unchanged;
+    // g_recordSource == 1 is the ONLY entry point to the new engine.
+    if (g_recordSource == 1) {
+        ToggleSystemRecording();
+        return;
+    }
+
     // If already recording, stop
     if (g_isRecording) {
         StopRecording();

@@ -34,7 +34,7 @@ FEATURES
 * Internet radio: built-in browser for RadioBrowser, TuneIn, and iHeartRadio.
 * Podcasts: subscription manager with RSS, Podcast 2.0 chapters, automatic
   episode downloads.
-* Recording: capture audio output to WAV, MP3, OGG, or FLAC.
+* Recording: capture audio output to WAV, MP3, OGG, or FLAC. The recording source can be MediaAccess's own output or the whole Windows system audio (WASAPI loopback). Note: DRM-protected services may record as silence.
 * MIDI playback with SoundFont support — bundled with FluidR3_GM by Frank Wen
   (MIT license) so .mid/.midi/.rmi/.kar files sound great out of the box.
 * Global hotkeys, fully configurable.

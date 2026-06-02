@@ -1,6 +1,7 @@
 #include "ui_internal.h"
 #include "video_engine.h"
 #include "mediaaccess/translations.h"
+#include "mediaaccess/wasapi_loopback.h"  // v1.94 — system-capture state for status bar
 #include <shlwapi.h>
 #include <vector>
 
@@ -198,6 +199,14 @@ void UpdateStatusBar() {
             if (!stateText.empty()) stateText += L" | ";
             stateText += T("REC");
         }
+    }
+
+    // v1.94 — system-audio (WASAPI loopback) capture indicator. This path runs
+    // independently of g_fxStream, so the indicator is added here (outside the
+    // g_fxStream block) and works even with no MediaAccess stream loaded.
+    if (mediaaccess::IsSystemCapturing()) {
+        if (!stateText.empty()) stateText += L" | ";
+        stateText += T("REC system");
     }
 
     SendMessageW(g_statusBar, SB_SETTEXTW, SB_PART_POSITION, reinterpret_cast<LPARAM>(posText.c_str()));

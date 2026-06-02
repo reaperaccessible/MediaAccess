@@ -241,6 +241,18 @@ void LoadSettings() {
     if (g_recordFormat < 0) g_recordFormat = 0;
     if (g_recordFormat > 3) g_recordFormat = 3;
     g_recordBitrate = GetPrivateProfileIntW(L"Recording", L"Bitrate", 192, g_configPath.c_str());
+    // v1.94 — recording source: 0 = MediaAccess output (legacy), 1 = system.
+    g_recordSource = GetPrivateProfileIntW(L"Recording", L"Source", 0, g_configPath.c_str());
+    if (g_recordSource != 0 && g_recordSource != 1) g_recordSource = 0;
+    // System loopback device: -1 = auto (follow active output). GetPrivateProfileIntW
+    // returns an unsigned value, so -1 cannot be stored directly. We persist the
+    // index OFFSET BY +1 (auto -> 0, device N -> N+1) and decode here, which keeps
+    // every stored value non-negative and round-trips robustly.
+    {
+        UINT stored = (UINT)GetPrivateProfileIntW(L"Recording", L"SystemDevice", 0, g_configPath.c_str());
+        g_systemRecordDevice = (int)stored - 1;       // 0 -> -1 (auto)
+        if (g_systemRecordDevice < -1) g_systemRecordDevice = -1;
+    }
 
     // Load speech settings
     g_speechTrackChange = GetPrivateProfileIntW(L"Speech", L"TrackChange", 0, g_configPath.c_str()) != 0;
@@ -576,6 +588,12 @@ void SaveSettings() {
     WritePrivateProfileStringW(L"Recording", L"Format", buf, g_configPath.c_str());
     swprintf(buf, 32, L"%d", g_recordBitrate);
     WritePrivateProfileStringW(L"Recording", L"Bitrate", buf, g_configPath.c_str());
+    // v1.94 — recording source + system device (see LoadSettings for the +1
+    // offset encoding that keeps the -1 "auto" sentinel storable as unsigned).
+    swprintf(buf, 32, L"%d", g_recordSource);
+    WritePrivateProfileStringW(L"Recording", L"Source", buf, g_configPath.c_str());
+    swprintf(buf, 32, L"%d", g_systemRecordDevice + 1);  // -1 (auto) -> 0
+    WritePrivateProfileStringW(L"Recording", L"SystemDevice", buf, g_configPath.c_str());
 
     // Save speech settings
     WritePrivateProfileStringW(L"Speech", L"TrackChange", g_speechTrackChange ? L"1" : L"0", g_configPath.c_str());

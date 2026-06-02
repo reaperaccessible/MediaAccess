@@ -721,6 +721,17 @@
 <div class="note">
 <p><strong>Important:</strong> by default, recording captures <strong>post-effects</strong> sound (all enabled effects are included) at full amplitude — the listening volume does not affect the recorded file. If you enable "Legacy volume" in Options → Advanced, volume affects the recording too.</p>
 </div>
+
+<h3 id="recording-system">Recording system audio</h3>
+<p>MediaAccess can record two different things, selected by the <strong>Recording source</strong> in <strong>Options → Recording</strong> (or with the <strong>Cycle recording source</strong> action, to which you can assign a shortcut in the Actions dialog):</p>
+<ul>
+  <li><strong>MediaAccess output</strong> — records what MediaAccess itself is playing (the default; everything above applies).</li>
+  <li><strong>Windows system output</strong> — records <em>everything</em> Windows is playing through your speakers/headphones (any app: a web player, a game, a video call, another media player), captured via WASAPI loopback and saved with the same format and bitrate settings.</li>
+</ul>
+<p>When the source is set to "Windows system output", your usual record key starts and stops the system capture instead. The <strong>System device</strong> setting is normally left on <strong>Automatic (follow MediaAccess output)</strong>, which captures whichever output device MediaAccess is currently using; you can also force a specific device. If the chosen device is unplugged or disabled while recording, the capture stops cleanly, finalizes the file, and announces that the device was lost.</p>
+<div class="note">
+<p><strong>DRM limitation:</strong> protected services such as Netflix, Apple Music and some protected streams may record as <strong>silence</strong>, because their audio is protected by Windows and cannot be captured through loopback. Unprotected audio records normally.</p>
+</div>
 </section>
 
 <section id="midi" aria-labelledby="midi-h">

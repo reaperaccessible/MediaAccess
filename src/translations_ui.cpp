@@ -16,6 +16,40 @@ void RegisterUiTranslations() {
     AddTranslation("fr", "Playback",        L"Lecture");
     AddTranslation("en", "Recording",       L"Recording");
     AddTranslation("fr", "Recording",       L"Enregistrement");
+
+    // v1.94 — recording source (Options tab + Cycle source action announcements).
+    AddTranslation("en", "Recording source", L"Recording source");
+    AddTranslation("fr", "Recording source", L"Source d'enregistrement");
+    AddTranslation("en", "MediaAccess output", L"MediaAccess output");
+    AddTranslation("fr", "MediaAccess output", L"Sortie MediaAccess");
+    AddTranslation("en", "Windows system output", L"Windows system output");
+    AddTranslation("fr", "Windows system output", L"Sortie système Windows");
+    AddTranslation("en", "System device", L"System device");
+    AddTranslation("fr", "System device", L"Périphérique système");
+    AddTranslation("en", "Automatic (follow MediaAccess output)",
+                   L"Automatic (follow MediaAccess output)");
+    AddTranslation("fr", "Automatic (follow MediaAccess output)",
+                   L"Automatique (suit la sortie MediaAccess)");
+    AddTranslation("en", "Recording source: Windows system",
+                   L"Recording source: Windows system");
+    AddTranslation("fr", "Recording source: Windows system",
+                   L"Source d'enregistrement : système Windows");
+    AddTranslation("en", "Recording source: MediaAccess output",
+                   L"Recording source: MediaAccess output");
+    AddTranslation("fr", "Recording source: MediaAccess output",
+                   L"Source d'enregistrement : sortie MediaAccess");
+    AddTranslation("en", "Cannot change recording source while recording",
+                   L"Cannot change recording source while recording");
+    AddTranslation("fr", "Cannot change recording source while recording",
+                   L"Impossible de changer la source pendant un enregistrement");
+    // v1.94 — status bar indicator for an active system capture.
+    AddTranslation("en", "REC system", L"REC system");
+    AddTranslation("fr", "REC system", L"REC système");
+    // v1.94 — device-lost notification (posted from the capture engine watchdog).
+    AddTranslation("en", "Recording stopped, device lost",
+                   L"Recording stopped, device lost");
+    AddTranslation("fr", "Recording stopped, device lost",
+                   L"Enregistrement arrêté, périphérique perdu");
     AddTranslation("en", "Downloads",       L"Downloads");
     AddTranslation("fr", "Downloads",       L"Téléchargements");
     AddTranslation("en", "Speech",          L"Speech");

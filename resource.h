@@ -182,6 +182,7 @@
 #define IDM_TOGGLE_SPATIAL      251
 #define IDM_TOGGLE_CONVOLUTION  252
 #define IDM_TOGGLE_SUBTITLE_SPEECH 253  // v1.81 — toggle g_speakSubtitles
+#define IDM_CYCLE_RECORD_SOURCE 254  // v1.94 — cycle g_recordSource (MediaAccess output / Windows system)
 
 // Speak commands
 #define IDM_SPEAK_SEEK          250
@@ -294,6 +295,10 @@
 #define IDC_REC_TEMPLATE    832
 #define IDC_REC_FORMAT      833
 #define IDC_REC_BITRATE     834
+#define IDC_REC_SOURCE          835  // v1.94 — recording source combo (output / system)
+#define IDC_REC_SOURCE_LABEL    836  // v1.94 — label for source combo
+#define IDC_REC_SYSTEM_DEVICE       837  // v1.94 — system loopback device combo
+#define IDC_REC_SYSTEM_DEVICE_LABEL 838  // v1.94 — label for system device combo
 
 // Speech tab
 #define IDC_SPEECH_TRACKCHANGE  840

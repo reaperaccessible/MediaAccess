@@ -545,6 +545,24 @@ void RegisterPlayerTranslations() {
     AddTranslation("en", "Nothing to record", L"Nothing to record");
     AddTranslation("fr", "Nothing to record", L"Rien à enregistrer");
 
+    // v1.94 — system-audio (WASAPI loopback) recording.
+    AddTranslation("en", "source system", L"source system");
+    AddTranslation("fr", "source system", L"source système");
+
+    AddTranslation("en", "Failed to start system audio recording.",
+                   L"Failed to start system audio recording.");
+    AddTranslation("fr", "Failed to start system audio recording.",
+                   L"Échec du démarrage de l'enregistrement de l'audio système.");
+
+    AddTranslation("en", "Warning: could not match the MediaAccess output device; "
+                         "capturing the default device instead.",
+                   L"Warning: could not match the MediaAccess output device; "
+                   L"capturing the default device instead.");
+    AddTranslation("fr", "Warning: could not match the MediaAccess output device; "
+                         "capturing the default device instead.",
+                   L"Avertissement : impossible de retrouver le périphérique de sortie "
+                   L"MediaAccess ; capture du périphérique par défaut à la place.");
+
     AddTranslation("en", "Cannot get stream info", L"Cannot get stream info");
     AddTranslation("fr", "Cannot get stream info", L"Impossible d'obtenir les informations du flux");
 

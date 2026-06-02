@@ -721,6 +721,17 @@
 <div class="note">
 <p><strong>Important :</strong> par défaut, l'enregistrement capture le son <strong>post-effets</strong> (tous les effets activés sont inclus) à pleine amplitude — le volume d'écoute n'affecte pas le fichier enregistré. Si vous activez « Volume hérité » dans Options → Avancé, le volume affecte aussi l'enregistrement.</p>
 </div>
+
+<h3 id="enregistrement-systeme">Enregistrer l'audio système</h3>
+<p>MediaAccess peut enregistrer deux choses différentes, choisies par la <strong>Source d'enregistrement</strong> dans <strong>Options → Enregistrement</strong> (ou avec l'action <strong>Changer la source d'enregistrement</strong>, à laquelle vous pouvez attribuer un raccourci dans la fenêtre Actions) :</p>
+<ul>
+  <li><strong>Sortie MediaAccess</strong> — enregistre ce que MediaAccess lui-même joue (comportement par défaut ; tout ce qui précède s'applique).</li>
+  <li><strong>Sortie système Windows</strong> — enregistre <em>tout</em> ce que Windows joue dans vos haut-parleurs/casque (n'importe quelle application : un lecteur web, un jeu, un appel, un autre lecteur multimédia), capturé via le loopback WASAPI et enregistré avec les mêmes réglages de format et de débit.</li>
+</ul>
+<p>Quand la source est réglée sur « Sortie système Windows », votre touche d'enregistrement habituelle démarre et arrête plutôt la capture système. Le réglage <strong>Périphérique système</strong> est normalement laissé sur <strong>Automatique (suit la sortie MediaAccess)</strong>, qui capture le périphérique de sortie actuellement utilisé par MediaAccess ; vous pouvez aussi forcer un périphérique précis. Si le périphérique choisi est débranché ou désactivé pendant l'enregistrement, la capture s'arrête proprement, finalise le fichier et annonce que le périphérique a été perdu.</p>
+<div class="note">
+<p><strong>Limitation DRM :</strong> les services protégés comme Netflix, Apple Music et certains flux protégés peuvent s'enregistrer en <strong>silence</strong>, car leur audio est protégé par Windows et ne peut pas être capturé via le loopback. L'audio non protégé s'enregistre normalement.</p>
+</div>
 </section>
 
 <section id="midi" aria-labelledby="midi-h">
