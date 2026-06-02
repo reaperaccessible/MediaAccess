@@ -79,6 +79,7 @@ void ParseCommandLine();
 
 // Declarations from ui.cpp
 int ExpandFileToFolder(const std::wstring& filePath, std::vector<std::wstring>& outFiles);
+void AddFilesFromFolder(const std::wstring& folder, std::vector<std::wstring>& files);
 
 // -----------------------------------------------------------------------------
 // Named magic numbers
@@ -292,9 +293,17 @@ void ParseCommandLine() {
 
     if (argv) {
         for (int i = 1; i < argc; i++) {
-            if (GetFileAttributesW(argv[i]) != INVALID_FILE_ATTRIBUTES) {
+            DWORD attrs = GetFileAttributesW(argv[i]);
+            if (attrs != INVALID_FILE_ATTRIBUTES) {
                 std::wstring path = argv[i];
-                if (IsPlaylistFile(path)) {
+                if (attrs & FILE_ATTRIBUTE_DIRECTORY) {
+                    // v1.93 — Jack reported that passing a folder path on the
+                    // command line silently failed: the raw folder string got
+                    // pushed into g_playlist as if it were a file, then BASS
+                    // refused to open it. Mirror the Ctrl+V code path in ui.cpp
+                    // and recursively enumerate the folder's media files.
+                    AddFilesFromFolder(path, g_playlist);
+                } else if (IsPlaylistFile(path)) {
                     // Parse playlist and add its contents
                     auto entries = ParsePlaylist(path);
                     g_playlist.insert(g_playlist.end(), entries.begin(), entries.end());
@@ -749,8 +758,10 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
             }
             if (cds && (cds->dwData == 1 || cds->dwData == 2) && cds->lpData) {
                 const wchar_t* filePath = static_cast<const wchar_t*>(cds->lpData);
-                if (GetFileAttributesW(filePath) != INVALID_FILE_ATTRIBUTES) {
+                DWORD attrs = GetFileAttributesW(filePath);
+                if (attrs != INVALID_FILE_ATTRIBUTES) {
                     std::wstring path = filePath;
+                    bool isFolder = (attrs & FILE_ATTRIBUTE_DIRECTORY) != 0;
                     // v1.85 — explicit flag (set in WM_CREATE, cleared by
                     // IDT_STARTUP_OVER after BATCH_DELAY ms). Replaces the
                     // GetTickCount()-based check that misbehaved on the .ts
@@ -758,15 +769,21 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
                     // was active and g_playlist had been pre-populated by the
                     // first Explorer drop, the file silently got pushed into
                     // g_playlist with no PlayTrack call ever scheduled.
+                    // v1.93 — folder paths handled like Ctrl+V (Jack's CLI bug):
+                    // recursively enumerate instead of pushing the raw string.
                     if (!g_disableBatchDelay && g_startupBatchOpen && !g_playlist.empty()) {
-                        if (IsPlaylistFile(path)) {
+                        if (isFolder) {
+                            AddFilesFromFolder(path, g_playlist);
+                        } else if (IsPlaylistFile(path)) {
                             auto entries = ParsePlaylist(path);
                             g_playlist.insert(g_playlist.end(), entries.begin(), entries.end());
                         } else {
                             g_playlist.push_back(path);
                         }
                     } else {
-                        if (IsPlaylistFile(path)) {
+                        if (isFolder) {
+                            AddFilesFromFolder(path, g_pendingFiles);
+                        } else if (IsPlaylistFile(path)) {
                             auto entries = ParsePlaylist(path);
                             g_pendingFiles.insert(g_pendingFiles.end(), entries.begin(), entries.end());
                         } else {
