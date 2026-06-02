@@ -896,7 +896,7 @@
 
 <section id="options" aria-labelledby="options-h">
 <h2 id="options-h">20. Options reference</h2>
-<p><kbd>Ctrl</kbd>+<kbd>,</kbd> or <strong>File → Options</strong> opens preferences. Twelve tabs. (Keyboard shortcuts are no longer configured here: use <kbd>F4</kbd> or <strong>Tools → Actions</strong>, see <a href="#hotkeys">section 17</a>.)</p>
+<p><kbd>Ctrl</kbd>+<kbd>,</kbd> or <strong>Tools → Options</strong> opens preferences. Twelve tabs. (Keyboard shortcuts are no longer configured here: use <kbd>F4</kbd> or <strong>Tools → Actions</strong>, see <a href="#hotkeys">section 17</a>.)</p>
 
 <h3>Playback tab</h3>
 <ul>
@@ -1106,7 +1106,7 @@
 </ul>
 
 <h3>Configuring the library</h3>
-<p>Open <strong>File → Options</strong> (<kbd>Ctrl</kbd>+<kbd>,</kbd>) and go to the <strong>Books</strong> tab. The tab lets you:</p>
+<p>Open <strong>Tools → Options</strong> (<kbd>Ctrl</kbd>+<kbd>,</kbd>) and go to the <strong>Books</strong> tab. The tab lets you:</p>
 <ul>
   <li><strong>Add folder</strong> — point MediaAccess to a folder that contains your books. Each subfolder identified as a valid DAISY book is added to the library automatically.</li>
   <li><strong>Remove folder</strong> — stop watching a folder. Books in that folder disappear from the library but are not deleted from disk.</li>
@@ -1142,7 +1142,7 @@
 <p>The remaining-time estimate takes your effective listening speed into account. For audio books, it is computed from the duration of the remaining fragments and the active tempo / rate. For text-only books read by speech synthesis, it is computed from the number of remaining paragraphs and the chosen SAPI rate; slowing down or speeding up the voice updates the estimate immediately.</p>
 
 <h3>Skip content during reading</h3>
-<p>DAISY and EPUB books often mark certain elements as "skippable" because they can interrupt the reading flow: page numbers, producer notes, sidebars, footnotes, and so on. The <strong>Books</strong> tab of <strong>File → Options</strong> now offers six checkboxes to filter these out during continuous playback:</p>
+<p>DAISY and EPUB books often mark certain elements as "skippable" because they can interrupt the reading flow: page numbers, producer notes, sidebars, footnotes, and so on. The <strong>Books</strong> tab of <strong>Tools → Options</strong> now offers six checkboxes to filter these out during continuous playback:</p>
 <ul>
   <li><strong>Skip page numbers</strong>;</li>
   <li><strong>Skip notes</strong>;</li>
@@ -1165,7 +1165,7 @@
 </div>
 
 <h3>Text-to-speech for text-only books</h3>
-<p>Text-only DAISY books and EPUB books without a recorded audio track are read aloud by Windows SAPI 5. The voice is chosen in <strong>File → Options</strong> (<kbd>Ctrl</kbd>+<kbd>,</kbd>), tab <strong>Books</strong>, field <strong>Text-to-speech voice</strong>. The first entry is <em>(Windows default voice)</em>; below it are every SAPI voice installed on the machine. To add more voices, open <strong>Windows Settings → Time &amp; language → Speech → Voices → Add</strong>.</p>
+<p>Text-only DAISY books and EPUB books without a recorded audio track are read aloud by Windows SAPI 5. The voice is chosen in <strong>Tools → Options</strong> (<kbd>Ctrl</kbd>+<kbd>,</kbd>), tab <strong>Books</strong>, field <strong>Text-to-speech voice</strong>. The first entry is <em>(Windows default voice)</em>; below it are every SAPI voice installed on the machine. To add more voices, open <strong>Windows Settings → Time &amp; language → Speech → Voices → Add</strong>.</p>
 <p>The <strong>Rate</strong> effect (<kbd>Ctrl</kbd>+<kbd>4</kbd>, then <kbd>↑</kbd> / <kbd>↓</kbd>) drives the SAPI speaking rate when a text-only book is being read, exactly as it drives the audio engine when reading a recorded book — one mental model, two engines.</p>
 <p>When reading a text-only book via TTS, <kbd>Shift</kbd>+<kbd>→</kbd> and <kbd>Shift</kbd>+<kbd>←</kbd> jump to the next and previous paragraph.</p>
 
@@ -1213,7 +1213,7 @@
 <p>While the timer is running, the remaining time can be queried at any moment with <kbd>Shift</kbd>+<kbd>F8</kbd>. When it fires, MediaAccess stops whichever engine is currently playing — whether you are listening to music, watching a video, reading a book, or tuned to a radio.</p>
 
 <h3>Optional fade-out</h3>
-<p>For a softer transition, you can enable a fade-out over the <strong>last 30 seconds</strong> before the stop. The option lives in <strong>File → Options</strong> (<kbd>Ctrl</kbd>+<kbd>,</kbd>), tab <strong>Playback</strong>, checkbox <strong>Fade out at end of sleep timer (last 30 seconds)</strong>. Without the fade-out, the stop is instant.</p>
+<p>For a softer transition, you can enable a fade-out over the <strong>last 30 seconds</strong> before the stop. The option lives in <strong>Tools → Options</strong> (<kbd>Ctrl</kbd>+<kbd>,</kbd>), tab <strong>Playback</strong>, checkbox <strong>Fade out at end of sleep timer (last 30 seconds)</strong>. Without the fade-out, the stop is instant.</p>
 
 <h3>Remapping the shortcuts</h3>
 <p>All three shortcuts <kbd>F8</kbd>, <kbd>Shift</kbd>+<kbd>F8</kbd> and <kbd>Ctrl</kbd>+<kbd>F8</kbd> are rebindable via <strong>Tools → Actions</strong> (<kbd>F4</kbd>), section <strong>Tools</strong>.</p>
@@ -1239,7 +1239,6 @@
 <tr><td><kbd>Ctrl</kbd>+<kbd>S</kbd></td><td>Schedule</td></tr>
 <tr><td><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>H</kbd></td><td>Song history</td></tr>
 <tr><td><kbd>Ctrl</kbd>+<kbd>H</kbd></td><td>Hide to system tray</td></tr>
-<tr><td><kbd>Ctrl</kbd>+<kbd>,</kbd></td><td>Options</td></tr>
 </tbody>
 </table>
 
@@ -1367,6 +1366,7 @@
 <caption>Tools menu</caption>
 <thead><tr><th>Shortcut</th><th>Action</th></tr></thead>
 <tbody>
+<tr><td><kbd>Ctrl</kbd>+<kbd>,</kbd></td><td>Options</td></tr>
 <tr><td><kbd>F4</kbd></td><td>Open the Actions window (shortcuts/keymaps)</td></tr>
 <tr><td><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>B</kbd></td><td>Book library</td></tr>
 <tr><td><kbd>F8</kbd></td><td>Start sleep timer</td></tr>

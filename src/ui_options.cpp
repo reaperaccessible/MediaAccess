@@ -1,5 +1,6 @@
 #include "ui_internal.h"
 #include "mediaaccess/translations.h"
+#include "UniversalSpeech.h"  // v1.91 — speechStop() to suppress "not available"
 #include "mediaaccess/youtube.h"  // ClearYouTubeCache, GetYouTubeCacheSize
 #include "mediaaccess/database.h"          // book library folders
 #include "mediaaccess/books_dialog.h"      // RescanBookLibrary
@@ -188,6 +189,16 @@ void ShowTabControls(HWND hwnd, int tab) {
 INT_PTR CALLBACK OptionsDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
     switch (msg) {
         case WM_INITDIALOG: {
+            // v1.91 — Drain the screen-reader queue immediately. DialogBox
+            // disables the parent window (g_hwnd) before WM_INITDIALOG fires,
+            // which emits EVENT_OBJECT_STATECHANGE with STATE_SYSTEM_UNAVAILABLE
+            // on the parent. NVDA then verbalises "non disponible" / "not
+            // available" at the start of the dialog-open sequence. The focus
+            // event we post below (via SetFocus on IDC_TAB) is queued AFTER
+            // this speechStop, so the dialog title + tab name announcement
+            // still plays. Net result: the bare "non disponible" prefix is
+            // gone.
+            speechStop();
             // Initialize tab control
             HWND hTab = GetDlgItem(hwnd, IDC_TAB);
             TCITEMW tie = {0};
@@ -218,6 +229,17 @@ INT_PTR CALLBACK OptionsDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
             TabCtrl_InsertItem(hTab, 11, &tie);
             tie.pszText = const_cast<LPWSTR>(T("Books"));
             TabCtrl_InsertItem(hTab, 12, &tie);
+
+            // v1.90 — Hide all non-Playback tab controls BEFORE populating
+            // anything. Reason: a later EnableWindow(IDC_REC_BITRATE, FALSE)
+            // for non-lossy record formats was firing EVENT_OBJECT_STATECHANGE
+            // with STATE_SYSTEM_UNAVAILABLE while the combo was still visible,
+            // which NVDA verbalized as "not available" / "non disponible" at
+            // dialog open time. Hiding non-Playback controls first masks them
+            // with STATE_SYSTEM_INVISIBLE; NVDA then ignores their state
+            // changes during populate. Without this, the bug was reproducible
+            // on every Ctrl+, regardless of focus initial / tab name fixes.
+            ShowTabControls(hwnd, 0);
 
             // Populate Books library folders list
             {
@@ -617,7 +639,13 @@ INT_PTR CALLBACK OptionsDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
             // Show only playback tab controls initially
             ShowTabControls(hwnd, 0);
 
-            return TRUE;
+            // v1.88: force initial focus onto the tab control so NVDA opens
+            // with "Options dialog" then "Category: Playback, tab 1 of N"
+            // instead of a stray "not available" from whatever control would
+            // otherwise be picked. We return FALSE to tell Windows we handled
+            // the focus ourselves.
+            SetFocus(GetDlgItem(hwnd, IDC_TAB));
+            return FALSE;
         }
 
         case WM_NOTIFY: {

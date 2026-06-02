@@ -1,3 +1,19 @@
+1.91
+Bundles four small accessibility improvements to the Options dialog, plus a documented limitation.
+
+The tab control inside the Options dialog now exposes an explicit accessible name ("Category" / "Catégorie") to MSAA, so a screen reader announces "Category, tab" instead of an unnamed "tab". Initial keyboard focus is also explicitly placed on the tab control in WM_INITDIALOG instead of relying on whichever first WS_TABSTOP control Windows would have picked, which makes the dialog open with the active tab name spoken right away.
+
+An empty LTEXT placeholder on the MIDI tab (the SoundFont status label, populated at runtime) now ships with default text in the resource template, so it can never be exposed to a screen reader as a static with no accessible name during the dialog's initial scan.
+
+ShowTabControls is now called immediately after the tab items are inserted, before any EnableWindow or combo population call in WM_INITDIALOG. This means tab-specific controls are STATE_SYSTEM_INVISIBLE by the time any of them is enabled or disabled — screen readers ignore state-change events on invisible controls.
+
+Finally, speechStop() is called at the very start of WM_INITDIALOG to drain any pending screen-reader announcement queued by the parent-window state change that DialogBox always triggers.
+
+Known limitation: the residual "unavailable" / "non disponible" announcement that some screen readers (notably NVDA) emit when any modal dialog opens is inherent to the Win32 modal-dialog pattern — DialogBox disables the owner window, which fires an MSAA STATE_SYSTEM_UNAVAILABLE event on the main MediaAccess window, and assistive tech correctly verbalises it. Most Windows apps using DialogBox share this behavior. Eliminating it would require rewriting all our modal dialogs as modeless overlays, which is a much larger refactor; we have not done that yet. The four improvements above still make the rest of the dialog-open announcement noticeably shorter and clearer.
+
+1.87
+Options... now lives in the Tools menu instead of the File menu, next to Actions, Book library and Audio slots. This placement matches the usual Windows convention (VLC, Winamp, Reaper, Notepad++) and matches the internal identifier IDM_TOOLS_OPTIONS the code has used from day one. The Ctrl+, shortcut is unchanged — if you already use it, nothing changes at the keyboard. Both manuals have been updated to reference the new path.
+
 1.86
 Extend the v1.85 Stop→Play title-preservation fix to video files. v1.85 kept the now-playing entry intact when stopping a local audio file so the window title survived the next Play; the same path was missing for video. Stop on an .mkv / .mp4 / .ts now also preserves the title, and Play resumes the file the same way it does for audio.
 

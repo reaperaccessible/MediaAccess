@@ -37,6 +37,11 @@ void RegisterUiTranslations() {
     AddTranslation("en", "MIDI",            L"MIDI");
     AddTranslation("fr", "MIDI",            L"MIDI");
 
+    // v1.88: accessible name for the tab control itself, read by NVDA when
+    // the dialog opens. Matches the IDC_TAB window text set in MediaAccess.rc.
+    AddTranslation("en", "Category",        L"Category");
+    AddTranslation("fr", "Category",        L"Catégorie");
+
     // ============================================================
     // Options dialog — labels and controls (matched to .rc text so
     // LocalizeDialog() finds them when scanning child windows).

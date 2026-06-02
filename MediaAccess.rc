@@ -29,8 +29,6 @@ BEGIN
         MENUITEM SEPARATOR
         MENUITEM "&Hide to Tray\tCtrl+H", IDM_FILE_HIDE_TRAY
         MENUITEM SEPARATOR
-        MENUITEM "O&ptions...\tCtrl+,", IDM_TOOLS_OPTIONS
-        MENUITEM SEPARATOR
         MENUITEM "E&xit\tAlt+F4", IDM_FILE_EXIT
     END
     POPUP "&Playback"
@@ -74,6 +72,8 @@ BEGIN
     END
     POPUP "&Tools"
     BEGIN
+        MENUITEM "O&ptions...\tCtrl+,",             IDM_TOOLS_OPTIONS
+        MENUITEM SEPARATOR
         MENUITEM "&Actions...\tF4",                 IDM_TOOLS_ACTIONS
         MENUITEM "&Book library...",                IDM_TOOLS_BOOK_LIBRARY
         MENUITEM SEPARATOR
@@ -118,7 +118,7 @@ STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSM
 CAPTION "Options"
 FONT 8, "MS Shell Dlg"
 BEGIN
-    CONTROL         "", IDC_TAB, "SysTabControl32", WS_TABSTOP, 7, 7, 326, 225
+    CONTROL         "Category", IDC_TAB, "SysTabControl32", WS_TABSTOP, 7, 7, 326, 225
 
     // Playback tab controls (shown when tab 0 selected)
     LTEXT           "&Output device:", IDC_LABEL_PLAYBACK_OUTPUT_DEVICE, 17, 30, 55, 10
@@ -287,7 +287,7 @@ BEGIN
     LTEXT           "&SoundFont (.sf2/.sf3) — leave empty to use bundled FluidR3_GM:", IDC_LABEL_MIDI_SOUNDFONT, 17, 48, 280, 10
     EDITTEXT        IDC_MIDI_SOUNDFONT, 17, 60, 200, 14, ES_AUTOHSCROLL
     PUSHBUTTON      "&Browse...", IDC_MIDI_SF_BROWSE, 222, 60, 50, 14
-    LTEXT           "", IDC_LABEL_MIDI_SF_BUNDLED, 17, 76, 280, 10
+    LTEXT           "SoundFont status", IDC_LABEL_MIDI_SF_BUNDLED, 17, 76, 280, 10
     LTEXT           "Ma&x voices (polyphony):", IDC_LABEL_MIDI_VOICES, 17, 92, 125, 10
     EDITTEXT        IDC_MIDI_VOICES, 145, 90, 40, 14, ES_AUTOHSCROLL | ES_NUMBER
     LTEXT           "(1-1000, default 128)", IDC_LABEL_MIDI_VOICES_RANGE, 190, 92, 105, 10
