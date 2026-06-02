@@ -1469,7 +1469,20 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLi
 
     HANDLE hMutex = CreateMutexW(nullptr, TRUE, MUTEX_NAME);
     if (GetLastError() == ERROR_ALREADY_EXISTS && useSingleInstance) {
-        HWND existingWnd = FindWindowW(WINDOW_CLASS, nullptr);
+        // v1.92 — poll FindWindowW for up to 3 seconds before giving up.
+        // When Explorer launches several MediaAccess.exe instances in
+        // parallel (multi-file selection with mixed extensions hits this
+        // every time), the first process to call CreateMutex wins, but
+        // CreateWindowExW hasn't run yet (BASS init, settings, keymaps
+        // take 200-500 ms). Latecomers that called FindWindowW too early
+        // got nullptr, fell through, and became autonomous second
+        // instances — split the user's selection across two windows.
+        HWND existingWnd = nullptr;
+        for (int waited = 0; waited < 3000; waited += 50) {
+            existingWnd = FindWindowW(WINDOW_CLASS, nullptr);
+            if (existingWnd) break;
+            Sleep(50);
+        }
         if (existingWnd) {
             if (argv && hasFileArgs) {
                 bool firstFile = true;
