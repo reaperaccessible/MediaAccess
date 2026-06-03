@@ -580,7 +580,17 @@
 </ol>
 
 <h3>Télécharger avec options (choisir un format)</h3>
-<p>À côté du bouton Télécharger simple, le bouton <strong>Télécharger avec options...</strong> vous laisse choisir exactement quel format télécharger. Il demande à YouTube tous les flux disponibles et les présente dans une liste — ID de format, extension, résolution, codec vidéo, codec audio, taille et notes — triés du meilleur au moins bon. Parcourez chaque format colonne par colonne avec les flèches, puis appuyez sur <kbd>Entrée</kbd> (ou le bouton Télécharger) pour récupérer ce flux. Si vous choisissez un format vidéo seule, MediaAccess y ajoute automatiquement l'audio grâce au ffmpeg intégré. Le nombre de formats disponibles est annoncé à l'ouverture de la liste. Le bouton Télécharger simple continue de fonctionner exactement comme avant.</p>
+<p>La fenêtre de recherche YouTube propose deux boutons de téléchargement :</p>
+<ul>
+  <li><strong>Télécharger</strong> : télécharge l'audio au format M4A, simplement, comme avant.</li>
+  <li><strong>Télécharger avec options...</strong> : ouvre une liste de tous les formats disponibles pour la vidéo sélectionnée.</li>
+</ul>
+<p>La liste affiche, en colonnes : extension, résolution, codec vidéo, codec audio, taille estimée et une note. Les formats sont triés du meilleur au moins bon. Naviguez avec les flèches, choisissez un format et appuyez sur <kbd>Entrée</kbd> (ou le bouton Télécharger du dialogue).</p>
+<p>Vous pouvez choisir un format audio seul (par exemple M4A) ou une vidéo (par exemple MP4 en différentes résolutions : 1080p, 720p, etc.).</p>
+<p>Si vous choisissez un format vidéo seule (sans son), MediaAccess ajoute automatiquement la meilleure piste audio et fusionne les deux. Le fichier final a donc l'image et le son.</p>
+<p>La conversion (MP3, FLAC, fusion vidéo) est faite automatiquement par MediaAccess. ffmpeg est inclus, rien à installer.</p>
+<p>Le dossier de téléchargement est le même que pour le bouton simple : <code>Téléchargements\MediaAccess\YouTube\</code> par défaut, ou le dossier configuré dans les options YouTube.</p>
+<p>Les entrées non téléchargeables (planches de vignettes « storyboard ») ne sont pas affichées dans la liste.</p>
 
 <h3>URL YouTube directe</h3>
 <p>Vous pouvez coller une URL YouTube (vidéo ou liste de lecture) dans le champ de recherche au lieu de mots-clés.</p>
@@ -731,7 +741,7 @@
   <li><strong>Sortie MediaAccess</strong> — enregistre ce que MediaAccess lui-même joue (comportement par défaut ; tout ce qui précède s'applique).</li>
   <li><strong>Sortie système Windows</strong> — enregistre <em>tout</em> ce que Windows joue dans vos haut-parleurs/casque (n'importe quelle application : un lecteur web, un jeu, un appel, un autre lecteur multimédia), capturé via le loopback WASAPI et enregistré avec les mêmes réglages de format et de débit.</li>
 </ul>
-<p>Quand la source est réglée sur « Sortie système Windows », votre touche d'enregistrement habituelle démarre et arrête plutôt la capture système. Le réglage <strong>Périphérique système</strong> est normalement laissé sur <strong>Automatique (suit la sortie MediaAccess)</strong>, qui capture le périphérique de sortie actuellement utilisé par MediaAccess ; vous pouvez aussi forcer un périphérique précis. Si le périphérique choisi est débranché ou désactivé pendant l'enregistrement, la capture s'arrête proprement, finalise le fichier et annonce que le périphérique a été perdu.</p>
+<p>Quand la source est réglée sur « Sortie système Windows », votre touche d'enregistrement habituelle démarre et arrête plutôt la capture système. Le réglage <strong>Périphérique système</strong> est normalement laissé sur <strong>Automatique (suit la sortie MediaAccess)</strong>, qui capture le périphérique de sortie actuellement utilisé par MediaAccess — y compris lorsque la sortie de MediaAccess est réglée sur « Défaut », auquel cas la capture suit le véritable périphérique de sortie par défaut de Windows ; vous pouvez aussi forcer un périphérique précis. Si le périphérique choisi est débranché ou désactivé pendant l'enregistrement, la capture s'arrête proprement, finalise le fichier et annonce que le périphérique a été perdu.</p>
 <div class="note">
 <p><strong>Limitation DRM :</strong> les services protégés comme Netflix, Apple Music et certains flux protégés peuvent s'enregistrer en <strong>silence</strong>, car leur audio est protégé par Windows et ne peut pas être capturé via le loopback. L'audio non protégé s'enregistre normalement.</p>
 </div>
@@ -911,6 +921,7 @@
 <section id="options" aria-labelledby="options-h">
 <h2 id="options-h">20. Options détaillées</h2>
 <p><kbd>Ctrl</kbd>+<kbd>,</kbd> ou <strong>Outils → Options</strong> ouvre les préférences. Douze onglets. (Les raccourcis clavier ne sont plus configurés ici : utilisez <kbd>F4</kbd> ou <strong>Outils → Actions</strong>, voir <a href="#hotkeys">section 17</a>.)</p>
+<p>Pour passer d'un onglet à l'autre au clavier, utilisez <kbd>Ctrl</kbd>+<kbd>Tab</kbd> (onglet suivant) et <kbd>Ctrl</kbd>+<kbd>Maj</kbd>+<kbd>Tab</kbd> (onglet précédent) ; la navigation boucle du dernier onglet au premier et inversement, et le lecteur d'écran annonce le nom du nouvel onglet.</p>
 
 <h3>Onglet Lecture</h3>
 <ul>

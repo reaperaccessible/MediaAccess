@@ -757,7 +757,12 @@ void RegisterRcTranslations() {
     AddTranslation("fr", "&Search or paste URL:", L"&Rechercher ou coller une URL :");
 
     AddTranslation("en", "&Results:", L"&Results:");
-    AddTranslation("fr", "&Results:", L"&Résultats :");
+    // m3 (v2.02): FR mnemonic moved off Alt+R. Both "&Rechercher ou coller une
+    // URL :" and "&Résultats :" sat on Alt+R, so the key cycled between the two
+    // controls instead of jumping. Reassign Results to Alt+A ("Résult&ats"),
+    // which is free in IDD_YOUTUBE (other FR mnemonics: R=Rechercher, C=Charger,
+    // T=Télécharger, O=options). English is unaffected (S/R/L/D/O — no clash).
+    AddTranslation("fr", "&Results:", L"Résult&ats :");
 
     AddTranslation("en", "&Load More", L"&Load More");
     AddTranslation("fr", "&Load More", L"&Charger plus");
@@ -769,9 +774,17 @@ void RegisterRcTranslations() {
     AddTranslation("en", "Choose format", L"Choose format");
     AddTranslation("fr", "Choose format", L"Choisir un format");
 
-    AddTranslation("en", "Choose a format to download:", L"Choose a format to download:");
-    AddTranslation("fr", "Choose a format to download:",
-                   L"Choisissez un format à télécharger :");
+    AddTranslation("en", "Choose a &format to download:", L"Choose a &format to download:");
+    AddTranslation("fr", "Choose a &format to download:",
+                   L"Choisissez un &format à télécharger :");
+
+    // v2.05 — dynamic dialog title (carries the format count so a screen reader
+    // announces the full context before landing on the first row). %d is
+    // substituted printf-free by FormatCount(), never by printf.
+    AddTranslation("en", "Choose a format to download — %d formats",
+                   L"Choose a format to download — %d formats");
+    AddTranslation("fr", "Choose a format to download — %d formats",
+                   L"Choisir un format à télécharger — %d formats");
 
     // SysListView32 accessible name + column headers (looked up via T()).
     AddTranslation("en", "Formats", L"Formats");
@@ -797,6 +810,20 @@ void RegisterRcTranslations() {
 
     AddTranslation("en", "Note", L"Note");
     AddTranslation("fr", "Note", L"Note");
+
+    // G (v2.00) — format-row resolution labels built in ParseFormatsArray. Were
+    // hard-coded English; now localized to match the translated column headers.
+    AddTranslation("en", "audio only", L"audio only");
+    AddTranslation("fr", "audio only", L"audio seul");
+
+    AddTranslation("en", "(video only)", L"(video only)");
+    AddTranslation("fr", "(video only)", L"(vidéo seule)");
+
+    // m4 (v2.02): codec cell label for an absent track. Replaces the em dash "—"
+    // (silent at non-verbose NVDA punctuation levels → cell read as empty) in the
+    // Video codec / Audio codec columns of the format picker.
+    AddTranslation("en", "none", L"none");
+    AddTranslation("fr", "none", L"aucun");
 
     // "Download" (no mnemonic) — OK button of the format picker.
     AddTranslation("en", "Download", L"Download");

@@ -30,7 +30,10 @@ FEATURES
   aloud by the screen reader (Options > Speech), and the Left/Right seek
   cycle includes a "1 subtitle" unit to jump between subtitle lines.
 * YouTube: integrated search, streaming, and download — no external setup
-  required.
+  required. The "Download with options..." button lets you pick any format
+  (audio-only or video in 1080p, 720p, etc.); video-only formats are
+  automatically merged with the best audio. Conversion is handled by the
+  bundled ffmpeg.
 * Internet radio: built-in browser for RadioBrowser, TuneIn, and iHeartRadio.
 * Podcasts: subscription manager with RSS, Podcast 2.0 chapters, automatic
   episode downloads.

@@ -187,6 +187,65 @@ void ShowTabControls(HWND hwnd, int tab) {
     }
 }
 
+// ---------------------------------------------------------------------------
+// Ctrl+Tab / Ctrl+Shift+Tab tab navigation for the Options dialog.
+//
+// A plain modal DialogBoxW eats VK_TAB internally (for control-to-control
+// focus traversal) before WM_KEYDOWN can reach OptionsDlgProc, so we cannot
+// reliably intercept Ctrl+Tab in the dialog proc. The canonical Win32 way to
+// add Ctrl+Tab to a tabbed dialog is a thread-local WH_GETMESSAGE hook that
+// is installed while the dialog is open and removed when it closes. The hook
+// sees every message pumped for this thread (including the ones the dialog
+// manager consumes), so it can spot Ctrl+Tab / Ctrl+Shift+Tab, swallow them,
+// and cycle the tab control instead.
+//
+static HHOOK  s_optionsMsgHook = nullptr;
+static HWND   s_optionsDlg     = nullptr;
+
+// Switch to a tab as if the user had clicked it: update the tab control's
+// selection, swap the visible controls, and move focus to the tab control so
+// the screen reader announces the new tab name (same path used at dialog open
+// and on plain Tab navigation). 'forward' true = next, false = previous; both
+// wrap around.
+static void OptionsCycleTab(HWND hwnd, bool forward) {
+    HWND hTab = GetDlgItem(hwnd, IDC_TAB);
+    if (!hTab) return;
+    int count = TabCtrl_GetItemCount(hTab);
+    if (count <= 1) return;
+    int cur = TabCtrl_GetCurSel(hTab);
+    if (cur < 0) cur = 0;
+    int next = forward ? (cur + 1) % count
+                       : (cur - 1 + count) % count;
+    TabCtrl_SetCurSel(hTab, next);
+    ShowTabControls(hwnd, next);
+    // Refocus the tab control so NVDA/JAWS/Narrator read "Category: <name>,
+    // tab N of M". TCN_SELCHANGE is not auto-raised by TabCtrl_SetCurSel, so
+    // the focus move is what drives the announcement here.
+    SetFocus(hTab);
+}
+
+// Thread-local message hook: catch Ctrl+Tab / Ctrl+Shift+Tab while the Options
+// dialog is open. Returning after marking the message handled is not possible
+// from WH_GETMESSAGE (we must pass it on), so we neutralise the keystroke by
+// rewriting it to WM_NULL once we've acted on it, preventing the dialog
+// manager from also treating the Tab as control traversal.
+static LRESULT CALLBACK OptionsGetMsgHook(int code, WPARAM wParam, LPARAM lParam) {
+    if (code == HC_ACTION && wParam == PM_REMOVE && s_optionsDlg) {
+        MSG* m = reinterpret_cast<MSG*>(lParam);
+        if (m && m->message == WM_KEYDOWN && m->wParam == VK_TAB &&
+            (GetKeyState(VK_CONTROL) & 0x8000)) {
+            // Only act for messages belonging to our dialog (its tab control
+            // or any child within it).
+            if (m->hwnd == s_optionsDlg || IsChild(s_optionsDlg, m->hwnd)) {
+                const bool back = (GetKeyState(VK_SHIFT) & 0x8000) != 0;
+                OptionsCycleTab(s_optionsDlg, !back);
+                m->message = WM_NULL;   // consume: don't let the dialog see Tab
+            }
+        }
+    }
+    return CallNextHookEx(s_optionsMsgHook, code, wParam, lParam);
+}
+
 // Options dialog procedure
 INT_PTR CALLBACK OptionsDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
     switch (msg) {
@@ -677,7 +736,23 @@ INT_PTR CALLBACK OptionsDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
             // otherwise be picked. We return FALSE to tell Windows we handled
             // the focus ourselves.
             SetFocus(GetDlgItem(hwnd, IDC_TAB));
+
+            // Install the Ctrl+Tab / Ctrl+Shift+Tab navigation hook for the
+            // lifetime of this (modal) dialog. Thread-local — removed in
+            // WM_DESTROY.
+            s_optionsDlg = hwnd;
+            s_optionsMsgHook = SetWindowsHookExW(WH_GETMESSAGE, OptionsGetMsgHook,
+                                                 nullptr, GetCurrentThreadId());
             return FALSE;
+        }
+
+        case WM_DESTROY: {
+            if (s_optionsMsgHook) {
+                UnhookWindowsHookEx(s_optionsMsgHook);
+                s_optionsMsgHook = nullptr;
+            }
+            s_optionsDlg = nullptr;
+            break;
         }
 
         case WM_NOTIFY: {

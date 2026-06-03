@@ -842,11 +842,70 @@ void RegisterPlayerTranslations() {
     AddTranslation("en", "No results or search failed", L"No results or search failed");
     AddTranslation("fr", "No results or search failed", L"Aucun résultat ou échec de la recherche");
 
+    // v1.97 — honest, cause-specific YouTube failure messages (M3). A clean
+    // empty result is distinct from a network/tool/content failure.
+    AddTranslation("en", "No results found", L"No results found");
+    AddTranslation("fr", "No results found", L"Aucun résultat trouvé");
+
+    AddTranslation("en", "Network error, check your connection",
+                   L"Network error, check your connection");
+    AddTranslation("fr", "Network error, check your connection",
+                   L"Erreur réseau, vérifiez votre connexion");
+
+    AddTranslation("en", "This video is private", L"This video is private");
+    AddTranslation("fr", "This video is private", L"Cette vidéo est privée");
+
+    AddTranslation("en", "This video is unavailable", L"This video is unavailable");
+    AddTranslation("fr", "This video is unavailable", L"Cette vidéo n'est pas disponible");
+
+    AddTranslation("en", "This video is blocked in your region",
+                   L"This video is blocked in your region");
+    AddTranslation("fr", "This video is blocked in your region",
+                   L"Cette vidéo est bloquée dans votre région");
+
+    AddTranslation("en", "YouTube request timed out", L"YouTube request timed out");
+    AddTranslation("fr", "YouTube request timed out", L"Délai d'attente YouTube dépassé");
+
+    AddTranslation("en", "YouTube tool could not start", L"YouTube tool could not start");
+    AddTranslation("fr", "YouTube tool could not start",
+                   L"L'outil YouTube n'a pas pu démarrer");
+
+    AddTranslation("en", "YouTube operation failed", L"YouTube operation failed");
+    AddTranslation("fr", "YouTube operation failed", L"L'opération YouTube a échoué");
+
+    // M1 (v2.03) — pasted a YouTube channel URL. Channel browsing is not a
+    // feature; speak an honest message instead of a misleading keyword search.
+    AddTranslation("en",
+        "Channel browsing is not supported yet. Paste a video or playlist URL, or type keywords.",
+        L"Channel browsing is not supported yet. Paste a video or playlist URL, or type keywords.");
+    AddTranslation("fr",
+        "Channel browsing is not supported yet. Paste a video or playlist URL, or type keywords.",
+        L"La navigation par chaîne n'est pas encore prise en charge. Collez une URL de vidéo ou de liste de lecture, ou tapez des mots-clés.");
+
+    // m2 (v2.03) — distinct from a network error: the Data API rejected the
+    // request because the key is invalid (HTTP 400) or quota is exhausted (403).
+    AddTranslation("en", "YouTube API key is invalid or quota exceeded",
+                   L"YouTube API key is invalid or quota exceeded");
+    AddTranslation("fr", "YouTube API key is invalid or quota exceeded",
+                   L"La clé API YouTube est invalide ou le quota est dépassé");
+
+    // A (v2.00) — live stream / scheduled premiere: playing or downloading is
+    // not supported (a live stream never terminates).
+    AddTranslation("en", "This is a live stream and is not supported",
+                   L"This is a live stream and is not supported");
+    AddTranslation("fr", "This is a live stream and is not supported",
+                   L"Ceci est un direct, lecture ou téléchargement non pris en charge");
+
     AddTranslation("en", "Loading more", L"Loading more");
     AddTranslation("fr", "Loading more", L"Chargement de plus de résultats");
 
     AddTranslation("en", "%d more loaded", L"%d more loaded");
     AddTranslation("fr", "%d more loaded", L"%d résultats supplémentaires chargés");
+
+    // M5 (v2.04): spoken when the always-enabled "Load more" button is activated
+    // but no further results remain (the button is never greyed — doctrine).
+    AddTranslation("en", "No more results", L"No more results");
+    AddTranslation("fr", "No more results", L"Aucun autre résultat");
 
     // Generic YouTube extractor messages (impl detail = yt-dlp, but user
     // never sees the tool name — autonomy rule).
@@ -908,12 +967,28 @@ void RegisterPlayerTranslations() {
     AddTranslation("en", "Cannot download this item", L"Cannot download this item");
     AddTranslation("fr", "Cannot download this item", L"Impossible de télécharger cet élément");
 
+    // m5 (v1.99) — pressing Download / Download-with-options with no selection.
+    AddTranslation("en", "No item selected", L"No item selected");
+    AddTranslation("fr", "No item selected", L"Aucun élément sélectionné");
+
     // Format picker (v1.95)
     AddTranslation("en", "%d formats available", L"%d formats available");
     AddTranslation("fr", "%d formats available", L"%d formats disponibles");
 
     AddTranslation("en", "No formats available", L"No formats available");
     AddTranslation("fr", "No formats available", L"Aucun format disponible");
+
+    // Async YouTube subsystem (v1.98) — background formats + downloads
+    AddTranslation("en", "Fetching formats", L"Fetching formats, please wait...");
+    AddTranslation("fr", "Fetching formats", L"Récupération des formats, veuillez patienter...");
+
+    AddTranslation("en", "Download started", L"Download started");
+    AddTranslation("fr", "Download started", L"Téléchargement démarré");
+
+    AddTranslation("en", "A download is already in progress",
+                   L"A download is already in progress");
+    AddTranslation("fr", "A download is already in progress",
+                   L"Un téléchargement est déjà en cours");
 
     // YouTube dialog button + Help menu cache item
     AddTranslation("en", "&Download", L"&Download");

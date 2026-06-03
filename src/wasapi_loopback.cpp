@@ -24,6 +24,7 @@
 #include <avrt.h>          // AvSetMmThreadCharacteristics ("Pro Audio")
 #include <atomic>
 #include <thread>
+#include <cstring>         // strcmp (endpoint-id correlation for default device)
 
 #include "bass.h"
 #include "bassenc.h"
@@ -134,6 +135,44 @@ std::vector<LoopbackDevice> EnumerateLoopbackDevices() {
 }
 
 int FindLoopbackForCurrentBassDevice() {
+    // Output = Windows default device: g_selectedDevice == -1 and no persisted
+    // name. Name-based correlation is unreliable here (the default endpoint's
+    // human name does not uniquely identify it among loopbacks), so we correlate
+    // by endpoint id instead.
+    if (g_selectedDevice == -1 && g_selectedDeviceName.empty()) {
+        BASS_WASAPI_DEVICEINFO di;
+        // Primary: find the default RENDER endpoint, take its id, then match the
+        // loopback sharing that id. The DEFAULT flag lives on the render endpoint,
+        // not on its loopback twin -> the id is the reliable key.
+        const char* defId = nullptr;
+        for (int i = 0; BASS_WASAPI_GetDeviceInfo(i, &di); ++i) {
+            const DWORD f = di.flags;
+            if ((f & BASS_DEVICE_DEFAULT) && (f & BASS_DEVICE_ENABLED) &&
+                !(f & BASS_DEVICE_LOOPBACK) && !(f & BASS_DEVICE_INPUT)) {
+                defId = di.id; break;
+            }
+        }
+        if (defId) {
+            for (int i = 0; BASS_WASAPI_GetDeviceInfo(i, &di); ++i) {
+                const DWORD f = di.flags;
+                if ((f & BASS_DEVICE_LOOPBACK) && (f & BASS_DEVICE_ENABLED) &&
+                    di.id && strcmp(di.id, defId) == 0) {
+                    return i;
+                }
+            }
+        }
+        // Fallback A: a loopback explicitly marked DEFAULT (rare but valid).
+        for (int i = 0; BASS_WASAPI_GetDeviceInfo(i, &di); ++i) {
+            const DWORD f = di.flags;
+            if ((f & BASS_DEVICE_LOOPBACK) && (f & BASS_DEVICE_ENABLED) &&
+                (f & BASS_DEVICE_DEFAULT) && !(f & BASS_DEVICE_INPUT)) {
+                return i;
+            }
+        }
+        return -1;   // caller's front()+warning fallback remains the last resort
+    }
+
+    // Named device: name-based correlation (existing behaviour, unchanged).
     const std::wstring target = CurrentBassOutputName();
     if (target.empty()) return -1;
 

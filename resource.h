@@ -99,6 +99,7 @@
 #define IDT_BATCH_FILES     401
 #define IDT_SLEEP_TIMER     404   // v1.55 — sleep timer tick (1 s)
 #define IDT_STARTUP_OVER    405   // v1.85 — one-shot: ends startup batch-open coalescing window
+#define IDT_DEFERRED_SPEAK  406   // v2.06 — one-shot: fallback for AnnounceStatus when UIA unavailable
 
 // Custom messages
 #define WM_SPEAK            (WM_USER + 1)
@@ -108,6 +109,10 @@
 #define WM_YT_HYBRID_READY  (WM_USER + 5)  // YouTube background download finished — swap mpv→BASS
 #define WM_YT_LOAD_MORE_DONE (WM_USER + 6) // Background "load more YouTube results" finished
 #define WM_SPEAK_SUBTITLE   (WM_USER + 7)  // v1.81 — speak a subtitle line (lParam = wchar_t* heap)
+#define WM_YT_FORMATS_READY  (WM_USER + 8) // v1.98 — background format query finished (lParam = YtFormatsResult* heap)
+#define WM_YT_DOWNLOAD_DONE  (WM_USER + 9) // v1.98 — background YouTube download finished (lParam = YtDownloadResult* heap)
+#define WM_YT_SEARCH_DONE    (WM_USER + 11) // v1.99 — background first-page search / playlist / single-URL finished (lParam = YtSearchResult* heap)
+#define WM_APP_DEFERRED_SPEAK (WM_USER + 12) // v2.06 — AnnounceStatus fallback: arm IDT_DEFERRED_SPEAK to Speak after focus settles
 
 // Playback tab controls
 #define IDC_BRING_TO_FRONT  531

@@ -184,6 +184,22 @@ void LoadSettings() {
     //   2. <app>\lib\yt-dlp.exe (bundled fallback)
     //   3. <app>\yt-dlp.exe
     //   4. system PATH
+    //
+    // m4 (v2.03 — security trade-off, documented deliberately): unlike
+    // GetFfmpegLocation() in youtube.cpp, which is BUNDLED-FIRST (the
+    // user-writable copy can never shadow the bundled binary), this resolver is
+    // LOCALAPPDATA-FIRST *on purpose*. %LOCALAPPDATA%\MediaAccess\yt-dlp.exe is
+    // the destination the in-app updater (ytdlp_updater.cpp) writes to, and
+    // YouTube routinely breaks the bundled yt-dlp within weeks as the site
+    // changes — so the freshly auto-updated copy MUST win, or YouTube stops
+    // working until the next app release. The accepted risk is low and
+    // same-user: %LOCALAPPDATA% is per-user and only writable by that same user
+    // (or an attacker who already has the user's token, at which point the box is
+    // already lost). We do NOT swap to bundled-first here because that would
+    // silently disable the auto-update mechanism (the stale bundled copy would
+    // always be picked, masking every update). If a hardening pass ever wants
+    // bundled-first, it must also teach the updater to overwrite the BUNDLED copy
+    // (needs elevation) or add a freshness comparison — out of scope here.
     wchar_t ytBuf[512] = {0};
     g_ytdlpPath.clear();
     wchar_t exePath[MAX_PATH];
@@ -209,8 +225,15 @@ void LoadSettings() {
         }
     }
     if (g_ytdlpPath.empty()) {
+        // SECURITY: enable safe-search before the PATH fallback so the current
+        // working directory is searched AFTER the system dirs, closing the
+        // binary-planting hole where a malicious "yt-dlp.exe" in the launch
+        // folder could be picked up. The bundled copies above should always
+        // win; this only fires on a broken install.
+        SetSearchPathMode(BASE_SEARCH_PATH_ENABLE_SAFE_SEARCHMODE |
+                          BASE_SEARCH_PATH_PERMANENT);
         wchar_t found[MAX_PATH] = {0};
-        if (SearchPathW(nullptr, L"yt-dlp.exe", nullptr, MAX_PATH, found, nullptr) > 0) {
+        if (SearchPathW(nullptr, L"yt-dlp.exe", L".exe", MAX_PATH, found, nullptr) > 0) {
             g_ytdlpPath = found;
         }
     }

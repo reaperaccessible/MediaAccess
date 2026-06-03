@@ -18,9 +18,19 @@ struct YouTubeResult {
 };
 
 // Search YouTube using API or yt-dlp fallback
-// Returns results, nextPageToken is set if more results available
+// Returns results, nextPageToken is set if more results available.
+//
+// seenIdsSnapshot (v1.98, M4 thread-safety): for the yt-dlp paginated fallback,
+// the "load more" path must deduplicate new results against the ids already
+// shown to the user. Historically that dedup read the live g_ytResults vector,
+// which the UI thread can clear/modify concurrently (use-after-free / data
+// race). Pass a SNAPSHOT of the already-seen video ids here and the dedup uses
+// it instead of the live vector. Pass nullptr (the default) for the synchronous
+// UI-thread callers (first-page search, playlist load) where no background
+// thread is involved.
 bool YouTubeSearch(const std::wstring& query, std::vector<YouTubeResult>& results,
-                   std::wstring& nextPageToken, const std::wstring& pageToken = L"");
+                   std::wstring& nextPageToken, const std::wstring& pageToken = L"",
+                   const std::vector<std::wstring>* seenIdsSnapshot = nullptr);
 
 // Get contents of a playlist or channel
 bool YouTubeGetPlaylistContents(const std::wstring& playlistId, std::vector<YouTubeResult>& results,
@@ -130,25 +140,78 @@ bool YouTubePlayById(const std::wstring& videoId);
 // Swap from the streaming libmpv engine to BASS at the current position.
 void YouTubeOnHybridDownloadReady(const std::wstring& videoId);
 
+// ============================================================
+// Async UI message handlers (v1.98) — called from the MAIN window proc
+// ============================================================
+//
+// Every YouTube network operation now runs on a worker thread and posts its
+// result to the always-alive main window (g_hwnd). The main wndproc forwards
+// the lParam straight to these handlers. Each handler:
+//   * takes ownership of the heap payload pointed to by lParam and frees it,
+//   * is robust if the modeless YouTube dialog was closed mid-fetch (it checks
+//     GetYouTubeDialog() and silently drops the UI update when null),
+//   * never dereferences a dead HWND.
+// Routing through the main window (rather than the dialog HWND) guarantees the
+// heap payload is always freed even when the dialog closed before the worker
+// finished — a PostMessage to a destroyed HWND is silently discarded by
+// Windows, which would otherwise leak the payload.
+void YouTubeOnLoadMoreDone(LPARAM lParam);   // WM_YT_LOAD_MORE_DONE
+void YouTubeOnFormatsReady(LPARAM lParam);   // WM_YT_FORMATS_READY
+void YouTubeOnDownloadDone(LPARAM lParam);   // WM_YT_DOWNLOAD_DONE
+void YouTubeOnSearchDone(LPARAM lParam);     // WM_YT_SEARCH_DONE (v1.99)
+
 // Cancel any pending hybrid swap. Call before loading non-YouTube media so a
 // late-arriving download from a previously-started hybrid playback does not
 // clobber the new track the user just opened.
 void YouTubeCancelHybrid();
 
-// Start streaming - downloads and returns path when complete (blocking)
-bool YouTubeStartStream(const std::wstring& videoId, std::wstring& filePath);
+// ============================================================
+// yt-dlp process runner (foundation, v1.97)
+// ============================================================
+//
+// Distinct timeouts for the two classes of yt-dlp invocation:
+//   * Queries (search, format list, get-url) are expected to finish in a
+//     few seconds; a 30 s ceiling protects the UI from a hung process.
+//   * Downloads can legitimately run for minutes (large video, slow link),
+//     so they MUST NOT be capped — a timeout here would kill a perfectly
+//     healthy download mid-transfer and leave a partial file.
+constexpr int YTDLP_QUERY_TIMEOUT_MS    = 30000;  // 30 s — interactive queries
+constexpr int YTDLP_DOWNLOAD_TIMEOUT_MS = 0;      // 0 = unlimited — EXPLICIT user downloads
+// A (v2.00): bounded timeout for the PLAYBACK download path (hybrid cache fill,
+// cache-refresh, last-resort blocking download). Unlike an explicit "download
+// with options" transfer — which the user deliberately started and may
+// legitimately let run for minutes — a playback download exists only to feed
+// BASS for instant listening. A YouTube LIVE stream never terminates, so an
+// unlimited timeout there leaks the HybridDownloadThread forever and (on the
+// last-resort path) freezes the calling thread. 60 s is comfortably longer than
+// any normal audio fetch on a working link, but guarantees a live/pathological
+// download is killed and reported instead of hanging.
+constexpr int YTDLP_PLAYBACK_TIMEOUT_MS = 60000;  // 60 s — playback (cache/hybrid)
 
-// Async download functions
-bool YouTubeStartDownload(const std::wstring& videoId);  // Start download, returns immediately
-bool YouTubeIsDownloadComplete();                         // Check if download finished
-bool YouTubeGetDownloadResult(std::wstring& filePath);   // Get result after completion
+// Run yt-dlp with the given argument string and capture its stdout (UTF-8 →
+// wide). stderr is captured separately so the returned stdout stays clean
+// JSON/URL text. On a timeout (> 0) the child process is terminated and every
+// handle is closed — no orphan yt-dlp/ffmpeg processes are left behind.
+//
+//   timeoutMs  YTDLP_QUERY_TIMEOUT_MS for queries, YTDLP_DOWNLOAD_TIMEOUT_MS
+//              (0 = wait forever) for downloads.
+//   exitCode   optional out-param; receives yt-dlp's process exit code (0 on
+//              success). Set to a negative sentinel when the process timed out
+//              or could not be launched. Pass nullptr if not needed.
+//   stderrOut  optional out-param; receives the captured stderr text so the
+//              caller can craft a specific error message. Pass nullptr to
+//              discard stderr.
+//
+// Returns the captured stdout, or an empty string when yt-dlp is unavailable
+// or the process could not be created. Thread-safe: holds no shared state.
+std::wstring RunYtdlp(const std::wstring& args,
+                      int timeoutMs = YTDLP_QUERY_TIMEOUT_MS,
+                      int* exitCode = nullptr,
+                      std::wstring* stderrOut = nullptr);
 
-// Async search functions
-bool YouTubeStartSearch(const std::wstring& query, bool isPlaylist, const std::wstring& playlistId,
-                        const std::wstring& pageToken, bool isLoadMore);  // Start search, returns immediately
-bool YouTubeIsSearchComplete();                                            // Check if search finished
-bool YouTubeGetSearchResult(std::vector<YouTubeResult>& results, std::wstring& nextPageToken);  // Get results
-bool YouTubeWasLoadMore();                                                 // Check if last search was "load more"
+// Process exit-code sentinels used when no real exit code is available.
+constexpr int YTDLP_EXIT_LAUNCH_FAILED = -1;  // CreateProcess / pipe failed
+constexpr int YTDLP_EXIT_TIMED_OUT     = -2;  // killed after timeoutMs elapsed
 
 // Clean up temp files (call on startup and exit)
 void YouTubeCleanup();

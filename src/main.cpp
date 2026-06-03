@@ -654,6 +654,25 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
             return 0;
         }
 
+        // v1.98 — async YouTube subsystem. Workers post these to the main
+        // window; the handlers (in youtube.cpp) own + free the heap payload and
+        // are robust if the modeless YouTube dialog has since been closed.
+        case WM_YT_LOAD_MORE_DONE:
+            YouTubeOnLoadMoreDone(lParam);
+            return 0;
+
+        case WM_YT_FORMATS_READY:
+            YouTubeOnFormatsReady(lParam);
+            return 0;
+
+        case WM_YT_DOWNLOAD_DONE:
+            YouTubeOnDownloadDone(lParam);
+            return 0;
+
+        case WM_YT_SEARCH_DONE:   // v1.99 — background first-page search / playlist load
+            YouTubeOnSearchDone(lParam);
+            return 0;
+
         case WM_USER + 200: {
             // Update check result
             auto* data = reinterpret_cast<std::pair<UpdateInfo, bool>*>(lParam);

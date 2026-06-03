@@ -64,3 +64,6 @@ MediaAccessInstaller_*.exe
 
 # DAISY/EPUB books used for local testing — never commit user content
 Sylvain Marcel - Aidez moi -/
+
+# Editor/compiler scratch
+*.tmp.*

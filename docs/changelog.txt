@@ -1,3 +1,36 @@
+2.09
+Enregistrement de l'audio système : quand la sortie de MediaAccess est réglée sur le périphérique par défaut de Windows et l'enregistrement sur Automatique, MediaAccess capture désormais correctement le vrai périphérique de sortie par défaut (au lieu de retomber sur le premier périphérique de la liste). Signalé par Sèb. De plus, les onglets de la fenêtre Options se parcourent maintenant avec Ctrl+Tab et Ctrl+Maj+Tab.
+
+2.08
+Téléchargement YouTube : annonces vocales allégées. Sur le chemin « Télécharger avec options », une seule annonce de fin est faite (« Téléchargé : … » ou la raison de l'échec) une fois le téléchargement terminé. Le bouton « Télécharger » simple annonce le démarrage puis la fin du téléchargement.
+
+2.07
+Lecteur d'écran : le message "Téléchargement démarré" n'est plus coupé après le choix d'un format. La notification UIA tentée en 2.06 était silencieusement ignorée sur ce type de fenêtre ; MediaAccess utilise désormais un report court fiable (le message est énoncé juste après que le focus soit revenu sur la liste des résultats), méthode robuste avec tous les lecteurs d'écran.
+
+2.05
+Lecteur d'écran : à l'ouverture de la liste des formats YouTube, le contexte (titre + nombre de formats) est désormais annoncé entièrement avant d'arriver sur le premier choix (plus de coupure) ; message d'attente plus clair lors de la récupération des formats.
+
+2.04
+Dernières finitions YouTube : la liste de formats ne s'ouvre plus pour une vidéo en erreur (live), message clair à la place ; bouton "Charger plus" toujours accessible ; durcissement d'une API de cache ; refacteur interne et vérification des traductions.
+
+2.03
+Collage d'une URL de chaîne YouTube : message clair indiquant que la navigation par chaîne n'est pas prise en charge (au lieu d'une recherche trompeuse) ; messages d'erreur API plus précis ; corrections de robustesse du parseur JSON et durcissements internes.
+
+2.02
+Polissage final du sous-système YouTube (audit 5/5 unanime) : dernière frontière de sécurité durcie, libellés de codec lisibles au lecteur d'écran, raccourci français corrigé, champ de recherche sans limite de longueur, et nettoyages internes.
+
+2.01
+Peaufinage final de la réarchitecture YouTube : nom accessible explicite pour la liste des formats, attente de processus sans latence, éviction de cache groupée par vidéo, et nettoyages internes.
+
+2.00
+Finitions de la réarchitecture YouTube : détection des directs (live) avec message clair au lieu d'un blocage ; correction d'une course de données sur les messages d'erreur ; durcissement de la validation des identifiants vidéo ; encodage des paramètres d'API ; annonce des formats non interruptive pour le lecteur d'écran ; libellés audio/vidéo traduits.
+
+1.99
+Suite de la réarchitecture YouTube : la recherche et le chargement de résultats s'exécutent aussi en arrière-plan (plus aucun gel ni silence du lecteur d'écran) ; les téléchargements signalent désormais honnêtement les échecs (plus de faux "Téléchargé" sur un fichier incomplet) ; téléchargements de qualités différentes d'une même vidéo distingués par leur nom de fichier ; durcissements de sécurité/robustesse mineurs.
+
+1.98
+Réarchitecture interne du sous-système YouTube : toutes les opérations réseau (recherche, formats, téléchargements) tournent désormais en arrière-plan — plus aucun gel de l'interface ni silence du lecteur d'écran pendant un téléchargement ; gestion robuste des processus et des erreurs ; corrections de sécurité et de robustesse. Aucun changement visible des fonctions, tout est plus rapide et plus stable.
+
 1.97
 Two refinements to the "Download with options..." format list. First, it no longer shows YouTube storyboard entries (sb0/sb1/..., extension mhtml) and other non-media entries that have neither an audio nor a video codec — these are grids of preview thumbnails, not downloadable media, and picking one produced a missing or unusable file. The list now shows only real, downloadable audio/video formats. Second, the internal format id column (e.g. "135") was removed from the display: it is meaningless to users and was only ever used internally; the columns now begin with Extension.
 

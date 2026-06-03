@@ -580,7 +580,17 @@
 </ol>
 
 <h3>Download with options (choose a format)</h3>
-<p>Next to the simple Download button, the <strong>Download with options...</strong> button lets you pick exactly which format to download. It asks YouTube for every available stream and shows them in a list — Format ID, extension, resolution, video codec, audio codec, size and notes — sorted best-first. Use the arrow keys to read each format column by column, then press <kbd>Enter</kbd> (or the Download button) to fetch that stream. When you choose a video-only format, MediaAccess automatically merges in the audio with the bundled ffmpeg. The number of available formats is announced when the list opens. The simple Download button still works exactly as before.</p>
+<p>The YouTube search window has two download buttons:</p>
+<ul>
+  <li><strong>Download</strong>: downloads the audio in M4A format, simply, as before.</li>
+  <li><strong>Download with options...</strong>: opens a list of every format available for the selected video.</li>
+</ul>
+<p>The list shows, in columns: extension, resolution, video codec, audio codec, estimated size and a note. Formats are sorted best-first. Navigate with the arrow keys, choose a format and press <kbd>Enter</kbd> (or the dialog's Download button).</p>
+<p>You can choose an audio-only format (for example M4A) or a video (for example MP4 in various resolutions: 1080p, 720p, etc.).</p>
+<p>If you choose a video-only format (no sound), MediaAccess automatically adds the best audio track and merges the two. The final file therefore has both picture and sound.</p>
+<p>Conversion (MP3, FLAC, video merge) is done automatically by MediaAccess. ffmpeg is bundled, nothing to install.</p>
+<p>The download folder is the same as for the simple button: <code>Downloads\MediaAccess\YouTube\</code> by default, or the folder configured in the YouTube options.</p>
+<p>Non-downloadable entries (storyboard thumbnail sheets) are not shown in the list.</p>
 
 <h3>Direct YouTube URL</h3>
 <p>You can paste a YouTube URL (video or playlist) in the search field instead of keywords.</p>
@@ -731,7 +741,7 @@
   <li><strong>MediaAccess output</strong> — records what MediaAccess itself is playing (the default; everything above applies).</li>
   <li><strong>Windows system output</strong> — records <em>everything</em> Windows is playing through your speakers/headphones (any app: a web player, a game, a video call, another media player), captured via WASAPI loopback and saved with the same format and bitrate settings.</li>
 </ul>
-<p>When the source is set to "Windows system output", your usual record key starts and stops the system capture instead. The <strong>System device</strong> setting is normally left on <strong>Automatic (follow MediaAccess output)</strong>, which captures whichever output device MediaAccess is currently using; you can also force a specific device. If the chosen device is unplugged or disabled while recording, the capture stops cleanly, finalizes the file, and announces that the device was lost.</p>
+<p>When the source is set to "Windows system output", your usual record key starts and stops the system capture instead. The <strong>System device</strong> setting is normally left on <strong>Automatic (follow MediaAccess output)</strong>, which captures whichever output device MediaAccess is currently using — including when MediaAccess's output is set to "Default", in which case the capture follows the real Windows default output device; you can also force a specific device. If the chosen device is unplugged or disabled while recording, the capture stops cleanly, finalizes the file, and announces that the device was lost.</p>
 <div class="note">
 <p><strong>DRM limitation:</strong> protected services such as Netflix, Apple Music and some protected streams may record as <strong>silence</strong>, because their audio is protected by Windows and cannot be captured through loopback. Unprotected audio records normally.</p>
 </div>
@@ -911,6 +921,7 @@
 <section id="options" aria-labelledby="options-h">
 <h2 id="options-h">20. Options reference</h2>
 <p><kbd>Ctrl</kbd>+<kbd>,</kbd> or <strong>Tools → Options</strong> opens preferences. Twelve tabs. (Keyboard shortcuts are no longer configured here: use <kbd>F4</kbd> or <strong>Tools → Actions</strong>, see <a href="#hotkeys">section 17</a>.)</p>
+<p>To move between tabs from the keyboard, use <kbd>Ctrl</kbd>+<kbd>Tab</kbd> (next tab) and <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Tab</kbd> (previous tab); navigation wraps from the last tab to the first and back, and the screen reader announces the new tab name.</p>
 
 <h3>Playback tab</h3>
 <ul>
