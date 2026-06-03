@@ -786,12 +786,20 @@ void RegisterRcTranslations() {
     AddTranslation("fr", "Choose a format to download — %d formats",
                    L"Choisir un format à télécharger — %d formats");
 
-    // v2.10 — multi-select title. Teaches the Space-to-tick capability right in
-    // the dialog caption, which a screen reader reads first on open.
-    AddTranslation("en", "Choose formats — Space to tick one or more, Enter to download — %d formats",
-                   L"Choose formats — Space to tick one or more, Enter to download — %d formats");
-    AddTranslation("fr", "Choose formats — Space to tick one or more, Enter to download — %d formats",
-                   L"Choisir des formats — Espace pour cocher un ou plusieurs, Entrée pour télécharger — %d formats");
+    // v2.10 — the format-list label (the SysListView32's accessible name, read by
+    // NVDA every time focus enters the list). Teaches the Space-to-tick
+    // capability reliably, unlike the one-shot dialog caption. Must match the
+    // exact LTEXT text in MediaAccess.rc so LocalizeDialog can swap it.
+    AddTranslation("en", "F&ormats — Space to tick one or more, Enter to download:",
+                   L"F&ormats — Space to tick one or more, Enter to download:");
+    AddTranslation("fr", "F&ormats — Space to tick one or more, Enter to download:",
+                   L"F&ormats — Espace pour cocher un ou plusieurs, Entrée pour télécharger :");
+
+    // v2.10 — spoken when the user ticks more than one video track in the picker.
+    AddTranslation("en", "Select at most one video track. You can add several audio tracks.",
+                   L"Select at most one video track. You can add several audio tracks.");
+    AddTranslation("fr", "Select at most one video track. You can add several audio tracks.",
+                   L"Sélectionnez au plus une piste vidéo. Vous pouvez ajouter plusieurs pistes audio.");
 
     // SysListView32 accessible name + column headers (looked up via T()).
     AddTranslation("en", "Formats", L"Formats");

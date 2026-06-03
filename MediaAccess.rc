@@ -384,7 +384,7 @@ EXSTYLE WS_EX_CONTROLPARENT
 CAPTION "Choose format"
 FONT 8, "MS Shell Dlg"
 BEGIN
-    LTEXT           "Choose a &format to download:", -1, 7, 7, 406, 10
+    LTEXT           "F&ormats — Space to tick one or more, Enter to download:", -1, 7, 7, 406, 10
     CONTROL         "Formats", IDC_YTF_LIST, "SysListView32", LVS_REPORT | LVS_SINGLESEL | LVS_SHOWSELALWAYS | WS_BORDER | WS_TABSTOP | WS_VSCROLL, 7, 20, 406, 210
     DEFPUSHBUTTON   "Download", IDOK, 305, 238, 50, 14
     PUSHBUTTON      "Cancel", IDCANCEL, 363, 238, 50, 14

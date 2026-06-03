@@ -1788,6 +1788,16 @@ bool YouTubeDownloadMultiFormat(const std::wstring& videoId,
 
     std::wstring url = L"https://www.youtube.com/watch?v=" + safeId;
     std::wstring ffmpeg = GetFfmpegLocation();
+    // ffmpeg is MANDATORY for a multi-stream download: muxing several tracks into
+    // one container is an ffmpeg job. Without it, yt-dlp cannot merge and would
+    // silently write each stream to its OWN file (.f137.mp4, .f251.webm, …) while
+    // STILL exiting 0 — and because we pass --no-warnings/--quiet, the user would
+    // never see the warning. We would then "find" only one of those files and
+    // falsely report success with the other audio/video tracks lost. The single-
+    // stream path can tolerate a missing ffmpeg (a combined format needs no
+    // merge); this path cannot. Abort up front so the caller reports a clean
+    // failure instead of a half-downloaded lie.
+    if (ffmpeg.empty()) return false;
 
     // --audio-multistreams / --video-multistreams: without them yt-dlp collapses
     // the selector to AT MOST one audio + one video, silently dropping the extra
@@ -1799,9 +1809,8 @@ bool YouTubeDownloadMultiFormat(const std::wstring& videoId,
                         L"--no-playlist --no-progress --no-warnings --quiet "
                         L"--no-overwrites --embed-chapters "
                         L"--merge-output-format mkv ";
-    if (!ffmpeg.empty()) {
-        args += L"--ffmpeg-location \"" + ffmpeg + L"\" ";
-    }
+    // ffmpeg is guaranteed non-empty here (we returned false above otherwise).
+    args += L"--ffmpeg-location \"" + ffmpeg + L"\" ";
     args += L"-o \"" + outArg + L"\" \"" + url + L"\"";
 
     int exitCode = 0;
@@ -3057,7 +3066,7 @@ static INT_PTR CALLBACK YtFormatsDialogProc(HWND hwnd, UINT msg, WPARAM wParam, 
             const int nCount =
                 s_formats ? static_cast<int>(s_formats->size()) : 0;
             std::wstring title =
-                FormatCount(T("Choose formats — Space to tick one or more, Enter to download — %d formats"), nCount);
+                FormatCount(T("Choose a format to download — %d formats"), nCount);
             SetWindowTextW(hwnd, title.c_str());
             // Safety net: if NVDA already cached the old caption, force a reread.
             NotifyWinEvent(EVENT_OBJECT_NAMECHANGE, hwnd, OBJID_WINDOW,
@@ -3126,6 +3135,25 @@ static INT_PTR CALLBACK YtFormatsDialogProc(HWND hwnd, UINT msg, WPARAM wParam, 
                         g_ytfChosenVideoOnly = IsVideoOnly(f);
                     } else {
                         // Two or more streams: mux them all into one .mkv.
+                        // Guard: at most ONE video-bearing track. A format that
+                        // is not audio-only carries video (combined or video-only;
+                        // entries with neither codec were filtered at parse time).
+                        // Ticking two video tracks would tell yt-dlp, via
+                        // --video-multistreams, to keep BOTH — producing a bloated
+                        // file with a redundant second (or mismatched-resolution)
+                        // video track that no user intends. The supported shape is
+                        // "(zero or one) video + one or more audio" (e.g. one video
+                        // + two language audio tracks). Reject the nonsensical case
+                        // with a spoken reason and KEEP the dialog open so the user
+                        // can untick the extra video.
+                        int videoCount = 0;
+                        for (int idx : ticked) {
+                            if (!IsAudioOnly((*s_formats)[idx])) ++videoCount;
+                        }
+                        if (videoCount > 1) {
+                            Speak(Ts("Select at most one video track. You can add several audio tracks."));
+                            return TRUE;  // do not close — let the user fix it
+                        }
                         for (int idx : ticked) {
                             g_ytfChosenFormatIds.push_back((*s_formats)[idx].formatId);
                         }
