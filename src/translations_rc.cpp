@@ -679,10 +679,13 @@ void RegisterRcTranslations() {
     AddTranslation("fr", "MIDI playback settings (BASSMIDI):",
                    L"Paramètres de lecture MIDI (BASSMIDI) :");
 
-    AddTranslation("en", "&SoundFont (.sf2/.sf3) — leave empty to use bundled FluidR3_GM:",
-                   L"&SoundFont (.sf2/.sf3) — leave empty to use bundled FluidR3_GM:");
-    AddTranslation("fr", "&SoundFont (.sf2/.sf3) — leave empty to use bundled FluidR3_GM:",
-                   L"&SoundFont (.sf2/.sf3) — laisser vide pour utiliser FluidR3_GM inclus :");
+    // ASCII hyphen (see Formats note above): the .rc em dash compiled to mojibake
+    // so this label was never translated to French and read garbled. Key must be
+    // byte-identical to the now-ASCII .rc text.
+    AddTranslation("en", "&SoundFont (.sf2/.sf3) - leave empty to use bundled FluidR3_GM:",
+                   L"&SoundFont (.sf2/.sf3) - leave empty to use bundled FluidR3_GM:");
+    AddTranslation("fr", "&SoundFont (.sf2/.sf3) - leave empty to use bundled FluidR3_GM:",
+                   L"&SoundFont (.sf2/.sf3) - laisser vide pour utiliser FluidR3_GM inclus :");
 
     AddTranslation("en", "Using bundled FluidR3_GM (Frank Wen, MIT license).",
                    L"Using bundled FluidR3_GM (Frank Wen, MIT license).");
@@ -790,10 +793,14 @@ void RegisterRcTranslations() {
     // NVDA every time focus enters the list). Teaches the Space-to-tick
     // capability reliably, unlike the one-shot dialog caption. Must match the
     // exact LTEXT text in MediaAccess.rc so LocalizeDialog can swap it.
-    AddTranslation("en", "F&ormats — Space to tick one or more, Enter to download:",
-                   L"F&ormats — Space to tick one or more, Enter to download:");
-    AddTranslation("fr", "F&ormats — Space to tick one or more, Enter to download:",
-                   L"F&ormats — Espace pour cocher un ou plusieurs, Entrée pour télécharger :");
+    // ASCII hyphen on purpose: the .rc is compiled by rc.exe with no UTF-8 code
+    // page, so a non-ASCII em dash in the LTEXT comes out as mojibake at runtime
+    // and the lookup key below would never match (label stays untranslated). The
+    // key MUST be byte-identical to the compiled control text — keep it ASCII.
+    AddTranslation("en", "F&ormats - Space to tick one or more, Enter to download:",
+                   L"F&ormats - Space to tick one or more, Enter to download:");
+    AddTranslation("fr", "F&ormats - Space to tick one or more, Enter to download:",
+                   L"F&ormats - Espace pour cocher un ou plusieurs, Entrée pour télécharger :");
 
     // v2.10 — spoken when the user ticks more than one video track in the picker.
     AddTranslation("en", "Select at most one video track. You can add several audio tracks.",

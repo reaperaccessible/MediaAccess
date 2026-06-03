@@ -3051,6 +3051,16 @@ static INT_PTR CALLBACK YtFormatsDialogProc(HWND hwnd, UINT msg, WPARAM wParam, 
                         const_cast<wchar_t*>(f.sizeStr.c_str()));
                     ListView_SetItemText(hList, idx, 5,
                         const_cast<wchar_t*>(f.note.c_str()));
+                    // v2.10 fix — explicitly force the checkbox to "unchecked".
+                    // Inserting with mask=LVIF_TEXT only does NOT set a state
+                    // image, so an un-realized (never-scrolled-into-view) row can
+                    // keep state image 0. ListView_GetCheckState then returns
+                    // (UINT)-1 for it (truthy) and the row reads as "checked" even
+                    // though the user never ticked it — which falsely inflated the
+                    // video-track count and blocked legitimate selections. Setting
+                    // it here guarantees every row starts unchecked AND announces a
+                    // consistent "unchecked" state to the screen reader on arrival.
+                    ListView_SetCheckState(hList, idx, FALSE);
                     ++row;
                 }
             }
@@ -3111,7 +3121,15 @@ static INT_PTR CALLBACK YtFormatsDialogProc(HWND hwnd, UINT msg, WPARAM wParam, 
                     if (s_formats) {
                         int n = static_cast<int>(s_formats->size());
                         for (int i = 0; i < n; ++i) {
-                            if (ListView_GetCheckState(hList, i)) ticked.push_back(i);
+                            // Test the state image EXPLICITLY (checked == image 2,
+                            // 0x2000). ListView_GetCheckState returns
+                            // (stateImage>>12)-1, so an un-initialized row (image 0)
+                            // yields (UINT)-1 which is truthy — a plain
+                            // `if (GetCheckState(...))` would wrongly count it.
+                            UINT st = ListView_GetItemState(hList, i,
+                                                            LVIS_STATEIMAGEMASK);
+                            if ((st & LVIS_STATEIMAGEMASK) == INDEXTOSTATEIMAGEMASK(2))
+                                ticked.push_back(i);
                         }
                     }
                     if (ticked.empty()) {
