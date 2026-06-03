@@ -1,3 +1,6 @@
+2.11
+Correction : avec l'option « Mémoriser l'état de lecture à la fermeture », le titre de la fenêtre affiche de nouveau le nom du fichier repris au démarrage (au lieu de seulement « MediaAccess »). L'annonce du lecteur d'écran sur la fenêtre est aussi rétablie dans ce cas. Signalé par redlaf.
+
 2.10
 Téléchargement YouTube avec options : vous pouvez désormais cocher plusieurs pistes dans la liste et les télécharger ensemble dans un seul fichier. Pratique pour les vidéos multilingues : cochez la vidéo et deux pistes audio (par exemple français et anglais) pour obtenir un fichier .mkv contenant les deux langues, sélectionnables à la lecture. Dans la liste, appuyez sur Espace pour cocher/décocher une ligne, puis Entrée pour télécharger. Si vous ne cochez rien, la ligne sélectionnée est téléchargée comme avant. Pour les vidéos qui proposent réellement plusieurs langues audio, la liste indique maintenant la langue de chaque piste (par exemple « audio seul (Français) »). Suggéré par redlaf.
 

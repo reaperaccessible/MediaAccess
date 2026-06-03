@@ -1995,6 +1995,47 @@ void SpeakTotal() {
 // callback when auto-advance is disabled, so the next track is queued but
 // playback halts.
 //
+// v2.11 — shared now-playing/title assignment for the current playlist entry.
+// Extracted from PlayTrack so the startup state-restore path (LoadPlaybackState,
+// which opens via LoadFile and never calls PlayTrack) gives the window title and
+// the now-playing-on-focus announcement the same state a normal play would.
+// Local file -> SourceType::Local + tag title / filename fallback (localized
+// placeholder guard). URL -> RadioUrl with empty source UNLESS a typed source
+// (radio favourite / podcast / YouTube) was already preset by the caller, in
+// which case we only refresh the title from the tags/ICY we have now.
+void ApplyNowPlayingForCurrentTrack() {
+    if (g_currentTrack < 0 ||
+        g_currentTrack >= static_cast<int>(g_playlist.size())) {
+        return;
+    }
+    const std::wstring& path = g_playlist[g_currentTrack];
+    bool isUrl = IsURL(path.c_str());
+    if (!isUrl) {
+        // Local audio file: source is "(Local)" (resolved at display time via
+        // T()), item is the tag title or filename fallback. Compare against the
+        // LOCALISED placeholders (T()), not the English literals, so the French
+        // build does not show "Aucune lecture en cours" as the item (v1.78).
+        std::wstring item = GetTagTitle();
+        if (item.empty() ||
+            item == L"No title" ||
+            item == L"Nothing playing" ||
+            item == T("No title") ||
+            item == T("Nothing playing")) {
+            item = GetFileName(path);
+        }
+        SetNowPlaying(SourceType::Local, L"", item);
+    } else {
+        // URL: if no typed source was preset, fall back to RadioUrl with an
+        // empty source (icy-name fills in later via WM_META_CHANGED).
+        if (g_nowPlayingType == SourceType::None ||
+            g_nowPlayingType == SourceType::Local) {
+            SetNowPlaying(SourceType::RadioUrl, L"", L"");
+        } else {
+            UpdateWindowTitle();
+        }
+    }
+}
+
 // g_isBusy gate prevents re-entrancy from rapid Next/Prev presses.
 void PlayTrack(int index, bool autoPlay) {
     if (g_isBusy) return;  // Prevent re-entrancy
@@ -2043,44 +2084,10 @@ void PlayTrack(int index, bool autoPlay) {
         // PlayTrack so g_nowPlayingType is already set. For local files
         // the callers don't bother — PlayTrack defaults to Local here
         // (and overrides any stale RadioFavorite/Podcast/YouTube state
-        // left over from the previous track). For URLs we leave the
-        // caller's type intact; we just refresh the item from tags in
-        // case nothing is set yet.
-        const std::wstring& path = g_playlist[g_currentTrack];
-        bool isUrl = IsURL(path.c_str());
-        if (!isUrl) {
-            // Local audio file: source is "(Local)" (resolved at display
-            // time via T()), item is the tag title or filename fallback.
-            // v1.78 — Compare against the LOCALISED placeholder strings
-            // (T()), not the English literals. In French, GetTagTitle()
-            // can return "Aucune lecture en cours" (= "Nothing playing"
-            // localised) for a video file whose stream is not yet
-            // available to BASS; comparing against the English literal
-            // missed that case and the user-visible title ended up being
-            // the placeholder itself instead of the file name.
-            std::wstring item = GetTagTitle();
-            if (item.empty() ||
-                item == L"No title" ||
-                item == L"Nothing playing" ||
-                item == T("No title") ||
-                item == T("Nothing playing")) {
-                item = GetFileName(path);
-            }
-            SetNowPlaying(SourceType::Local, L"", item);
-        } else {
-            // URL: if the caller didn't preset a source type, we have no
-            // station/podcast/channel name to show — fall back to RadioUrl
-            // with an empty source (the icy-name from BASS will fill in
-            // via WM_META_CHANGED if available).
-            if (g_nowPlayingType == SourceType::None ||
-                g_nowPlayingType == SourceType::Local) {
-                SetNowPlaying(SourceType::RadioUrl, L"", L"");
-            } else {
-                // Caller preset a typed source — refresh the item so the
-                // window title shows the ICY/tag info we have now.
-                UpdateWindowTitle();
-            }
-        }
+        // left over from the previous track). v2.11 — extracted into a
+        // shared helper so the startup state-restore path (which loads via
+        // LoadFile, not PlayTrack) sets the same now-playing/title state.
+        ApplyNowPlayingForCurrentTrack();
     }
 
     // Announce track change if setting is enabled

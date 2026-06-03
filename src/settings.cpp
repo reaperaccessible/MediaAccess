@@ -876,6 +876,12 @@ void LoadPlaybackState() {
                         SeekToPosition(position);
                     }
                 }
+                // v2.11 (issue #4) — restore opens via LoadFile, which does NOT
+                // set the now-playing state PlayTrack normally would, so the
+                // window title stayed "MediaAccess" and the now-playing-on-focus
+                // announcement was empty. Apply it here (also fixes the focus
+                // announcement after a resumed session).
+                ApplyNowPlayingForCurrentTrack();
             }
             return;
         }
@@ -902,6 +908,10 @@ void LoadPlaybackState() {
                     SeekToPosition(position);
                 }
             }
+            // v2.11 (issue #4) — see the playlist branch above: set now-playing
+            // so the window title shows the restored item instead of just
+            // "MediaAccess".
+            ApplyNowPlayingForCurrentTrack();
         }
     }
 }

@@ -58,6 +58,13 @@ void PrevTrack();
 void PlayTrack(int index, bool autoPlay = true);
 void ToggleRepeatMode();
 
+// v2.11 — set the now-playing globals (and refresh the window title) for the
+// current playlist entry, based on whether it is a local file or a URL. Shared
+// by PlayTrack (normal playback) and the startup state-restore path so the two
+// can't drift. Local file -> SourceType::Local + tag/filename; URL -> RadioUrl
+// (icy/tag fills the item later) unless a typed source was already preset.
+void ApplyNowPlayingForCurrentTrack();
+
 // Track end callback
 void CALLBACK OnTrackEnd(HSYNC handle, DWORD channel, DWORD data, void* user);
 
