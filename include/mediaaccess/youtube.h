@@ -81,6 +81,10 @@ struct YtFormat {
     std::wstring acodec;       // audio codec, "none" for video-only streams
     std::wstring sizeStr;      // human-readable size: "12.3 MB" or "" if unknown
     std::wstring note;         // yt-dlp format_note (e.g. "720p60", "DRC")
+    std::wstring language;     // ISO 639-1 code from JSON "language" ("fr", "en-US"),
+                               // empty when YouTube exposes no per-track language
+                               // (the common single-language case). Used to label
+                               // audio tracks on genuine multi-language videos.
     int height = 0;            // pixel height (0 = audio-only / unknown), used for sorting
     long long filesize = 0;    // size in bytes (0 = unknown)
 };

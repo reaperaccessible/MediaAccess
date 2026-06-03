@@ -20,6 +20,7 @@
 #include <sstream>
 #include <algorithm>
 #include <vector>
+#include <set>
 #include <atomic>    // B (v2.00): g_ytLastFailureKey is shared across threads
 #include <cwctype>   // towupper / towlower for filename + stderr classification
 
@@ -358,8 +359,21 @@ static std::wstring ParseJsonString(const std::wstring& json, const std::wstring
     size_t colonPos = json.find(L':', keyPos + searchKey.length());
     if (colonPos == std::wstring::npos) return L"";
 
-    size_t startQuote = json.find(L'"', colonPos + 1);
-    if (startQuote == std::wstring::npos) return L"";
+    // The value must actually be a STRING. For a non-string value (null, a
+    // number, true/false), the first non-space character after the colon is not
+    // a quote. Without this guard, json.find('"') below would skip past a `null`
+    // value and grab the opening quote of the NEXT key — returning a wrong
+    // value. (YouTube's "language" field is null on ordinary single-language
+    // videos, which is exactly when this would bite.)
+    size_t valPos = colonPos + 1;
+    while (valPos < json.length() &&
+           (json[valPos] == L' '  || json[valPos] == L'\t' ||
+            json[valPos] == L'\n' || json[valPos] == L'\r')) {
+        ++valPos;
+    }
+    if (valPos >= json.length() || json[valPos] != L'"') return L"";
+
+    size_t startQuote = valPos;
 
     // m1 (v2.03): find the CLOSING quote. A quote is only the terminator if it is
     // NOT escaped. The previous test (json[endQuote-1] != '\\') wrongly treated a
@@ -1562,6 +1576,35 @@ static bool IsAudioOnly(const YtFormat& f) {
            !(f.acodec == L"none" || f.acodec.empty());
 }
 
+// v2.10 — localized display name for an ISO 639-1 language code, used to label
+// audio tracks of multi-language videos in the format picker. Returns "" for an
+// empty code; an unknown code falls back to its upper-cased form so the user
+// still sees a distinct marker. Covers the languages YouTube's multi-audio
+// feature actually ships. T() is read-only at runtime, so this is safe to call
+// from the format worker thread.
+static std::wstring LanguageDisplayName(const std::wstring& code) {
+    if (code.empty()) return L"";
+    static const struct { const wchar_t* iso; const char* en; } kLangs[] = {
+        {L"en","English"},    {L"fr","French"},     {L"es","Spanish"},
+        {L"de","German"},     {L"it","Italian"},    {L"pt","Portuguese"},
+        {L"ru","Russian"},    {L"ja","Japanese"},   {L"ko","Korean"},
+        {L"zh","Chinese"},    {L"ar","Arabic"},     {L"hi","Hindi"},
+        {L"nl","Dutch"},      {L"pl","Polish"},     {L"tr","Turkish"},
+        {L"sv","Swedish"},    {L"id","Indonesian"}, {L"vi","Vietnamese"},
+        {L"th","Thai"},       {L"uk","Ukrainian"},  {L"cs","Czech"},
+        {L"el","Greek"},      {L"he","Hebrew"},     {L"ro","Romanian"},
+        {L"hu","Hungarian"},  {L"da","Danish"},     {L"fi","Finnish"},
+        {L"no","Norwegian"},  {L"nb","Norwegian"},  {L"ms","Malay"},
+        {L"bn","Bengali"},    {L"ta","Tamil"},      {L"te","Telugu"},
+    };
+    for (const auto& l : kLangs) {
+        if (code == l.iso) return T(l.en);
+    }
+    std::wstring up = code;
+    for (wchar_t& c : up) if (c >= L'a' && c <= L'z') c = c - L'a' + L'A';
+    return up;
+}
+
 // Query yt-dlp for all formats of a video and parse them, best first.
 std::vector<YtFormat> ParseFormatsArray(const std::wstring& videoId) {
     std::vector<YtFormat> formats;
@@ -1612,6 +1655,14 @@ std::vector<YtFormat> ParseFormatsArray(const std::wstring& videoId) {
         f.vcodec = ParseJsonString(obj, L"vcodec");
         f.acodec = ParseJsonString(obj, L"acodec");
         f.note   = ParseJsonString(obj, L"format_note");
+        // v2.10 — per-track audio language (multi-language videos). Empty for
+        // ordinary single-language videos (the JSON value is null there, now
+        // safely returned as ""). Keep only the primary subtag: "en-US" -> "en".
+        f.language = ParseJsonString(obj, L"language");
+        {
+            size_t dash = f.language.find(L'-');
+            if (dash != std::wstring::npos) f.language.erase(dash);
+        }
 
         // v1.97 — Skip non-media "formats" that have neither audio nor video.
         // YouTube exposes storyboard entries (sb0/sb1/..., ext=mhtml — grids of
@@ -3030,6 +3081,21 @@ static INT_PTR CALLBACK YtFormatsDialogProc(HWND hwnd, UINT msg, WPARAM wParam, 
             // speaks something meaningful. Held in a std::wstring (T() returns a
             // wide string) so the c_str() outlives every ListView_SetItemText call.
             const std::wstring noneLabel = T("none");
+
+            // v2.10 — only label audio-track languages when the video genuinely
+            // offers MORE THAN ONE language (YouTube's multi-language audio
+            // feature). On the common single-language video the "language" field
+            // is null/uniform, and a per-row language would be redundant noise for
+            // a screen-reader user. Decide once by counting DISTINCT non-empty
+            // language codes across the formats.
+            bool showLang = false;
+            if (s_formats) {
+                std::set<std::wstring> langs;
+                for (const auto& f : *s_formats)
+                    if (!f.language.empty()) langs.insert(f.language);
+                showLang = langs.size() >= 2;
+            }
+
             if (s_formats) {
                 int row = 0;
                 for (const auto& f : *s_formats) {
@@ -3041,8 +3107,16 @@ static INT_PTR CALLBACK YtFormatsDialogProc(HWND hwnd, UINT msg, WPARAM wParam, 
                     it.pszText = const_cast<wchar_t*>(f.ext.c_str());
                     int idx = ListView_InsertItem(hList, &it);
 
+                    // Resolution cell, with the localized language appended for
+                    // multi-language videos, e.g. "audio only (French)". Built in
+                    // a loop-local kept alive across the synchronous SetItemText.
+                    std::wstring resCell = f.resolution;
+                    if (showLang && !f.language.empty()) {
+                        std::wstring ln = LanguageDisplayName(f.language);
+                        if (!ln.empty()) resCell += L" (" + ln + L")";
+                    }
                     ListView_SetItemText(hList, idx, 1,
-                        const_cast<wchar_t*>(f.resolution.c_str()));
+                        const_cast<wchar_t*>(resCell.c_str()));
                     ListView_SetItemText(hList, idx, 2,
                         const_cast<wchar_t*>(f.vcodec == L"none" ? noneLabel.c_str() : f.vcodec.c_str()));
                     ListView_SetItemText(hList, idx, 3,

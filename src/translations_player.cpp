@@ -978,6 +978,76 @@ void RegisterPlayerTranslations() {
     AddTranslation("en", "No formats available", L"No formats available");
     AddTranslation("fr", "No formats available", L"Aucun format disponible");
 
+    // v2.10 — audio-track language names for the format picker (multi-language
+    // videos). English key -> localized name; only the common YouTube languages.
+    // The "en" identity entries are REQUIRED: T() falls back to the other
+    // language when the current one lacks a key, so without an explicit "en"
+    // entry, English users would hear the French name.
+    AddTranslation("en", "English", L"English");
+    AddTranslation("en", "French", L"French");
+    AddTranslation("en", "Spanish", L"Spanish");
+    AddTranslation("en", "German", L"German");
+    AddTranslation("en", "Italian", L"Italian");
+    AddTranslation("en", "Portuguese", L"Portuguese");
+    AddTranslation("en", "Russian", L"Russian");
+    AddTranslation("en", "Japanese", L"Japanese");
+    AddTranslation("en", "Korean", L"Korean");
+    AddTranslation("en", "Chinese", L"Chinese");
+    AddTranslation("en", "Arabic", L"Arabic");
+    AddTranslation("en", "Hindi", L"Hindi");
+    AddTranslation("en", "Dutch", L"Dutch");
+    AddTranslation("en", "Polish", L"Polish");
+    AddTranslation("en", "Turkish", L"Turkish");
+    AddTranslation("en", "Swedish", L"Swedish");
+    AddTranslation("en", "Indonesian", L"Indonesian");
+    AddTranslation("en", "Vietnamese", L"Vietnamese");
+    AddTranslation("en", "Thai", L"Thai");
+    AddTranslation("en", "Ukrainian", L"Ukrainian");
+    AddTranslation("en", "Czech", L"Czech");
+    AddTranslation("en", "Greek", L"Greek");
+    AddTranslation("en", "Hebrew", L"Hebrew");
+    AddTranslation("en", "Romanian", L"Romanian");
+    AddTranslation("en", "Hungarian", L"Hungarian");
+    AddTranslation("en", "Danish", L"Danish");
+    AddTranslation("en", "Finnish", L"Finnish");
+    AddTranslation("en", "Norwegian", L"Norwegian");
+    AddTranslation("en", "Malay", L"Malay");
+    AddTranslation("en", "Bengali", L"Bengali");
+    AddTranslation("en", "Tamil", L"Tamil");
+    AddTranslation("en", "Telugu", L"Telugu");
+    AddTranslation("fr", "English", L"Anglais");
+    AddTranslation("fr", "French", L"Français");
+    AddTranslation("fr", "Spanish", L"Espagnol");
+    AddTranslation("fr", "German", L"Allemand");
+    AddTranslation("fr", "Italian", L"Italien");
+    AddTranslation("fr", "Portuguese", L"Portugais");
+    AddTranslation("fr", "Russian", L"Russe");
+    AddTranslation("fr", "Japanese", L"Japonais");
+    AddTranslation("fr", "Korean", L"Coréen");
+    AddTranslation("fr", "Chinese", L"Chinois");
+    AddTranslation("fr", "Arabic", L"Arabe");
+    AddTranslation("fr", "Hindi", L"Hindi");
+    AddTranslation("fr", "Dutch", L"Néerlandais");
+    AddTranslation("fr", "Polish", L"Polonais");
+    AddTranslation("fr", "Turkish", L"Turc");
+    AddTranslation("fr", "Swedish", L"Suédois");
+    AddTranslation("fr", "Indonesian", L"Indonésien");
+    AddTranslation("fr", "Vietnamese", L"Vietnamien");
+    AddTranslation("fr", "Thai", L"Thaï");
+    AddTranslation("fr", "Ukrainian", L"Ukrainien");
+    AddTranslation("fr", "Czech", L"Tchèque");
+    AddTranslation("fr", "Greek", L"Grec");
+    AddTranslation("fr", "Hebrew", L"Hébreu");
+    AddTranslation("fr", "Romanian", L"Roumain");
+    AddTranslation("fr", "Hungarian", L"Hongrois");
+    AddTranslation("fr", "Danish", L"Danois");
+    AddTranslation("fr", "Finnish", L"Finnois");
+    AddTranslation("fr", "Norwegian", L"Norvégien");
+    AddTranslation("fr", "Malay", L"Malais");
+    AddTranslation("fr", "Bengali", L"Bengali");
+    AddTranslation("fr", "Tamil", L"Tamoul");
+    AddTranslation("fr", "Telugu", L"Télougou");
+
     // Async YouTube subsystem (v1.98) — background formats + downloads
     AddTranslation("en", "Fetching formats", L"Fetching formats, please wait...");
     AddTranslation("fr", "Fetching formats", L"Récupération des formats, veuillez patienter...");
