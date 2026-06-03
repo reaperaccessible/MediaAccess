@@ -1752,6 +1752,70 @@ bool YouTubeDownloadFormat(const std::wstring& videoId,
     return FindProducedFile(outBase, kFormatExts, outFilePath);
 }
 
+// Download SEVERAL streams of one video and mux them into ONE .mkv (v2.10).
+// See the header for the contract. This is the multi-select counterpart of
+// YouTubeDownloadFormat: the user ticked >=2 formats in the picker (typically
+// one video + one or more alternate-language audio tracks), and we keep ALL of
+// them in a single file via yt-dlp's --audio-multistreams/--video-multistreams.
+bool YouTubeDownloadMultiFormat(const std::wstring& videoId,
+                                const std::wstring& title,
+                                const std::vector<std::wstring>& formatIds,
+                                std::wstring& outFilePath) {
+    if (!IsValidVideoId(videoId)) return false;
+    if (!IsYtdlpAvailable()) return false;
+    if (formatIds.size() < 2) return false;  // caller routes singles elsewhere
+
+    // Validate EVERY id before building the selector, then join with '+'. Each id
+    // is whitelisted to [A-Za-z0-9_+.-] (IsValidFormatId), and '+' is the literal
+    // yt-dlp stream-combine operator — no shell metacharacter can slip in.
+    std::wstring selector;
+    std::wstring idTag;  // for a disambiguating, filename-legal suffix
+    for (size_t i = 0; i < formatIds.size(); ++i) {
+        if (!IsValidFormatId(formatIds[i])) return false;
+        if (i) { selector += L'+'; idTag += L'+'; }
+        selector += formatIds[i];
+        idTag    += formatIds[i];
+    }
+
+    std::wstring safeId = SanitizeForCommandLine(videoId);
+    std::wstring dir = GetDownloadsTargetDir();
+    // Bracketed id list keeps each combination in its own file (no silent
+    // --no-overwrites skip across different selections). '+' is legal in a
+    // Windows filename; the title portion is sanitized as usual.
+    std::wstring base = SanitizeForFilename(title, safeId) + L" [" + idTag + L"]";
+    std::wstring outBase = dir + L"\\" + base;
+    std::wstring outArg = outBase + L".%(ext)s";
+
+    std::wstring url = L"https://www.youtube.com/watch?v=" + safeId;
+    std::wstring ffmpeg = GetFfmpegLocation();
+
+    // --audio-multistreams / --video-multistreams: without them yt-dlp collapses
+    // the selector to AT MOST one audio + one video, silently dropping the extra
+    // language track the user explicitly asked for. Matroska (.mkv) is the merge
+    // container: it holds any number of audio tracks and any codec (Opus included,
+    // which mp4 cannot), so no selection the picker allows can fail to mux.
+    std::wstring args = L"-f \"" + selector + L"\" "
+                        L"--audio-multistreams --video-multistreams "
+                        L"--no-playlist --no-progress --no-warnings --quiet "
+                        L"--no-overwrites --embed-chapters "
+                        L"--merge-output-format mkv ";
+    if (!ffmpeg.empty()) {
+        args += L"--ffmpeg-location \"" + ffmpeg + L"\" ";
+    }
+    args += L"-o \"" + outArg + L"\" \"" + url + L"\"";
+
+    int exitCode = 0;
+    std::wstring stderrText;
+    RunYtdlp(args, YTDLP_DOWNLOAD_TIMEOUT_MS, &exitCode, &stderrText);
+
+    if (exitCode != 0) {
+        std::wstring partial;
+        FindProducedFile(outBase, kFormatExts, partial);
+        return HandleDownloadFailure(exitCode, stderrText, partial);
+    }
+    return FindProducedFile(outBase, kFormatExts, outFilePath);
+}
+
 // Wipes every cached audio file. Returns the count removed.
 int ClearYouTubeCache() {
     std::wstring dir = GetYouTubeCacheDir();
@@ -2587,7 +2651,7 @@ void YouTubeOnLoadMoreDone(LPARAM lParam) {
 static std::atomic<bool> g_ytDownloading{false};
 
 // Which download engine the worker should invoke.
-enum class YtDlKind { Permanent, Format };
+enum class YtDlKind { Permanent, Format, MultiFormat };
 
 // Request handed to the download worker. Heap-allocated, owned by the worker,
 // which copies the success/failure into a YtDownloadResult before exiting.
@@ -2597,6 +2661,7 @@ struct YtDownloadRequest {
     std::wstring title;
     std::wstring formatId;     // Format kind only
     bool videoOnly = false;    // Format kind only
+    std::vector<std::wstring> formatIds;  // MultiFormat kind only (>=2 ids)
 };
 
 // Result posted back to the UI. Heap-allocated by the worker, freed by the
@@ -2620,7 +2685,10 @@ static DWORD WINAPI DownloadThreadProc(LPVOID arg) {
     // M1: clear the global failure key before the call so a stale key from an
     // earlier query can't be misattributed to this download.
     g_ytLastFailureKey = nullptr;
-    if (req->kind == YtDlKind::Format) {
+    if (req->kind == YtDlKind::MultiFormat) {
+        ok = YouTubeDownloadMultiFormat(req->videoId, req->title,
+                                        req->formatIds, saved);
+    } else if (req->kind == YtDlKind::Format) {
         ok = YouTubeDownloadFormat(req->videoId, req->title, req->formatId,
                                    req->videoOnly, saved);
     } else {
@@ -2833,7 +2901,9 @@ static DWORD WINAPI FormatsThreadProc(LPVOID arg) {
 static bool ShowFormatPickerFromList(HWND parent,
                                      const std::vector<YtFormat>& formats,
                                      std::wstring& chosenFormatId,
-                                     bool& chosenVideoOnly);
+                                     bool& chosenVideoOnly,
+                                     std::vector<std::wstring>& chosenFormatIds,
+                                     bool& chosenMulti);
 
 // Play selected result
 static void PlaySelected(HWND hwnd) {
@@ -2908,6 +2978,12 @@ static std::wstring g_ytfChosenFormatId;
 // True when the chosen format is video-only (acodec == "none"); the download
 // path then merges in the best audio track.
 static bool g_ytfChosenVideoOnly = false;
+// v2.10 — multi-select (redlaf): when the user TICKS two or more rows, these
+// hold every chosen format id and g_ytfChosenMulti is set. The single-row path
+// (g_ytfChosenFormatId / g_ytfChosenVideoOnly) is used when exactly one stream
+// is selected so its smart video-only +bestaudio merge is preserved.
+static std::vector<std::wstring> g_ytfChosenFormatIds;
+static bool g_ytfChosenMulti = false;
 
 static INT_PTR CALLBACK YtFormatsDialogProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
     static const std::vector<YtFormat>* s_formats = nullptr;
@@ -2918,8 +2994,13 @@ static INT_PTR CALLBACK YtFormatsDialogProc(HWND hwnd, UINT msg, WPARAM wParam, 
             s_formats = reinterpret_cast<const std::vector<YtFormat>*>(lParam);
 
             HWND hList = GetDlgItem(hwnd, IDC_YTF_LIST);
+            // v2.10 — LVS_EX_CHECKBOXES lets the user TICK several streams
+            // (e.g. one video + two language audio tracks) with the Space bar;
+            // NVDA/JAWS announce the "checked/unchecked" state automatically.
+            // Enter still confirms. If NOTHING is ticked, the focused row is
+            // downloaded — the original single-pick behaviour is preserved.
             ListView_SetExtendedListViewStyle(
-                hList, LVS_EX_FULLROWSELECT | LVS_EX_LABELTIP);
+                hList, LVS_EX_FULLROWSELECT | LVS_EX_LABELTIP | LVS_EX_CHECKBOXES);
 
             // Columns
             for (int c = 0; c < static_cast<int>(_countof(kYtfColumns)); ++c) {
@@ -2976,7 +3057,7 @@ static INT_PTR CALLBACK YtFormatsDialogProc(HWND hwnd, UINT msg, WPARAM wParam, 
             const int nCount =
                 s_formats ? static_cast<int>(s_formats->size()) : 0;
             std::wstring title =
-                FormatCount(T("Choose a format to download — %d formats"), nCount);
+                FormatCount(T("Choose formats — Space to tick one or more, Enter to download — %d formats"), nCount);
             SetWindowTextW(hwnd, title.c_str());
             // Safety net: if NVDA already cached the old caption, force a reread.
             NotifyWinEvent(EVENT_OBJECT_NAMECHANGE, hwnd, OBJID_WINDOW,
@@ -3009,16 +3090,48 @@ static INT_PTR CALLBACK YtFormatsDialogProc(HWND hwnd, UINT msg, WPARAM wParam, 
             switch (LOWORD(wParam)) {
                 case IDOK: {
                     HWND hList = GetDlgItem(hwnd, IDC_YTF_LIST);
-                    int sel = ListView_GetNextItem(hList, -1, LVNI_SELECTED);
-                    if (sel < 0) sel = 0;  // fall back to first
-                    if (s_formats && sel >= 0 &&
-                        sel < static_cast<int>(s_formats->size())) {
-                        g_ytfChosenFormatId = (*s_formats)[sel].formatId;
-                        g_ytfChosenVideoOnly = IsVideoOnly((*s_formats)[sel]);
-                        EndDialog(hwnd, IDOK);
-                    } else {
-                        EndDialog(hwnd, IDCANCEL);
+                    g_ytfChosenFormatIds.clear();
+                    g_ytfChosenMulti = false;
+                    g_ytfChosenFormatId.clear();
+                    g_ytfChosenVideoOnly = false;
+
+                    // v2.10 — gather every TICKED row, in display order. With no
+                    // tick, fall back to the focused/selected row (original
+                    // single-pick behaviour).
+                    std::vector<int> ticked;
+                    if (s_formats) {
+                        int n = static_cast<int>(s_formats->size());
+                        for (int i = 0; i < n; ++i) {
+                            if (ListView_GetCheckState(hList, i)) ticked.push_back(i);
+                        }
                     }
+                    if (ticked.empty()) {
+                        int sel = ListView_GetNextItem(hList, -1, LVNI_SELECTED);
+                        if (sel < 0) sel = 0;
+                        if (s_formats && sel < static_cast<int>(s_formats->size())) {
+                            ticked.push_back(sel);
+                        }
+                    }
+
+                    if (!s_formats || ticked.empty()) {
+                        EndDialog(hwnd, IDCANCEL);
+                        return TRUE;
+                    }
+
+                    if (ticked.size() == 1) {
+                        // Single stream: keep the smart video-only +bestaudio
+                        // merge of the existing YouTubeDownloadFormat path.
+                        const YtFormat& f = (*s_formats)[ticked[0]];
+                        g_ytfChosenFormatId  = f.formatId;
+                        g_ytfChosenVideoOnly = IsVideoOnly(f);
+                    } else {
+                        // Two or more streams: mux them all into one .mkv.
+                        for (int idx : ticked) {
+                            g_ytfChosenFormatIds.push_back((*s_formats)[idx].formatId);
+                        }
+                        g_ytfChosenMulti = true;
+                    }
+                    EndDialog(hwnd, IDOK);
                     return TRUE;
                 }
                 case IDCANCEL:
@@ -3037,17 +3150,28 @@ static INT_PTR CALLBACK YtFormatsDialogProc(HWND hwnd, UINT msg, WPARAM wParam, 
 static bool ShowFormatPickerFromList(HWND parent,
                                      const std::vector<YtFormat>& formats,
                                      std::wstring& chosenFormatId,
-                                     bool& chosenVideoOnly) {
+                                     bool& chosenVideoOnly,
+                                     std::vector<std::wstring>& chosenFormatIds,
+                                     bool& chosenMulti) {
     if (formats.empty()) return false;
     g_ytfChosenFormatId.clear();
     g_ytfChosenVideoOnly = false;
+    g_ytfChosenFormatIds.clear();
+    g_ytfChosenMulti = false;
     INT_PTR r = DialogBoxParamW(GetModuleHandle(nullptr),
                                 MAKEINTRESOURCEW(IDD_YT_FORMATS),
                                 parent, YtFormatsDialogProc,
                                 reinterpret_cast<LPARAM>(&formats));
-    if (r == IDOK && !g_ytfChosenFormatId.empty()) {
+    if (r != IDOK) return false;
+    if (g_ytfChosenMulti && g_ytfChosenFormatIds.size() >= 2) {
+        chosenFormatIds = g_ytfChosenFormatIds;
+        chosenMulti = true;
+        return true;
+    }
+    if (!g_ytfChosenFormatId.empty()) {
         chosenFormatId = g_ytfChosenFormatId;
         chosenVideoOnly = g_ytfChosenVideoOnly;
+        chosenMulti = false;
         return true;
     }
     return false;
@@ -3078,14 +3202,22 @@ void YouTubeOnFormatsReady(LPARAM lParam) {
 
     std::wstring formatId;
     bool videoOnly = false;
-    bool picked = ShowFormatPickerFromList(dlg, res->formats, formatId, videoOnly);
+    std::vector<std::wstring> formatIds;
+    bool multi = false;
+    bool picked = ShowFormatPickerFromList(dlg, res->formats, formatId, videoOnly,
+                                           formatIds, multi);
     if (picked) {
         YtDownloadRequest* req = new YtDownloadRequest;
-        req->kind      = YtDlKind::Format;
         req->videoId   = res->videoId;
         req->title     = res->title;
-        req->formatId  = formatId;
-        req->videoOnly = videoOnly;
+        if (multi) {
+            req->kind       = YtDlKind::MultiFormat;
+            req->formatIds  = formatIds;
+        } else {
+            req->kind       = YtDlKind::Format;
+            req->formatId   = formatId;
+            req->videoOnly  = videoOnly;
+        }
         StartDownloadAsync(req);
         // v2.08 — Do NOT announce "Download started" here. The modal picker has
         // just closed and focus is returning to the results list; dismissing the

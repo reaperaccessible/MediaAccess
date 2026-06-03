@@ -115,6 +115,22 @@ bool YouTubeDownloadFormat(const std::wstring& videoId,
                            bool videoOnly,
                            std::wstring& outFilePath);
 
+// Download SEVERAL streams of one video and mux them into a single file (v2.10,
+// redlaf's request: e.g. one video track + two audio tracks for a multilingual
+// video). The formatIds are each validated against the same strict whitelist as
+// YouTubeDownloadFormat; any invalid id makes the function return false. The ids
+// are joined with '+' into one yt-dlp selector and downloaded with
+// --audio-multistreams / --video-multistreams so yt-dlp keeps EVERY selected
+// stream instead of collapsing to one of each kind. The output container is
+// Matroska (.mkv) because it carries any number of audio tracks and any codec
+// combination (e.g. Opus audio that mp4 cannot hold). On success outFilePath
+// holds the absolute path of the produced file. Use YouTubeDownloadFormat for
+// the single-stream case (it keeps the smart video-only +bestaudio fallback).
+bool YouTubeDownloadMultiFormat(const std::wstring& videoId,
+                                const std::wstring& title,
+                                const std::vector<std::wstring>& formatIds,
+                                std::wstring& outFilePath);
+
 // Wipe every file from the YouTube audio cache. Returns the count removed.
 int ClearYouTubeCache();
 

@@ -588,6 +588,10 @@
 <p>The list shows, in columns: extension, resolution, video codec, audio codec, estimated size and a note. Formats are sorted best-first. Navigate with the arrow keys, choose a format and press <kbd>Enter</kbd> (or the dialog's Download button).</p>
 <p>You can choose an audio-only format (for example M4A) or a video (for example MP4 in various resolutions: 1080p, 720p, etc.).</p>
 <p>If you choose a video-only format (no sound), MediaAccess automatically adds the best audio track and merges the two. The final file therefore has both picture and sound.</p>
+<h4>Tick several tracks (multilingual videos)</h4>
+<p>Each row in the list has a check box. Press <kbd>Space</kbd> to tick or untick the current row. You can tick several tracks, then press <kbd>Enter</kbd> to download them all together into a <strong>single file</strong>.</p>
+<p>This is handy for videos that offer several audio tracks (for example a French version and an English version): tick the video track and the two audio tracks you want. MediaAccess muxes everything into one <code>.mkv</code> file containing both languages, which you can then select during playback with <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>A</kbd> (switch audio track).</p>
+<p>If you tick nothing, the selected row alone is downloaded — exactly as before.</p>
 <p>Conversion (MP3, FLAC, video merge) is done automatically by MediaAccess. ffmpeg is bundled, nothing to install.</p>
 <p>The download folder is the same as for the simple button: <code>Downloads\MediaAccess\YouTube\</code> by default, or the folder configured in the YouTube options.</p>
 <p>Non-downloadable entries (storyboard thumbnail sheets) are not shown in the list.</p>

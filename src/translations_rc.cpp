@@ -786,6 +786,13 @@ void RegisterRcTranslations() {
     AddTranslation("fr", "Choose a format to download — %d formats",
                    L"Choisir un format à télécharger — %d formats");
 
+    // v2.10 — multi-select title. Teaches the Space-to-tick capability right in
+    // the dialog caption, which a screen reader reads first on open.
+    AddTranslation("en", "Choose formats — Space to tick one or more, Enter to download — %d formats",
+                   L"Choose formats — Space to tick one or more, Enter to download — %d formats");
+    AddTranslation("fr", "Choose formats — Space to tick one or more, Enter to download — %d formats",
+                   L"Choisir des formats — Espace pour cocher un ou plusieurs, Entrée pour télécharger — %d formats");
+
     // SysListView32 accessible name + column headers (looked up via T()).
     AddTranslation("en", "Formats", L"Formats");
     AddTranslation("fr", "Formats", L"Formats");
