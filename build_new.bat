@@ -139,6 +139,9 @@ if defined ISCC (
     REM Bundle yt-dlp.exe (YouTube) and FluidR3_GM.sf2 (MIDI) if present
     if exist "lib\yt-dlp.exe" copy /y "lib\yt-dlp.exe" "dist_temp\lib\" >nul 2>&1
     if exist "lib\FluidR3_GM.sf2" copy /y "lib\FluidR3_GM.sf2" "dist_temp\lib\" >nul 2>&1
+    REM Bundle ffmpeg/ffprobe (YouTube format download + merge) if present
+    if exist "lib\ffmpeg.exe" copy /y "lib\ffmpeg.exe" "dist_temp\lib\" >nul 2>&1
+    if exist "lib\ffprobe.exe" copy /y "lib\ffprobe.exe" "dist_temp\lib\" >nul 2>&1
     REM Regional default keymaps
     if exist "KeyMaps\*.MediaAccessKeyMap" (
         mkdir "dist_temp\KeyMaps" 2>nul

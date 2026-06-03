@@ -267,7 +267,13 @@
 #define IDC_YT_RESULTS      752
 #define IDC_YT_LOADMORE     753
 #define IDC_YT_DOWNLOAD     754
+#define IDC_YT_DOWNLOAD_OPTS 755    // v1.95 — "Download with options..." button in IDD_YOUTUBE
 #define IDM_HELP_CLEAR_YT_CACHE 119
+
+// v1.95 — Format picker dialog (Download with options)
+#define IDD_YT_FORMATS      756
+#define IDC_YTF_LIST        757
+#define IDC_YTF_HINT        758
 
 // YouTube tab in Options
 #define IDC_YTDLP_PATH      760

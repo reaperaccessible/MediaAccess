@@ -8,6 +8,7 @@
 #include "ui.h"           // v1.60 — SetNowPlaying / SourceType
 #include "resource.h"
 #include <wininet.h>
+#include <commctrl.h>
 #include <shlwapi.h>
 #include <shlobj.h>      // SHGetFolderPathW, CSIDL_*
 #include <knownfolders.h>// FOLDERID_Downloads
@@ -795,6 +796,279 @@ bool YouTubeDownloadPermanent(const std::wstring& videoId,
     return false;
 }
 
+// ============================================================
+// Format-aware download engine (v1.94+)
+// ============================================================
+
+// Resolve ffmpeg.exe. See header for the resolution order. Returns the full
+// path or an empty string when ffmpeg is nowhere to be found (the caller then
+// omits --ffmpeg-location and lets yt-dlp try whatever it can).
+std::wstring GetFfmpegLocation() {
+    // 1. Explicit INI override: [YouTube] FfmpegPath
+    if (!g_configPath.empty()) {
+        wchar_t iniBuf[MAX_PATH] = {0};
+        GetPrivateProfileStringW(L"YouTube", L"FfmpegPath", L"",
+                                 iniBuf, MAX_PATH, g_configPath.c_str());
+        if (iniBuf[0] != L'\0' && PathFileExistsW(iniBuf)) {
+            return std::wstring(iniBuf);
+        }
+    }
+
+    // 2. <app>\lib\ffmpeg.exe (same layout used for yt-dlp's bundled fallback).
+    wchar_t exePath[MAX_PATH] = {0};
+    GetModuleFileNameW(nullptr, exePath, MAX_PATH);
+    wchar_t* lastSlash = wcsrchr(exePath, L'\\');
+    if (lastSlash) {
+        *(lastSlash + 1) = L'\0';
+        std::wstring bundled = std::wstring(exePath) + L"lib\\ffmpeg.exe";
+        if (PathFileExistsW(bundled.c_str())) return bundled;
+    }
+
+    // 3. ffmpeg.exe on the system PATH.
+    wchar_t found[MAX_PATH] = {0};
+    if (SearchPathW(nullptr, L"ffmpeg.exe", nullptr, MAX_PATH, found, nullptr) > 0) {
+        return std::wstring(found);
+    }
+
+    // 4. Not found.
+    return L"";
+}
+
+// Format a byte count into a short human-readable string ("12.3 MB").
+// Returns "" when size is unknown (0).
+static std::wstring HumanFileSize(long long bytes) {
+    if (bytes <= 0) return L"";
+    const wchar_t* units[] = { L"B", L"KB", L"MB", L"GB", L"TB" };
+    double v = static_cast<double>(bytes);
+    int u = 0;
+    while (v >= 1024.0 && u < 4) { v /= 1024.0; ++u; }
+    wchar_t buf[32];
+    if (u == 0) {
+        swprintf(buf, 32, L"%lld %s", bytes, units[u]);
+    } else {
+        swprintf(buf, 32, L"%.1f %s", v, units[u]);
+    }
+    return std::wstring(buf);
+}
+
+// Parse a numeric JSON value (integer or float) that directly follows
+// "key": ... within a JSON object substring. Returns 0.0 when the key is
+// absent or the value is JSON null/string. Handles negatives and decimals.
+static double ParseJsonNumber(const std::wstring& json, const std::wstring& key) {
+    std::wstring searchKey = L"\"" + key + L"\"";
+    size_t keyPos = json.find(searchKey);
+    if (keyPos == std::wstring::npos) return 0.0;
+    size_t colonPos = json.find(L':', keyPos + searchKey.length());
+    if (colonPos == std::wstring::npos) return 0.0;
+    size_t p = colonPos + 1;
+    while (p < json.size() && (json[p] == L' ' || json[p] == L'\t')) ++p;
+    // Collect a numeric token. Stops at the first char that can't be part of
+    // an int/float literal (so "null"/strings yield 0).
+    std::wstring tok;
+    while (p < json.size()) {
+        wchar_t c = json[p];
+        if ((c >= L'0' && c <= L'9') || c == L'-' || c == L'+' ||
+            c == L'.' || c == L'e' || c == L'E') {
+            tok.push_back(c);
+            ++p;
+        } else {
+            break;
+        }
+    }
+    if (tok.empty()) return 0.0;
+    try {
+        return std::stod(tok);
+    } catch (...) {
+        return 0.0;
+    }
+}
+
+// Split a "%(formats)j" JSON array string into its top-level object substrings.
+// We don't have a full JSON parser, so we walk the array tracking brace depth
+// and string/escape state to find each {...} object. Robust against braces,
+// brackets and quotes appearing inside string values.
+static std::vector<std::wstring> SplitJsonObjects(const std::wstring& arr) {
+    std::vector<std::wstring> objs;
+    int depth = 0;
+    bool inStr = false;
+    bool esc = false;
+    size_t objStart = std::wstring::npos;
+    for (size_t i = 0; i < arr.size(); ++i) {
+        wchar_t c = arr[i];
+        if (inStr) {
+            if (esc)             { esc = false; }
+            else if (c == L'\\') { esc = true; }
+            else if (c == L'"')  { inStr = false; }
+            continue;
+        }
+        if (c == L'"') { inStr = true; continue; }
+        if (c == L'{') {
+            if (depth == 0) objStart = i;
+            ++depth;
+        } else if (c == L'}') {
+            if (depth > 0) --depth;
+            if (depth == 0 && objStart != std::wstring::npos) {
+                objs.push_back(arr.substr(objStart, i - objStart + 1));
+                objStart = std::wstring::npos;
+            }
+        }
+    }
+    return objs;
+}
+
+// Query yt-dlp for all formats of a video and parse them, best first.
+std::vector<YtFormat> ParseFormatsArray(const std::wstring& videoId) {
+    std::vector<YtFormat> formats;
+    if (!IsYtdlpAvailable()) return formats;
+
+    std::wstring safeId = SanitizeForCommandLine(videoId);
+    std::wstring url = L"https://www.youtube.com/watch?v=" + safeId;
+    // "%(formats)j" prints the full formats array as one compact JSON line.
+    // RunYtdlp accumulates stdout into a growing std::string (no fixed buffer
+    // cap), so a 30+ format JSON is captured in full.
+    std::wstring args = L"--no-warnings --no-playlist "
+                        L"--print \"%(formats)j\" \"" + url + L"\"";
+    std::wstring output = RunYtdlp(args);
+    if (output.empty()) return formats;
+
+    // Trim to the JSON array. yt-dlp may emit lines before it; find the first
+    // '[' and the matching tail ']'.
+    size_t lb = output.find(L'[');
+    size_t rb = output.rfind(L']');
+    if (lb == std::wstring::npos || rb == std::wstring::npos || rb <= lb) {
+        return formats;
+    }
+    std::wstring arr = output.substr(lb, rb - lb + 1);
+
+    for (const std::wstring& obj : SplitJsonObjects(arr)) {
+        YtFormat f;
+        f.formatId = ParseJsonString(obj, L"format_id");
+        if (f.formatId.empty()) continue;  // unusable without an id
+        f.ext    = ParseJsonString(obj, L"ext");
+        f.vcodec = ParseJsonString(obj, L"vcodec");
+        f.acodec = ParseJsonString(obj, L"acodec");
+        f.note   = ParseJsonString(obj, L"format_note");
+
+        // v1.97 — Skip non-media "formats" that have neither audio nor video.
+        // YouTube exposes storyboard entries (sb0/sb1/..., ext=mhtml — grids of
+        // preview thumbnails) in the format list; they are not downloadable
+        // media and produced a missing/.mhtml file when picked. Filter out any
+        // entry where both codecs are absent ("none"/empty), and any mhtml ext.
+        {
+            bool hasVideo = (f.vcodec != L"none" && !f.vcodec.empty());
+            bool hasAudio = (f.acodec != L"none" && !f.acodec.empty());
+            if ((!hasVideo && !hasAudio) || f.ext == L"mhtml") continue;
+        }
+
+        f.height = static_cast<int>(ParseJsonNumber(obj, L"height"));
+
+        // Size: filesize is exact, filesize_approx is an estimate. Prefer exact.
+        long long fs = static_cast<long long>(ParseJsonNumber(obj, L"filesize"));
+        if (fs <= 0) fs = static_cast<long long>(ParseJsonNumber(obj, L"filesize_approx"));
+        f.filesize = fs > 0 ? fs : 0;
+        f.sizeStr = HumanFileSize(f.filesize);
+
+        bool audioOnly = (f.vcodec == L"none" || f.vcodec.empty()) && f.acodec != L"none";
+        bool videoOnly = (f.acodec == L"none" || f.acodec.empty()) && f.vcodec != L"none";
+
+        // Human resolution label.
+        if (audioOnly) {
+            f.resolution = L"audio only";
+        } else if (f.height > 0) {
+            wchar_t res[40];
+            swprintf(res, 40, L"%dp", f.height);
+            f.resolution = res;
+            if (videoOnly) f.resolution += L" (video only)";
+        } else if (!f.note.empty()) {
+            f.resolution = f.note;
+        } else {
+            f.resolution = f.formatId;
+        }
+
+        formats.push_back(f);
+    }
+
+    // Sort best first: by height desc, then by size desc (proxy for bitrate).
+    std::sort(formats.begin(), formats.end(),
+              [](const YtFormat& a, const YtFormat& b) {
+                  if (a.height != b.height) return a.height > b.height;
+                  return a.filesize > b.filesize;
+              });
+
+    return formats;
+}
+
+// Validate a yt-dlp format_id against a strict whitelist so it can never break
+// out of the command line. yt-dlp ids look like "137", "251", "616-drc",
+// "bestvideo+bestaudio". We allow [A-Za-z0-9_+.-]; anything else is rejected.
+static bool IsValidFormatId(const std::wstring& id) {
+    if (id.empty() || id.size() > 64) return false;
+    for (wchar_t c : id) {
+        bool ok = (c >= L'A' && c <= L'Z') || (c >= L'a' && c <= L'z') ||
+                  (c >= L'0' && c <= L'9') ||
+                  c == L'_' || c == L'+' || c == L'.' || c == L'-';
+        if (!ok) return false;
+    }
+    return true;
+}
+
+// Download a specific format_id. Mirrors YouTubeDownloadPermanent's destination
+// and naming, but selects the user's chosen format and merges to mp4 when the
+// stream is video-only. See header for the contract.
+bool YouTubeDownloadFormat(const std::wstring& videoId,
+                           const std::wstring& title,
+                           const std::wstring& formatId,
+                           bool videoOnly,
+                           std::wstring& outFilePath) {
+    if (!IsYtdlpAvailable()) return false;
+    if (!IsValidFormatId(formatId)) return false;  // caller falls back
+
+    // Build the final -f selector AFTER validating the raw formatId above.
+    // The "+bestaudio..." literals are constants controlled by the code, never
+    // by the user, so no injection is possible by concatenating them here.
+    // A video-only stream (acodec == "none") needs the best audio merged in;
+    // otherwise the raw id already carries audio (combined) or is audio-only.
+    std::wstring selector = videoOnly
+        ? (formatId + L"+bestaudio[ext=m4a]/" + formatId + L"+bestaudio/" + formatId)
+        : formatId;
+
+    std::wstring safeId = SanitizeForCommandLine(videoId);
+
+    std::wstring dir = GetDownloadsTargetDir();
+    std::wstring base = SanitizeForFilename(title);
+    if (base.empty()) base = safeId;
+    std::wstring outBase = dir + L"\\" + base;
+    std::wstring outArg = outBase + L".%(ext)s";
+
+    std::wstring url = L"https://www.youtube.com/watch?v=" + safeId;
+    std::wstring ffmpeg = GetFfmpegLocation();
+
+    std::wstring args = L"-f \"" + selector + L"\" "
+                        L"--no-playlist --no-progress --no-warnings --quiet "
+                        L"--no-overwrites --embed-chapters "
+                        L"--merge-output-format mp4 ";
+    if (!ffmpeg.empty()) {
+        args += L"--ffmpeg-location \"" + ffmpeg + L"\" ";
+    }
+    args += L"-o \"" + outArg + L"\" \"" + url + L"\"";
+    RunYtdlp(args);
+
+    // yt-dlp may produce any of these depending on the chosen stream and
+    // whether a merge happened.
+    static const wchar_t* exts[] = {
+        L".mp4", L".m4a", L".aac", L".mp3", L".webm",
+        L".mkv", L".flac", L".opus", L".wav"
+    };
+    for (auto ext : exts) {
+        std::wstring candidate = outBase + ext;
+        if (PathFileExistsW(candidate.c_str())) {
+            outFilePath = candidate;
+            return true;
+        }
+    }
+    return false;
+}
+
 // Wipes every cached audio file. Returns the count removed.
 int ClearYouTubeCache() {
     std::wstring dir = GetYouTubeCacheDir();
@@ -1339,6 +1613,196 @@ static void DownloadSelected(HWND hwnd) {
 }
 
 
+// ============================================================
+// Format picker (v1.95) — "Download with options..."
+// ============================================================
+//
+// Lets the user pick any format yt-dlp offers (resolutions, codecs,
+// audio-only, video-only, sizes) before downloading. The simple m4a
+// Download button above is untouched.
+
+// Column layout for the SysListView32 (LVS_REPORT). Widths in pixels.
+// v1.97 — The internal yt-dlp format id (e.g. "135") was removed from the
+// display: it is meaningless to users and only used internally. Selection is
+// mapped by row index into the formats vector, not by the id column, so
+// dropping it is safe. Columns now start at Extension.
+static const struct { const char* en; int width; } kYtfColumns[] = {
+    { "Extension",   80 },
+    { "Resolution",  100 },
+    { "Video codec", 120 },
+    { "Audio codec", 120 },
+    { "Size",        100 },
+    { "Note",        150 },
+};
+
+// Dialog proc for IDD_YT_FORMATS. lParam at WM_INITDIALOG points to the
+// std::vector<YtFormat>* to display. The chosen format_id is stored in
+// g_ytfChosenFormatId on IDOK.
+static std::wstring g_ytfChosenFormatId;
+// True when the chosen format is video-only (acodec == "none"); the download
+// path then merges in the best audio track.
+static bool g_ytfChosenVideoOnly = false;
+
+static INT_PTR CALLBACK YtFormatsDialogProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
+    static const std::vector<YtFormat>* s_formats = nullptr;
+
+    switch (msg) {
+        case WM_INITDIALOG: {
+            LocalizeDialog(hwnd);
+            s_formats = reinterpret_cast<const std::vector<YtFormat>*>(lParam);
+
+            HWND hList = GetDlgItem(hwnd, IDC_YTF_LIST);
+            ListView_SetExtendedListViewStyle(
+                hList, LVS_EX_FULLROWSELECT | LVS_EX_LABELTIP);
+
+            // Columns
+            for (int c = 0; c < static_cast<int>(_countof(kYtfColumns)); ++c) {
+                LVCOLUMNW col = {};
+                col.mask = LVCF_TEXT | LVCF_WIDTH | LVCF_SUBITEM;
+                col.iSubItem = c;
+                col.cx = kYtfColumns[c].width;
+                std::wstring hdr = T(kYtfColumns[c].en);
+                col.pszText = const_cast<wchar_t*>(hdr.c_str());
+                ListView_InsertColumn(hList, c, &col);
+            }
+
+            // Rows
+            const wchar_t* dash = L"—";  // em dash for "none"
+            if (s_formats) {
+                int row = 0;
+                for (const auto& f : *s_formats) {
+                    // Column 0 is now Extension (Format ID column removed).
+                    LVITEMW it = {};
+                    it.mask = LVIF_TEXT;
+                    it.iItem = row;
+                    it.iSubItem = 0;
+                    it.pszText = const_cast<wchar_t*>(f.ext.c_str());
+                    int idx = ListView_InsertItem(hList, &it);
+
+                    ListView_SetItemText(hList, idx, 1,
+                        const_cast<wchar_t*>(f.resolution.c_str()));
+                    ListView_SetItemText(hList, idx, 2,
+                        const_cast<wchar_t*>(f.vcodec == L"none" ? dash : f.vcodec.c_str()));
+                    ListView_SetItemText(hList, idx, 3,
+                        const_cast<wchar_t*>(f.acodec == L"none" ? dash : f.acodec.c_str()));
+                    ListView_SetItemText(hList, idx, 4,
+                        const_cast<wchar_t*>(f.sizeStr.c_str()));
+                    ListView_SetItemText(hList, idx, 5,
+                        const_cast<wchar_t*>(f.note.c_str()));
+                    ++row;
+                }
+            }
+
+            // Preselect the first row (best quality) and focus the list.
+            if (s_formats && !s_formats->empty()) {
+                ListView_SetItemState(hList, 0,
+                    LVIS_SELECTED | LVIS_FOCUSED, LVIS_SELECTED | LVIS_FOCUSED);
+            }
+            SetFocus(hList);
+
+            // Announce the format count for screen-reader users.
+            if (s_formats) {
+                char buf[64];
+                snprintf(buf, sizeof(buf), Ts("%d formats available").c_str(),
+                         static_cast<int>(s_formats->size()));
+                Speak(buf);
+            }
+            return FALSE;  // focus set manually
+        }
+
+        case WM_NOTIFY: {
+            LPNMHDR nh = reinterpret_cast<LPNMHDR>(lParam);
+            if (nh && nh->idFrom == IDC_YTF_LIST &&
+                (nh->code == NM_DBLCLK || nh->code == LVN_ITEMACTIVATE)) {
+                // Double-click / Enter on an item == OK.
+                SendMessageW(hwnd, WM_COMMAND, MAKEWPARAM(IDOK, BN_CLICKED), 0);
+                return TRUE;
+            }
+            break;
+        }
+
+        case WM_COMMAND:
+            switch (LOWORD(wParam)) {
+                case IDOK: {
+                    HWND hList = GetDlgItem(hwnd, IDC_YTF_LIST);
+                    int sel = ListView_GetNextItem(hList, -1, LVNI_SELECTED);
+                    if (sel < 0) sel = 0;  // fall back to first
+                    if (s_formats && sel >= 0 &&
+                        sel < static_cast<int>(s_formats->size())) {
+                        g_ytfChosenFormatId = (*s_formats)[sel].formatId;
+                        g_ytfChosenVideoOnly = ((*s_formats)[sel].acodec == L"none");
+                        EndDialog(hwnd, IDOK);
+                    } else {
+                        EndDialog(hwnd, IDCANCEL);
+                    }
+                    return TRUE;
+                }
+                case IDCANCEL:
+                    EndDialog(hwnd, IDCANCEL);
+                    return TRUE;
+            }
+            break;
+    }
+    return FALSE;
+}
+
+// Show the modal format picker. Returns true and fills chosenFormatId when the
+// user confirms a format; false on cancel or when no formats are available.
+static bool ShowFormatPicker(HWND parent, const std::wstring& videoId,
+                             const std::wstring& title, std::wstring& chosenFormatId,
+                             bool& chosenVideoOnly) {
+    (void)title;  // reserved for a future caption; download uses it separately
+    std::vector<YtFormat> formats = ParseFormatsArray(videoId);
+    if (formats.empty()) {
+        Speak(Ts("No formats available"));
+        return false;
+    }
+
+    g_ytfChosenFormatId.clear();
+    g_ytfChosenVideoOnly = false;
+    INT_PTR r = DialogBoxParamW(GetModuleHandle(nullptr),
+                                MAKEINTRESOURCEW(IDD_YT_FORMATS),
+                                parent, YtFormatsDialogProc,
+                                reinterpret_cast<LPARAM>(&formats));
+    if (r == IDOK && !g_ytfChosenFormatId.empty()) {
+        chosenFormatId = g_ytfChosenFormatId;
+        chosenVideoOnly = g_ytfChosenVideoOnly;
+        return true;
+    }
+    return false;
+}
+
+// "Download with options..." — let the user pick a format, then download it.
+static void DownloadSelectedWithOptions(HWND hwnd) {
+    HWND hList = GetDlgItem(hwnd, IDC_YT_RESULTS);
+    int sel = static_cast<int>(SendMessageW(hList, LB_GETCURSEL, 0, 0));
+    if (sel < 0 || sel >= static_cast<int>(g_ytResults.size())) return;
+
+    const YouTubeResult& result = g_ytResults[sel];
+    if (result.videoId.empty()) {
+        Speak(Ts("Cannot download this item"));
+        return;
+    }
+
+    std::wstring formatId;
+    bool videoOnly = false;
+    if (!ShowFormatPicker(hwnd, result.videoId, result.title, formatId, videoOnly)) {
+        // User cancelled, or no formats — picker already spoke if needed.
+        return;
+    }
+
+    Speak(Ts("Downloading"));
+    std::wstring saved;
+    if (YouTubeDownloadFormat(result.videoId, result.title, formatId, videoOnly, saved)) {
+        const wchar_t* fname = wcsrchr(saved.c_str(), L'\\');
+        std::wstring name = fname ? (fname + 1) : saved;
+        SpeakW((std::wstring(T("Downloaded: ")) + name).c_str());
+    } else {
+        Speak(Ts("Download failed"));
+    }
+}
+
+
 // Dialog procedure
 INT_PTR CALLBACK YouTubeDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
     switch (msg) {
@@ -1388,6 +1852,10 @@ INT_PTR CALLBACK YouTubeDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
                     DownloadSelected(hwnd);
                     break;
 
+                case IDC_YT_DOWNLOAD_OPTS:
+                    DownloadSelectedWithOptions(hwnd);
+                    break;
+
                 case IDCANCEL:
                     DestroyWindow(hwnd);
                     g_ytDialog = nullptr;
@@ -1433,6 +1901,8 @@ INT_PTR CALLBACK YouTubeDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
             SetWindowPos(GetDlgItem(hwnd, IDC_YT_SEARCH), nullptr, 7, 22, width - 14, 14, SWP_NOZORDER);
             SetWindowPos(GetDlgItem(hwnd, IDC_YT_RESULTS), nullptr, 7, 54, width - 14, height - 90, SWP_NOZORDER);
             SetWindowPos(GetDlgItem(hwnd, IDC_YT_LOADMORE), nullptr, 7, height - 30, 60, 14, SWP_NOZORDER);
+            SetWindowPos(GetDlgItem(hwnd, IDC_YT_DOWNLOAD), nullptr, 73, height - 30, 60, 14, SWP_NOZORDER);
+            SetWindowPos(GetDlgItem(hwnd, IDC_YT_DOWNLOAD_OPTS), nullptr, 139, height - 30, 110, 14, SWP_NOZORDER);
             SetWindowPos(GetDlgItem(hwnd, IDCANCEL), nullptr, width - 57, height - 30, 50, 14, SWP_NOZORDER);
             InvalidateRect(hwnd, nullptr, TRUE);
             return TRUE;

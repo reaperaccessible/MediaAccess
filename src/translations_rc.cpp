@@ -762,6 +762,46 @@ void RegisterRcTranslations() {
     AddTranslation("en", "&Load More", L"&Load More");
     AddTranslation("fr", "&Load More", L"&Charger plus");
 
+    // v1.95 — "Download with options..." button + IDD_YT_FORMATS picker
+    AddTranslation("en", "Download with &options...", L"Download with &options...");
+    AddTranslation("fr", "Download with &options...", L"Télécharger avec &options...");
+
+    AddTranslation("en", "Choose format", L"Choose format");
+    AddTranslation("fr", "Choose format", L"Choisir un format");
+
+    AddTranslation("en", "Choose a format to download:", L"Choose a format to download:");
+    AddTranslation("fr", "Choose a format to download:",
+                   L"Choisissez un format à télécharger :");
+
+    // SysListView32 accessible name + column headers (looked up via T()).
+    AddTranslation("en", "Formats", L"Formats");
+    AddTranslation("fr", "Formats", L"Formats");
+
+    AddTranslation("en", "Format ID", L"Format ID");
+    AddTranslation("fr", "Format ID", L"ID de format");
+
+    AddTranslation("en", "Extension", L"Extension");
+    AddTranslation("fr", "Extension", L"Extension");
+
+    AddTranslation("en", "Resolution", L"Resolution");
+    AddTranslation("fr", "Resolution", L"Résolution");
+
+    AddTranslation("en", "Video codec", L"Video codec");
+    AddTranslation("fr", "Video codec", L"Codec vidéo");
+
+    AddTranslation("en", "Audio codec", L"Audio codec");
+    AddTranslation("fr", "Audio codec", L"Codec audio");
+
+    AddTranslation("en", "Size", L"Size");
+    AddTranslation("fr", "Size", L"Taille");
+
+    AddTranslation("en", "Note", L"Note");
+    AddTranslation("fr", "Note", L"Note");
+
+    // "Download" (no mnemonic) — OK button of the format picker.
+    AddTranslation("en", "Download", L"Download");
+    AddTranslation("fr", "Download", L"Télécharger");
+
     // ===================================================================
     // DIALOG: IDD_BOOKMARKS - "Bookmarks"
     // ===================================================================

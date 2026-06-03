@@ -1,3 +1,14 @@
+1.97
+Two refinements to the "Download with options..." format list. First, it no longer shows YouTube storyboard entries (sb0/sb1/..., extension mhtml) and other non-media entries that have neither an audio nor a video codec — these are grids of preview thumbnails, not downloadable media, and picking one produced a missing or unusable file. The list now shows only real, downloadable audio/video formats. Second, the internal format id column (e.g. "135") was removed from the display: it is meaningless to users and was only ever used internally; the columns now begin with Extension.
+
+1.96
+Fix: choosing a video-only format in "Download with options..." (for example an AV1 1080p stream whose audio codec is shown as "—") downloaded a file with no sound. yt-dlp was given only the bare video format id, so it fetched the video track alone and had nothing to merge. MediaAccess now detects video-only formats and automatically adds the best available audio track, merging the two into the final mp4 with the bundled ffmpeg. Audio-only and already-combined formats are unchanged, as is the simple Download button and YouTube playback.
+
+1.95
+New: a second download button, "Télécharger avec options..." / "Download with options...", in the YouTube search window. Instead of always grabbing the default m4a audio, it queries yt-dlp for every format the video offers and shows them in an accessible list — resolution, video codec, audio codec, file size and notes, sorted best-first. Pick one with the arrow keys and press Enter (or Download), and MediaAccess fetches exactly that stream, merging audio and video with the bundled ffmpeg when you choose a video-only format. Requested by redlaf (issue #1).
+
+The list reads cleanly with NVDA: each column is announced per row, the first (best) format is preselected, and the number of available formats is spoken when the dialog opens. The existing simple Download button is completely unchanged — it still downloads m4a audio as before — and YouTube playback is untouched.
+
 1.94
 New: the recording source is now switchable between "MediaAccess output" (the existing behavior, unchanged) and "Windows system output" — a full WASAPI loopback capture of whatever Windows is playing through your output device, encoded straight to a file with the same format and bitrate settings as normal recording. Requested by Seb.
 

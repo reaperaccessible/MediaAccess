@@ -102,6 +102,10 @@ Source: "{#SourceDir}\MediaAccess.ini"; DestDir: "{app}"; Flags: ignoreversion s
 Source: "{#SourceDir}\lib\*.dll"; DestDir: "{app}\lib"; Flags: ignoreversion
 ; Bundle yt-dlp.exe for YouTube support (auto-detected by the app)
 Source: "{#SourceDir}\lib\yt-dlp.exe"; DestDir: "{app}\lib"; Flags: ignoreversion skipifsourcedoesntexist
+; Bundle ffmpeg/ffprobe for YouTube format download + audio/video merge
+; (GetFfmpegLocation auto-detects {app}\lib\ffmpeg.exe)
+Source: "{#SourceDir}\lib\ffmpeg.exe"; DestDir: "{app}\lib"; Flags: ignoreversion skipifsourcedoesntexist
+Source: "{#SourceDir}\lib\ffprobe.exe"; DestDir: "{app}\lib"; Flags: ignoreversion skipifsourcedoesntexist
 ; Bundle FluidR3_GM SoundFont so MIDI files sound great out of the box.
 ; ApplyMidiSettings() auto-loads this when no user SoundFont is set.
 ; skipifsourcedoesntexist so an installer can still be built without it.

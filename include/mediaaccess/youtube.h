@@ -52,6 +52,59 @@ bool YouTubeDownloadPermanent(const std::wstring& videoId,
                               const std::wstring& title,
                               std::wstring& outFilePath);
 
+// ============================================================
+// Format-aware download engine (v1.94+)
+// ============================================================
+//
+// These functions power the "Download with format choice" feature: the user
+// gets a dynamic list of every stream YouTube offers for a video (resolutions,
+// codecs, audio-only, video-only, sizes) and picks one. The engine then
+// downloads exactly that format_id, merging audio+video with ffmpeg when the
+// chosen stream is video-only.
+//
+// One parsed YouTube stream/format, as returned by ParseFormatsArray().
+struct YtFormat {
+    std::wstring formatId;     // yt-dlp format_id, e.g. "137" or "251"
+    std::wstring ext;          // container extension, e.g. "mp4", "webm", "m4a"
+    std::wstring resolution;   // human resolution: "1080p", "audio only", or format_note
+    std::wstring vcodec;       // video codec, "none" for audio-only streams
+    std::wstring acodec;       // audio codec, "none" for video-only streams
+    std::wstring sizeStr;      // human-readable size: "12.3 MB" or "" if unknown
+    std::wstring note;         // yt-dlp format_note (e.g. "720p60", "DRC")
+    int height = 0;            // pixel height (0 = audio-only / unknown), used for sorting
+    long long filesize = 0;    // size in bytes (0 = unknown)
+};
+
+// Resolve the ffmpeg.exe to use for merging/remuxing. Resolution order:
+//   1. INI [YouTube] FfmpegPath, if set and the file exists.
+//   2. <app>\lib\ffmpeg.exe (bundled, same layout as yt-dlp).
+//   3. ffmpeg.exe found on the system PATH.
+//   4. Empty string -> caller omits --ffmpeg-location.
+std::wstring GetFfmpegLocation();
+
+// Query yt-dlp for every available format of a video and parse them into a
+// sorted vector (best first: height desc, then bitrate/size). Returns an empty
+// vector if the video has no formats or yt-dlp output couldn't be parsed; the
+// caller should then show "no formats available". The videoId is sanitized
+// internally before being passed to yt-dlp.
+std::vector<YtFormat> ParseFormatsArray(const std::wstring& videoId);
+
+// Download a specific format_id to the user's configured Downloads folder
+// (same destination + filename rules as YouTubeDownloadPermanent). The
+// formatId is validated against a strict whitelist before use; an invalid id
+// makes the function return false so the caller can fall back. On success
+// outFilePath holds the absolute path of the produced file.
+//
+// When videoOnly is true the chosen format carries no audio (acodec == "none"),
+// so the selector is expanded to "<id>+bestaudio[ext=m4a]/<id>+bestaudio/<id>"
+// to pull and merge the best available audio track. For audio-only or combined
+// formats pass videoOnly = false and the raw "<id>" selector is used.
+bool YouTubeDownloadFormat(const std::wstring& videoId,
+                           const std::wstring& title,
+                           const std::wstring& formatId,
+                           bool videoOnly,
+                           std::wstring& outFilePath);
+
 // Wipe every file from the YouTube audio cache. Returns the count removed.
 int ClearYouTubeCache();
 

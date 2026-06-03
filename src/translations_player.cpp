@@ -908,6 +908,13 @@ void RegisterPlayerTranslations() {
     AddTranslation("en", "Cannot download this item", L"Cannot download this item");
     AddTranslation("fr", "Cannot download this item", L"Impossible de télécharger cet élément");
 
+    // Format picker (v1.95)
+    AddTranslation("en", "%d formats available", L"%d formats available");
+    AddTranslation("fr", "%d formats available", L"%d formats disponibles");
+
+    AddTranslation("en", "No formats available", L"No formats available");
+    AddTranslation("fr", "No formats available", L"Aucun format disponible");
+
     // YouTube dialog button + Help menu cache item
     AddTranslation("en", "&Download", L"&Download");
     AddTranslation("fr", "&Download", L"&Télécharger");
