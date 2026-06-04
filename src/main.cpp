@@ -826,9 +826,19 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
             // menu is about to open. Avoids dynamically tracking recent-files
             // changes during normal playback — we just rebuild on demand.
             // HIWORD(lParam) is TRUE for the window menu (Alt+Space); skip it.
+            //
+            // v2.11 (issue #3) — only rebuild when the FILE menu itself is
+            // opening (wParam is the popup about to appear). WM_INITMENUPOPUP
+            // also fires when the Recent Files SUBMENU opens; rebuilding it then
+            // would DeleteMenu+AppendMenu the very items the user is about to
+            // activate, and the resulting WM_COMMAND was lost (recent-file entry
+            // did nothing). Guarding on the File menu rebuilds one step earlier,
+            // while the items stay stable at activation time — and also stops the
+            // needless rebuild on every other menu (Tools, Help, …).
             if (HIWORD(lParam) == FALSE) {
                 HMENU hMenu = GetMenu(hwnd);
-                if (hMenu) {
+                if (hMenu &&
+                    reinterpret_cast<HMENU>(wParam) == GetSubMenu(hMenu, 0)) {
                     UpdateRecentFilesMenu(hMenu);
                 }
             }

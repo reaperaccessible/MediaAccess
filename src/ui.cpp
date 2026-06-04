@@ -89,8 +89,19 @@ void SetNowPlaying(SourceType type,
     // titles arrive via SetNowPlayingItem (ICY) and are recorded on that path.
     // AddSongHistoryEntry already drops empty titles and consecutive duplicates,
     // so a title refresh with the same item won't pile up.
-    if (type != SourceType::None && type != SourceType::Book && !item.empty()) {
-        AddSongHistoryEntry(item);
+    if (type != SourceType::None && type != SourceType::Book) {
+        if (!item.empty()) {
+            AddSongHistoryEntry(item);
+        } else if (type == SourceType::RadioFavorite ||
+                   type == SourceType::RadioUrl) {
+            // Radio passes the station name in `source` with an empty item, so
+            // record the station so a station that sends no ICY song metadata
+            // still shows up in the history. An ad-hoc RadioUrl before its
+            // icy-name arrives has an empty source — AddSongHistoryEntry drops
+            // empty titles. NOT applied to YouTube/Podcast, to avoid recording
+            // placeholder calls like SetNowPlaying(YouTube, "YouTube", "").
+            AddSongHistoryEntry(source);
+        }
     }
 }
 
