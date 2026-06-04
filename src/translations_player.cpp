@@ -1000,10 +1000,14 @@ void RegisterPlayerTranslations() {
                    L"Open a playlist or channel first");
     AddTranslation("fr", "Open a playlist or channel first",
                    L"Ouvrez d'abord une liste de lecture ou une chaîne");
-    AddTranslation("en", "Download %d videos to your Downloads folder? This may take a while.",
-                   L"Download %d videos to your Downloads folder? This may take a while.");
-    AddTranslation("fr", "Download %d videos to your Downloads folder? This may take a while.",
-                   L"Télécharger %d vidéos dans votre dossier Téléchargements ? Cela peut être long.");
+    AddTranslation("en", "Download %d videos to your Downloads folder? Choose Audio or Video. This may take a while.",
+                   L"Download %d videos to your Downloads folder? Choose Audio or Video. This may take a while.");
+    AddTranslation("fr", "Download %d videos to your Downloads folder? Choose Audio or Video. This may take a while.",
+                   L"Télécharger %d vidéos dans votre dossier Téléchargements ? Choisissez Audio ou Vidéo. Cela peut être long.");
+    AddTranslation("en", "Audio (M4A)", L"Audio (M4A)");
+    AddTranslation("fr", "Audio (M4A)", L"Audio (M4A)");
+    AddTranslation("en", "Video (MP4)", L"Video (MP4)");
+    AddTranslation("fr", "Video (MP4)", L"Vidéo (MP4)");
     AddTranslation("en", "Downloading %d videos", L"Downloading %d videos");
     AddTranslation("fr", "Downloading %d videos", L"Téléchargement de %d vidéos");
     AddTranslation("en", "Downloaded %d of %d", L"Downloaded %d of %d");

@@ -1943,6 +1943,43 @@ bool YouTubeDownloadMultiFormat(const std::wstring& videoId,
     return FindProducedFile(outBase, kFormatExts, outFilePath);
 }
 
+// v2.12 — download a video's best video+audio merged to .mp4. Used by the batch
+// "Download all" video mode. The "bv*+ba/b" selector is a CODE CONSTANT (best
+// video + best audio, falling back to best combined), so it needs no formatId
+// whitelist. ffmpeg is mandatory for the merge. Mirrors YouTubeDownloadFormat's
+// destination / naming, with a "[video]" suffix to disambiguate from an audio
+// download of the same title.
+bool YouTubeDownloadVideoBest(const std::wstring& videoId,
+                              const std::wstring& title,
+                              std::wstring& outFilePath) {
+    if (!IsValidVideoId(videoId)) return false;
+    if (!IsYtdlpAvailable()) return false;
+    std::wstring ffmpeg = GetFfmpegLocation();
+    if (ffmpeg.empty()) return false;  // merging best-video+best-audio needs ffmpeg
+
+    std::wstring safeId = SanitizeForCommandLine(videoId);
+    std::wstring dir    = GetDownloadsTargetDir();
+    std::wstring base   = SanitizeForFilename(title, safeId) + L" [video]";
+    std::wstring outBase = dir + L"\\" + base;
+    std::wstring outArg  = outBase + L".%(ext)s";
+    std::wstring url     = L"https://www.youtube.com/watch?v=" + safeId;
+
+    std::wstring args = L"-f \"bv*+ba/b\" "
+                        L"--no-playlist --no-progress --no-warnings --quiet "
+                        L"--no-overwrites --embed-chapters --merge-output-format mp4 "
+                        L"--ffmpeg-location \"" + ffmpeg + L"\" "
+                        L"-o \"" + outArg + L"\" \"" + url + L"\"";
+    int exitCode = 0;
+    std::wstring stderrText;
+    RunYtdlp(args, YTDLP_DOWNLOAD_TIMEOUT_MS, &exitCode, &stderrText);
+    if (exitCode != 0) {
+        std::wstring partial;
+        FindProducedFile(outBase, kFormatExts, partial);
+        return HandleDownloadFailure(exitCode, stderrText, partial);
+    }
+    return FindProducedFile(outBase, kFormatExts, outFilePath);
+}
+
 // Wipes every cached audio file. Returns the count removed.
 int ClearYouTubeCache() {
     std::wstring dir = GetYouTubeCacheDir();
@@ -3138,6 +3175,7 @@ static void PlaySelected(HWND hwnd) {
 // ============================================================
 struct YtBatchRequest {
     std::vector<std::pair<std::wstring, std::wstring>> items;  // {videoId, title}
+    bool videoMode = false;   // v2.12 — false = audio (m4a), true = video (mp4)
 };
 struct YtBatchResult { int ok = 0; int fail = 0; int total = 0; bool cancelled = false; };
 
@@ -3148,7 +3186,9 @@ static DWORD WINAPI BatchDownloadThreadProc(LPVOID arg) {
     for (const auto& it : req->items) {
         if (g_ytBatchCancel.load()) break;
         std::wstring saved;
-        if (YouTubeDownloadPermanent(it.first, it.second, saved)) ++ok; else ++fail;
+        bool good = req->videoMode ? YouTubeDownloadVideoBest(it.first, it.second, saved)
+                                   : YouTubeDownloadPermanent(it.first, it.second, saved);
+        if (good) ++ok; else ++fail;
         ++done;
         PostMessageW(g_hwnd, WM_YT_BATCH_PROGRESS,
                      static_cast<WPARAM>(done), static_cast<LPARAM>(total));
@@ -3197,17 +3237,47 @@ static void DownloadAllResults(HWND hwnd) {
         Speak(Ts("No results to download"));
         return;
     }
-    // Confirm with the count (guards against an accidental mass download); the
-    // screen reader reads the box and Escape / default-No cancels it.
+    // Confirm with the count AND let the user pick Audio or Video (v2.12). A
+    // TaskDialog with named buttons is screen-reader-friendly (NVDA reads the
+    // count message then the button labels); Escape / Cancel aborts. Same
+    // pattern as updater.cpp's custom-button dialogs.
     std::wstring msg = FormatCount(
-        T("Download %d videos to your Downloads folder? This may take a while."),
+        T("Download %d videos to your Downloads folder? Choose Audio or Video. This may take a while."),
         static_cast<int>(items.size()));
-    if (MessageBoxW(hwnd, msg.c_str(), T("Download all"),
-                    MB_YESNO | MB_ICONQUESTION | MB_DEFBUTTON2) != IDYES) {
-        return;
+    const int ID_AUDIO = 201, ID_VIDEO = 202;
+    std::wstring audioLbl = T("Audio (M4A)");
+    std::wstring videoLbl = T("Video (MP4)");
+    TASKDIALOG_BUTTON btns[] = {
+        { ID_AUDIO, audioLbl.c_str() },
+        { ID_VIDEO, videoLbl.c_str() },
+    };
+    TASKDIALOGCONFIG cfg = {0};
+    cfg.cbSize = sizeof(cfg);
+    cfg.hwndParent = hwnd;
+    cfg.dwFlags = TDF_ALLOW_DIALOG_CANCELLATION | TDF_POSITION_RELATIVE_TO_WINDOW;
+    cfg.pszWindowTitle = T("Download all");
+    cfg.pszMainIcon = TD_INFORMATION_ICON;
+    cfg.pszContent = msg.c_str();
+    cfg.pButtons = btns;
+    cfg.cButtons = 2;
+    cfg.dwCommonButtons = TDCBF_CANCEL_BUTTON;
+    cfg.nDefaultButton = ID_AUDIO;
+    int pressed = 0;
+    HRESULT hr = TaskDialogIndirect(&cfg, &pressed, nullptr, nullptr);
+    if (FAILED(hr)) {
+        // Fallback (very old Windows): Yes=Audio, No=Video, Cancel=abort.
+        pressed = MessageBoxW(hwnd, msg.c_str(), T("Download all"),
+                              MB_YESNOCANCEL | MB_ICONQUESTION);
+        if (pressed == IDYES) pressed = ID_AUDIO;
+        else if (pressed == IDNO) pressed = ID_VIDEO;
+        else return;
     }
+    if (pressed != ID_AUDIO && pressed != ID_VIDEO) return;  // Cancel
+    bool videoMode = (pressed == ID_VIDEO);
+
     YtBatchRequest* req = new YtBatchRequest;
     req->items = std::move(items);
+    req->videoMode = videoMode;
     g_ytBatchCancel.store(false);
     g_ytBatchActive.store(true);
     YtSetDownloadAllLabel(true);
