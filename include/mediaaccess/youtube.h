@@ -179,6 +179,8 @@ void YouTubeOnLoadMoreDone(LPARAM lParam);   // WM_YT_LOAD_MORE_DONE
 void YouTubeOnFormatsReady(LPARAM lParam);   // WM_YT_FORMATS_READY
 void YouTubeOnDownloadDone(LPARAM lParam);   // WM_YT_DOWNLOAD_DONE
 void YouTubeOnSearchDone(LPARAM lParam);     // WM_YT_SEARCH_DONE (v1.99)
+void YouTubeOnBatchProgress(WPARAM wParam, LPARAM lParam); // WM_YT_BATCH_PROGRESS (v2.12)
+void YouTubeOnBatchDone(LPARAM lParam);      // WM_YT_BATCH_DONE (v2.12)
 
 // Cancel any pending hybrid swap. Call before loading non-YouTube media so a
 // late-arriving download from a previously-started hybrid playback does not

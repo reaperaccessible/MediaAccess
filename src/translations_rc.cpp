@@ -792,6 +792,14 @@ void RegisterRcTranslations() {
     AddTranslation("fr", "Choose a format to download — %d formats",
                    L"Choisir un format à télécharger — %d formats");
 
+    // v2.12 — YouTube window: new search label + "Download all" button.
+    AddTranslation("en", "&Search or paste a video, playlist, or channel URL:",
+                   L"&Search or paste a video, playlist, or channel URL:");
+    AddTranslation("fr", "&Search or paste a video, playlist, or channel URL:",
+                   L"&Rechercher ou coller une URL de vidéo, de liste de lecture ou de chaîne :");
+    AddTranslation("en", "Download &all", L"Download &all");
+    AddTranslation("fr", "Download &all", L"Tout &télécharger");
+
     // v2.10 — the format-list label (the SysListView32's accessible name, read by
     // NVDA every time focus enters the list). Teaches the Space-to-tick
     // capability reliably, unlike the one-shot dialog caption. Must match the

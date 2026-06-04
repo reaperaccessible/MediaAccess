@@ -434,6 +434,13 @@ static std::wstring FormatCount(const std::wstring& templ, int n) {
     return templ.substr(0, pos) + num + templ.substr(pos + 2);
 }
 
+// Two-number variant: substitute the first two "%d" placeholders (printf-free,
+// so a stray specifier in a translation can never crash). Used by the batch
+// "Download all" progress/summary strings.
+static std::wstring FormatCount2(const std::wstring& templ, int a, int b) {
+    return FormatCount(FormatCount(templ, a), b);
+}
+
 // Drain whatever bytes are currently buffered on a pipe WITHOUT blocking.
 // PeekNamedPipe tells us how many bytes are available; we only ReadFile that
 // many, so the call never parks the thread waiting for the child to write more.
@@ -2823,6 +2830,11 @@ void YouTubeOnLoadMoreDone(LPARAM lParam) {
 
 static std::atomic<bool> g_ytDownloading{false};
 
+// v2.12 — "Download all" batch state. Declared here so both the single-download
+// entry points and the batch path can see them (mutual exclusion).
+static std::atomic<bool> g_ytBatchActive{false};
+static std::atomic<bool> g_ytBatchCancel{false};
+
 // Which download engine the worker should invoke.
 enum class YtDlKind { Permanent, Format, MultiFormat };
 
@@ -3102,7 +3114,129 @@ static void PlaySelected(HWND hwnd) {
 }
 
 // Permanently download the selected result to Downloads\MediaAccess\YouTube.
+// ============================================================
+// "Download all" (v2.12) — batch-download a whole playlist / channel / results
+// list. A single background worker downloads each item SEQUENTIALLY via the
+// existing, well-tested YouTubeDownloadPermanent (audio m4a). Sequential (not
+// parallel) keeps announcements readable and bandwidth/CPU bounded. Per-item
+// progress -> WM_YT_BATCH_PROGRESS; final summary -> WM_YT_BATCH_DONE (both to
+// g_hwnd, so closing the dialog mid-batch is safe). One failed item never aborts
+// the batch. Cancellable from the UI thread via g_ytBatchCancel.
+// ============================================================
+struct YtBatchRequest {
+    std::vector<std::pair<std::wstring, std::wstring>> items;  // {videoId, title}
+};
+struct YtBatchResult { int ok = 0; int fail = 0; int total = 0; bool cancelled = false; };
+
+static DWORD WINAPI BatchDownloadThreadProc(LPVOID arg) {
+    YtBatchRequest* req = static_cast<YtBatchRequest*>(arg);
+    int ok = 0, fail = 0, done = 0;
+    const int total = static_cast<int>(req->items.size());
+    for (const auto& it : req->items) {
+        if (g_ytBatchCancel.load()) break;
+        std::wstring saved;
+        if (YouTubeDownloadPermanent(it.first, it.second, saved)) ++ok; else ++fail;
+        ++done;
+        PostMessageW(g_hwnd, WM_YT_BATCH_PROGRESS,
+                     static_cast<WPARAM>(done), static_cast<LPARAM>(total));
+    }
+    YtBatchResult* res = new YtBatchResult{ok, fail, total, g_ytBatchCancel.load()};
+    g_ytBatchActive.store(false);
+    delete req;
+    PostMessageW(g_hwnd, WM_YT_BATCH_DONE, 0, reinterpret_cast<LPARAM>(res));
+    return 0;
+}
+
+// Restore / set the "Download all" button label (becomes "Cancel downloads"
+// while a batch runs so the one button both starts and cancels).
+static void YtSetDownloadAllLabel(bool batchRunning) {
+    HWND dlg = GetYouTubeDialog();
+    if (!dlg) return;
+    HWND b = GetDlgItem(dlg, IDC_YT_DOWNLOAD_ALL);
+    if (b) SetWindowTextW(b, batchRunning ? T("Cancel downloads") : T("Download &all"));
+}
+
+// "Download all" button handler. While a batch runs it CANCELS; otherwise it
+// snapshots the current results, confirms the count, and launches the batch.
+static void DownloadAllResults(HWND hwnd) {
+    if (g_ytBatchActive.load()) {
+        g_ytBatchCancel.store(true);
+        Speak(Ts("Cancelling downloads"));
+        return;
+    }
+    if (g_ytDownloading.load()) {
+        Speak(Ts("A download is already in progress"));
+        return;
+    }
+    // Snapshot items on the UI thread — the worker must never read g_ytResults.
+    std::vector<std::pair<std::wstring, std::wstring>> items;
+    for (const auto& r : g_ytResults) {
+        if (!r.videoId.empty()) items.push_back({r.videoId, r.title});
+    }
+    if (items.empty()) {
+        Speak(Ts("No results to download"));
+        return;
+    }
+    // Confirm with the count (guards against an accidental mass download); the
+    // screen reader reads the box and Escape / default-No cancels it.
+    std::wstring msg = FormatCount(
+        T("Download %d videos to your Downloads folder? This may take a while."),
+        static_cast<int>(items.size()));
+    if (MessageBoxW(hwnd, msg.c_str(), T("Download all"),
+                    MB_YESNO | MB_ICONQUESTION | MB_DEFBUTTON2) != IDYES) {
+        return;
+    }
+    YtBatchRequest* req = new YtBatchRequest;
+    req->items = std::move(items);
+    g_ytBatchCancel.store(false);
+    g_ytBatchActive.store(true);
+    YtSetDownloadAllLabel(true);
+    SpeakW(FormatCount(T("Downloading %d videos"),
+                       static_cast<int>(req->items.size())), false);
+    HANDLE t = CreateThread(nullptr, 0, BatchDownloadThreadProc, req, 0, nullptr);
+    if (!t) {
+        delete req;
+        g_ytBatchActive.store(false);
+        YtSetDownloadAllLabel(false);
+        Speak(Ts("Download failed"));
+    } else {
+        CloseHandle(t);
+    }
+}
+
+void YouTubeOnBatchProgress(WPARAM wParam, LPARAM lParam) {
+    int done  = static_cast<int>(wParam);
+    int total = static_cast<int>(lParam);
+    // Throttle so NVDA isn't flooded on a big batch: announce the first, the
+    // last, and every 5th in between. Non-interrupting so it appends after the
+    // user's own navigation rather than cutting it.
+    if (total <= 20 || done == total || (done % 5) == 0) {
+        SpeakW(FormatCount2(T("Downloaded %d of %d"), done, total), false);
+    }
+}
+
+void YouTubeOnBatchDone(LPARAM lParam) {
+    YtBatchResult* res = reinterpret_cast<YtBatchResult*>(lParam);
+    g_ytBatchActive.store(false);
+    YtSetDownloadAllLabel(false);
+    if (!res) return;
+    std::wstring msg;
+    if (res->cancelled) {
+        msg = FormatCount(T("Downloads cancelled. %d done."), res->ok);
+    } else if (res->fail > 0) {
+        msg = FormatCount2(T("Finished. %d downloaded, %d failed."), res->ok, res->fail);
+    } else {
+        msg = FormatCount(T("Finished. %d videos downloaded."), res->ok);
+    }
+    SpeakW(msg, true);
+    delete res;
+}
+
 static void DownloadSelected(HWND hwnd) {
+    if (g_ytBatchActive.load()) {
+        Speak(Ts("A download is already in progress"));
+        return;
+    }
     HWND hList = GetDlgItem(hwnd, IDC_YT_RESULTS);
     int sel = static_cast<int>(SendMessageW(hList, LB_GETCURSEL, 0, 0));
     if (sel < 0 || sel >= static_cast<int>(g_ytResults.size())) {
@@ -3495,6 +3629,10 @@ void YouTubeOnFormatsReady(LPARAM lParam) {
 // "Download with options..." — query formats in the BACKGROUND, then (via
 // WM_YT_FORMATS_READY) show the picker and download. Never blocks the UI.
 static void DownloadSelectedWithOptions(HWND hwnd) {
+    if (g_ytBatchActive.load()) {
+        Speak(Ts("A download is already in progress"));
+        return;
+    }
     HWND hList = GetDlgItem(hwnd, IDC_YT_RESULTS);
     int sel = static_cast<int>(SendMessageW(hList, LB_GETCURSEL, 0, 0));
     if (sel < 0 || sel >= static_cast<int>(g_ytResults.size())) {
@@ -3593,6 +3731,10 @@ INT_PTR CALLBACK YouTubeDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
                     DownloadSelectedWithOptions(hwnd);
                     break;
 
+                case IDC_YT_DOWNLOAD_ALL:
+                    DownloadAllResults(hwnd);
+                    break;
+
                 case IDCANCEL:
                     DestroyWindow(hwnd);
                     g_ytDialog = nullptr;
@@ -3606,9 +3748,10 @@ INT_PTR CALLBACK YouTubeDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
             // Resize controls
             SetWindowPos(GetDlgItem(hwnd, IDC_YT_SEARCH), nullptr, 7, 22, width - 14, 14, SWP_NOZORDER);
             SetWindowPos(GetDlgItem(hwnd, IDC_YT_RESULTS), nullptr, 7, 54, width - 14, height - 90, SWP_NOZORDER);
-            SetWindowPos(GetDlgItem(hwnd, IDC_YT_LOADMORE), nullptr, 7, height - 30, 60, 14, SWP_NOZORDER);
-            SetWindowPos(GetDlgItem(hwnd, IDC_YT_DOWNLOAD), nullptr, 73, height - 30, 60, 14, SWP_NOZORDER);
-            SetWindowPos(GetDlgItem(hwnd, IDC_YT_DOWNLOAD_OPTS), nullptr, 139, height - 30, 110, 14, SWP_NOZORDER);
+            SetWindowPos(GetDlgItem(hwnd, IDC_YT_LOADMORE), nullptr, 7, height - 30, 55, 14, SWP_NOZORDER);
+            SetWindowPos(GetDlgItem(hwnd, IDC_YT_DOWNLOAD), nullptr, 66, height - 30, 55, 14, SWP_NOZORDER);
+            SetWindowPos(GetDlgItem(hwnd, IDC_YT_DOWNLOAD_ALL), nullptr, 125, height - 30, 80, 14, SWP_NOZORDER);
+            SetWindowPos(GetDlgItem(hwnd, IDC_YT_DOWNLOAD_OPTS), nullptr, 209, height - 30, 110, 14, SWP_NOZORDER);
             SetWindowPos(GetDlgItem(hwnd, IDCANCEL), nullptr, width - 57, height - 30, 50, 14, SWP_NOZORDER);
             InvalidateRect(hwnd, nullptr, TRUE);
             return TRUE;

@@ -677,6 +677,14 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
             YouTubeOnSearchDone(lParam);
             return 0;
 
+        case WM_YT_BATCH_PROGRESS:  // v2.12 — "Download all" per-item progress
+            YouTubeOnBatchProgress(wParam, lParam);
+            return 0;
+
+        case WM_YT_BATCH_DONE:      // v2.12 — "Download all" finished
+            YouTubeOnBatchDone(lParam);
+            return 0;
+
         case WM_USER + 200: {
             // Update check result
             auto* data = reinterpret_cast<std::pair<UpdateInfo, bool>*>(lParam);

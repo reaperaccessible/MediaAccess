@@ -113,6 +113,8 @@
 #define WM_YT_DOWNLOAD_DONE  (WM_USER + 9) // v1.98 — background YouTube download finished (lParam = YtDownloadResult* heap)
 #define WM_YT_SEARCH_DONE    (WM_USER + 11) // v1.99 — background first-page search / playlist / single-URL finished (lParam = YtSearchResult* heap)
 #define WM_APP_DEFERRED_SPEAK (WM_USER + 12) // v2.06 — AnnounceStatus fallback: arm IDT_DEFERRED_SPEAK to Speak after focus settles
+#define WM_YT_BATCH_PROGRESS (WM_USER + 13) // v2.12 — "Download all" per-item progress (wParam=done, lParam=total)
+#define WM_YT_BATCH_DONE     (WM_USER + 14) // v2.12 — "Download all" finished (lParam = YtBatchResult* heap)
 
 // Playback tab controls
 #define IDC_BRING_TO_FRONT  531
@@ -274,6 +276,7 @@
 #define IDC_YT_LOADMORE     753
 #define IDC_YT_DOWNLOAD     754
 #define IDC_YT_DOWNLOAD_OPTS 755    // v1.95 — "Download with options..." button in IDD_YOUTUBE
+#define IDC_YT_DOWNLOAD_ALL  756    // v2.12 — "Download all" (whole playlist/channel)
 #define IDM_HELP_CLEAR_YT_CACHE 119
 
 // v1.95 — Format picker dialog (Download with options)

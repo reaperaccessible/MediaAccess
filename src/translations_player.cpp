@@ -987,6 +987,36 @@ void RegisterPlayerTranslations() {
     AddTranslation("en", "YouTube video", L"YouTube video");
     AddTranslation("fr", "YouTube video", L"Vidéo YouTube");
 
+    // v2.12 — "Download all" (batch playlist/channel download)
+    AddTranslation("en", "Download all", L"Download all");
+    AddTranslation("fr", "Download all", L"Tout télécharger");
+    AddTranslation("en", "Cancel downloads", L"Cancel downloads");
+    AddTranslation("fr", "Cancel downloads", L"Annuler les téléchargements");
+    AddTranslation("en", "Cancelling downloads", L"Cancelling downloads");
+    AddTranslation("fr", "Cancelling downloads", L"Annulation des téléchargements");
+    AddTranslation("en", "No results to download", L"No results to download");
+    AddTranslation("fr", "No results to download", L"Aucun résultat à télécharger");
+    AddTranslation("en", "Download %d videos to your Downloads folder? This may take a while.",
+                   L"Download %d videos to your Downloads folder? This may take a while.");
+    AddTranslation("fr", "Download %d videos to your Downloads folder? This may take a while.",
+                   L"Télécharger %d vidéos dans votre dossier Téléchargements ? Cela peut être long.");
+    AddTranslation("en", "Downloading %d videos", L"Downloading %d videos");
+    AddTranslation("fr", "Downloading %d videos", L"Téléchargement de %d vidéos");
+    AddTranslation("en", "Downloaded %d of %d", L"Downloaded %d of %d");
+    AddTranslation("fr", "Downloaded %d of %d", L"Téléchargé %d sur %d");
+    AddTranslation("en", "Finished. %d downloaded, %d failed.",
+                   L"Finished. %d downloaded, %d failed.");
+    AddTranslation("fr", "Finished. %d downloaded, %d failed.",
+                   L"Terminé. %d téléchargées, %d en échec.");
+    AddTranslation("en", "Finished. %d videos downloaded.",
+                   L"Finished. %d videos downloaded.");
+    AddTranslation("fr", "Finished. %d videos downloaded.",
+                   L"Terminé. %d vidéos téléchargées.");
+    AddTranslation("en", "Downloads cancelled. %d done.",
+                   L"Downloads cancelled. %d done.");
+    AddTranslation("fr", "Downloads cancelled. %d done.",
+                   L"Téléchargements annulés. %d effectuées.");
+
     // v2.10 — audio-track language names for the format picker (multi-language
     // videos). English key -> localized name; only the common YouTube languages.
     // The "en" identity entries are REQUIRED: T() falls back to the other
