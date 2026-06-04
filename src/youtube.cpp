@@ -809,6 +809,11 @@ static void ParseYtdlpJsonLines(const std::wstring& output,
 // far for the current query. yt-dlp doesn't expose a real page token, so
 // we ask for ytsearch(N): each time, growing N, and only surface the items
 // that weren't in the previous batch.
+// LIFETIME/THREADING: this is per-CURRENT-QUERY state, not global history. A new
+// search resets it to 0 (the pageToken-empty branch in YouTubeSearch); "load
+// more" grows it. It is read/written only on the search worker path for the one
+// active query, so no locking is needed — but it must NOT be treated as a
+// persistent counter across different searches.
 static int g_ytYtdlpLoaded = 0;
 
 // Search using yt-dlp. Pass count = how many YouTube results to ASK FOR.
@@ -1733,8 +1738,10 @@ static bool IsValidFormatId(const std::wstring& id) {
 }
 
 // Download a specific format_id. Mirrors YouTubeDownloadPermanent's destination
-// and naming, but selects the user's chosen format and merges to mp4 when the
-// stream is video-only. See header for the contract.
+// and naming, but selects the user's chosen format. --merge-output-format mp4 is
+// always passed; yt-dlp only acts on it when a merge actually happens (i.e. for a
+// video-only pick, where "+bestaudio" pulls and muxes the best audio). See header
+// for the contract.
 bool YouTubeDownloadFormat(const std::wstring& videoId,
                            const std::wstring& title,
                            const std::wstring& formatId,
@@ -2022,16 +2029,19 @@ void CleanupYouTubeTempFiles() {
     RemoveDirectoryW(dir.c_str());  // ok if not empty (no-op)
 }
 
-// Plays a YouTube video by ID. Strategy (in order):
-//   1. yt-dlp downloads bestaudio AAC/M4A to temp file -> BASS plays the
-//      file locally with full DSP/effects support. (Most reliable, all features.)
-//   2. If download fails or file won't load, libmpv plays the raw
-//      YouTube URL directly (handles every format including livestreams,
-//      but loses BASS effects). User is told via Speak.
-//   3. If both fail, user sees a single error.
+// Plays a YouTube video by ID. Audio-mode strategy, in order (v1.0.9 hybrid):
+//   1. Cache HIT: a previously-downloaded AAC/M4A file for this id exists ->
+//      BASS plays it locally with full DSP/effects. Instant, all features.
+//   2. Cache MISS + libmpv available: HYBRID. libmpv starts streaming the
+//      audio immediately (no wait), while yt-dlp downloads the file in the
+//      background; when the download finishes, playback swaps to BASS so the
+//      effects (tempo/pitch/EQ) become available (announced via g_speechYTHybrid).
+//   3. Last resort (no mpv): a blocking yt-dlp download to a temp file, then BASS.
 //
-// IMPORTANT: When the user prefers video mode (g_ytVideoMode), skip the
-// audio download and go straight to libmpv with the raw YouTube URL.
+// IMPORTANT: When the user prefers video mode (g_ytVideoMode), skip the audio
+// path entirely and hand the raw YouTube URL to libmpv (video + audio via mpv).
+// (Historic note: pre-1.0.9 this did a download-first-then-mpv-fallback; the
+// hybrid model above replaced it so playback starts without waiting.)
 // ============================================================
 // Hybrid playback state (v1.0.9)
 // ============================================================
@@ -3053,6 +3063,22 @@ static bool g_ytfChosenVideoOnly = false;
 static std::vector<std::wstring> g_ytfChosenFormatIds;
 static bool g_ytfChosenMulti = false;
 
+// Modal dialog proc for the "Download with options" format picker (IDD_YT_FORMATS).
+// Contract:
+//  - lParam at WM_INITDIALOG is a `const std::vector<YtFormat>*` (the parsed
+//    formats to display); it is cached in s_formats for the dialog's lifetime.
+//  - The list (IDC_YTF_LIST) uses LVS_EX_CHECKBOXES so the user can TICK several
+//    rows with Space; NVDA/JAWS announce the checked state. The format count is
+//    encoded in the dialog title (read first by the screen reader on open).
+//  - On IDOK (Enter / Download / double-click): every TICKED row is collected
+//    (falling back to the focused row if none ticked). Checked state is tested
+//    explicitly via the state image, NOT ListView_GetCheckState's truthiness
+//    (an un-realized row would read as checked otherwise). Guard: at most ONE
+//    video-bearing track may be ticked — else it speaks a message and keeps the
+//    dialog open. Results are written to the file-static g_ytfChosen* :
+//      * exactly one stream  -> g_ytfChosenFormatId + g_ytfChosenVideoOnly
+//      * two or more         -> g_ytfChosenFormatIds + g_ytfChosenMulti
+//    EndDialog returns IDOK/IDCANCEL; the caller reads the globals.
 static INT_PTR CALLBACK YtFormatsDialogProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
     static const std::vector<YtFormat>* s_formats = nullptr;
 
@@ -3403,7 +3429,15 @@ static void DownloadSelectedWithOptions(HWND hwnd) {
 }
 
 
-// Dialog procedure
+// Main YouTube dialog proc (IDD_YOUTUBE) — the search/results window.
+// MODELESS: the handle is stored in g_ytDialog at WM_INITDIALOG and cleared on
+// IDCANCEL/WM_DESTROY (GetYouTubeDialog() reads it; the async workers post their
+// results to g_hwnd, not here, so a closed dialog never dangles). Controls:
+// IDC_YT_SEARCH (Enter = search, or play/queue directly when a video/playlist/
+// channel URL is pasted), IDC_YT_RESULTS (Enter/double-click plays; reaching the
+// last item auto-loads more), IDC_YT_LOADMORE, IDC_YT_DOWNLOAD (simple m4a),
+// IDC_YT_DOWNLOAD_OPTS (the format picker above). Network work (search, load
+// more, formats, downloads) runs on worker threads — this proc never blocks.
 INT_PTR CALLBACK YouTubeDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
     switch (msg) {
         case WM_INITDIALOG:

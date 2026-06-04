@@ -574,7 +574,7 @@
 <ol>
   <li><kbd>Ctrl</kbd>+<kbd>Y</kbd> or <strong>File → YouTube</strong> opens the dialog.</li>
   <li>Type your search and press <kbd>Enter</kbd>.</li>
-  <li>Navigate the results with arrow keys. When you reach the last item, more results load automatically.</li>
+  <li>Navigate the results with arrow keys. When you reach the last item, more results load automatically (you can also use the "Load More" button).</li>
   <li><kbd>Enter</kbd> plays the selected result.</li>
   <li>The <strong>Download</strong> button saves the video permanently to <code>Downloads\MediaAccess\YouTube\</code> as m4a audio.</li>
 </ol>
@@ -583,21 +583,29 @@
 <p>The YouTube search window has two download buttons:</p>
 <ul>
   <li><strong>Download</strong>: downloads the audio in M4A format, simply, as before.</li>
-  <li><strong>Download with options...</strong>: opens a list of every format available for the selected video.</li>
+  <li><strong>Download with options...</strong> (<kbd>Alt</kbd>+<kbd>O</kbd> when the results window has focus): opens a list of every format available for the selected video.</li>
 </ul>
-<p>The list shows, in columns: extension, resolution, video codec, audio codec, estimated size and a note. Formats are sorted best-first. Navigate with the arrow keys, choose a format and press <kbd>Enter</kbd> (or the dialog's Download button).</p>
-<p>You can choose an audio-only format (for example M4A) or a video (for example MP4 in various resolutions: 1080p, 720p, etc.).</p>
+<p>The list shows, in columns: extension, resolution, video codec, audio codec, estimated size and a note. <strong>It is a table</strong>: your screen reader reads the cell of the current row; move between columns with <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>Left</kbd>/<kbd>Right</kbd> arrow (NVDA and JAWS), or turn on full-row reading. A cell announced "none" simply means this format lacks that track (for example "audio codec: none" for a silent video) — it is not an error. The dialog title announces how many formats were found.</p>
+<p>Formats are sorted best-first, and the first row (the best one) is already selected: for most uses you can just press <kbd>Enter</kbd>. You can also choose an audio-only format (for example M4A) or a video (for example MP4 in various resolutions: 1080p, 720p, etc.).</p>
 <p>If you choose a video-only format (no sound), MediaAccess automatically adds the best audio track and merges the two. The final file therefore has both picture and sound.</p>
 <h4>Tick several tracks (multilingual videos)</h4>
-<p>Each row in the list has a check box. Press <kbd>Space</kbd> to tick or untick the current row. You can tick several tracks, then press <kbd>Enter</kbd> to download them all together into a <strong>single file</strong>.</p>
-<p>This is handy for videos that offer several audio tracks (for example a French version and an English version): tick the video track and the two audio tracks you want. MediaAccess muxes everything into one <code>.mkv</code> file containing both languages, which you can then select during playback with <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>A</kbd> (switch audio track).</p>
-<p>If you tick nothing, the selected row alone is downloaded — exactly as before.</p>
-<p>Conversion (MP3, FLAC, video merge) is done automatically by MediaAccess. ffmpeg is bundled, nothing to install.</p>
-<p>The download folder is the same as for the simple button: <code>Downloads\MediaAccess\YouTube\</code> by default, or the folder configured in the YouTube options.</p>
-<p>Non-downloadable entries (storyboard thumbnail sheets) are not shown in the list.</p>
+<p>Each row has a <strong>check box</strong> at the start of the row; your screen reader announces "checked" / "not checked". To combine several tracks into a single file:</p>
+<ol>
+  <li>Move to the video track you want and press <kbd>Space</kbd> to tick it.</li>
+  <li>Move down to each audio track you want (for example the French version, then the English one) and press <kbd>Space</kbd> on each.</li>
+  <li>Press <kbd>Enter</kbd>: everything is downloaded into a single <code>.mkv</code> file, whose language you can switch during playback with <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>A</kbd>.</li>
+</ol>
+<p><strong>At most one video track</strong>: you can add as many audio tracks as you like, but only one video track. If you tick two video tracks, MediaAccess refuses, says so aloud ("Select at most one video track. You can add several audio tracks.") and keeps the window open: untick the extra video track with <kbd>Space</kbd>, then press <kbd>Enter</kbd> again.</p>
+<p>For videos that really offer several audio languages, each audio row's resolution cell shows the <strong>language</strong>, for example "audio only (French)", so you can tell the tracks apart. Single-language videos show no language (there is nothing to choose).</p>
+<p>If you tick nothing, the selected row alone is downloaded.</p>
+<p>The list offers the formats YouTube provides: audio (M4A, WebM) and video (MP4, WebM) at various resolutions. Downloading, audio+video merging and multilingual <code>.mkv</code> packaging are done automatically (ffmpeg is bundled, nothing to install). MediaAccess speaks when the download finishes ("Downloaded: …") or the reason it failed.</p>
+<p>The download folder is <code>Downloads\MediaAccess\YouTube\</code> by default, or the folder configured in <strong>Options → YouTube</strong>. Non-downloadable entries (storyboard thumbnail sheets) are not shown in the list.</p>
 
 <h3>Direct YouTube URL</h3>
-<p>You can paste a YouTube URL (video or playlist) in the search field instead of keywords.</p>
+<p>You can paste a YouTube URL (video or playlist) in the search field instead of keywords. Pasting a <strong>channel</strong> URL is not supported: MediaAccess says so clearly instead of running a misleading search.</p>
+
+<h3>When it fails</h3>
+<p>Some videos cannot be played or downloaded (private, members-only, removed videos, or ongoing live streams). In those cases MediaAccess speaks the specific reason (for example "This video is private" or "This video is unavailable") and does not open the format list — this is not an app failure. If a problem persists, use <strong>Help → Test YouTube playback</strong>.</p>
 
 <h3>Audio / video mode</h3>
 <p>By default MediaAccess plays YouTube in audio-only mode (so all BASS effects like tempo and pitch are available). For video, enable video mode in the YouTube options.</p>

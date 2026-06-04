@@ -574,7 +574,7 @@
 <ol>
   <li><kbd>Ctrl</kbd>+<kbd>Y</kbd> ou <strong>Fichier → YouTube</strong> ouvre le dialogue.</li>
   <li>Tapez votre recherche et appuyez sur <kbd>Entrée</kbd>.</li>
-  <li>Naviguez dans les résultats avec les flèches. Quand vous atteignez le dernier élément, plus de résultats se chargent automatiquement.</li>
+  <li>Naviguez dans les résultats avec les flèches. Quand vous atteignez le dernier élément, plus de résultats se chargent automatiquement (vous pouvez aussi utiliser le bouton « Charger plus »).</li>
   <li><kbd>Entrée</kbd> lance la lecture du résultat sélectionné.</li>
   <li>Le bouton <strong>Télécharger</strong> sauvegarde la vidéo de façon permanente dans <code>Téléchargements\MediaAccess\YouTube\</code> en audio m4a.</li>
 </ol>
@@ -583,21 +583,29 @@
 <p>La fenêtre de recherche YouTube propose deux boutons de téléchargement :</p>
 <ul>
   <li><strong>Télécharger</strong> : télécharge l'audio au format M4A, simplement, comme avant.</li>
-  <li><strong>Télécharger avec options...</strong> : ouvre une liste de tous les formats disponibles pour la vidéo sélectionnée.</li>
+  <li><strong>Télécharger avec options...</strong> (<kbd>Alt</kbd>+<kbd>O</kbd> quand la fenêtre de résultats a le focus) : ouvre une liste de tous les formats disponibles pour la vidéo sélectionnée.</li>
 </ul>
-<p>La liste affiche, en colonnes : extension, résolution, codec vidéo, codec audio, taille estimée et une note. Les formats sont triés du meilleur au moins bon. Naviguez avec les flèches, choisissez un format et appuyez sur <kbd>Entrée</kbd> (ou le bouton Télécharger du dialogue).</p>
-<p>Vous pouvez choisir un format audio seul (par exemple M4A) ou une vidéo (par exemple MP4 en différentes résolutions : 1080p, 720p, etc.).</p>
+<p>La liste affiche, en colonnes : extension, résolution, codec vidéo, codec audio, taille estimée et une note. <strong>C'est un tableau</strong> : votre lecteur d'écran lit la cellule de la ligne courante ; déplacez-vous d'une colonne à l'autre avec <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>Flèche gauche</kbd>/<kbd>droite</kbd> (NVDA et JAWS), ou activez la lecture de ligne complète. Une cellule annoncée « aucun » signifie simplement que ce format n'a pas cette piste (par exemple « codec audio : aucun » pour une vidéo sans son) — ce n'est pas une erreur. Le titre du dialogue indique le nombre de formats trouvés.</p>
+<p>Les formats sont triés du meilleur au moins bon, et la première ligne (la meilleure) est déjà sélectionnée : pour la plupart des usages, il suffit d'appuyer sur <kbd>Entrée</kbd>. Vous pouvez aussi choisir un format audio seul (par exemple M4A) ou une vidéo (par exemple MP4 en différentes résolutions : 1080p, 720p, etc.).</p>
 <p>Si vous choisissez un format vidéo seule (sans son), MediaAccess ajoute automatiquement la meilleure piste audio et fusionne les deux. Le fichier final a donc l'image et le son.</p>
 <h4>Cocher plusieurs pistes (vidéos multilingues)</h4>
-<p>La liste comporte une case à cocher devant chaque ligne. Appuyez sur <kbd>Espace</kbd> pour cocher ou décocher la ligne courante. Vous pouvez cocher plusieurs pistes, puis appuyer sur <kbd>Entrée</kbd> pour toutes les télécharger ensemble dans un <strong>seul fichier</strong>.</p>
-<p>C'est utile pour les vidéos qui proposent plusieurs pistes audio (par exemple une version française et une version anglaise) : cochez la piste vidéo et les deux pistes audio voulues. MediaAccess assemble le tout dans un fichier <code>.mkv</code> contenant les deux langues, que vous pourrez ensuite sélectionner à la lecture avec <kbd>Ctrl</kbd>+<kbd>Maj</kbd>+<kbd>A</kbd> (changer de piste audio).</p>
-<p>Si vous ne cochez aucune case, c'est simplement la ligne sélectionnée qui est téléchargée — exactement comme avant.</p>
-<p>La conversion (MP3, FLAC, fusion vidéo) est faite automatiquement par MediaAccess. ffmpeg est inclus, rien à installer.</p>
-<p>Le dossier de téléchargement est le même que pour le bouton simple : <code>Téléchargements\MediaAccess\YouTube\</code> par défaut, ou le dossier configuré dans les options YouTube.</p>
-<p>Les entrées non téléchargeables (planches de vignettes « storyboard ») ne sont pas affichées dans la liste.</p>
+<p>Chaque ligne possède une <strong>case à cocher</strong> au début de la ligne ; votre lecteur d'écran annonce « coché » / « non coché ». Pour réunir plusieurs pistes dans un seul fichier :</p>
+<ol>
+  <li>Placez-vous sur la piste vidéo voulue et appuyez sur <kbd>Espace</kbd> pour la cocher.</li>
+  <li>Descendez sur chaque piste audio voulue (par exemple la version française puis l'anglaise) et appuyez sur <kbd>Espace</kbd> sur chacune.</li>
+  <li>Appuyez sur <kbd>Entrée</kbd> : tout est téléchargé dans un seul fichier <code>.mkv</code>, dont vous pourrez changer la langue à la lecture avec <kbd>Ctrl</kbd>+<kbd>Maj</kbd>+<kbd>A</kbd>.</li>
+</ol>
+<p><strong>Une seule piste vidéo à la fois</strong> : vous pouvez ajouter autant de pistes audio que vous voulez, mais au plus une piste vidéo. Si vous cochez deux pistes vidéo, MediaAccess refuse, l'annonce à voix haute (« Sélectionnez au plus une piste vidéo. Vous pouvez ajouter plusieurs pistes audio. ») et laisse la fenêtre ouverte : décochez la piste vidéo en trop avec <kbd>Espace</kbd>, puis appuyez de nouveau sur <kbd>Entrée</kbd>.</p>
+<p>Pour les vidéos qui proposent réellement plusieurs langues audio, la <strong>langue</strong> de chaque piste est ajoutée dans la colonne résolution, par exemple « audio seul (Français) », pour distinguer les pistes. Les vidéos à une seule langue n'affichent pas de langue (il n'y a rien à choisir).</p>
+<p>Si vous ne cochez aucune case, c'est simplement la ligne sélectionnée qui est téléchargée.</p>
+<p>La liste propose les formats fournis par YouTube : audio (M4A, WebM) et vidéo (MP4, WebM) en différentes résolutions. Le téléchargement, la fusion audio+vidéo et l'assemblage du <code>.mkv</code> multilingue sont faits automatiquement (ffmpeg est inclus, rien à installer). MediaAccess annonce la fin du téléchargement (« Téléchargé : … ») ou la raison de l'échec.</p>
+<p>Le dossier de téléchargement est <code>Téléchargements\MediaAccess\YouTube\</code> par défaut, ou le dossier configuré dans <strong>Options → YouTube</strong>. Les entrées non téléchargeables (planches de vignettes « storyboard ») ne sont pas affichées dans la liste.</p>
 
 <h3>URL YouTube directe</h3>
-<p>Vous pouvez coller une URL YouTube (vidéo ou liste de lecture) dans le champ de recherche au lieu de mots-clés.</p>
+<p>Vous pouvez coller une URL YouTube (vidéo ou liste de lecture) dans le champ de recherche au lieu de mots-clés. Coller l'URL d'une <strong>chaîne</strong> n'est pas pris en charge : MediaAccess l'indique clairement au lieu de lancer une recherche trompeuse.</p>
+
+<h3>Quand ça échoue</h3>
+<p>Certaines vidéos ne peuvent pas être lues ou téléchargées (privées, réservées aux membres, supprimées, ou directs en cours). Dans ces cas, MediaAccess annonce la raison précise à voix haute (par exemple « Cette vidéo est privée » ou « Cette vidéo est indisponible ») et n'ouvre pas la liste des formats — ce n'est pas une panne de l'application. En cas de problème persistant, utilisez <strong>Aide → Tester la lecture YouTube</strong>.</p>
 
 <h3>Mode audio / vidéo</h3>
 <p>Par défaut MediaAccess lit YouTube en mode audio seul (pour avoir tous les effets BASS comme tempo et hauteur). Pour la vidéo, activez le mode vidéo dans les options YouTube.</p>
