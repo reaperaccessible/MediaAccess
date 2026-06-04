@@ -3465,20 +3465,18 @@ static void ToggleSystemRecording() {
     fullPath += GenerateRecordingFilename();
 
     // Resolve the loopback device to capture.
-    bool fellBackToDefault = false;
     int bwaIndex = g_systemRecordDevice;
     if (bwaIndex < 0) {
         // Auto: follow MediaAccess's active output device.
         bwaIndex = mediaaccess::FindLoopbackForCurrentBassDevice();
         if (bwaIndex < 0) {
-            // Could not correlate — fall back to the default output device's
-            // loopback and warn.
-            auto devices = mediaaccess::EnumerateLoopbackDevices();
-            for (const auto& d : devices) {
-                if (d.isDefault) { bwaIndex = d.bwaIndex; break; }
-            }
-            if (bwaIndex < 0 && !devices.empty()) bwaIndex = devices.front().bwaIndex;
-            fellBackToDefault = true;
+            // v2.11 — could not identify the loopback of the device MediaAccess
+            // is actually playing to. Do NOT silently grab an arbitrary loopback:
+            // that previously captured a virtual cable (Cable Input) without the
+            // user knowing. Tell them to pick a device manually instead.
+            Speak(Ts("Could not identify the output device to record. "
+                     "Choose a device in Options, Recording."));
+            return;
         }
     }
 
@@ -3505,10 +3503,6 @@ static void ToggleSystemRecording() {
         msg += capturedName;
     }
     SpeakW(msg);
-    if (fellBackToDefault) {
-        SpeakW(T("Warning: could not match the MediaAccess output device; "
-                 "capturing the default device instead."), false);
-    }
     UpdateStatusBar();
 }
 

@@ -136,40 +136,46 @@ std::vector<LoopbackDevice> EnumerateLoopbackDevices() {
 
 int FindLoopbackForCurrentBassDevice() {
     // Output = Windows default device: g_selectedDevice == -1 and no persisted
-    // name. Name-based correlation is unreliable here (the default endpoint's
-    // human name does not uniquely identify it among loopbacks), so we correlate
-    // by endpoint id instead.
+    // name. We correlate to the device BASS ACTUALLY resolved the default to —
+    // NOT to the BASS_DEVICE_DEFAULT flag. That flag is set on MULTIPLE render
+    // endpoints when a machine has both a multimedia default AND a communications
+    // default (e.g. a software equaliser such as FXSound registers itself as the
+    // communications default). The old "first DEFAULT-flagged endpoint" logic
+    // then picked the wrong one, the id match failed, and the caller fell back to
+    // the first enumerated loopback — a VB-Audio virtual cable. Reported by Sèb.
     if (g_selectedDevice == -1 && g_selectedDeviceName.empty()) {
-        BASS_WASAPI_DEVICEINFO di;
-        // Primary: find the default RENDER endpoint, take its id, then match the
-        // loopback sharing that id. The DEFAULT flag lives on the render endpoint,
-        // not on its loopback twin -> the id is the reliable key.
-        const char* defId = nullptr;
-        for (int i = 0; BASS_WASAPI_GetDeviceInfo(i, &di); ++i) {
-            const DWORD f = di.flags;
-            if ((f & BASS_DEVICE_DEFAULT) && (f & BASS_DEVICE_ENABLED) &&
-                !(f & BASS_DEVICE_LOOPBACK) && !(f & BASS_DEVICE_INPUT)) {
-                defId = di.id; break;
+        // BASS_Init(-1) binds to the multimedia/console default (what the user
+        // hears). BASS_GetDevice() returns that concrete index and
+        // BASS_DEVICEINFO.driver is its WASAPI endpoint id (Vista+). The loopback
+        // whose id equals that driver id is the documented, unambiguous twin.
+        int dev = BASS_GetDevice();
+        BASS_DEVICEINFO bi;
+        if (dev != static_cast<int>(static_cast<DWORD>(-1)) &&
+            BASS_GetDeviceInfo(static_cast<DWORD>(dev), &bi)) {
+            BASS_WASAPI_DEVICEINFO di;
+            // Primary: endpoint-id correlation (loopback.id == render driver id).
+            if (bi.driver && bi.driver[0]) {
+                for (int i = 0; BASS_WASAPI_GetDeviceInfo(i, &di); ++i) {
+                    const DWORD f = di.flags;
+                    if ((f & BASS_DEVICE_LOOPBACK) && (f & BASS_DEVICE_ENABLED) &&
+                        di.id && strcmp(di.id, bi.driver) == 0) {
+                        return i;
+                    }
+                }
             }
-        }
-        if (defId) {
-            for (int i = 0; BASS_WASAPI_GetDeviceInfo(i, &di); ++i) {
-                const DWORD f = di.flags;
-                if ((f & BASS_DEVICE_LOOPBACK) && (f & BASS_DEVICE_ENABLED) &&
-                    di.id && strcmp(di.id, defId) == 0) {
-                    return i;
+            // Secondary: match the loopback by the BASS device's name.
+            if (bi.name && bi.name[0]) {
+                std::wstring target = WasapiNameToWide(bi.name);
+                for (int i = 0; BASS_WASAPI_GetDeviceInfo(i, &di); ++i) {
+                    const DWORD f = di.flags;
+                    if ((f & BASS_DEVICE_LOOPBACK) && (f & BASS_DEVICE_ENABLED) &&
+                        NameMatches(WasapiNameToWide(di.name), target)) {
+                        return i;
+                    }
                 }
             }
         }
-        // Fallback A: a loopback explicitly marked DEFAULT (rare but valid).
-        for (int i = 0; BASS_WASAPI_GetDeviceInfo(i, &di); ++i) {
-            const DWORD f = di.flags;
-            if ((f & BASS_DEVICE_LOOPBACK) && (f & BASS_DEVICE_ENABLED) &&
-                (f & BASS_DEVICE_DEFAULT) && !(f & BASS_DEVICE_INPUT)) {
-                return i;
-            }
-        }
-        return -1;   // caller's front()+warning fallback remains the last resort
+        return -1;   // caller MUST abort with a clear message — never front()
     }
 
     // Named device: name-based correlation (existing behaviour, unchanged).

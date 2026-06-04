@@ -11,6 +11,10 @@ void RegisterPlayerTranslations() {
     // --------------------------------------------------------------
     AddTranslation("en", "No audio devices found", L"No audio devices found");
     AddTranslation("fr", "No audio devices found", L"Aucun périphérique audio trouvé");
+    AddTranslation("en", "Could not identify the output device to record. Choose a device in Options, Recording.",
+                   L"Could not identify the output device to record. Choose a device in Options, Recording.");
+    AddTranslation("fr", "Could not identify the output device to record. Choose a device in Options, Recording.",
+                   L"Impossible d'identifier le périphérique de sortie à enregistrer. Choisissez un périphérique dans Options, Enregistrement.");
 
     AddTranslation("en", "Switched to ", L"Switched to ");
     AddTranslation("fr", "Switched to ", L"Basculé vers ");
