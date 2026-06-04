@@ -871,10 +871,10 @@ void RegisterRcTranslations() {
     AddTranslation("en", "Song History", L"Song History");
     AddTranslation("fr", "Song History", L"Historique des morceaux");
 
-    AddTranslation("en", "Recent songs captured from stream metadata (Ctrl+C to copy):",
-                   L"Recent songs captured from stream metadata (Ctrl+C to copy):");
-    AddTranslation("fr", "Recent songs captured from stream metadata (Ctrl+C to copy):",
-                   L"Morceaux récents extraits des métadonnées du flux (Ctrl+C pour copier) :");
+    AddTranslation("en", "Recently played (Ctrl+C to copy):",
+                   L"Recently played (Ctrl+C to copy):");
+    AddTranslation("fr", "Recently played (Ctrl+C to copy):",
+                   L"Lecture récente (Ctrl+C pour copier) :");
 
     AddTranslation("en", "&Copy", L"&Copy");
     AddTranslation("fr", "&Copy", L"&Copier");

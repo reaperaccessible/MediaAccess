@@ -407,7 +407,7 @@ STYLE DS_SETFONT | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU | WS_THICKFR
 CAPTION "Song History"
 FONT 8, "MS Shell Dlg"
 BEGIN
-    LTEXT           "Recent songs captured from stream metadata (Ctrl+C to copy):", -1, 7, 8, 320, 10
+    LTEXT           "Recently played (Ctrl+C to copy):", -1, 7, 8, 320, 10
     LISTBOX         IDC_HISTORY_LIST, 7, 22, 386, 210, LBS_NOTIFY | LBS_USETABSTOPS | WS_VSCROLL | WS_HSCROLL | WS_TABSTOP
     PUSHBUTTON      "&Copy", IDC_HISTORY_COPY, 7, 238, 50, 14
     PUSHBUTTON      "C&lear", IDC_HISTORY_CLEAR, 62, 238, 50, 14

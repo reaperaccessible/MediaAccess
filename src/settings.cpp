@@ -1088,7 +1088,14 @@ void UpdateRecentFilesMenu(HMENU hMenu) {
     HMENU hFileMenu = GetSubMenu(hMenu, 0);
     if (!hFileMenu) return;
 
-    // Find the Recent Files submenu by iterating through items
+    // Find the Recent Files submenu by iterating through items.
+    // NOTE (issue #3): the submenu caption is localized at startup by
+    // LocalizeMenu (e.g. FR "Recent &Files" -> "&Fichiers récents"), so the old
+    // hard-coded wcsstr(text, L"Recent") match failed in the French build and the
+    // submenu was never populated. Match against the LOCALIZED label instead
+    // (T("Recent &Files") returns exactly what LocalizeMenu wrote), keeping the
+    // English substring as a belt-and-suspenders fallback.
+    const wchar_t* recentLabel = T("Recent &Files");
     int itemCount = GetMenuItemCount(hFileMenu);
     HMENU hRecentMenu = nullptr;
     for (int i = 0; i < itemCount; i++) {
@@ -1096,7 +1103,8 @@ void UpdateRecentFilesMenu(HMENU hMenu) {
         if (hSub) {
             wchar_t text[64] = {0};
             GetMenuStringW(hFileMenu, i, text, 64, MF_BYPOSITION);
-            if (wcsstr(text, L"Recent") != nullptr) {
+            if (wcsstr(text, L"Recent") != nullptr ||
+                (recentLabel && recentLabel[0] && wcscmp(text, recentLabel) == 0)) {
                 hRecentMenu = hSub;
                 break;
             }

@@ -80,6 +80,18 @@ void SetNowPlaying(SourceType type,
     g_nowPlayingSource = source;
     g_nowPlayingItem   = item;
     UpdateWindowTitle();
+
+    // v2.11 (issue #3) — record every started item into the play history so it
+    // covers ALL sources (local files, YouTube, podcasts, local video…), not
+    // only radio ICY metadata. EXCLUDES books: DAISY/EPUB now-playing is a
+    // navigation label that changes on every move and would flood the history
+    // (books are kept via their own library, not the play history). Radio song
+    // titles arrive via SetNowPlayingItem (ICY) and are recorded on that path.
+    // AddSongHistoryEntry already drops empty titles and consecutive duplicates,
+    // so a title refresh with the same item won't pile up.
+    if (type != SourceType::None && type != SourceType::Book && !item.empty()) {
+        AddSongHistoryEntry(item);
+    }
 }
 
 void SetNowPlayingItem(const std::wstring& item) {
