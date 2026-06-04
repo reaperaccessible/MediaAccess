@@ -982,6 +982,9 @@ void RegisterPlayerTranslations() {
     AddTranslation("en", "No formats available", L"No formats available");
     AddTranslation("fr", "No formats available", L"Aucun format disponible");
 
+    AddTranslation("en", "YouTube video", L"YouTube video");
+    AddTranslation("fr", "YouTube video", L"Vidéo YouTube");
+
     // v2.10 — audio-track language names for the format picker (multi-language
     // videos). English key -> localized name; only the common YouTube languages.
     // The "en" identity entries are REQUIRED: T() falls back to the other

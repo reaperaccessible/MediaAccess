@@ -2553,10 +2553,24 @@ static void DoSearch(HWND hwnd) {
                          "playlist URL, or type keywords."));
                 return;
             } else if (!isPlaylist && !isChannel) {
-                // Single video — same path as double-clicking a result row
-                // (PlaySelected): YouTubePlayById uses the hybrid (non-blocking)
-                // stream-then-download model, so it does not freeze the UI.
-                // v1.60 — channel/title unknown at this point (no result row).
+                // v2.12 — make the pasted single video a SELECTABLE result row so
+                // the Download / Download with options buttons act on it. Before,
+                // a pasted video played but the results list stayed empty, so
+                // Download said "No item selected" (reported by a user). We build
+                // a one-row result, select it, then play — keeping the instant
+                // (hybrid, non-blocking) playback users expect. The title is a
+                // placeholder here; the window title shows the real one once the
+                // engine resolves it.
+                g_ytCurrentQuery = query;
+                g_ytResults.clear();
+                g_ytNextPageToken.clear();
+                g_ytIsPlaylistView = false;
+                YouTubeResult r;
+                r.videoId = id;
+                r.title   = T("YouTube video");
+                g_ytResults.push_back(r);
+                UpdateResultsList(hwnd);
+                SendMessageW(GetDlgItem(hwnd, IDC_YT_RESULTS), LB_SETCURSEL, 0, 0);
                 SetNowPlaying(SourceType::YouTube, L"YouTube", L"");
                 YouTubePlayById(id);
                 return;
