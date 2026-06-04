@@ -115,6 +115,8 @@ static std::wstring g_ytNextPageToken;
 static std::wstring g_ytCurrentQuery;
 static bool g_ytIsPlaylistView = false;
 static std::wstring g_ytCurrentPlaylistId;
+static bool g_ytIsChannelView = false;          // v2.12 — channel listing view
+static std::wstring g_ytCurrentChannelUrl;      // v2.12 — canonical channel /videos URL
 
 // Holds the spoken-failure key produced by the most recent yt-dlp / API query,
 // so the caller can voice a specific reason instead of a blanket "no results".
@@ -960,6 +962,57 @@ bool YouTubeGetPlaylistContents(const std::wstring& playlistId, std::vector<YouT
     // m5 (v2.02): shared line parser (same logic as SearchWithYtdlp).
     ParseYtdlpJsonLines(output, results);
 
+    return !results.empty();
+}
+
+// v2.12 — build a SAFE channel "/videos" URL from a pasted channel URL, or ""
+// if the reference isn't a safe channel token. Like the rest of this file we
+// NEVER hand a raw user URL to yt-dlp: we reconstruct a canonical URL from a
+// WHITELISTED reference + a fixed prefix. Canonical channel ids use
+// [A-Za-z0-9_-]; handles / custom / user names also allow '.'.
+static std::wstring YtChannelVideosUrl(const std::wstring& pastedUrl) {
+    struct Form { const wchar_t* marker; size_t skip; const wchar_t* prefix; bool dotOk; };
+    static const Form forms[] = {
+        { L"/channel/", 9, L"https://www.youtube.com/channel/", false },
+        { L"/@",        2, L"https://www.youtube.com/@",        true  },
+        { L"/c/",       3, L"https://www.youtube.com/c/",       true  },
+        { L"/user/",    6, L"https://www.youtube.com/user/",    true  },
+    };
+    for (const auto& f : forms) {
+        size_t pos = pastedUrl.find(f.marker);
+        if (pos == std::wstring::npos) continue;
+        pos += f.skip;
+        size_t end = pastedUrl.find_first_of(L"/?# ", pos);
+        std::wstring ref = pastedUrl.substr(
+            pos, end == std::wstring::npos ? std::wstring::npos : end - pos);
+        if (ref.empty() || ref.size() > YT_ID_MAX_LEN) return L"";
+        for (wchar_t c : ref) {
+            bool ok = (c >= L'A' && c <= L'Z') || (c >= L'a' && c <= L'z') ||
+                      (c >= L'0' && c <= L'9') || c == L'_' || c == L'-' ||
+                      (f.dotOk && c == L'.');
+            if (!ok) return L"";
+        }
+        return std::wstring(f.prefix) + ref + L"/videos";
+    }
+    return L"";
+}
+
+// v2.12 — list a channel's uploaded videos (flat) into results. channelUrl MUST
+// come from YtChannelVideosUrl (canonical + whitelisted) so it is safe to quote.
+// Capped to the first 100 with --lazy-playlist so a channel with thousands of
+// uploads doesn't stall or overflow RunYtdlp's stdout cap; "Download all" (a
+// later phase) acts on exactly what is listed.
+static bool YouTubeGetChannelContents(const std::wstring& channelUrl,
+                                      std::vector<YouTubeResult>& results) {
+    results.clear();
+    // Defensive: only ever run on a URL we built ourselves.
+    if (channelUrl.rfind(L"https://www.youtube.com/", 0) != 0) return false;
+    if (!IsYtdlpAvailable()) return false;
+    std::wstring args = L"--flat-playlist --dump-json --quiet --no-warnings "
+                        L"--lazy-playlist --playlist-items 1:100 \"" + channelUrl + L"\"";
+    std::wstring output = RunYtdlp(args);
+    if (output.empty()) return false;
+    ParseYtdlpJsonLines(output, results);
     return !results.empty();
 }
 
@@ -2395,13 +2448,14 @@ static std::atomic<bool> g_ytSearching{false};
 // Forward decl — defined further down with the infinite-scroll machinery.
 static void TriggerAutoLoadMore(HWND hwnd, int selection);
 
-enum class YtSearchKind { Search, Playlist };
+enum class YtSearchKind { Search, Playlist, Channel };
 
 // Request handed to the search worker (heap, owned by the worker).
 struct YtSearchRequest {
     YtSearchKind kind = YtSearchKind::Search;
     std::wstring query;        // Search kind: the user's query
     std::wstring playlistId;   // Playlist kind: the playlist id
+    std::wstring channelUrl;   // Channel kind: canonical /videos URL (v2.12)
 };
 
 // Result posted back to the UI (heap, freed by the handler). Carries the parsed
@@ -2412,6 +2466,7 @@ struct YtSearchResult {
     YtSearchKind kind = YtSearchKind::Search;
     std::wstring query;        // echoed back so a stale result can be discarded
     std::wstring playlistId;   // echoed back (Playlist kind)
+    std::wstring channelUrl;   // echoed back (Channel kind, v2.12)
     bool ok = false;
     std::vector<YouTubeResult> results;
     std::wstring nextPageToken;
@@ -2425,11 +2480,15 @@ static DWORD WINAPI SearchThreadProc(LPVOID arg) {
     res->kind       = req->kind;
     res->query      = req->query;
     res->playlistId = req->playlistId;
+    res->channelUrl = req->channelUrl;
 
     g_ytLastFailureKey = nullptr;
     if (req->kind == YtSearchKind::Playlist) {
         res->ok = YouTubeGetPlaylistContents(req->playlistId, res->results,
                                              res->nextPageToken, L"");
+    } else if (req->kind == YtSearchKind::Channel) {
+        res->ok = YouTubeGetChannelContents(req->channelUrl, res->results);
+        res->nextPageToken.clear();  // channel listing is not paged (capped)
     } else {
         // First page: no seen-ids snapshot needed (results are starting fresh).
         res->ok = YouTubeSearch(req->query, res->results,
@@ -2459,7 +2518,9 @@ void YouTubeOnSearchDone(LPARAM lParam) {
         dlg &&
         ((res->kind == YtSearchKind::Playlist)
             ? (g_ytIsPlaylistView && res->playlistId == g_ytCurrentPlaylistId)
-            : (!g_ytIsPlaylistView && res->query == g_ytCurrentQuery));
+         : (res->kind == YtSearchKind::Channel)
+            ? (g_ytIsChannelView && res->channelUrl == g_ytCurrentChannelUrl)
+            : (!g_ytIsPlaylistView && !g_ytIsChannelView && res->query == g_ytCurrentQuery));
 
     if (current) {
         g_ytResults = res->results;
@@ -2469,6 +2530,15 @@ void YouTubeOnSearchDone(LPARAM lParam) {
         if (res->kind == YtSearchKind::Playlist) {
             if (res->ok) {
                 Speak(Ts("Playlist loaded"));
+            } else if (res->failureKey) {
+                Speak(Ts(res->failureKey));
+            } else {
+                Speak(Ts("No results found"));
+            }
+        } else if (res->kind == YtSearchKind::Channel) {
+            if (res->ok) {
+                Speak(WideToUtf8(FormatCount(T("Channel loaded — %d videos"),
+                                             static_cast<int>(res->results.size()))));
             } else if (res->failureKey) {
                 Speak(Ts(res->failureKey));
             } else {
@@ -2537,6 +2607,7 @@ static void DoSearch(HWND hwnd) {
                 g_ytResults.clear();
                 g_ytNextPageToken.clear();
                 g_ytIsPlaylistView = true;
+                g_ytIsChannelView = false;
                 g_ytCurrentPlaylistId = id;
                 UpdateResultsList(hwnd);   // clear the visible list immediately
                 YtSearchRequest* req = new YtSearchRequest;
@@ -2545,12 +2616,28 @@ static void DoSearch(HWND hwnd) {
                 StartSearchAsync(req);
                 return;
             } else if (isChannel) {
-                // M1 (v2.03): a channel URL was pasted. Channel browsing is not a
-                // feature. Speak an honest message instead of falling through to
-                // the keyword-search fallback below, which would treat the raw URL
-                // as a search query and surface misleading noise / "no results".
-                Speak(Ts("Channel browsing is not supported yet. Paste a video or "
-                         "playlist URL, or type keywords."));
+                // v2.12 — a channel URL was pasted: list the channel's uploads
+                // (like a playlist). Build a SAFE canonical /videos URL from the
+                // whitelisted reference; if it doesn't validate, fall back to the
+                // honest "not supported" message rather than risk a bad command
+                // line or a misleading keyword search.
+                std::wstring chUrl = YtChannelVideosUrl(query);
+                if (chUrl.empty()) {
+                    Speak(Ts("Channel browsing is not supported yet. Paste a video or "
+                             "playlist URL, or type keywords."));
+                    return;
+                }
+                g_ytCurrentQuery = query;
+                g_ytResults.clear();
+                g_ytNextPageToken.clear();
+                g_ytIsPlaylistView = false;
+                g_ytIsChannelView = true;
+                g_ytCurrentChannelUrl = chUrl;
+                UpdateResultsList(hwnd);   // clear the visible list immediately
+                YtSearchRequest* req = new YtSearchRequest;
+                req->kind = YtSearchKind::Channel;
+                req->channelUrl = chUrl;
+                StartSearchAsync(req);
                 return;
             } else if (!isPlaylist && !isChannel) {
                 // v2.12 — make the pasted single video a SELECTABLE result row so
@@ -2565,6 +2652,7 @@ static void DoSearch(HWND hwnd) {
                 g_ytResults.clear();
                 g_ytNextPageToken.clear();
                 g_ytIsPlaylistView = false;
+                g_ytIsChannelView = false;
                 YouTubeResult r;
                 r.videoId = id;
                 r.title   = T("YouTube video");
@@ -2583,6 +2671,7 @@ static void DoSearch(HWND hwnd) {
     g_ytResults.clear();
     g_ytNextPageToken.clear();
     g_ytIsPlaylistView = false;
+    g_ytIsChannelView = false;
     UpdateResultsList(hwnd);   // clear the visible list immediately
 
     YtSearchRequest* req = new YtSearchRequest;
