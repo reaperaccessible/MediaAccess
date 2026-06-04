@@ -1191,9 +1191,18 @@ static void PlayHistoryEntry(HWND dlg, int sel) {
         return;
     }
     // Local file / radio / podcast / video: load the stored path or URL, mirroring
-    // the recent-files menu. PlayTrack -> ApplyNowPlayingForCurrentTrack restores
-    // the proper now-playing state (and re-adds it to the top of the history).
-    SetNowPlaying(static_cast<SourceType>(e.sourceType), L"", L"");
+    // the recent-files menu. Re-seed the now-playing with the entry's saved title
+    // so the FRIENDLY name survives — otherwise, for a URL source,
+    // ApplyNowPlayingForCurrentTrack falls back to GetFileName(url) and shows the
+    // raw stream URL (e.g. "CHMPFM.mp3?dist=...") instead of "98.5 Montréal".
+    // Radio favourites display the name from the SOURCE field; other types use
+    // the item field. (Local files re-derive their title from tags either way.)
+    SourceType st = static_cast<SourceType>(e.sourceType);
+    if (st == SourceType::RadioFavorite) {
+        SetNowPlaying(st, e.title, L"");
+    } else {
+        SetNowPlaying(st, L"", e.title);
+    }
     g_playlist.clear();
     g_playlist.push_back(e.source);
     g_currentTrack = -1;
