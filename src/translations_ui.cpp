@@ -318,6 +318,10 @@ void RegisterUiTranslations() {
     AddTranslation("fr", "Clear all song history?", L"Effacer tout l'historique des chansons ?");
     AddTranslation("en", "Song History",     L"Song History");
     AddTranslation("fr", "Song History",     L"Historique des chansons");
+    AddTranslation("en", "This item cannot be replayed",
+                         L"This item cannot be replayed");
+    AddTranslation("fr", "This item cannot be replayed",
+                         L"Cet élément ne peut pas être relancé");
     AddTranslation("en", "Select folder to add to playlist",
                          L"Select folder to add to playlist");
     AddTranslation("fr", "Select folder to add to playlist",

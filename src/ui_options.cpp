@@ -63,6 +63,7 @@ void ShowTabControls(HWND hwnd, int tab) {
     // Playback tab controls (tab 0)
     int playbackCtrls[] = {IDC_SOUNDCARD, IDC_ALLOW_AMPLIFY, IDC_REMEMBER_STATE, IDC_REMEMBER_POS, IDC_BRING_TO_FRONT, IDC_LOAD_FOLDER, IDC_MINIMIZE_TO_TRAY, IDC_VOLUME_STEP, IDC_SHOW_TITLE, IDC_AUTO_ADVANCE, IDC_PLAYLIST_FOLLOW, IDC_CHECK_UPDATES, IDC_MULTI_INSTANCE, IDC_REGISTER_FILE_TYPES, IDC_ANNOUNCE_ON_FOCUS, IDC_DOWNLOAD_PATH, IDC_DOWNLOAD_BROWSE, IDC_REWIND_ON_PAUSE, IDC_REWIND_LABEL,
                            IDC_LABEL_PLAYBACK_OUTPUT_DEVICE, IDC_LABEL_PLAYBACK_REMEMBER_POS, IDC_LABEL_PLAYBACK_VOLUME_STEP,
+                           IDC_HISTORY_LIMIT, IDC_LABEL_PLAYBACK_HISTORY_LIMIT,
                            IDC_LANGUAGE_COMBO, IDC_LABEL_LANGUAGE};
     // Recording tab controls (tab 1)
     int recordingCtrls[] = {IDC_REC_PATH, IDC_REC_BROWSE, IDC_REC_TEMPLATE, IDC_REC_FORMAT, IDC_REC_BITRATE,
@@ -425,6 +426,20 @@ INT_PTR CALLBACK OptionsDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
                     }
                 }
                 SendMessageW(hVolStepCombo, CB_SETCURSEL, stepIndex, 0);
+            }
+
+            // v2.11 — populate history-size combo (max 50, FIFO eviction).
+            {
+                HWND hHist = GetDlgItem(hwnd, IDC_HISTORY_LIMIT);
+                const int histValues[] = {10, 20, 30, 40, 50};
+                int histIndex = 4;  // default to 50
+                for (int i = 0; i < 5; i++) {
+                    wchar_t lbl[8];
+                    swprintf(lbl, 8, L"%d", histValues[i]);
+                    SendMessageW(hHist, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(lbl));
+                    if (g_historyLimit == histValues[i]) histIndex = i;
+                }
+                SendMessageW(hHist, CB_SETCURSEL, histIndex, 0);
             }
 
             // Populate remember position combo box
@@ -808,6 +823,20 @@ INT_PTR CALLBACK OptionsDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
                         const int stepValues[] = {1, 2, 5, 10, 15, 20, 25};
                         if (volStepSel >= 0 && volStepSel < 7) {
                             g_volumeStep = stepValues[volStepSel] / 100.0f;
+                        }
+                    }
+
+                    // v2.11 — get history-size setting (clamped 1..50) and apply
+                    // it immediately so an over-cap DB shrinks now.
+                    {
+                        HWND hHist = GetDlgItem(hwnd, IDC_HISTORY_LIMIT);
+                        int histSel = static_cast<int>(SendMessageW(hHist, CB_GETCURSEL, 0, 0));
+                        const int histValues[] = {10, 20, 30, 40, 50};
+                        if (histSel >= 0 && histSel < 5) {
+                            g_historyLimit = histValues[histSel];
+                            if (g_historyLimit < 1)  g_historyLimit = 1;
+                            if (g_historyLimit > 50) g_historyLimit = 50;
+                            PruneSongHistoryToLimit();
                         }
                     }
 

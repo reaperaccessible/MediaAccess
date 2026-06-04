@@ -2,6 +2,7 @@
 #include "video_engine.h"
 #include "mediaaccess/translations.h"
 #include "mediaaccess/wasapi_loopback.h"  // v1.94 — system-capture state for status bar
+#include "mediaaccess/youtube.h"          // v2.11 — YouTubePlayById for history replay
 #include <shlwapi.h>
 #include <vector>
 
@@ -80,29 +81,12 @@ void SetNowPlaying(SourceType type,
     g_nowPlayingSource = source;
     g_nowPlayingItem   = item;
     UpdateWindowTitle();
-
-    // v2.11 (issue #3) — record every started item into the play history so it
-    // covers ALL sources (local files, YouTube, podcasts, local video…), not
-    // only radio ICY metadata. EXCLUDES books: DAISY/EPUB now-playing is a
-    // navigation label that changes on every move and would flood the history
-    // (books are kept via their own library, not the play history). Radio song
-    // titles arrive via SetNowPlayingItem (ICY) and are recorded on that path.
-    // AddSongHistoryEntry already drops empty titles and consecutive duplicates,
-    // so a title refresh with the same item won't pile up.
-    if (type != SourceType::None && type != SourceType::Book) {
-        if (!item.empty()) {
-            AddSongHistoryEntry(item);
-        } else if (type == SourceType::RadioFavorite ||
-                   type == SourceType::RadioUrl) {
-            // Radio passes the station name in `source` with an empty item, so
-            // record the station so a station that sends no ICY song metadata
-            // still shows up in the history. An ad-hoc RadioUrl before its
-            // icy-name arrives has an empty source — AddSongHistoryEntry drops
-            // empty titles. NOT applied to YouTube/Podcast, to avoid recording
-            // placeholder calls like SetNowPlaying(YouTube, "YouTube", "").
-            AddSongHistoryEntry(source);
-        }
-    }
+    // v2.11 — history recording moved OUT of here: this hook fires with timing
+    // that doesn't yet know the playable target (radio/podcast call this BEFORE
+    // pushing the URL to the playlist; YouTube never uses the playlist). The
+    // play history is now recorded from ApplyNowPlayingForCurrentTrack (covers
+    // local/radio/podcast/video with a valid g_playlist), from the YouTube layer
+    // (videoId), and from the radio ICY path — each with its real playable source.
 }
 
 void SetNowPlayingItem(const std::wstring& item) {
@@ -1187,10 +1171,46 @@ static void RefreshHistoryList(HWND hwnd) {
     }
 }
 
+// v2.11 (issue #3) — replay a history entry. Dispatch on the stored source type:
+// YouTube goes through YouTubePlayById (it doesn't use the playlist); everything
+// else loads the stored path/URL like the recent-files menu. Empty source =
+// legacy / non-replayable row -> announce and do nothing. The dialog is closed
+// before playback starts so focus returns to the main window where the
+// now-playing announcement is heard (consistent with the radio/podcast dialogs).
+static void PlayHistoryEntry(HWND dlg, int sel) {
+    if (sel < 0 || sel >= static_cast<int>(g_dialogSongHistory.size())) return;
+    const SongHistoryEntry& e = g_dialogSongHistory[sel];
+    if (e.source.empty()) {
+        Speak(Ts("This item cannot be replayed"));
+        return;
+    }
+    if (e.sourceType == static_cast<int>(SourceType::YouTube)) {
+        SetNowPlaying(SourceType::YouTube, L"YouTube", e.title);
+        EndDialog(dlg, IDOK);
+        YouTubePlayById(e.source);
+        return;
+    }
+    // Local file / radio / podcast / video: load the stored path or URL, mirroring
+    // the recent-files menu. PlayTrack -> ApplyNowPlayingForCurrentTrack restores
+    // the proper now-playing state (and re-adds it to the top of the history).
+    SetNowPlaying(static_cast<SourceType>(e.sourceType), L"", L"");
+    g_playlist.clear();
+    g_playlist.push_back(e.source);
+    g_currentTrack = -1;
+    EndDialog(dlg, IDOK);
+    PlayTrack(0);
+}
+
 static LRESULT CALLBACK HistoryListSubclassProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
     if (msg == WM_KEYDOWN) {
         if (wParam == VK_ESCAPE) {
             EndDialog(GetParent(hwnd), IDCANCEL);
+            return 0;
+        }
+        // v2.11 — Enter replays the selected entry.
+        if (wParam == VK_RETURN) {
+            int sel = static_cast<int>(SendMessageW(hwnd, LB_GETCURSEL, 0, 0));
+            PlayHistoryEntry(GetParent(hwnd), sel);
             return 0;
         }
         // Ctrl+C to copy selected entry's title
@@ -1208,7 +1228,9 @@ static LRESULT CALLBACK HistoryListSubclassProc(HWND hwnd, UINT msg, WPARAM wPar
         if (wParam == 3) return 0;
     } else if (msg == WM_GETDLGCODE) {
         MSG* pmsg = reinterpret_cast<MSG*>(lParam);
-        if (pmsg && pmsg->wParam == VK_ESCAPE) {
+        // v2.11 — claim Enter too, otherwise the dialog's default button (Close)
+        // eats it and the entry never plays.
+        if (pmsg && (pmsg->wParam == VK_ESCAPE || pmsg->wParam == VK_RETURN)) {
             return DLGC_WANTMESSAGE;
         }
         return CallWindowProcW(g_origHistoryListProc, hwnd, msg, wParam, lParam);
@@ -1235,6 +1257,15 @@ static INT_PTR CALLBACK SongHistoryDlgProc(HWND hwnd, UINT msg, WPARAM wParam, L
 
         case WM_COMMAND:
             switch (LOWORD(wParam)) {
+                case IDC_HISTORY_LIST:
+                    // v2.11 — double-click replays the entry (LBS_NOTIFY is set).
+                    if (HIWORD(wParam) == LBN_DBLCLK) {
+                        HWND hList = GetDlgItem(hwnd, IDC_HISTORY_LIST);
+                        int sel = static_cast<int>(SendMessageW(hList, LB_GETCURSEL, 0, 0));
+                        PlayHistoryEntry(hwnd, sel);
+                        return TRUE;
+                    }
+                    break;
                 case IDC_HISTORY_COPY: {
                     HWND hList = GetDlgItem(hwnd, IDC_HISTORY_LIST);
                     int sel = static_cast<int>(SendMessageW(hList, LB_GETCURSEL, 0, 0));

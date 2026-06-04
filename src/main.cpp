@@ -339,6 +339,10 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
             }
 
             InitDatabase();
+            // v2.11 — shrink an existing history DB to the configured cap (the
+            // old hard cap was 100; the new max is 50). g_historyLimit was set
+            // by LoadSettings() before the window was created.
+            PruneSongHistoryToLimit();
             InitEffects();
             LoadDSPSettings();
             InitSpeech(hwnd);

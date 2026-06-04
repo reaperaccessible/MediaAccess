@@ -324,6 +324,9 @@ void RegisterRcTranslations() {
     AddTranslation("en", "Volu&me step:", L"Volu&me step:");
     AddTranslation("fr", "Volu&me step:", L"Pas de volu&me :");
 
+    AddTranslation("en", "&History entries:", L"&History entries:");
+    AddTranslation("fr", "&History entries:", L"&Historique (entrées) :");
+
     // Recording tab
     AddTranslation("en", "Record audio output to file. Press R to toggle recording.",
                    L"Record audio output to file. Press R to toggle recording.");
@@ -871,10 +874,10 @@ void RegisterRcTranslations() {
     AddTranslation("en", "Song History", L"Song History");
     AddTranslation("fr", "Song History", L"Historique des morceaux");
 
-    AddTranslation("en", "Recently played (Ctrl+C to copy):",
-                   L"Recently played (Ctrl+C to copy):");
-    AddTranslation("fr", "Recently played (Ctrl+C to copy):",
-                   L"Lecture récente (Ctrl+C pour copier) :");
+    AddTranslation("en", "Recently played (Enter to play, Ctrl+C to copy):",
+                   L"Recently played (Enter to play, Ctrl+C to copy):");
+    AddTranslation("fr", "Recently played (Enter to play, Ctrl+C to copy):",
+                   L"Lecture récente (Entrée pour lire, Ctrl+C pour copier) :");
 
     AddTranslation("en", "&Copy", L"&Copy");
     AddTranslation("fr", "&Copy", L"&Copier");

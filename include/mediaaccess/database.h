@@ -33,11 +33,15 @@ struct PodcastSubscription {
     int sortOrder;
 };
 
-// Song history entry (captured from stream metadata)
+// Song history entry (a recently played item)
 struct SongHistoryEntry {
     int id;
     std::wstring title;
-    int64_t timestamp;  // Unix timestamp when captured
+    std::wstring source;    // v2.11 — playable target: file path / URL / YouTube
+                            // videoId. Empty = legacy row, not replayable.
+    int sourceType = 0;     // v2.11 — mirrors SourceType (ui.h); 0 = None/legacy.
+                            // Stored as int to keep this header free of ui.h.
+    int64_t timestamp;      // Unix timestamp when captured
 };
 
 // Podcast episode structure (not stored in DB - fetched from RSS)
@@ -150,10 +154,18 @@ bool UpdateScheduledEvent(int id, const std::wstring& name, ScheduleAction actio
 std::vector<ScheduledEvent> GetAllScheduledEvents();
 std::vector<ScheduledEvent> GetPendingScheduledEvents();
 
-// Song history operations (captured from stream metadata)
-void AddSongHistoryEntry(const std::wstring& title);
+// Song history operations (a list of recently played items).
+// v2.11 — `source` is the playable target (file path / URL / YouTube videoId)
+// and `sourceType` mirrors SourceType so the history window can replay the entry.
+// Both default to empty/0 for callers that only have a title (legacy/non-replayable).
+void AddSongHistoryEntry(const std::wstring& title,
+                         const std::wstring& source = L"",
+                         int sourceType = 0);
 std::vector<SongHistoryEntry> GetSongHistory();
 void ClearSongHistory();
+// v2.11 — prune to the configured g_historyLimit (FIFO, drops oldest). Called at
+// startup and when the option changes so an over-cap DB shrinks immediately.
+void PruneSongHistoryToLimit();
 
 // =============================================================================
 // Book library (DAISY / EPUB reader — Phase 1)

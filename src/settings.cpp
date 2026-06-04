@@ -74,6 +74,9 @@ void LoadSettings() {
     g_allowAmplify = GetPrivateProfileIntW(L"Playback", L"AllowAmplify", 0, g_configPath.c_str()) != 0;
     g_rememberState = GetPrivateProfileIntW(L"Playback", L"RememberState", 0, g_configPath.c_str()) != 0;
     g_rememberPosMinutes = GetPrivateProfileIntW(L"Playback", L"RememberPosMinutes", 0, g_configPath.c_str());
+    g_historyLimit = GetPrivateProfileIntW(L"Playback", L"HistoryLimit", 50, g_configPath.c_str());
+    if (g_historyLimit < 1)  g_historyLimit = 1;
+    if (g_historyLimit > 50) g_historyLimit = 50;   // v2.11 — hard maximum 50
     g_bringToFront = GetPrivateProfileIntW(L"Playback", L"BringToFront", 1, g_configPath.c_str()) != 0;
     g_minimizeToTray = GetPrivateProfileIntW(L"Playback", L"MinimizeToTray", 1, g_configPath.c_str()) != 0;
     g_loadFolder = GetPrivateProfileIntW(L"Playback", L"LoadFolder", 0, g_configPath.c_str()) != 0;
@@ -523,6 +526,9 @@ void SaveSettings() {
 
     swprintf(buf, 32, L"%d", g_rememberPosMinutes);
     WritePrivateProfileStringW(L"Playback", L"RememberPosMinutes", buf, g_configPath.c_str());
+
+    swprintf(buf, 32, L"%d", g_historyLimit);
+    WritePrivateProfileStringW(L"Playback", L"HistoryLimit", buf, g_configPath.c_str());
 
     WritePrivateProfileStringW(L"Playback", L"BringToFront", g_bringToFront ? L"1" : L"0", g_configPath.c_str());
     WritePrivateProfileStringW(L"Playback", L"MinimizeToTray", g_minimizeToTray ? L"1" : L"0", g_configPath.c_str());

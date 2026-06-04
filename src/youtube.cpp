@@ -2977,6 +2977,14 @@ static void PlaySelected(HWND hwnd) {
     // resolving the stream. The (still-empty) item gets refreshed later
     // when MPVGetMediaTitle returns something concrete.
     SetNowPlaying(SourceType::YouTube, result.channel, result.title);
+    // v2.11 (issue #3) — record into the play history with the videoId as the
+    // replayable source (YouTube doesn't use g_playlist, so PlayTrack's history
+    // hook can't see it). Replay dispatches on SourceType::YouTube ->
+    // YouTubePlayById. Title fallback to videoId if the result has no title.
+    if (IsValidVideoId(result.videoId)) {
+        AddSongHistoryEntry(result.title.empty() ? result.videoId : result.title,
+                            result.videoId, static_cast<int>(SourceType::YouTube));
+    }
     YouTubePlayById(result.videoId);
 }
 

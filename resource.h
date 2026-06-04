@@ -141,6 +141,7 @@
 #define IDC_REMEMBER_POS    505
 #define IDC_VOLUME_STEP     506
 #define IDC_SHOW_TITLE      507
+#define IDC_HISTORY_LIMIT   508   // v2.11 — play-history size combo (Playback tab)
 
 // Movement settings (checkboxes for seek amounts)
 #define IDC_SEEK_1S         510
@@ -602,6 +603,7 @@
 #define IDC_LABEL_PLAYBACK_OUTPUT_DEVICE    1000
 #define IDC_LABEL_PLAYBACK_REMEMBER_POS     1001
 #define IDC_LABEL_PLAYBACK_VOLUME_STEP      1002
+#define IDC_LABEL_PLAYBACK_HISTORY_LIMIT    1003   // v2.11
 
 // Recording tab labels
 #define IDC_LABEL_RECORDING_DESCRIPTION     1010

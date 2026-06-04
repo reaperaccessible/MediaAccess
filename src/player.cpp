@@ -1439,8 +1439,20 @@ void AnnounceStreamMetadata() {
         }
     }
 
-    // Record to song history (independent of speech setting)
-    AddSongHistoryEntry(wideTitle);
+    // Record to song history (independent of speech setting).
+    // v2.11 — store the live station URL as the replayable source so Enter in the
+    // history window reconnects the station (the individual past song can't be
+    // re-fetched from a live stream; reconnecting the station is the sensible
+    // replay). g_playlist[g_currentTrack] is the stream URL here.
+    {
+        std::wstring src = (g_currentTrack >= 0 &&
+                            g_currentTrack < static_cast<int>(g_playlist.size()))
+                               ? g_playlist[g_currentTrack] : L"";
+        int t = (g_nowPlayingType == SourceType::None)
+                    ? static_cast<int>(SourceType::RadioUrl)
+                    : static_cast<int>(g_nowPlayingType);
+        AddSongHistoryEntry(wideTitle, src, t);
+    }
 
     if (g_speechTrackChange) {
         Speak(streamTitle);
@@ -2033,6 +2045,20 @@ void ApplyNowPlayingForCurrentTrack() {
         } else {
             UpdateWindowTitle();
         }
+    }
+
+    // v2.11 (issue #3) — record this item into the play history. This is the
+    // reliable chokepoint for every PlayTrack-based source (local, video, radio,
+    // podcast): g_currentTrack and g_playlist are valid here, so the playlist
+    // entry IS the replayable target. Books never reach PlayTrack (DAISY player),
+    // and YouTube is recorded from its own layer (it doesn't use g_playlist).
+    if (g_nowPlayingType != SourceType::None &&
+        g_nowPlayingType != SourceType::Book &&
+        g_nowPlayingType != SourceType::YouTube) {
+        std::wstring title = !g_nowPlayingItem.empty()   ? g_nowPlayingItem
+                           : !g_nowPlayingSource.empty() ? g_nowPlayingSource
+                           : GetFileName(path);
+        AddSongHistoryEntry(title, path, static_cast<int>(g_nowPlayingType));
     }
 }
 

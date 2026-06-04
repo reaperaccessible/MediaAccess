@@ -144,6 +144,8 @@ BEGIN
     COMBOBOX        IDC_VOLUME_STEP, 230, 116, 55, 120, CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
     LTEXT           "Lan&guage:", IDC_LABEL_LANGUAGE, 17, 200, 40, 10
     COMBOBOX        IDC_LANGUAGE_COMBO, 60, 198, 90, 80, CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    LTEXT           "&History entries:", IDC_LABEL_PLAYBACK_HISTORY_LIMIT, 170, 200, 70, 10
+    COMBOBOX        IDC_HISTORY_LIMIT, 245, 198, 50, 120, CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
 
     // Recording tab controls (shown when tab 1 selected)
     LTEXT           "Record audio output to file. Press R to toggle recording.", IDC_LABEL_RECORDING_DESCRIPTION, 17, 30, 320, 10
@@ -407,7 +409,7 @@ STYLE DS_SETFONT | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU | WS_THICKFR
 CAPTION "Song History"
 FONT 8, "MS Shell Dlg"
 BEGIN
-    LTEXT           "Recently played (Ctrl+C to copy):", -1, 7, 8, 320, 10
+    LTEXT           "Recently played (Enter to play, Ctrl+C to copy):", -1, 7, 8, 360, 10
     LISTBOX         IDC_HISTORY_LIST, 7, 22, 386, 210, LBS_NOTIFY | LBS_USETABSTOPS | WS_VSCROLL | WS_HSCROLL | WS_TABSTOP
     PUSHBUTTON      "&Copy", IDC_HISTORY_COPY, 7, 238, 50, 14
     PUSHBUTTON      "C&lear", IDC_HISTORY_CLEAR, 62, 238, 50, 14

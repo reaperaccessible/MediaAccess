@@ -85,6 +85,7 @@ int g_rewindOnPauseMs = 0;
 bool g_allowAmplify = false;
 bool g_rememberState = false;
 int g_rememberPosMinutes = 0;
+int g_historyLimit = 50;         // v2.11 — default 50 (also the hard maximum)
 bool g_bringToFront = true;
 bool g_minimizeToTray = true;
 bool g_loadFolder = false;

@@ -81,6 +81,7 @@ extern int g_rewindOnPauseMs;
 extern bool g_allowAmplify;
 extern bool g_rememberState;
 extern int g_rememberPosMinutes;
+extern int g_historyLimit;       // v2.11 — max play-history entries (1..50, default 50)
 extern bool g_bringToFront;
 extern bool g_minimizeToTray;
 extern bool g_loadFolder;

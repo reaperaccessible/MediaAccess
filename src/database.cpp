@@ -208,9 +208,21 @@ bool InitDatabase() {
         "CREATE TABLE IF NOT EXISTS song_history ("
         "id INTEGER PRIMARY KEY AUTOINCREMENT, "
         "title TEXT NOT NULL, "
-        "timestamp INTEGER NOT NULL"
+        "timestamp INTEGER NOT NULL, "
+        "source TEXT, "            // v2.11 — playable target (path/URL/videoId)
+        "source_type INTEGER"      // v2.11 — mirrors SourceType; 0/NULL = legacy
         ");";
     sqlite3_exec(g_db, songHistorySql, nullptr, nullptr, nullptr);
+    // v2.11 — migrate existing DBs: CREATE TABLE IF NOT EXISTS does NOT add the
+    // new columns to an already-existing table, so add them explicitly. These
+    // are idempotent — on a fresh DB the columns already exist and the ALTER
+    // fails with "duplicate column name", which we intentionally ignore (same
+    // pattern as the other ALTER migrations in this file). Nullable so old rows
+    // simply get NULL (read as empty -> not replayable).
+    sqlite3_exec(g_db, "ALTER TABLE song_history ADD COLUMN source TEXT;",
+                 nullptr, nullptr, nullptr);
+    sqlite3_exec(g_db, "ALTER TABLE song_history ADD COLUMN source_type INTEGER;",
+                 nullptr, nullptr, nullptr);
 
     // ---- Book library (DAISY / EPUB reader) --------------------------
     // `books` is the canonical row per imported book. position_clip +
@@ -953,18 +965,41 @@ std::vector<ScheduledEvent> GetPendingScheduledEvents() {
 
 // Song history operations
 
-void AddSongHistoryEntry(const std::wstring& title) {
+// v2.11 — configured history cap (default 50, clamped 1..50 in settings). Read
+// only on the UI thread (AddSongHistoryEntry is called from SetNowPlaying and
+// from the UI-thread WM_META_CHANGED handler), so a plain int read needs no lock.
+extern int g_historyLimit;
+
+// Resolve a safe limit (defends against an un-initialized/0 global).
+static int HistoryLimit() {
+    int n = g_historyLimit;
+    if (n < 1) n = 50;
+    if (n > 50) n = 50;
+    return n;
+}
+
+void AddSongHistoryEntry(const std::wstring& title,
+                         const std::wstring& source,
+                         int sourceType) {
     if (!g_db || title.empty()) return;
 
-    std::string titleUtf8 = WideToUtf8(title);
+    std::string titleUtf8  = WideToUtf8(title);
+    std::string sourceUtf8 = WideToUtf8(source);
 
-    // Avoid consecutive duplicates: if the most recent entry matches this title, skip.
-    const char* checkSql = "SELECT title FROM song_history ORDER BY id DESC LIMIT 1;";
+    // Avoid consecutive duplicates: skip if the newest entry has the SAME title
+    // AND the same source. Comparing source too means the same song name from two
+    // different sources (e.g. a radio station and a file) is preserved rather than
+    // silently dropped.
+    const char* checkSql =
+        "SELECT title, source FROM song_history ORDER BY id DESC LIMIT 1;";
     sqlite3_stmt* checkStmt = nullptr;
     if (sqlite3_prepare_v2(g_db, checkSql, -1, &checkStmt, nullptr) == SQLITE_OK) {
         if (sqlite3_step(checkStmt) == SQLITE_ROW) {
-            const char* prev = reinterpret_cast<const char*>(sqlite3_column_text(checkStmt, 0));
-            if (prev && titleUtf8 == prev) {
+            const char* prevTitle  = reinterpret_cast<const char*>(sqlite3_column_text(checkStmt, 0));
+            const char* prevSource = reinterpret_cast<const char*>(sqlite3_column_text(checkStmt, 1));
+            std::string pt = prevTitle  ? prevTitle  : "";
+            std::string ps = prevSource ? prevSource : "";
+            if (pt == titleUtf8 && ps == sourceUtf8) {
                 sqlite3_finalize(checkStmt);
                 return;
             }
@@ -972,20 +1007,32 @@ void AddSongHistoryEntry(const std::wstring& title) {
         sqlite3_finalize(checkStmt);
     }
 
-    const char* insertSql = "INSERT INTO song_history (title, timestamp) VALUES (?, ?);";
+    const char* insertSql =
+        "INSERT INTO song_history (title, timestamp, source, source_type) "
+        "VALUES (?, ?, ?, ?);";
     sqlite3_stmt* stmt = nullptr;
     if (sqlite3_prepare_v2(g_db, insertSql, -1, &stmt, nullptr) == SQLITE_OK) {
         sqlite3_bind_text(stmt, 1, titleUtf8.c_str(), -1, SQLITE_TRANSIENT);
         sqlite3_bind_int64(stmt, 2, static_cast<sqlite3_int64>(time(nullptr)));
+        sqlite3_bind_text(stmt, 3, sourceUtf8.c_str(), -1, SQLITE_TRANSIENT);
+        sqlite3_bind_int(stmt, 4, sourceType);
         sqlite3_step(stmt);
         sqlite3_finalize(stmt);
     }
 
-    // Trim to last 100 entries
-    const char* trimSql =
-        "DELETE FROM song_history WHERE id NOT IN ("
-        "SELECT id FROM song_history ORDER BY id DESC LIMIT 100"
-        ");";
+    PruneSongHistoryToLimit();
+}
+
+void PruneSongHistoryToLimit() {
+    if (!g_db) return;
+    // FIFO eviction: keep the N newest ids (id AUTOINCREMENT grows over time),
+    // delete everything older. N is a clamped small int, so the formatted SQL is
+    // injection-safe.
+    char trimSql[192];
+    snprintf(trimSql, sizeof(trimSql),
+             "DELETE FROM song_history WHERE id NOT IN ("
+             "SELECT id FROM song_history ORDER BY id DESC LIMIT %d);",
+             HistoryLimit());
     sqlite3_exec(g_db, trimSql, nullptr, nullptr, nullptr);
 }
 
@@ -993,15 +1040,22 @@ std::vector<SongHistoryEntry> GetSongHistory() {
     std::vector<SongHistoryEntry> history;
     if (!g_db) return history;
 
-    const char* sql = "SELECT id, title, timestamp FROM song_history ORDER BY id DESC LIMIT 100;";
+    const char* sql =
+        "SELECT id, title, timestamp, source, source_type "
+        "FROM song_history ORDER BY id DESC LIMIT ?;";
     sqlite3_stmt* stmt = nullptr;
     if (sqlite3_prepare_v2(g_db, sql, -1, &stmt, nullptr) == SQLITE_OK) {
+        sqlite3_bind_int(stmt, 1, HistoryLimit());
         while (sqlite3_step(stmt) == SQLITE_ROW) {
             SongHistoryEntry entry;
             entry.id = sqlite3_column_int(stmt, 0);
             const char* titleUtf8 = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 1));
             if (titleUtf8) entry.title = Utf8ToWide(titleUtf8);
             entry.timestamp = sqlite3_column_int64(stmt, 2);
+            // source / source_type may be NULL on legacy rows — guard.
+            const char* srcUtf8 = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 3));
+            if (srcUtf8) entry.source = Utf8ToWide(srcUtf8);
+            entry.sourceType = sqlite3_column_int(stmt, 4);  // NULL -> 0
             history.push_back(entry);
         }
         sqlite3_finalize(stmt);
