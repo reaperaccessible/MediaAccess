@@ -996,6 +996,10 @@ void RegisterPlayerTranslations() {
     AddTranslation("fr", "Cancelling downloads", L"Annulation des téléchargements");
     AddTranslation("en", "No results to download", L"No results to download");
     AddTranslation("fr", "No results to download", L"Aucun résultat à télécharger");
+    AddTranslation("en", "Open a playlist or channel first",
+                   L"Open a playlist or channel first");
+    AddTranslation("fr", "Open a playlist or channel first",
+                   L"Ouvrez d'abord une liste de lecture ou une chaîne");
     AddTranslation("en", "Download %d videos to your Downloads folder? This may take a while.",
                    L"Download %d videos to your Downloads folder? This may take a while.");
     AddTranslation("fr", "Download %d videos to your Downloads folder? This may take a while.",

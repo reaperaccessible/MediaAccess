@@ -2432,6 +2432,19 @@ static void UpdateResultsList(HWND hwnd) {
     // times; when there are no further results, activating it speaks a clear
     // "No more results" (see DoLoadMore) instead of being silently inert. We
     // therefore no longer call EnableWindow(hLoadMore, ...) here.
+
+    // v2.12 — "Download all" makes sense ONLY for a playlist or channel listing,
+    // NOT for a keyword search (downloading every arbitrary search hit is wrong)
+    // nor a single pasted video. HIDE it otherwise: a hidden button leaves the
+    // tab order entirely, so a screen-reader user can never land on an action
+    // that would mass-download search results. (Hiding != greying — the latter
+    // strands the user on an "unavailable" control; this removes it cleanly.)
+    // During a batch the view is still playlist/channel, so the button (now
+    // relabelled "Cancel downloads") stays visible.
+    HWND hAll = GetDlgItem(hwnd, IDC_YT_DOWNLOAD_ALL);
+    if (hAll) {
+        ShowWindow(hAll, (g_ytIsPlaylistView || g_ytIsChannelView) ? SW_SHOW : SW_HIDE);
+    }
 }
 
 // ============================================================
@@ -3168,6 +3181,13 @@ static void DownloadAllResults(HWND hwnd) {
         Speak(Ts("A download is already in progress"));
         return;
     }
+    // Belt-and-suspenders: "Download all" only applies to a playlist or channel
+    // listing — NEVER a keyword search (the button is hidden there, but guard the
+    // action too so it can't mass-download arbitrary search results).
+    if (!g_ytIsPlaylistView && !g_ytIsChannelView) {
+        Speak(Ts("Open a playlist or channel first"));
+        return;
+    }
     // Snapshot items on the UI thread — the worker must never read g_ytResults.
     std::vector<std::pair<std::wstring, std::wstring>> items;
     for (const auto& r : g_ytResults) {
@@ -3686,6 +3706,11 @@ INT_PTR CALLBACK YouTubeDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
             g_ytDialog = hwnd;
             g_ytResults.clear();
             g_ytNextPageToken.clear();
+            g_ytIsPlaylistView = false;
+            g_ytIsChannelView = false;
+            // v2.12 — start with no list, so "Download all" is hidden until a
+            // playlist or channel is loaded (never offered for a keyword search).
+            ShowWindow(GetDlgItem(hwnd, IDC_YT_DOWNLOAD_ALL), SW_HIDE);
             SetFocus(GetDlgItem(hwnd, IDC_YT_SEARCH));
             return FALSE;  // We set focus manually
 
