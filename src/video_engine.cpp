@@ -1079,3 +1079,38 @@ std::wstring MPVGetMediaTitle()
     }
     return result;
 }
+
+// v2.13 — technical info for the "bitrate" shortcut while a video plays via MPV
+// (BASS has no stream then). Builds e.g. "1920x1080, h264, 4500 kbps" from MPV
+// properties; pieces that MPV doesn't expose for the file are simply omitted.
+std::wstring MPVGetVideoInfo()
+{
+    if (!g_mpv) return L"";
+    std::wstring parts;
+    auto append = [&](const std::wstring& s) {
+        if (s.empty()) return;
+        if (!parts.empty()) parts += L", ";
+        parts += s;
+    };
+
+    int64_t w = 0, h = 0;
+    fn_mpv_get_property(g_mpv, "width",  MPV_FORMAT_INT64, &w);
+    fn_mpv_get_property(g_mpv, "height", MPV_FORMAT_INT64, &h);
+    if (w > 0 && h > 0) {
+        append(std::to_wstring(w) + L"x" + std::to_wstring(h));
+    }
+
+    char* codec = fn_mpv_get_property_string(g_mpv, "video-format");
+    if (codec) {
+        if (codec[0]) append(Utf8ToWide(codec));
+        fn_mpv_free(codec);
+    }
+
+    int64_t vbr = 0;
+    if (fn_mpv_get_property(g_mpv, "video-bitrate", MPV_FORMAT_INT64, &vbr) >= 0 &&
+        vbr > 0) {
+        append(std::to_wstring(vbr / 1000) + L" kbps");
+    }
+
+    return parts;
+}

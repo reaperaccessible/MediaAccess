@@ -439,6 +439,8 @@ void RegisterPlayerTranslations() {
     // Tags / metadata
     AddTranslation("en", "Nothing playing", L"Nothing playing");
     AddTranslation("fr", "Nothing playing", L"Aucune lecture en cours");
+    AddTranslation("en", "No media information", L"No media information");
+    AddTranslation("fr", "No media information", L"Aucune information sur le média");
 
     AddTranslation("en", "No title", L"No title");
     AddTranslation("fr", "No title", L"Aucun titre");

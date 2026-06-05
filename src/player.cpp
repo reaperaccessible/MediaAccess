@@ -1964,6 +1964,15 @@ double GetEffectivePlaybackSpeed() {
 // Speak elapsed time — reported in real wall-clock seconds (divides the
 // source-content position by the effective playback speed).
 void SpeakElapsed() {
+    // v2.13 — MPV video has no g_fxStream/TempoProcessor; the elapsed/remaining/
+    // total shortcuts (Ctrl+Shift+E/R/T) used to silently do nothing on videos.
+    // Route to the MPV clock so they work for video too. Reported by Sèb.
+    if (g_activeEngine == PlaybackEngine::MPV) {
+        double pos = MPVGetPosition();
+        if (pos < 0) pos = 0;
+        Speak(WideToUtf8(FormatTime(pos)));
+        return;
+    }
     if (!g_fxStream) return;
     TempoProcessor* processor = GetTempoProcessor();
     if (!processor || !processor->IsActive()) return;
@@ -1974,6 +1983,14 @@ void SpeakElapsed() {
 
 // Speak remaining time — adjusted for current playback speed.
 void SpeakRemaining() {
+    if (g_activeEngine == PlaybackEngine::MPV) {
+        double pos = MPVGetPosition();
+        double len = MPVGetLength();
+        double remaining = len - pos;
+        if (remaining < 0) remaining = 0;
+        Speak(WideToUtf8(FormatTime(remaining)));
+        return;
+    }
     if (!g_fxStream) return;
     TempoProcessor* processor = GetTempoProcessor();
     if (!processor || !processor->IsActive()) return;
@@ -1989,6 +2006,12 @@ void SpeakRemaining() {
 // Speak total time — adjusted for current playback speed, so a 33-min
 // file at 3x is announced as 11 min.
 void SpeakTotal() {
+    if (g_activeEngine == PlaybackEngine::MPV) {
+        double len = MPVGetLength();
+        if (len < 0) len = 0;
+        Speak(WideToUtf8(FormatTime(len)));
+        return;
+    }
     if (!g_fxStream) return;
     TempoProcessor* processor = GetTempoProcessor();
     if (!processor || !processor->IsActive()) return;
@@ -3046,6 +3069,15 @@ void SpeakTagComment() {
 }
 
 void SpeakTagBitrate() {
+    // v2.13 — MPV video has no BASS stream, so this said "Nothing playing" on
+    // every video (reported by Sèb / Winaide). Announce the video's technical
+    // info (resolution, codec, bitrate) instead. Empty string -> generic note.
+    if (g_activeEngine == PlaybackEngine::MPV) {
+        std::wstring info = MPVGetVideoInfo();
+        if (!info.empty()) Speak(WideToUtf8(info));
+        else               Speak(Ts("No media information"));
+        return;
+    }
     if (!g_fxStream) {
         Speak(Ts("Nothing playing"));
         return;
@@ -3111,6 +3143,23 @@ int GetCurrentBitrate() {
 }
 
 void SpeakTagDuration() {
+    // v2.13 — MPV video: report the real length from the MPV clock instead of
+    // "Nothing playing" (there is no BASS stream during video playback).
+    if (g_activeEngine == PlaybackEngine::MPV) {
+        double len = MPVGetLength();
+        if (len <= 0) { Speak(Ts("Unknown duration")); return; }
+        int totalSecs = (int)len;
+        int h = totalSecs / 3600, m = (totalSecs % 3600) / 60, s = totalSecs % 60;
+        char buf[128];
+        if (h > 0)
+            snprintf(buf, sizeof(buf), Ts("Duration: %d hours, %d minutes, %d seconds").c_str(), h, m, s);
+        else if (m > 0)
+            snprintf(buf, sizeof(buf), Ts("Duration: %d minutes, %d seconds").c_str(), m, s);
+        else
+            snprintf(buf, sizeof(buf), Ts("Duration: %d seconds").c_str(), s);
+        Speak(buf);
+        return;
+    }
     if (!g_fxStream) {
         Speak(Ts("Nothing playing"));
         return;
@@ -3299,6 +3348,11 @@ std::wstring GetTagComment() {
 }
 
 std::wstring GetTagBitrate() {
+    // v2.13 — MPV video: report the video's technical info (see SpeakTagBitrate).
+    if (g_activeEngine == PlaybackEngine::MPV) {
+        std::wstring info = MPVGetVideoInfo();
+        return info.empty() ? std::wstring(T("No media information")) : info;
+    }
     HSTREAM stream = GetTagStream();
     if (!stream) return T("Nothing playing");
 
@@ -3319,6 +3373,11 @@ std::wstring GetTagBitrate() {
 }
 
 std::wstring GetTagDuration() {
+    // v2.13 — MPV video: real length from the MPV clock.
+    if (g_activeEngine == PlaybackEngine::MPV) {
+        double len = MPVGetLength();
+        return len > 0 ? FormatTime(len) : std::wstring(T("Unknown duration"));
+    }
     HSTREAM stream = GetTagStream();
     if (!stream) return T("Nothing playing");
 

@@ -1,4 +1,5 @@
 2.13
+Correction : pendant la lecture d'un fichier vidéo, les raccourcis temps écoulé / temps restant / durée totale (Ctrl+Maj+E, Ctrl+Maj+R, Ctrl+Maj+T) fonctionnent maintenant (ils restaient muets). Le raccourci d'information technique annonce désormais la résolution, le codec et le débit de la vidéo au lieu de « Aucune lecture en cours ». Signalé par Sèb et un membre de Winaide.
 Amélioration : l'enregistrement de l'audio système en mode « Automatique » identifie le périphérique de sortie de façon plus robuste (correspondance d'identifiant insensible à la casse et tolérante au préfixe render/capture). Aide pour le dépannage de Sèb.
 Nouveau : Aide → « Diagnostic audio (pour le support) » écrit dans le dossier Musique un fichier texte listant les périphériques audio (BASS et WASAPI) ; utile pour diagnostiquer la détection « Automatique » quand elle échoue. Le chemin du fichier est affiché à la fin.
 

@@ -89,4 +89,8 @@ void MPVSubSeek(int delta);
 // ===== Metadata =====
 std::wstring MPVGetMediaTitle();
 
+// v2.13 — technical description of the current video (resolution, codec,
+// bitrate) for the "bitrate" announcement shortcut. Empty if unavailable.
+std::wstring MPVGetVideoInfo();
+
 #endif // MEDIAACCESS_VIDEO_ENGINE_H
