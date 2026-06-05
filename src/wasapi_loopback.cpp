@@ -117,19 +117,14 @@ static std::string EndpointGuidTailLower(const char* id) {
     return tail;
 }
 
-// v2.12 — endpoint-id correlation hardened in three tiers (was a bare strcmp):
-//   1. exact byte match (fast path, the documented twin);
-//   2. case-insensitive full match (some stacks differ only by GUID casing);
-//   3. trailing-{guid} match (survives the render vs capture "{0.0.x}." prefix).
-// All three are EXACT endpoint-identity matches — never fuzzy. Reported by Sèb,
-// whose Automatic detection found no twin under the strict strcmp.
-static bool EndpointIdMatches(const char* a, const char* b) {
+// v2.12 — exact/case-insensitive endpoint-id match (the documented twin). Used
+// as tiers 1+2; tier 3 (GUID-tail) is handled separately in the caller with an
+// ambiguity guard so it can never pick the wrong device. Reported by Sèb.
+static bool EndpointIdExactOrCase(const char* a, const char* b) {
     if (!a || !b || !a[0] || !b[0]) return false;
-    if (strcmp(a, b) == 0)  return true;   // tier 1: exact
-    if (_stricmp(a, b) == 0) return true;  // tier 2: case-insensitive
-    std::string ta = EndpointGuidTailLower(a);
-    std::string tb = EndpointGuidTailLower(b);
-    return !ta.empty() && ta == tb;        // tier 3: GUID portion only
+    if (strcmp(a, b) == 0)   return true;  // tier 1: exact
+    if (_stricmp(a, b) == 0)  return true; // tier 2: case-insensitive
+    return false;
 }
 
 // Resolve the human-readable name of the output device BASS is currently using.
@@ -190,15 +185,34 @@ int FindLoopbackForCurrentBassDevice() {
         if (dev != static_cast<int>(static_cast<DWORD>(-1)) &&
             BASS_GetDeviceInfo(static_cast<DWORD>(dev), &bi)) {
             BASS_WASAPI_DEVICEINFO di;
-            // Primary: endpoint-id correlation (loopback.id == render driver id),
-            // now via EndpointIdMatches (exact / case-insensitive / GUID-tail).
             if (bi.driver && bi.driver[0]) {
+                // Tiers 1+2: exact / case-insensitive full id match. These are
+                // unambiguous endpoint identities — return on first hit.
                 for (int i = 0; BASS_WASAPI_GetDeviceInfo(i, &di); ++i) {
                     const DWORD f = di.flags;
                     if ((f & BASS_DEVICE_LOOPBACK) && (f & BASS_DEVICE_ENABLED) &&
-                        EndpointIdMatches(di.id, bi.driver)) {
+                        EndpointIdExactOrCase(di.id, bi.driver)) {
                         return i;
                     }
+                }
+                // Tier 3: GUID-tail match (survives render-vs-capture "{0.0.x}."
+                // prefix differences). To preserve the "never the wrong device"
+                // invariant on machines with virtual cables (VB-Audio etc.) where
+                // tails could collide, accept this ONLY when EXACTLY ONE enabled
+                // loopback shares the tail. Otherwise fall through to name match.
+                std::string targetTail = EndpointGuidTailLower(bi.driver);
+                if (!targetTail.empty()) {
+                    int found = -1, count = 0;
+                    for (int i = 0; BASS_WASAPI_GetDeviceInfo(i, &di); ++i) {
+                        const DWORD f = di.flags;
+                        if ((f & BASS_DEVICE_LOOPBACK) && (f & BASS_DEVICE_ENABLED) &&
+                            di.id && di.id[0] &&
+                            EndpointGuidTailLower(di.id) == targetTail) {
+                            ++count;
+                            found = i;
+                        }
+                    }
+                    if (count == 1) return found;
                 }
             }
             // Secondary: match the loopback by the BASS device's name.
