@@ -798,7 +798,7 @@ void RegisterRcTranslations() {
     AddTranslation("fr", "&Search or paste a video, playlist, or channel URL:",
                    L"&Rechercher ou coller une URL de vidéo, de liste de lecture ou de chaîne :");
     AddTranslation("en", "Download &all", L"Download &all");
-    AddTranslation("fr", "Download &all", L"Tout &télécharger");
+    AddTranslation("fr", "Download &all", L"Tout téléc&harger");
 
     // v2.10 — the format-list label (the SysListView32's accessible name, read by
     // NVDA every time focus enters the list). Teaches the Space-to-tick

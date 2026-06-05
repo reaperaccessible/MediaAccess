@@ -841,6 +841,8 @@ void RegisterPlayerTranslations() {
     AddTranslation("fr", "Playlist loaded", L"Liste de lecture chargée");
     AddTranslation("en", "Channel loaded — %d videos", L"Channel loaded — %d videos");
     AddTranslation("fr", "Channel loaded — %d videos", L"Chaîne chargée — %d vidéos");
+    AddTranslation("en", "Channel loaded — first %d videos", L"Channel loaded — first %d videos");
+    AddTranslation("fr", "Channel loaded — first %d videos", L"Chaîne chargée — %d premières vidéos");
 
     AddTranslation("en", "Playing video", L"Playing video");
     AddTranslation("fr", "Playing video", L"Lecture de la vidéo");

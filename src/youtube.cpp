@@ -117,6 +117,12 @@ static bool g_ytIsPlaylistView = false;
 static std::wstring g_ytCurrentPlaylistId;
 static bool g_ytIsChannelView = false;          // v2.12 — channel listing view
 static std::wstring g_ytCurrentChannelUrl;      // v2.12 — canonical channel /videos URL
+// v2.12 — "Download all" batch state. Declared up here (not next to the download
+// section) so UpdateResultsList / WM_INITDIALOG can keep the button visible and
+// relabelled while a batch runs. g_ytBatchActive is cleared ONLY by the batch
+// DONE handler (single authority) to avoid a concurrent-batch race.
+static std::atomic<bool> g_ytBatchActive{false};
+static std::atomic<bool> g_ytBatchCancel{false};
 
 // Holds the spoken-failure key produced by the most recent yt-dlp / API query,
 // so the caller can voice a specific reason instead of a blanket "no results".
@@ -2480,7 +2486,10 @@ static void UpdateResultsList(HWND hwnd) {
     // relabelled "Cancel downloads") stays visible.
     HWND hAll = GetDlgItem(hwnd, IDC_YT_DOWNLOAD_ALL);
     if (hAll) {
-        ShowWindow(hAll, (g_ytIsPlaylistView || g_ytIsChannelView) ? SW_SHOW : SW_HIDE);
+        // Also keep it shown while a batch runs (it is the "Cancel downloads"
+        // control) — even if the user navigated to a non-playlist/channel view.
+        bool show = g_ytIsPlaylistView || g_ytIsChannelView || g_ytBatchActive.load();
+        ShowWindow(hAll, show ? SW_SHOW : SW_HIDE);
     }
 }
 
@@ -2594,8 +2603,14 @@ void YouTubeOnSearchDone(LPARAM lParam) {
             }
         } else if (res->kind == YtSearchKind::Channel) {
             if (res->ok) {
-                Speak(WideToUtf8(FormatCount(T("Channel loaded — %d videos"),
-                                             static_cast<int>(res->results.size()))));
+                int n = static_cast<int>(res->results.size());
+                // v2.12 — channel listing is capped at 100 (--playlist-items 1:100).
+                // When we hit the cap, say "first 100" so the user knows the list
+                // is truncated and not necessarily the channel's full total.
+                if (n >= 100)
+                    Speak(WideToUtf8(FormatCount(T("Channel loaded — first %d videos"), n)));
+                else
+                    Speak(WideToUtf8(FormatCount(T("Channel loaded — %d videos"), n)));
             } else if (res->failureKey) {
                 Speak(Ts(res->failureKey));
             } else {
@@ -2879,11 +2894,6 @@ void YouTubeOnLoadMoreDone(LPARAM lParam) {
 // announcements) and is what blind users expect — one explicit action at a time.
 
 static std::atomic<bool> g_ytDownloading{false};
-
-// v2.12 — "Download all" batch state. Declared here so both the single-download
-// entry points and the batch path can see them (mutual exclusion).
-static std::atomic<bool> g_ytBatchActive{false};
-static std::atomic<bool> g_ytBatchCancel{false};
 
 // Which download engine the worker should invoke.
 enum class YtDlKind { Permanent, Format, MultiFormat };
@@ -3194,8 +3204,12 @@ static DWORD WINAPI BatchDownloadThreadProc(LPVOID arg) {
                      static_cast<WPARAM>(done), static_cast<LPARAM>(total));
     }
     YtBatchResult* res = new YtBatchResult{ok, fail, total, g_ytBatchCancel.load()};
-    g_ytBatchActive.store(false);
     delete req;
+    // M1 fix: do NOT clear g_ytBatchActive here. If we cleared it before the DONE
+    // message is processed on the UI thread, the user could start a SECOND batch
+    // in that window (the start guard would read false), and the queued DONE
+    // would then wrongly clear the second batch's state — two batches in
+    // parallel. The DONE handler is the SINGLE authority that clears the flag.
     PostMessageW(g_hwnd, WM_YT_BATCH_DONE, 0, reinterpret_cast<LPARAM>(res));
     return 0;
 }
@@ -3206,7 +3220,13 @@ static void YtSetDownloadAllLabel(bool batchRunning) {
     HWND dlg = GetYouTubeDialog();
     if (!dlg) return;
     HWND b = GetDlgItem(dlg, IDC_YT_DOWNLOAD_ALL);
-    if (b) SetWindowTextW(b, batchRunning ? T("Cancel downloads") : T("Download &all"));
+    if (b) {
+        SetWindowTextW(b, batchRunning ? T("Cancel downloads") : T("Download &all"));
+        // A11y: tell the screen reader the accessible name changed, otherwise a
+        // user already focused on the button hears the stale label (same fix the
+        // formats dialog uses for its caption).
+        NotifyWinEvent(EVENT_OBJECT_NAMECHANGE, b, OBJID_CLIENT, CHILDID_SELF);
+    }
 }
 
 // "Download all" button handler. While a batch runs it CANCELS; otherwise it
@@ -3322,6 +3342,16 @@ void YouTubeOnBatchDone(LPARAM lParam) {
     delete res;
 }
 
+// v2.12 — a pasted single video starts with the placeholder title "YouTube
+// video" (the real one isn't known at paste time). By download time the engine
+// has resolved it into the now-playing item, so prefer that for a proper
+// filename instead of saving "YouTube video.m4a".
+static std::wstring YtEffectiveTitle(const YouTubeResult& r) {
+    if ((r.title.empty() || r.title == T("YouTube video")) && !g_nowPlayingItem.empty())
+        return g_nowPlayingItem;
+    return r.title;
+}
+
 static void DownloadSelected(HWND hwnd) {
     if (g_ytBatchActive.load()) {
         Speak(Ts("A download is already in progress"));
@@ -3349,7 +3379,7 @@ static void DownloadSelected(HWND hwnd) {
     YtDownloadRequest* req = new YtDownloadRequest;
     req->kind    = YtDlKind::Permanent;
     req->videoId = result.videoId;
-    req->title   = result.title;
+    req->title   = YtEffectiveTitle(result);
     StartDownloadAsync(req);
 }
 
@@ -3748,7 +3778,7 @@ static void DownloadSelectedWithOptions(HWND hwnd) {
 
     YtFormatsRequest* req = new YtFormatsRequest;
     req->videoId = result.videoId;
-    req->title   = result.title;
+    req->title   = YtEffectiveTitle(result);
     HANDLE t = CreateThread(nullptr, 0, FormatsThreadProc, req, 0, nullptr);
     if (!t) {
         delete req;
@@ -3780,7 +3810,15 @@ INT_PTR CALLBACK YouTubeDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
             g_ytIsChannelView = false;
             // v2.12 — start with no list, so "Download all" is hidden until a
             // playlist or channel is loaded (never offered for a keyword search).
-            ShowWindow(GetDlgItem(hwnd, IDC_YT_DOWNLOAD_ALL), SW_HIDE);
+            // BUT if a batch from a previous dialog session is still running,
+            // keep the button visible as the "Cancel downloads" control so the
+            // user doesn't lose the ability to cancel after closing/reopening.
+            if (g_ytBatchActive.load()) {
+                ShowWindow(GetDlgItem(hwnd, IDC_YT_DOWNLOAD_ALL), SW_SHOW);
+                YtSetDownloadAllLabel(true);
+            } else {
+                ShowWindow(GetDlgItem(hwnd, IDC_YT_DOWNLOAD_ALL), SW_HIDE);
+            }
             SetFocus(GetDlgItem(hwnd, IDC_YT_SEARCH));
             return FALSE;  // We set focus manually
 
