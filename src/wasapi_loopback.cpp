@@ -23,6 +23,7 @@
 #include <windows.h>
 #include <avrt.h>          // AvSetMmThreadCharacteristics ("Pro Audio")
 #include <shlobj.h>        // SHGetFolderPathW (diagnostic file location)
+#include <mmdeviceapi.h>   // IMMDeviceEnumerator — resolve true Windows default endpoint
 #include <atomic>
 #include <thread>
 #include <cstring>         // strcmp/_stricmp (endpoint-id correlation)
@@ -127,6 +128,89 @@ static bool EndpointIdExactOrCase(const char* a, const char* b) {
     return false;
 }
 
+// v2.14 — narrow (UTF-8) copy of a wide string. Local to keep the helpers below
+// independent of declaration order (Utf8FromWide lives further down).
+static std::string WideToNarrowUtf8(const wchar_t* w) {
+    if (!w) return "";
+    int len = WideCharToMultiByte(CP_UTF8, 0, w, -1, nullptr, 0, nullptr, nullptr);
+    if (len <= 0) return "";
+    std::string s(len, 0);
+    WideCharToMultiByte(CP_UTF8, 0, w, -1, &s[0], len, nullptr, nullptr);
+    if (!s.empty() && s.back() == '\0') s.pop_back();
+    return s;
+}
+
+// v2.14 — return the index of the SINGLE enabled loopback whose endpoint GUID
+// tail matches `tail`, or -1 if none / more than one (ambiguity guard preserves
+// the "never the wrong device" invariant).
+static int FindUniqueEnabledLoopbackByTail(const std::string& tail) {
+    if (tail.empty()) return -1;
+    BASS_WASAPI_DEVICEINFO di;
+    int found = -1, count = 0;
+    for (int i = 0; BASS_WASAPI_GetDeviceInfo(i, &di); ++i) {
+        const DWORD f = di.flags;
+        if ((f & BASS_DEVICE_LOOPBACK) && (f & BASS_DEVICE_ENABLED) &&
+            di.id && di.id[0] && EndpointGuidTailLower(di.id) == tail) {
+            ++count;
+            found = i;
+        }
+    }
+    return (count == 1) ? found : -1;
+}
+
+// v2.14 — Sèb's machine exposed the root cause: BASS was bound to its pseudo
+// "Default" device (index 1, driver=""), so there was NO endpoint id to
+// correlate, and the name "Default" matched no loopback -> the recorder could
+// not identify the device. Ask Windows itself for the real default RENDER
+// endpoint id (the FxSound endpoint, in his case) via Core Audio, then match its
+// unique enabled loopback by GUID tail. Returns the GUID tail (lowercased) or ""
+// on any failure. `role` is eConsole (what the user hears) or eMultimedia.
+static std::string CoreAudioDefaultRenderTail(ERole role) {
+    std::string tail;
+    // The recorder toggle runs on the UI thread (STA). MMDeviceEnumerator is a
+    // free-threaded object, so it works from STA. Init defensively: tolerate
+    // "already initialised" and a different apartment model; only uninit if WE
+    // initialised it.
+    HRESULT co = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
+    bool weInit = (co == S_OK || co == S_FALSE);
+
+    IMMDeviceEnumerator* en = nullptr;
+    if (SUCCEEDED(CoCreateInstance(__uuidof(MMDeviceEnumerator), nullptr, CLSCTX_ALL,
+                                   __uuidof(IMMDeviceEnumerator),
+                                   reinterpret_cast<void**>(&en))) && en) {
+        IMMDevice* dev = nullptr;
+        if (SUCCEEDED(en->GetDefaultAudioEndpoint(eRender, role, &dev)) && dev) {
+            LPWSTR id = nullptr;
+            if (SUCCEEDED(dev->GetId(&id)) && id) {
+                tail = EndpointGuidTailLower(WideToNarrowUtf8(id).c_str());
+                CoTaskMemFree(id);
+            }
+            dev->Release();
+        }
+        en->Release();
+    }
+    if (weInit) CoUninitialize();
+    return tail;
+}
+
+// v2.14 — no-COM fallback: the BASSWASAPI RENDER endpoint flagged DEFAULT. Only
+// accept it when exactly one render endpoint is the default (else "" -> ambiguous).
+static std::string BasswasapiDefaultRenderTail() {
+    BASS_WASAPI_DEVICEINFO di;
+    std::string tail;
+    int count = 0;
+    for (int i = 0; BASS_WASAPI_GetDeviceInfo(i, &di); ++i) {
+        const DWORD f = di.flags;
+        if (!(f & BASS_DEVICE_LOOPBACK) && !(f & BASS_DEVICE_INPUT) &&
+            (f & BASS_DEVICE_DEFAULT) && (f & BASS_DEVICE_ENABLED) &&
+            di.id && di.id[0]) {
+            ++count;
+            tail = EndpointGuidTailLower(di.id);
+        }
+    }
+    return (count == 1) ? tail : "";
+}
+
 // Resolve the human-readable name of the output device BASS is currently using.
 static std::wstring CurrentBassOutputName() {
     // g_selectedDeviceName is the persisted name; prefer it when set.
@@ -167,25 +251,45 @@ std::vector<LoopbackDevice> EnumerateLoopbackDevices() {
 }
 
 int FindLoopbackForCurrentBassDevice() {
-    // Output = Windows default device: g_selectedDevice == -1 and no persisted
-    // name. We correlate to the device BASS ACTUALLY resolved the default to —
-    // NOT to the BASS_DEVICE_DEFAULT flag. That flag is set on MULTIPLE render
-    // endpoints when a machine has both a multimedia default AND a communications
-    // default (e.g. a software equaliser such as FXSound registers itself as the
-    // communications default). The old "first DEFAULT-flagged endpoint" logic
-    // then picked the wrong one, the id match failed, and the caller fell back to
-    // the first enumerated loopback — a VB-Audio virtual cable. Reported by Sèb.
-    if (g_selectedDevice == -1 && g_selectedDeviceName.empty()) {
-        // BASS_Init(-1) binds to the multimedia/console default (what the user
-        // hears). BASS_GetDevice() returns that concrete index and
-        // BASS_DEVICEINFO.driver is its WASAPI endpoint id (Vista+). The loopback
-        // whose id equals that driver id is the documented, unambiguous twin.
-        int dev = BASS_GetDevice();
-        BASS_DEVICEINFO bi;
-        if (dev != static_cast<int>(static_cast<DWORD>(-1)) &&
-            BASS_GetDeviceInfo(static_cast<DWORD>(dev), &bi)) {
+    // Resolve the BASS output device we're bound to.
+    int dev = BASS_GetDevice();
+    BASS_DEVICEINFO bi{};
+    const bool haveBi = (dev != static_cast<int>(static_cast<DWORD>(-1)) &&
+                         BASS_GetDeviceInfo(static_cast<DWORD>(dev), &bi));
+
+    // Are we tracking the Windows DEFAULT output? v2.14 — Sèb's diagnostic showed
+    // this is NOT just the (g_selectedDevice == -1) case: BASS resolves the
+    // default to its pseudo "Default" device (index 1, name "Default") whose
+    // BASS_DEVICEINFO.driver is EMPTY — so there is no endpoint id to correlate
+    // and the name "Default" matches no loopback. The robust, self-validating
+    // signal is an EMPTY driver on the resolved device (only "No sound" [0] and
+    // "Default" [1] have one); we also accept the index/name hints as corroboration.
+    const bool driverEmpty = !(haveBi && bi.driver && bi.driver[0]);
+    const bool isWindowsDefault =
+        g_selectedDevice == -1 || g_selectedDevice == 1 ||
+        g_selectedDeviceName.empty() ||
+        _wcsicmp(g_selectedDeviceName.c_str(), L"Default") == 0 ||
+        driverEmpty;
+
+    if (isWindowsDefault) {
+        // (1) Authoritative: ask Windows for the real default RENDER endpoint and
+        //     match its unique enabled loopback. eConsole = what the user hears;
+        //     eMultimedia as a fallback (they almost always coincide). NEVER
+        //     eCommunications — BASS_Init binds to the console/multimedia default.
+        for (ERole role : { eConsole, eMultimedia }) {
+            int idx = FindUniqueEnabledLoopbackByTail(CoreAudioDefaultRenderTail(role));
+            if (idx >= 0) return idx;
+        }
+        // (2) No-COM fallback: the BASSWASAPI render endpoint flagged DEFAULT.
+        {
+            int idx = FindUniqueEnabledLoopbackByTail(BasswasapiDefaultRenderTail());
+            if (idx >= 0) return idx;
+        }
+        // (3) If BASS did give us a concrete endpoint id (non-default machines),
+        //     correlate on it directly (exact / case / unique GUID-tail).
+        if (haveBi && bi.driver && bi.driver[0]) {
             BASS_WASAPI_DEVICEINFO di;
-            if (bi.driver && bi.driver[0]) {
+            {
                 // Tiers 1+2: exact / case-insensitive full id match. These are
                 // unambiguous endpoint identities — return on first hit.
                 for (int i = 0; BASS_WASAPI_GetDeviceInfo(i, &di); ++i) {

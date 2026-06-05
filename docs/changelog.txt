@@ -1,3 +1,6 @@
+2.14
+Correction : enregistrement de l'audio système en mode « Automatique ». MediaAccess interroge maintenant Windows directement pour connaître le vrai périphérique de sortie par défaut (y compris quand un égaliseur logiciel comme FxSound est le périphérique par défaut), puis capture son loopback. Corrige le cas où la détection échouait avec « Impossible d'identifier ». Diagnostiqué grâce au fichier de diagnostic de Sèb.
+
 2.13
 Correction : pendant la lecture d'un fichier vidéo, les raccourcis temps écoulé / temps restant / durée totale (Ctrl+Maj+E, Ctrl+Maj+R, Ctrl+Maj+T) fonctionnent maintenant (ils restaient muets). Le raccourci d'information technique annonce désormais la résolution, le codec et le débit de la vidéo au lieu de « Aucune lecture en cours ». Signalé par Sèb et un membre de Winaide.
 Amélioration : l'enregistrement de l'audio système en mode « Automatique » identifie le périphérique de sortie de façon plus robuste (correspondance d'identifiant insensible à la casse et tolérante au préfixe render/capture). Aide pour le dépannage de Sèb.
