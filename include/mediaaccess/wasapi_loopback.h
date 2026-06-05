@@ -64,6 +64,12 @@ bool IsSystemCapturing();
 // does NOT set this flag.
 bool ConsumeSystemCaptureLost();
 
+// v2.12 — write a verbatim dump of the BASS and BASSWASAPI device tables to a
+// text file (in the Music folder) for diagnosing Automatic loopback detection
+// on a tester's machine. Read-only enumeration; never inits or captures.
+// Returns the full path written, or L"" on failure.
+std::wstring WriteAudioDiagnostic();
+
 } // namespace mediaaccess
 
 #endif // MEDIAACCESS_WASAPI_LOOPBACK_H

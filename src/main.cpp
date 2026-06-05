@@ -920,6 +920,24 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
                 case IDM_HELP_AUDIT_LAYOUT:
                     AuditOptionsLayout();
                     break;
+                case IDM_HELP_AUDIO_DIAG: {
+                    // v2.12 — dump the BASS/BASSWASAPI device tables to a text
+                    // file so a tester (Sèb) can email it; this is how we'll
+                    // finally diagnose Automatic loopback detection with real
+                    // data instead of guessing.
+                    std::wstring p = mediaaccess::WriteAudioDiagnostic();
+                    if (!p.empty()) {
+                        std::wstring body = T("Audio diagnostic saved to:");
+                        body += L"\n\n";
+                        body += p;
+                        MessageBoxW(hwnd, body.c_str(), T("Audio diagnostic"),
+                                    MB_OK | MB_ICONINFORMATION);
+                    } else {
+                        MessageBoxW(hwnd, T("Could not save the audio diagnostic."),
+                                    T("Audio diagnostic"), MB_OK | MB_ICONERROR);
+                    }
+                    break;
+                }
                 case IDM_KEYBOARD_HELP_TOGGLE:
                     g_keyboardHelpMode = !g_keyboardHelpMode;
                     Speak(Ts(g_keyboardHelpMode ? "Keyboard help on"

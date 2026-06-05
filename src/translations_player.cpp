@@ -1132,6 +1132,24 @@ void RegisterPlayerTranslations() {
     AddTranslation("en", "Layout audit", L"Layout audit");
     AddTranslation("fr", "Layout audit", L"Audit de mise en page");
 
+    // Audio diagnostic tool (v2.12) — menu item + result dialog
+    AddTranslation("en", "Audio &diagnostic (for support)...",
+                   L"Audio &diagnostic (for support)...");
+    AddTranslation("fr", "Audio &diagnostic (for support)...",
+                   L"&Diagnostic audio (pour le support)...");
+
+    AddTranslation("en", "Audio diagnostic", L"Audio diagnostic");
+    AddTranslation("fr", "Audio diagnostic", L"Diagnostic audio");
+
+    AddTranslation("en", "Audio diagnostic saved to:", L"Audio diagnostic saved to:");
+    AddTranslation("fr", "Audio diagnostic saved to:",
+                   L"Diagnostic audio enregistré dans :");
+
+    AddTranslation("en", "Could not save the audio diagnostic.",
+                   L"Could not save the audio diagnostic.");
+    AddTranslation("fr", "Could not save the audio diagnostic.",
+                   L"Impossible d'enregistrer le diagnostic audio.");
+
     AddTranslation("en", "No truncated controls found.", L"No truncated controls found.");
     AddTranslation("fr", "No truncated controls found.", L"Aucun contrôle tronqué détecté.");
 

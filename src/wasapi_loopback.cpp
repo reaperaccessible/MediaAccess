@@ -22,9 +22,15 @@
 
 #include <windows.h>
 #include <avrt.h>          // AvSetMmThreadCharacteristics ("Pro Audio")
+#include <shlobj.h>        // SHGetFolderPathW (diagnostic file location)
 #include <atomic>
 #include <thread>
-#include <cstring>         // strcmp (endpoint-id correlation for default device)
+#include <cstring>         // strcmp/_stricmp (endpoint-id correlation)
+#include <cctype>          // tolower (GUID-tail comparison)
+#include <cstdio>          // snprintf for the diagnostic dump
+#include <fstream>         // diagnostic file writer
+#include <string>
+#include "mediaaccess/version.h"  // APP_VERSION (diagnostic header)
 
 #include "bass.h"
 #include "bassenc.h"
@@ -95,6 +101,37 @@ static bool NameMatches(const std::wstring& a, const std::wstring& b) {
     return la.find(lb) != std::wstring::npos || lb.find(la) != std::wstring::npos;
 }
 
+// v2.12 — extract the trailing GUID portion of a WASAPI endpoint id, lowercased.
+// Endpoint ids look like "{0.0.0.00000000}.{guid}" for render endpoints and
+// "{0.0.1.00000000}.{guid}" for capture endpoints. The {guid} after the last
+// '{' uniquely identifies the physical endpoint; the leading "{0.0.x.0...}."
+// only encodes the data-flow role (render vs capture). Comparing on this tail
+// lets us correlate a render endpoint to its loopback twin even if BASS and
+// BASSWASAPI report the role prefix (or letter case) differently.
+static std::string EndpointGuidTailLower(const char* id) {
+    if (!id) return "";
+    std::string s(id);
+    size_t pos = s.find_last_of('{');
+    std::string tail = (pos == std::string::npos) ? s : s.substr(pos);
+    for (auto& c : tail) c = (char)tolower((unsigned char)c);
+    return tail;
+}
+
+// v2.12 — endpoint-id correlation hardened in three tiers (was a bare strcmp):
+//   1. exact byte match (fast path, the documented twin);
+//   2. case-insensitive full match (some stacks differ only by GUID casing);
+//   3. trailing-{guid} match (survives the render vs capture "{0.0.x}." prefix).
+// All three are EXACT endpoint-identity matches — never fuzzy. Reported by Sèb,
+// whose Automatic detection found no twin under the strict strcmp.
+static bool EndpointIdMatches(const char* a, const char* b) {
+    if (!a || !b || !a[0] || !b[0]) return false;
+    if (strcmp(a, b) == 0)  return true;   // tier 1: exact
+    if (_stricmp(a, b) == 0) return true;  // tier 2: case-insensitive
+    std::string ta = EndpointGuidTailLower(a);
+    std::string tb = EndpointGuidTailLower(b);
+    return !ta.empty() && ta == tb;        // tier 3: GUID portion only
+}
+
 // Resolve the human-readable name of the output device BASS is currently using.
 static std::wstring CurrentBassOutputName() {
     // g_selectedDeviceName is the persisted name; prefer it when set.
@@ -153,12 +190,13 @@ int FindLoopbackForCurrentBassDevice() {
         if (dev != static_cast<int>(static_cast<DWORD>(-1)) &&
             BASS_GetDeviceInfo(static_cast<DWORD>(dev), &bi)) {
             BASS_WASAPI_DEVICEINFO di;
-            // Primary: endpoint-id correlation (loopback.id == render driver id).
+            // Primary: endpoint-id correlation (loopback.id == render driver id),
+            // now via EndpointIdMatches (exact / case-insensitive / GUID-tail).
             if (bi.driver && bi.driver[0]) {
                 for (int i = 0; BASS_WASAPI_GetDeviceInfo(i, &di); ++i) {
                     const DWORD f = di.flags;
                     if ((f & BASS_DEVICE_LOOPBACK) && (f & BASS_DEVICE_ENABLED) &&
-                        di.id && strcmp(di.id, bi.driver) == 0) {
+                        EndpointIdMatches(di.id, bi.driver)) {
                         return i;
                     }
                 }
@@ -467,6 +505,116 @@ bool IsSystemCapturing() {
 
 bool ConsumeSystemCaptureLost() {
     return g_deviceLost.exchange(false);
+}
+
+// ----------------------------------------------------------------------------
+// v2.12 — Audio diagnostic dump (Help -> Audio diagnostic).
+//
+// Writes BOTH device tables VERBATIM so we can see, on a tester's real machine,
+// exactly why Automatic loopback detection fails (Sèb's case). The strings that
+// FindLoopbackForCurrentBassDevice() compares — BASS_DEVICEINFO.driver and
+// BASS_WASAPI_DEVICEINFO.id — are printed unmodified (no trim, no lowercase),
+// because the whole point is to reveal the literal bytes (case, "{0.0.x.0...}"
+// prefix, empty string, etc.). Read-only: enumerates, never inits/captures.
+// Returns the full path written, or L"" on failure.
+// ----------------------------------------------------------------------------
+static std::string Utf8FromWide(const std::wstring& w) {
+    if (w.empty()) return "";
+    int len = WideCharToMultiByte(CP_UTF8, 0, w.c_str(), -1, nullptr, 0, nullptr, nullptr);
+    if (len <= 0) return "";
+    std::string s(len, 0);
+    WideCharToMultiByte(CP_UTF8, 0, w.c_str(), -1, &s[0], len, nullptr, nullptr);
+    if (!s.empty() && s.back() == '\0') s.pop_back();
+    return s;
+}
+
+std::wstring WriteAudioDiagnostic() {
+    std::string r;
+    char line[1024];
+
+    snprintf(line, sizeof(line),
+             "=== MediaAccess audio diagnostic (v%s) ===\r\n", APP_VERSION);
+    r += line;
+    r += "Purpose: diagnose Automatic system-recording device detection.\r\n";
+    r += "Strings below are VERBATIM (case and prefixes preserved).\r\n\r\n";
+
+    snprintf(line, sizeof(line), "g_selectedDevice = %d\r\n", g_selectedDevice);
+    r += line;
+    r += "g_selectedDeviceName = \"" + Utf8FromWide(g_selectedDeviceName) + "\"\r\n";
+
+    int cur = static_cast<int>(BASS_GetDevice());
+    snprintf(line, sizeof(line), "BASS_GetDevice() = %d\r\n\r\n", cur);
+    r += line;
+
+    // --- BASS output devices ---
+    r += "-- BASS output devices (BASS_GetDeviceInfo) --\r\n";
+    {
+        BASS_DEVICEINFO bi;
+        for (int i = 0; BASS_GetDeviceInfo(static_cast<DWORD>(i), &bi); ++i) {
+            const DWORD f = bi.flags;
+            snprintf(line, sizeof(line),
+                     "[%d] flags=0x%08lX ENABLED=%d DEFAULT=%d INIT=%d\r\n",
+                     i, (unsigned long)f,
+                     (f & BASS_DEVICE_ENABLED) ? 1 : 0,
+                     (f & BASS_DEVICE_DEFAULT) ? 1 : 0,
+                     (f & BASS_DEVICE_INIT)    ? 1 : 0);
+            r += line;
+            r += "      name=\"";
+            r += (bi.name ? bi.name : "");
+            r += "\"\r\n      driver=\"";
+            r += (bi.driver ? bi.driver : "");
+            r += "\"\r\n";
+        }
+    }
+
+    // --- BASSWASAPI devices ---
+    r += "\r\n-- BASSWASAPI devices (BASS_WASAPI_GetDeviceInfo) --\r\n";
+    {
+        BASS_WASAPI_DEVICEINFO di;
+        for (int i = 0; BASS_WASAPI_GetDeviceInfo(i, &di); ++i) {
+            const DWORD f = di.flags;
+            snprintf(line, sizeof(line),
+                     "[%d] flags=0x%08lX LOOPBACK=%d INPUT=%d ENABLED=%d DEFAULT=%d\r\n",
+                     i, (unsigned long)f,
+                     (f & BASS_DEVICE_LOOPBACK) ? 1 : 0,
+                     (f & BASS_DEVICE_INPUT)    ? 1 : 0,
+                     (f & BASS_DEVICE_ENABLED)  ? 1 : 0,
+                     (f & BASS_DEVICE_DEFAULT)  ? 1 : 0);
+            r += line;
+            r += "      name=\"";
+            r += (di.name ? di.name : "");
+            r += "\"\r\n      id=\"";
+            r += (di.id ? di.id : "");
+            r += "\"\r\n";
+        }
+    }
+
+    int match = FindLoopbackForCurrentBassDevice();
+    snprintf(line, sizeof(line),
+             "\r\n-- Correlation --\r\nFindLoopbackForCurrentBassDevice() = %d"
+             "  (-1 = no match -> \"Unable to identify\")\r\n", match);
+    r += line;
+
+    // Resolve a writable path: Music folder (same as recordings), else cwd.
+    wchar_t dir[MAX_PATH] = {0};
+    std::wstring path;
+    if (SUCCEEDED(SHGetFolderPathW(nullptr, CSIDL_MYMUSIC, nullptr, 0, dir))) {
+        path = dir;
+    } else if (GetCurrentDirectoryW(MAX_PATH, dir) > 0) {
+        path = dir;
+    } else {
+        return L"";
+    }
+    if (!path.empty() && path.back() != L'\\' && path.back() != L'/') path += L'\\';
+    path += L"MediaAccess_audio_diagnostic.txt";
+
+    std::ofstream f(path.c_str(), std::ios::binary | std::ios::trunc);
+    if (!f) return L"";
+    const unsigned char bom[3] = {0xEF, 0xBB, 0xBF};  // UTF-8 BOM for Notepad
+    f.write(reinterpret_cast<const char*>(bom), 3);
+    f.write(r.data(), static_cast<std::streamsize>(r.size()));
+    if (!f) return L"";
+    return path;
 }
 
 } // namespace mediaaccess

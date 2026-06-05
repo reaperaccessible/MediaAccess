@@ -336,6 +336,7 @@
 #define IDM_HELP_SET_DEFAULT     124
 #define IDM_HELP_CONTACT         125   // v1.54 — mailto: reaperaccessible@gmail.com
 #define IDM_HELP_DONATE          126   // v1.54 — open PayPal donation URL
+#define IDM_HELP_AUDIO_DIAG      130   // v2.12 — dump audio device tables for support
 
 // Sleep timer (v1.55)
 #define IDM_SLEEP_TIMER_OPEN     127   // F8 — opens dialog

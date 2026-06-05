@@ -1,3 +1,7 @@
+2.13
+Amélioration : l'enregistrement de l'audio système en mode « Automatique » identifie le périphérique de sortie de façon plus robuste (correspondance d'identifiant insensible à la casse et tolérante au préfixe render/capture). Aide pour le dépannage de Sèb.
+Nouveau : Aide → « Diagnostic audio (pour le support) » écrit dans le dossier Musique un fichier texte listant les périphériques audio (BASS et WASAPI) ; utile pour diagnostiquer la détection « Automatique » quand elle échoue. Le chemin du fichier est affiché à la fin.
+
 2.12
 Nouveau : la fenêtre YouTube comprend maintenant les URL collées. Collez l'adresse d'une vidéo et elle apparaît comme un résultat que vous pouvez lire OU télécharger (avant, on pouvait seulement la lire). Signalé par Stéphane.
 Nouveau : collez l'adresse d'une chaîne (formats /channel/, /@handle, /c/ et /user/) et MediaAccess liste ses vidéos (les 100 premières) ; collez l'adresse d'une playlist et toutes ses vidéos sont listées.
