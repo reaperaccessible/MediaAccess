@@ -601,8 +601,21 @@
 <p>La liste propose les formats fournis par YouTube : audio (M4A, WebM) et vidéo (MP4, WebM) en différentes résolutions. Le téléchargement, la fusion audio+vidéo et l'assemblage du <code>.mkv</code> multilingue sont faits automatiquement (ffmpeg est inclus, rien à installer). MediaAccess annonce la fin du téléchargement (« Téléchargé : … ») ou la raison de l'échec.</p>
 <p>Le dossier de téléchargement est <code>Téléchargements\MediaAccess\YouTube\</code> par défaut, ou le dossier configuré dans <strong>Options → YouTube</strong>. Les entrées non téléchargeables (planches de vignettes « storyboard ») ne sont pas affichées dans la liste.</p>
 
-<h3>URL YouTube directe</h3>
-<p>Vous pouvez coller une URL YouTube (vidéo ou liste de lecture) dans le champ de recherche au lieu de mots-clés. Coller l'URL d'une <strong>chaîne</strong> n'est pas pris en charge : MediaAccess l'indique clairement au lieu de lancer une recherche trompeuse.</p>
+<h3>Coller une URL (vidéo, playlist ou chaîne)</h3>
+<p>Au lieu de mots-clés, vous pouvez coller une URL YouTube directement dans le champ de recherche. MediaAccess reconnaît trois types d'adresses :</p>
+<ul>
+  <li><strong>Une vidéo</strong> : elle apparaît comme un résultat unique que vous pouvez lire (<kbd>Entrée</kbd>) ou télécharger (bouton <strong>Télécharger</strong> ou <strong>Télécharger avec options...</strong>), exactement comme un résultat de recherche.</li>
+  <li><strong>Une liste de lecture (playlist)</strong> : toutes ses vidéos sont listées.</li>
+  <li><strong>Une chaîne</strong> (formats <code>/channel/…</code>, <code>/@pseudo</code>, <code>/c/…</code> et <code>/user/…</code>) : ses vidéos sont listées, jusqu'à un maximum de <strong>100</strong>. Quand ce plafond est atteint, MediaAccess annonce « 100 premières vidéos » pour vous indiquer que la liste est tronquée.</li>
+</ul>
+
+<h3>Tout télécharger (playlist ou chaîne entière)</h3>
+<p>Quand une <strong>playlist</strong> ou une <strong>chaîne</strong> est affichée, un bouton <strong>Tout télécharger</strong> (<kbd>Alt</kbd>+<kbd>H</kbd>) apparaît. Il ne s'affiche que dans ce cas — jamais après une recherche par mots-clés, pour éviter de télécharger par mégarde tous les résultats d'une recherche.</p>
+<ol>
+  <li>Activez <strong>Tout télécharger</strong>. Une fenêtre vous demande à chaque fois si vous voulez <strong>l'audio (M4A)</strong> ou <strong>la vidéo (MP4)</strong> (ou <strong>Annuler</strong>).</li>
+  <li>Les fichiers sont ensuite téléchargés l'un après l'autre. MediaAccess annonce la progression (par exemple « Téléchargé 3 sur 12 ») puis un récapitulatif à la fin.</li>
+  <li>Pendant un téléchargement de masse, le même bouton sert de bouton <strong>Annuler</strong> : activez-le pour arrêter après le fichier en cours. Le contrôle reste disponible même si vous fermez puis rouvrez la fenêtre YouTube.</li>
+</ol>
 
 <h3>Quand ça échoue</h3>
 <p>Certaines vidéos ne peuvent pas être lues ou téléchargées (privées, réservées aux membres, supprimées, ou directs en cours). Dans ces cas, MediaAccess annonce la raison précise à voix haute (par exemple « Cette vidéo est privée » ou « Cette vidéo est indisponible ») et n'ouvre pas la liste des formats — ce n'est pas une panne de l'application. En cas de problème persistant, utilisez <strong>Aide → Tester la lecture YouTube</strong>.</p>

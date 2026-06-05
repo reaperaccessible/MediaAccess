@@ -1,3 +1,10 @@
+2.12
+Nouveau : la fenêtre YouTube comprend maintenant les URL collées. Collez l'adresse d'une vidéo et elle apparaît comme un résultat que vous pouvez lire OU télécharger (avant, on pouvait seulement la lire). Signalé par Stéphane.
+Nouveau : collez l'adresse d'une chaîne (formats /channel/, /@handle, /c/ et /user/) et MediaAccess liste ses vidéos (les 100 premières) ; collez l'adresse d'une playlist et toutes ses vidéos sont listées.
+Nouveau : bouton « Tout télécharger » (Alt+H) pour télécharger d'un coup toute une playlist ou toute une chaîne affichée. Une fenêtre demande à chaque fois si vous voulez l'audio (M4A) ou la vidéo (MP4), puis les fichiers sont téléchargés l'un après l'autre avec une annonce de progression. Le même bouton sert à annuler un téléchargement de masse en cours. Le bouton n'apparaît que pour une playlist ou une chaîne, jamais pour une recherche par mots-clés.
+Détail : pour une chaîne, MediaAccess annonce « 100 premières vidéos » quand la liste atteint le plafond, afin que vous sachiez qu'elle est tronquée.
+Détail : une vidéo collée est enregistrée sous son vrai titre (et non plus sous un nom générique).
+
 2.11
 Correction : avec l'option « Mémoriser l'état de lecture à la fermeture », le titre de la fenêtre affiche de nouveau le nom du fichier repris au démarrage (au lieu de seulement « MediaAccess »). L'annonce du lecteur d'écran sur la fenêtre est aussi rétablie dans ce cas. Signalé par redlaf.
 Correction : le menu « Fichiers récents » se remplit de nouveau (il restait vide en français à cause d'une recherche de menu sensible à la langue). Signalé par redlaf.

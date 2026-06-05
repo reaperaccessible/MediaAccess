@@ -601,8 +601,21 @@
 <p>The list offers the formats YouTube provides: audio (M4A, WebM) and video (MP4, WebM) at various resolutions. Downloading, audio+video merging and multilingual <code>.mkv</code> packaging are done automatically (ffmpeg is bundled, nothing to install). MediaAccess speaks when the download finishes ("Downloaded: …") or the reason it failed.</p>
 <p>The download folder is <code>Downloads\MediaAccess\YouTube\</code> by default, or the folder configured in <strong>Options → YouTube</strong>. Non-downloadable entries (storyboard thumbnail sheets) are not shown in the list.</p>
 
-<h3>Direct YouTube URL</h3>
-<p>You can paste a YouTube URL (video or playlist) in the search field instead of keywords. Pasting a <strong>channel</strong> URL is not supported: MediaAccess says so clearly instead of running a misleading search.</p>
+<h3>Paste a URL (video, playlist or channel)</h3>
+<p>Instead of keywords, you can paste a YouTube URL directly into the search field. MediaAccess recognizes three kinds of address:</p>
+<ul>
+  <li><strong>A video</strong>: it appears as a single result you can play (<kbd>Enter</kbd>) or download (the <strong>Download</strong> or <strong>Download with options...</strong> button), exactly like a search result.</li>
+  <li><strong>A playlist</strong>: all of its videos are listed.</li>
+  <li><strong>A channel</strong> (<code>/channel/…</code>, <code>/@handle</code>, <code>/c/…</code> and <code>/user/…</code> forms): its videos are listed, up to a maximum of <strong>100</strong>. When that cap is reached, MediaAccess announces "first 100 videos" so you know the list is truncated.</li>
+</ul>
+
+<h3>Download all (whole playlist or channel)</h3>
+<p>When a <strong>playlist</strong> or a <strong>channel</strong> is displayed, a <strong>Download all</strong> button (<kbd>Alt</kbd>+<kbd>A</kbd>) appears. It only shows in that case — never after a keyword search, so you can't accidentally download every search result.</p>
+<ol>
+  <li>Activate <strong>Download all</strong>. A window asks each time whether you want <strong>audio (M4A)</strong> or <strong>video (MP4)</strong> (or <strong>Cancel</strong>).</li>
+  <li>The files are then downloaded one after another. MediaAccess announces progress (for example "Downloaded 3 of 12") and a summary at the end.</li>
+  <li>During a batch download, the same button acts as a <strong>Cancel</strong> button: activate it to stop after the current file. The control stays available even if you close and reopen the YouTube window.</li>
+</ol>
 
 <h3>When it fails</h3>
 <p>Some videos cannot be played or downloaded (private, members-only, removed videos, or ongoing live streams). In those cases MediaAccess speaks the specific reason (for example "This video is private" or "This video is unavailable") and does not open the format list — this is not an app failure. If a problem persists, use <strong>Help → Test YouTube playback</strong>.</p>
