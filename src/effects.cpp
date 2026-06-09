@@ -4,6 +4,7 @@
 #include "resource.h"
 #include "mediaaccess/translations.h"
 #include "mediaaccess/tts_player.h"  // Drive SAPI rate from Rate effect
+#include "mediaaccess/video_engine.h" // v2.15 — apply Volume/Rate to MPV video
 #include "bass_fx.h"
 #include "tempo_processor.h"
 #include "center_cancel.h"
@@ -855,6 +856,12 @@ void SetParamValue(ParamId id, float value) {
     switch (id) {
         case ParamId::Volume:
             g_volume = value;
+            // v2.15 — during video, push to MPV (no BASS stream then). Mirrors
+            // the engine-aware SetVolume() facade so the selected-Volume arrows
+            // change the actual video volume, not just g_volume.
+            if (g_activeEngine == PlaybackEngine::MPV) {
+                MPVSetVolume(g_volume);
+            }
             // In legacy mode, apply via BASS_ATTRIB_VOL
             // In normal mode, volume DSP automatically uses updated g_volume
             if (g_legacyVolume && g_fxStream) {
@@ -883,6 +890,12 @@ void SetParamValue(ParamId id, float value) {
             break;
         case ParamId::Rate:
             g_rate = value;
+            // v2.15 — during video, drive the MPV "speed" property (changes
+            // speed and pitch together, like BASS_ATTRIB_FREQ). Lets the Rate
+            // control speed up / slow down a video.
+            if (g_activeEngine == PlaybackEngine::MPV) {
+                MPVSetSpeed(static_cast<double>(g_rate));
+            }
             // Skip applying rate to live streams (not supported)
             if (g_fxStream && !g_isLiveStream) {
                 // Use native BASS frequency attribute (changes speed and pitch together)
@@ -1067,6 +1080,16 @@ void AdjustCurrentParam(int direction) {
     const ParamDef* def = GetParamDef(id);
     if (!def) return;
 
+    // v2.15 — during video (MPV) only Volume and Rate apply; all other effects
+    // are BASS DSP that cannot reach MPV. Refuse clearly and return BEFORE any
+    // global is mutated, so an "adjustment" on a video never leaks into the next
+    // audio track. Reported by user (Ctrl+1..0 + arrows dead on video).
+    if (g_activeEngine == PlaybackEngine::MPV &&
+        id != ParamId::Volume && id != ParamId::Rate) {
+        Speak(Ts("Not available for video"));
+        return;
+    }
+
     // Block tempo and rate adjustments for live streams
     if (g_isLiveStream && (id == ParamId::Tempo || id == ParamId::Rate)) {
         Speak(Ts("Not available for live streams"));
@@ -1138,6 +1161,13 @@ void ResetCurrentParam() {
     const ParamDef* def = GetParamDef(id);
     if (!def) return;
 
+    // v2.15 — video (MPV): only Volume and Rate apply (see AdjustCurrentParam).
+    if (g_activeEngine == PlaybackEngine::MPV &&
+        id != ParamId::Volume && id != ParamId::Rate) {
+        Speak(Ts("Not available for video"));
+        return;
+    }
+
     // Block tempo and rate reset for live streams
     if (g_isLiveStream && (id == ParamId::Tempo || id == ParamId::Rate)) {
         Speak(Ts("Not available for live streams"));
@@ -1169,6 +1199,13 @@ void SetCurrentParamToMin() {
     const ParamDef* def = GetParamDef(id);
     if (!def) return;
 
+    // v2.15 — video (MPV): only Volume and Rate apply (see AdjustCurrentParam).
+    if (g_activeEngine == PlaybackEngine::MPV &&
+        id != ParamId::Volume && id != ParamId::Rate) {
+        Speak(Ts("Not available for video"));
+        return;
+    }
+
     // Block tempo and rate min for live streams
     if (g_isLiveStream && (id == ParamId::Tempo || id == ParamId::Rate)) {
         Speak(Ts("Not available for live streams"));
@@ -1199,6 +1236,13 @@ void SetCurrentParamToMax() {
     ParamId id = (ParamId)g_currentParamIndex;
     const ParamDef* def = GetParamDef(id);
     if (!def) return;
+
+    // v2.15 — video (MPV): only Volume and Rate apply (see AdjustCurrentParam).
+    if (g_activeEngine == PlaybackEngine::MPV &&
+        id != ParamId::Volume && id != ParamId::Rate) {
+        Speak(Ts("Not available for video"));
+        return;
+    }
 
     // Block tempo and rate max for live streams
     if (g_isLiveStream && (id == ParamId::Tempo || id == ParamId::Rate)) {

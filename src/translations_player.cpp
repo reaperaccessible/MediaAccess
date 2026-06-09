@@ -1357,6 +1357,8 @@ void RegisterPlayerTranslations() {
 
     AddTranslation("en", "Not available for live streams", L"Not available for live streams");
     AddTranslation("fr", "Not available for live streams", L"Indisponible pour les flux en direct");
+    AddTranslation("en", "Not available for video", L"Not available for video");
+    AddTranslation("fr", "Not available for video", L"Indisponible pour la vidéo");
 
     // -------------------------------------------------------------------
     // Download manager announcements (download_manager.cpp:306-313)

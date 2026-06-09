@@ -1,3 +1,6 @@
+2.15
+Correction : pendant la lecture d'une vidéo, le réglage du volume (et de la vitesse) avec les flèches Haut/Bas sur le contrôle sélectionné fonctionne maintenant — il pilote directement le moteur vidéo. Les autres effets (égaliseur, réverbération, tempo, hauteur, etc.) reposent sur le moteur audio BASS et ne s'appliquent pas à la vidéo : MediaAccess l'annonce désormais clairement (« Indisponible pour la vidéo ») au lieu de faire semblant de changer la valeur. Signalé par Sèb.
+
 2.14
 Correction : enregistrement de l'audio système en mode « Automatique ». MediaAccess interroge maintenant Windows directement pour connaître le vrai périphérique de sortie par défaut (y compris quand un égaliseur logiciel comme FxSound est le périphérique par défaut), puis capture son loopback. Corrige le cas où la détection échouait avec « Impossible d'identifier ». Diagnostiqué grâce au fichier de diagnostic de Sèb.
 
