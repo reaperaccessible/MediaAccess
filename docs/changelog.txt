@@ -1,3 +1,6 @@
+2.16
+Correction : la mise à jour via le menu Aide → « Vérifier les mises à jour » échouait parfois (l'installateur se téléchargeait mais ne démarrait pas correctement) lorsqu'un média était en cours de lecture. Le script de mise à jour attend désormais que MediaAccess soit complètement fermé avant de lancer l'installateur, au lieu d'un délai fixe trop court. La mise à jour automatique au démarrage fonctionnait déjà — c'est le même mécanisme, désormais fiable dans tous les cas. Signalé par Sèb.
+
 2.15
 Correction : pendant la lecture d'une vidéo, le réglage du volume (et de la vitesse) avec les flèches Haut/Bas sur le contrôle sélectionné fonctionne maintenant — il pilote directement le moteur vidéo. Les autres effets (égaliseur, réverbération, tempo, hauteur, etc.) reposent sur le moteur audio BASS et ne s'appliquent pas à la vidéo : MediaAccess l'annonce désormais clairement (« Indisponible pour la vidéo ») au lieu de faire semblant de changer la valeur. Signalé par Sèb.
 

@@ -588,9 +588,30 @@ void ApplyUpdate() {
                 T("Update Error"), MB_OK | MB_ICONERROR);
             return;
         }
+        // v2.16 — wait for THIS MediaAccess process to FULLY exit before running
+        // the silent installer, instead of a blind fixed delay. The old
+        // `timeout /t 2` was fragile: when an update was launched from the Help
+        // menu while media was playing, shutdown (BASS/MPV/WASAPI teardown +
+        // state save) took longer than 2s, so the SILENT installer started while
+        // the app was still running and its files were locked → "the installer
+        // downloads but doesn't start correctly." (At startup the app exits
+        // instantly, which is why the startup update always worked.) `timeout`
+        // also fails with no console (we launch DETACHED), so it wasn't even
+        // waiting. Poll the exact PID with tasklist; `ping` provides the headless
+        // ~1s delay between polls. A 60-iteration cap (~60s) guarantees we never
+        // hang forever — after it, Inno's CloseApplications/AppMutex still apply.
+        DWORD selfPid = GetCurrentProcessId();
         batch << "@echo off\r\n";
         batch << "REM MediaAccess auto-relaunch wrapper - safe to delete.\r\n";
-        batch << "timeout /t 2 /nobreak > nul\r\n";
+        batch << "set /a tries=0\r\n";
+        batch << ":waitloop\r\n";
+        batch << "tasklist /fi \"PID eq " << selfPid << "\" 2>nul | find \""
+              << selfPid << "\" >nul || goto installnow\r\n";
+        batch << "set /a tries+=1\r\n";
+        batch << "if %tries% geq 60 goto installnow\r\n";
+        batch << "ping -n 2 127.0.0.1 >nul\r\n";
+        batch << "goto waitloop\r\n";
+        batch << ":installnow\r\n";
         // start /wait blocks until the installer terminates (including
         // its elevated bootstrapper child). Quoted empty "" is the window
         // title argument that start expects when paths are quoted.
