@@ -1,3 +1,6 @@
+2.19
+Correction MAJEURE : rétablit la mise à jour automatique, cassée depuis la 2.16. Le script de mise à jour de la 2.16 utilisait des commandes (tasklist) qui se figent quand il est lancé sans console, donc l'installateur n'était jamais exécuté — ni au démarrage, ni via le menu Aide. Le lancement a été corrigé (console cachée valide) et le script simplifié. Diagnostic confirmé par une reproduction sur machine réelle (analyse à 10 agents). IMPORTANT : si vous êtes bloqué en 2.16/2.17/2.18 et que la mise à jour ne se fait pas, installez la 2.19 manuellement une fois ; ensuite la mise à jour intégrée fonctionnera de nouveau.
+
 2.18
 Correction (vraie cause) : la mise à jour via le menu Aide ne démarrait pas correctement parce que MediaAccess ne se fermait pas réellement avant le lancement de l'installateur (un message de fermeture pouvait être « avalé » par une boucle interne). MediaAccess force désormais une fermeture fiable (avec sauvegarde des réglages/état) avant d'installer la mise à jour. Le correctif 2.16 (attente de la fermeture) reste, mais ne suffisait pas seul. Signalé par Sèb.
 

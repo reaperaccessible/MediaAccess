@@ -600,30 +600,19 @@ void ApplyUpdate() {
                 T("Update Error"), MB_OK | MB_ICONERROR);
             return;
         }
-        // v2.16 — wait for THIS MediaAccess process to FULLY exit before running
-        // the silent installer, instead of a blind fixed delay. The old
-        // `timeout /t 2` was fragile: when an update was launched from the Help
-        // menu while media was playing, shutdown (BASS/MPV/WASAPI teardown +
-        // state save) took longer than 2s, so the SILENT installer started while
-        // the app was still running and its files were locked → "the installer
-        // downloads but doesn't start correctly." (At startup the app exits
-        // instantly, which is why the startup update always worked.) `timeout`
-        // also fails with no console (we launch DETACHED), so it wasn't even
-        // waiting. Poll the exact PID with tasklist; `ping` provides the headless
-        // ~1s delay between polls. A 60-iteration cap (~60s) guarantees we never
-        // hang forever — after it, Inno's CloseApplications/AppMutex still apply.
-        DWORD selfPid = GetCurrentProcessId();
+        // v2.19 — the v2.16 batch polled the app PID with `tasklist | find` in a
+        // loop. That pipeline HANGS when cmd.exe is launched with DETACHED_PROCESS
+        // (no console) — so the batch never reached the installer and NOTHING
+        // updated, by any method (regression empirically reproduced by 10-agent
+        // analysis). Two fixes: (a) drop DETACHED_PROCESS below so the batch has a
+        // valid hidden console; (b) here, drop the console-dependent PID loop —
+        // we no longer NEED it because ApplyUpdate force-exits the app via
+        // ExitProcess(0) right after launching this batch, and Inno's
+        // CloseApplications=yes + AppMutex are the real "app is gone" backstop.
+        // A short headless-safe `ping` settle delay is ample. NO tasklist/find/goto.
         batch << "@echo off\r\n";
         batch << "REM MediaAccess auto-relaunch wrapper - safe to delete.\r\n";
-        batch << "set /a tries=0\r\n";
-        batch << ":waitloop\r\n";
-        batch << "tasklist /fi \"PID eq " << selfPid << "\" 2>nul | find \""
-              << selfPid << "\" >nul || goto installnow\r\n";
-        batch << "set /a tries+=1\r\n";
-        batch << "if %tries% geq 60 goto installnow\r\n";
-        batch << "ping -n 2 127.0.0.1 >nul\r\n";
-        batch << "goto waitloop\r\n";
-        batch << ":installnow\r\n";
+        batch << "ping -n 3 127.0.0.1 >nul\r\n";
         // start /wait blocks until the installer terminates (including
         // its elevated bootstrapper child). Quoted empty "" is the window
         // title argument that start expects when paths are quoted.
@@ -634,7 +623,12 @@ void ApplyUpdate() {
         batch << "start \"\" \"" << narrowExe << "\"\r\n";
         batch.close();
 
-        // Launch the batch detached so it survives our process exit.
+        // Launch the batch in its own hidden process. v2.19 — MUST NOT use
+        // DETACHED_PROCESS: with no console, the batch's console tools (the old
+        // tasklist|find, and even ping/start) hang or misbehave, which is what
+        // broke ALL updates in 2.16. CREATE_NO_WINDOW alone gives the batch a
+        // valid but invisible console; it still survives our exit as its own
+        // process tree (same as the working pre-2.16 startup updates).
         std::wstring shellCmd = L"cmd.exe /c \"" + batchPathCmd + L"\"";
         STARTUPINFOW si{};
         si.cb = sizeof(si);
@@ -642,7 +636,7 @@ void ApplyUpdate() {
         si.wShowWindow = SW_HIDE;
         PROCESS_INFORMATION pi{};
         if (!CreateProcessW(nullptr, &shellCmd[0], nullptr, nullptr, FALSE,
-                            CREATE_NO_WINDOW | DETACHED_PROCESS,
+                            CREATE_NO_WINDOW,
                             nullptr, nullptr, &si, &pi)) {
             MessageBoxW(GetMessageBoxOwner(), T("Failed to launch installer."),
                 T("Update Error"), MB_OK | MB_ICONERROR);
