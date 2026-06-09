@@ -520,7 +520,19 @@ bool DownloadUpdate(const std::string& url, DownloadProgressCallback progressCal
     return HttpDownload(url, destPath, progressCallback);
 }
 
+// v2.18 — lightweight update log so a failed Help-menu update can be diagnosed
+// from real data instead of guessing. Appends to %TEMP%\MediaAccess_update.log.
+// Best-effort; never throws.
+static void UpdateLog(const char* stage) {
+    wchar_t dir[MAX_PATH] = {0};
+    if (!GetTempPathW(MAX_PATH, dir)) return;
+    std::wstring path = std::wstring(dir) + L"MediaAccess_update.log";
+    std::ofstream f(path.c_str(), std::ios::app);
+    if (f) f << stage << "\r\n";
+}
+
 void ApplyUpdate() {
+    UpdateLog("ApplyUpdate: entered");
     if (g_updateWithInstaller) {
         std::wstring installerPath = GetUpdateInstallerPath();
 
@@ -638,7 +650,21 @@ void ApplyUpdate() {
         }
         CloseHandle(pi.hProcess);
         CloseHandle(pi.hThread);
-        PostMessageW(g_hwnd, WM_CLOSE, 0, 0);
+
+        // v2.18 — CRITICAL: exit RELIABLY so the waiting installer can replace
+        // our files. The old code POSTED WM_CLOSE and relied on the message loop
+        // delivering the resulting WM_QUIT — but the manual (Help-menu) update
+        // runs through a nested message loop that could swallow the quit, so the
+        // process never actually terminated and the silent installer collided
+        // with the still-running, file-locked app. (The startup update happened
+        // to win the timing.) We now run the normal shutdown cleanup SYNCHRONOUSLY
+        // via SendMessage(WM_CLOSE) — which executes WM_DESTROY (SaveSettings,
+        // SavePlaybackState, FreeBass/FreeMPV, etc.) right here — then guarantee
+        // termination with ExitProcess so no message-loop state can keep us alive.
+        UpdateLog("ApplyUpdate: installer launched, closing app now");
+        SendMessageW(g_hwnd, WM_CLOSE, 0, 0);   // synchronous WM_DESTROY cleanup
+        UpdateLog("ApplyUpdate: cleanup done, ExitProcess");
+        ExitProcess(0);                          // unconditional, no loop needed
     } else {
         std::wstring appDir = GetAppDirectory();
         std::wstring zipPath = GetUpdateZipPath();
