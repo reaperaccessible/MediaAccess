@@ -1,3 +1,6 @@
+2.17
+Version de maintenance (sert à valider le mécanisme de mise à jour corrigé en 2.16). Aucun changement fonctionnel.
+
 2.16
 Correction : la mise à jour via le menu Aide → « Vérifier les mises à jour » échouait parfois (l'installateur se téléchargeait mais ne démarrait pas correctement) lorsqu'un média était en cours de lecture. Le script de mise à jour attend désormais que MediaAccess soit complètement fermé avant de lancer l'installateur, au lieu d'un délai fixe trop court. La mise à jour automatique au démarrage fonctionnait déjà — c'est le même mécanisme, désormais fiable dans tous les cas. Signalé par Sèb.
 
