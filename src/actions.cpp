@@ -240,6 +240,12 @@ static const Action g_actions[] = {
     { "VOLUME_DOWN",              IDM_PLAY_VOLDOWN,           ActionCategory::Main,
       "Volume down",                  "Volume plus bas",
       { VK_DOWN, true,  false, false } },
+    { "VOLUME_UP_10DB",           IDM_PLAY_VOLUP_10DB,        ActionCategory::Main,
+      "Volume up 10 dB",              "Volume plus haut de 10 dB",
+      { VK_UP,   true,  true,  false } },
+    { "VOLUME_DOWN_10DB",         IDM_PLAY_VOLDOWN_10DB,      ActionCategory::Main,
+      "Volume down 10 dB",            "Volume plus bas de 10 dB",
+      { VK_DOWN, true,  true,  false } },
 
     // ========================================================================
     // CATEGORY: Main — speech feedback
@@ -463,6 +469,10 @@ static const Action g_actions[] = {
       "Volume up (global)",           "Volume plus haut (global)", {} },
     { "GLOBAL_VOLDOWN",           IDM_PLAY_VOLDOWN,           ActionCategory::Global,
       "Volume down (global)",         "Volume plus bas (global)", {} },
+    { "GLOBAL_VOLUP_10DB",        IDM_PLAY_VOLUP_10DB,        ActionCategory::Global,
+      "Volume up 10 dB (global)",     "Volume plus haut de 10 dB (global)", {} },
+    { "GLOBAL_VOLDOWN_10DB",      IDM_PLAY_VOLDOWN_10DB,      ActionCategory::Global,
+      "Volume down 10 dB (global)",   "Volume plus bas de 10 dB (global)", {} },
     { "GLOBAL_MUTE",              IDM_PLAY_MUTE,              ActionCategory::Global,
       "Toggle mute (global)",         "Basculer le mode muet (global)", {} },
     { "GLOBAL_TOGGLE_WINDOW",     IDM_TOGGLE_WINDOW,          ActionCategory::Global,

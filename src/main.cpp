@@ -1242,6 +1242,27 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
                 case IDM_PLAY_VOLDOWN:
                     SetVolume(g_volume - g_volumeStep);
                     break;
+                case IDM_PLAY_VOLUP_10DB: {
+                    // +10 dB coarse step. Volume is a LINEAR gain, so +10 dB is a
+                    // multiply by 10^(10/20). Lift off absolute zero first (0 * f == 0
+                    // would trap at silence). SetVolume clamps to the max (respecting
+                    // g_allowAmplify), announces, and drives BASS/MPV/DAISY.
+                    constexpr float kVol10dbFactor = 3.16227766f;  // 10^(10/20)
+                    constexpr float kVolFloor      = 0.01f;        // ~-40 dB
+                    float v = g_volume;
+                    if (v < kVolFloor) v = kVolFloor;
+                    SetVolume(v * kVol10dbFactor);
+                    break;
+                }
+                case IDM_PLAY_VOLDOWN_10DB: {
+                    // -10 dB coarse step (divide by the same factor). Snap to true
+                    // silence below the floor so repeated steps can reach 0.
+                    constexpr float kVol10dbFactor = 3.16227766f;
+                    float v = g_volume / kVol10dbFactor;
+                    if (v < 0.01f) v = 0.0f;
+                    SetVolume(v);
+                    break;
+                }
                 case IDM_PLAY_MUTE:
                     ToggleMute();
                     break;

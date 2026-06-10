@@ -57,6 +57,8 @@
 #define IDM_PLAY_NEAR_END   222
 #define IDM_PLAY_MUTE       218
 #define IDM_PLAY_REPEAT_TOGGLE 219
+#define IDM_PLAY_VOLUP_10DB    223   // +10 dB coarse volume step (Ctrl+Shift+Up)
+#define IDM_PLAY_VOLDOWN_10DB  224   // -10 dB coarse volume step (Ctrl+Shift+Down)
 #define IDM_PLAY_TOGGLE_SEEK_ANNOUNCE 1800
 
 // v1.79 — Granular seek actions (26 IDs, 1810-1835).

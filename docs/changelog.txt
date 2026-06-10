@@ -1,3 +1,6 @@
+2.21
+Nouveau : deux actions de volume « gros pas » de 10 dB, sur Ctrl+Maj+Flèche haut (augmenter de 10 dB) et Ctrl+Maj+Flèche bas (diminuer de 10 dB). Pratique pour ajuster rapidement le volume. Les raccourcis fins habituels (Ctrl+Flèche haut/bas) restent inchangés. Disponibles aussi comme raccourcis globaux dans la fenêtre Actions. Suggéré par un utilisateur.
+
 2.20
 Version de maintenance (sert à valider le correctif de mise à jour de la 2.19). Aucun changement fonctionnel.
 
