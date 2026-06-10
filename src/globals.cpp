@@ -252,8 +252,8 @@ const HotkeyAction g_hotkeyActions[] = {
     // Volume
     {IDM_PLAY_VOLUP, L"Volume Up"},
     {IDM_PLAY_VOLDOWN, L"Volume Down"},
-    {IDM_PLAY_VOLUP_10DB, L"Volume Up 10 dB"},
-    {IDM_PLAY_VOLDOWN_10DB, L"Volume Down 10 dB"},
+    {IDM_PLAY_VOLUP_10DB, L"Volume Up 10%"},
+    {IDM_PLAY_VOLDOWN_10DB, L"Volume Down 10%"},
     // Speech feedback
     {IDM_PLAY_ELAPSED, L"Speak Elapsed"},
     {IDM_PLAY_REMAINING, L"Speak Remaining"},
