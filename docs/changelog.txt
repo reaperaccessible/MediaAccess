@@ -1,3 +1,6 @@
+2.20
+Version de maintenance (sert à valider le correctif de mise à jour de la 2.19). Aucun changement fonctionnel.
+
 2.19
 Correction MAJEURE : rétablit la mise à jour automatique, cassée depuis la 2.16. Le script de mise à jour de la 2.16 utilisait des commandes (tasklist) qui se figent quand il est lancé sans console, donc l'installateur n'était jamais exécuté — ni au démarrage, ni via le menu Aide. Le lancement a été corrigé (console cachée valide) et le script simplifié. Diagnostic confirmé par une reproduction sur machine réelle (analyse à 10 agents). IMPORTANT : si vous êtes bloqué en 2.16/2.17/2.18 et que la mise à jour ne se fait pas, installez la 2.19 manuellement une fois ; ensuite la mise à jour intégrée fonctionnera de nouveau.
 
