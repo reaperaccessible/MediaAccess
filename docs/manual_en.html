@@ -264,6 +264,7 @@
 <tr><td><kbd>←</kbd> / <kbd>→</kbd></td><td>Seek backward / forward (by chosen unit)</td></tr>
 <tr><td><kbd>↑</kbd> / <kbd>↓</kbd></td><td>Increase / Decrease the current parameter's value</td></tr>
 <tr><td><kbd>Ctrl</kbd>+<kbd>↑</kbd> / <kbd>Ctrl</kbd>+<kbd>↓</kbd></td><td>Always volume (regardless of current parameter)</td></tr>
+<tr><td><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>↑</kbd> / <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>↓</kbd></td><td>Volume in coarse 10% steps (10 presses from 0 to 100%)</td></tr>
 <tr><td><kbd>U</kbd></td><td>Toggle mute</td></tr>
 <tr><td><kbd>Home</kbd></td><td>Jump to beginning</td></tr>
 <tr><td><kbd>J</kbd></td><td>Jump to specific time</td></tr>
@@ -381,7 +382,7 @@
 <p>MediaAccess detects chapters in Ogg/FLAC/Opus files (VorbisComment), MP3 (ID3v2 CHAP), and Podcast 2.0 streams (RSS with <code>&lt;podcast:chapters&gt;</code>). To use them, enable "1 chapter (if available)" in <strong>Options → Movement</strong>, then select the "chapter" unit with <kbd>,</kbd> / <kbd>.</kbd> and navigate with <kbd>←</kbd> / <kbd>→</kbd>. The current chapter is spoken as "Chapter N: name".</p>
 
 <h3>Volume</h3>
-<p>Volume goes from 0 to 100%. If you enable <strong>Options → Playback → Allow volume above 100%</strong>, the range extends to 400%. <kbd>Ctrl</kbd>+<kbd>↑</kbd> / <kbd>Ctrl</kbd>+<kbd>↓</kbd> always adjust volume regardless of the current parameter. The step is configurable (1%, 2%, 5%, 10%, 15%, 20%, 25%).</p>
+<p>Volume goes from 0 to 100%. If you enable <strong>Options → Playback → Allow volume above 100%</strong>, the range extends to 400%. <kbd>Ctrl</kbd>+<kbd>↑</kbd> / <kbd>Ctrl</kbd>+<kbd>↓</kbd> always adjust volume regardless of the current parameter. The step is configurable (1%, 2%, 5%, 10%, 15%, 20%, 25%). For faster changes, <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>↑</kbd> / <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>↓</kbd> raise or lower the volume in fixed coarse 10% steps (10 presses from 0 to 100%).</p>
 
 <div class="note">
 <p><strong>Technical note:</strong> by default, volume is applied after the effects chain, meaning your recordings (<kbd>R</kbd> key) capture audio at full amplitude regardless of listening volume. To change this, enable "Legacy volume" in <strong>Options → Advanced</strong>.</p>

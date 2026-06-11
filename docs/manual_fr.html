@@ -264,6 +264,7 @@
 <tr><td><kbd>←</kbd> / <kbd>→</kbd></td><td>Reculer / Avancer (selon l'unité choisie)</td></tr>
 <tr><td><kbd>↑</kbd> / <kbd>↓</kbd></td><td>Augmenter / Diminuer la valeur du paramètre courant</td></tr>
 <tr><td><kbd>Ctrl</kbd>+<kbd>↑</kbd> / <kbd>Ctrl</kbd>+<kbd>↓</kbd></td><td>Toujours volume (peu importe le paramètre courant)</td></tr>
+<tr><td><kbd>Ctrl</kbd>+<kbd>Maj</kbd>+<kbd>↑</kbd> / <kbd>Ctrl</kbd>+<kbd>Maj</kbd>+<kbd>↓</kbd></td><td>Volume par gros pas de 10 % (10 appuis de 0 à 100 %)</td></tr>
 <tr><td><kbd>U</kbd></td><td>Activer/désactiver muet</td></tr>
 <tr><td><kbd>Origine</kbd></td><td>Aller au début</td></tr>
 <tr><td><kbd>J</kbd></td><td>Aller à un instant précis</td></tr>
@@ -381,7 +382,7 @@
 <p>MediaAccess détecte les chapitres dans les fichiers Ogg/FLAC/Opus (VorbisComment), MP3 (ID3v2 CHAP) et les flux Podcast 2.0 (RSS avec <code>&lt;podcast:chapters&gt;</code>). Pour les exploiter, activez « 1 chapitre (si disponible) » dans <strong>Options → Déplacement</strong>, puis sélectionnez l'unité « chapitre » avec <kbd>,</kbd> / <kbd>.</kbd> et naviguez avec <kbd>←</kbd> / <kbd>→</kbd>. Le chapitre courant est énoncé sous la forme « Chapitre N : nom ».</p>
 
 <h3>Volume</h3>
-<p>Le volume va de 0 à 100 %. Si vous activez <strong>Options → Lecture → Autoriser le volume au-dessus de 100 %</strong>, la plage s'étend à 400 %. <kbd>Ctrl</kbd>+<kbd>↑</kbd> / <kbd>Ctrl</kbd>+<kbd>↓</kbd> ajustent toujours le volume quel que soit le paramètre courant. Le pas est configurable (1 %, 2 %, 5 %, 10 %, 15 %, 20 %, 25 %).</p>
+<p>Le volume va de 0 à 100 %. Si vous activez <strong>Options → Lecture → Autoriser le volume au-dessus de 100 %</strong>, la plage s'étend à 400 %. <kbd>Ctrl</kbd>+<kbd>↑</kbd> / <kbd>Ctrl</kbd>+<kbd>↓</kbd> ajustent toujours le volume quel que soit le paramètre courant. Le pas est configurable (1 %, 2 %, 5 %, 10 %, 15 %, 20 %, 25 %). Pour un réglage plus rapide, <kbd>Ctrl</kbd>+<kbd>Maj</kbd>+<kbd>↑</kbd> / <kbd>Ctrl</kbd>+<kbd>Maj</kbd>+<kbd>↓</kbd> montent ou descendent le volume par gros pas fixes de 10 % (10 appuis pour aller de 0 à 100 %).</p>
 
 <div class="note">
 <p><strong>Note technique :</strong> par défaut, le volume est appliqué après la chaîne d'effets, ce qui signifie que vos enregistrements (touche <kbd>R</kbd>) capturent l'audio à pleine amplitude indépendamment du volume d'écoute. Pour changer ce comportement, activez « Volume hérité » dans <strong>Options → Avancé</strong>.</p>
