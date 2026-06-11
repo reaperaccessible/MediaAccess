@@ -376,9 +376,7 @@ BEGIN
     LTEXT           "&Results:", -1, 7, 42, 50, 10
     LISTBOX         IDC_YT_RESULTS, 7, 54, 396, 200, LBS_NOTIFY | WS_VSCROLL | WS_TABSTOP
     PUSHBUTTON      "&Load More", IDC_YT_LOADMORE, 7, 260, 55, 14
-    PUSHBUTTON      "&Download", IDC_YT_DOWNLOAD, 66, 260, 55, 14
-    PUSHBUTTON      "Download &all", IDC_YT_DOWNLOAD_ALL, 125, 260, 80, 14
-    PUSHBUTTON      "Download with &options...", IDC_YT_DOWNLOAD_OPTS, 209, 260, 110, 14
+    PUSHBUTTON      "Download &all", IDC_YT_DOWNLOAD_ALL, 66, 260, 80, 14
     PUSHBUTTON      "Close", IDCANCEL, 353, 260, 50, 14
 END
 

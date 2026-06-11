@@ -9,6 +9,7 @@
 #include "resource.h"
 #include <wininet.h>
 #include <commctrl.h>
+#include <windowsx.h>    // GET_X_LPARAM / GET_Y_LPARAM (context-menu positioning)
 #include <shlwapi.h>
 #include <shlobj.h>      // SHGetFolderPathW, CSIDL_*
 #include <knownfolders.h>// FOLDERID_Downloads
@@ -215,6 +216,12 @@ static const wchar_t* const kRefreshExts[] = {
 static const wchar_t* const kFormatExts[] = {
     L".mp4", L".m4a", L".aac", L".mp3", L".webm",
     L".mkv", L".flac", L".opus", L".wav"
+};
+// v2.23 — outputs of the MP3/OGG transcode path. kAudioExts has NO .ogg, so the
+// OGG/vorbis download needs its own probe set or FindProducedFile would miss the
+// produced .ogg and falsely report failure.
+static const wchar_t* const kTranscodeAudioExts[] = {
+    L".mp3", L".ogg", L".oga", L".m4a", L".opus"
 };
 
 // Check if yt-dlp is available
@@ -1986,6 +1993,46 @@ bool YouTubeDownloadVideoBest(const std::wstring& videoId,
     return FindProducedFile(outBase, kFormatExts, outFilePath);
 }
 
+// v2.23 — transcode bestaudio to MP3 or OGG/Vorbis via the bundled ffmpeg, for
+// the YouTube context menu's "Audio (MP3)" / "Audio (OGG)" items. `audioFormat`
+// is a CODE CONSTANT ("mp3" | "vorbis"), never user input -> no injection risk.
+// Mirrors YouTubeDownloadVideoBest exactly. --audio-quality 0 = highest VBR.
+bool YouTubeDownloadAudioTranscode(const std::wstring& videoId,
+                                   const std::wstring& title,
+                                   const std::wstring& audioFormat,
+                                   std::wstring& outFilePath) {
+    if (!IsValidVideoId(videoId)) return false;
+    if (!IsYtdlpAvailable()) return false;
+    std::wstring ffmpeg = GetFfmpegLocation();
+    if (ffmpeg.empty()) return false;  // transcoding needs ffmpeg
+
+    std::wstring safeId = SanitizeForCommandLine(videoId);
+    std::wstring dir    = GetDownloadsTargetDir();
+    // Suffix disambiguates the file so --no-overwrites never silently skips a
+    // different-format re-download of the same title (as with "[video]"/"[ids]").
+    std::wstring tag    = (audioFormat == L"vorbis") ? L" [ogg]" : L" [mp3]";
+    std::wstring base   = SanitizeForFilename(title, safeId) + tag;
+    std::wstring outBase = dir + L"\\" + base;
+    std::wstring outArg  = outBase + L".%(ext)s";
+    std::wstring url     = L"https://www.youtube.com/watch?v=" + safeId;
+
+    std::wstring args = L"-f \"bestaudio/best\" "
+                        L"--extract-audio --audio-format " + audioFormat + L" --audio-quality 0 "
+                        L"--no-playlist --no-progress --no-warnings --quiet "
+                        L"--no-overwrites --embed-chapters --add-metadata "
+                        L"--ffmpeg-location \"" + ffmpeg + L"\" "
+                        L"-o \"" + outArg + L"\" \"" + url + L"\"";
+    int exitCode = 0;
+    std::wstring stderrText;
+    RunYtdlp(args, YTDLP_DOWNLOAD_TIMEOUT_MS, &exitCode, &stderrText);
+    if (exitCode != 0) {
+        std::wstring partial;
+        FindProducedFile(outBase, kTranscodeAudioExts, partial);
+        return HandleDownloadFailure(exitCode, stderrText, partial);
+    }
+    return FindProducedFile(outBase, kTranscodeAudioExts, outFilePath);
+}
+
 // Wipes every cached audio file. Returns the count removed.
 int ClearYouTubeCache() {
     std::wstring dir = GetYouTubeCacheDir();
@@ -2896,7 +2943,7 @@ void YouTubeOnLoadMoreDone(LPARAM lParam) {
 static std::atomic<bool> g_ytDownloading{false};
 
 // Which download engine the worker should invoke.
-enum class YtDlKind { Permanent, Format, MultiFormat };
+enum class YtDlKind { Permanent, Format, MultiFormat, AudioTranscode, VideoBest };
 
 // Request handed to the download worker. Heap-allocated, owned by the worker,
 // which copies the success/failure into a YtDownloadResult before exiting.
@@ -2907,6 +2954,7 @@ struct YtDownloadRequest {
     std::wstring formatId;     // Format kind only
     bool videoOnly = false;    // Format kind only
     std::vector<std::wstring> formatIds;  // MultiFormat kind only (>=2 ids)
+    std::wstring audioFormat;  // AudioTranscode kind only ("mp3" | "vorbis")
 };
 
 // Result posted back to the UI. Heap-allocated by the worker, freed by the
@@ -2936,6 +2984,11 @@ static DWORD WINAPI DownloadThreadProc(LPVOID arg) {
     } else if (req->kind == YtDlKind::Format) {
         ok = YouTubeDownloadFormat(req->videoId, req->title, req->formatId,
                                    req->videoOnly, saved);
+    } else if (req->kind == YtDlKind::VideoBest) {
+        ok = YouTubeDownloadVideoBest(req->videoId, req->title, saved);
+    } else if (req->kind == YtDlKind::AudioTranscode) {
+        ok = YouTubeDownloadAudioTranscode(req->videoId, req->title,
+                                           req->audioFormat, saved);
     } else {
         ok = YouTubeDownloadPermanent(req->videoId, req->title, saved);
     }
@@ -3028,7 +3081,7 @@ void AnnounceStatus(HWND hwndParent, const std::wstring& text) {
 // WM_YT_DOWNLOAD_DONE handler announces the outcome.
 //
 // v2.06: the "Download started" announcement no longer lives here. The simple
-// path (DownloadSelected) and the options path (YouTubeOnFormatsReady) announce
+// path (StartImmediateDownload) and the options path (YouTubeOnFormatsReady) announce
 // it themselves — the simple path with an immediate Speak (no modal, never
 // clipped), the options path via AnnounceStatus (focus-proof) because a modal
 // just closed and would otherwise clip the speech.
@@ -3352,34 +3405,38 @@ static std::wstring YtEffectiveTitle(const YouTubeResult& r) {
     return r.title;
 }
 
-static void DownloadSelected(HWND hwnd) {
-    if (g_ytBatchActive.load()) {
+// v2.23 — unified launcher for the YouTube results context-menu download items
+// (Audio M4A/MP3/OGG, Video). `kind` selects the engine; `audioFormat` is empty
+// except for AudioTranscode ("mp3"|"vorbis"). Same guards/announcements as the
+// former Download button. The simple path has no modal, so the immediate Speak
+// is never clipped by a focus event.
+static void StartImmediateDownload(HWND hwnd, YtDlKind kind,
+                                   const std::wstring& audioFormat) {
+    // Refuse up-front if a batch OR a single transfer is already running, so the
+    // user never hears "Download started" immediately followed by "already in
+    // progress" (StartDownloadAsync would reject it a moment later otherwise).
+    if (g_ytBatchActive.load() || g_ytDownloading.load()) {
         Speak(Ts("A download is already in progress"));
         return;
     }
     HWND hList = GetDlgItem(hwnd, IDC_YT_RESULTS);
     int sel = static_cast<int>(SendMessageW(hList, LB_GETCURSEL, 0, 0));
     if (sel < 0 || sel >= static_cast<int>(g_ytResults.size())) {
-        // m5 (v1.99): give blind users explicit feedback instead of silence.
         Speak(Ts("No item selected"));
         return;
     }
-
     const YouTubeResult& result = g_ytResults[sel];
     if (result.videoId.empty()) {
         Speak(Ts("Cannot download this item"));
         return;
     }
-
-    // v2.06 — simple path has no modal, so an immediate Speak is never clipped
-    // by a focus event; keep the instant feedback.
     Speak(Ts("Download started"));
 
-    // v1.98 — run on a worker thread so the UI never freezes during transfer.
     YtDownloadRequest* req = new YtDownloadRequest;
-    req->kind    = YtDlKind::Permanent;
-    req->videoId = result.videoId;
-    req->title   = YtEffectiveTitle(result);
+    req->kind        = kind;
+    req->videoId     = result.videoId;
+    req->title       = YtEffectiveTitle(result);
+    req->audioFormat = audioFormat;
     StartDownloadAsync(req);
 }
 
@@ -3790,15 +3847,55 @@ static void DownloadSelectedWithOptions(HWND hwnd) {
 }
 
 
+// v2.23 — context menu on a YouTube result (Application key / Shift+F10 / right
+// click). Holds a "Download" submenu: Audio M4A/MP3/OGG + Video (highest quality,
+// no prompt) and "Download with options...". Built at runtime so future YouTube
+// actions are trivial to add. (x,y) is screen-space; anchored at the row by the
+// WM_CONTEXTMENU handler.
+static void ShowYtResultsContextMenu(HWND hwnd, int x, int y) {
+    HWND hList = GetDlgItem(hwnd, IDC_YT_RESULTS);
+    int sel = static_cast<int>(SendMessageW(hList, LB_GETCURSEL, 0, 0));
+    bool haveRow = (sel >= 0 && sel < static_cast<int>(g_ytResults.size()) &&
+                    !g_ytResults[sel].videoId.empty());
+    UINT f = haveRow ? MF_STRING : (MF_STRING | MF_GRAYED);
+
+    HMENU root = CreatePopupMenu();
+    HMENU dl   = CreatePopupMenu();
+    AppendMenuW(dl, f, IDM_YT_CTX_DL_M4A,   T("Audio (&M4A)"));
+    AppendMenuW(dl, f, IDM_YT_CTX_DL_MP3,   T("Audio (MP&3)"));
+    AppendMenuW(dl, f, IDM_YT_CTX_DL_OGG,   T("Audio (O&GG)"));
+    AppendMenuW(dl, f, IDM_YT_CTX_DL_VIDEO, T("&Video"));
+    AppendMenuW(dl, MF_SEPARATOR, 0, nullptr);
+    AppendMenuW(dl, f, IDM_YT_CTX_DL_OPTS,  T("Download with &options..."));
+    AppendMenuW(root, MF_POPUP, reinterpret_cast<UINT_PTR>(dl), T("&Download"));
+    // FUTURE YouTube actions (Play, Copy link, ...) go on `root` here.
+
+    SetForegroundWindow(hwnd);  // MSDN TrackPopupMenu idiom (dismiss on focus loss)
+    int cmd = static_cast<int>(TrackPopupMenu(
+        root, TPM_RETURNCMD | TPM_LEFTALIGN | TPM_TOPALIGN | TPM_RIGHTBUTTON,
+        x, y, 0, hwnd, nullptr));
+    DestroyMenu(root);  // frees the attached submenu too
+
+    switch (cmd) {
+        case IDM_YT_CTX_DL_M4A:   StartImmediateDownload(hwnd, YtDlKind::Permanent,      L"");        break;
+        case IDM_YT_CTX_DL_MP3:   StartImmediateDownload(hwnd, YtDlKind::AudioTranscode, L"mp3");     break;
+        case IDM_YT_CTX_DL_OGG:   StartImmediateDownload(hwnd, YtDlKind::AudioTranscode, L"vorbis");  break;
+        case IDM_YT_CTX_DL_VIDEO: StartImmediateDownload(hwnd, YtDlKind::VideoBest,      L"");        break;
+        case IDM_YT_CTX_DL_OPTS:  DownloadSelectedWithOptions(hwnd);                                  break;
+        default: break;  // 0 = Escape/cancel
+    }
+}
+
 // Main YouTube dialog proc (IDD_YOUTUBE) — the search/results window.
 // MODELESS: the handle is stored in g_ytDialog at WM_INITDIALOG and cleared on
 // IDCANCEL/WM_DESTROY (GetYouTubeDialog() reads it; the async workers post their
 // results to g_hwnd, not here, so a closed dialog never dangles). Controls:
 // IDC_YT_SEARCH (Enter = search, or play/queue directly when a video/playlist/
 // channel URL is pasted), IDC_YT_RESULTS (Enter/double-click plays; reaching the
-// last item auto-loads more), IDC_YT_LOADMORE, IDC_YT_DOWNLOAD (simple m4a),
-// IDC_YT_DOWNLOAD_OPTS (the format picker above). Network work (search, load
-// more, formats, downloads) runs on worker threads — this proc never blocks.
+// last item auto-loads more; Application/Shift+F10/right-click opens the download
+// context menu via WM_CONTEXTMENU -> ShowYtResultsContextMenu), IDC_YT_LOADMORE,
+// IDC_YT_DOWNLOAD_ALL (playlist/channel batch). Network work (search, load more,
+// formats, downloads) runs on worker threads — this proc never blocks.
 INT_PTR CALLBACK YouTubeDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
     switch (msg) {
         case WM_INITDIALOG:
@@ -3856,14 +3953,6 @@ INT_PTR CALLBACK YouTubeDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
                     DoLoadMore(hwnd);
                     break;
 
-                case IDC_YT_DOWNLOAD:
-                    DownloadSelected(hwnd);
-                    break;
-
-                case IDC_YT_DOWNLOAD_OPTS:
-                    DownloadSelectedWithOptions(hwnd);
-                    break;
-
                 case IDC_YT_DOWNLOAD_ALL:
                     DownloadAllResults(hwnd);
                     break;
@@ -3875,6 +3964,44 @@ INT_PTR CALLBACK YouTubeDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
             }
             break;
 
+        case WM_CONTEXTMENU: {
+            // v2.23 — context menu on the results list (Application key / Shift+F10
+            // / right-click). A focused Win32 LISTBOX's DefWindowProc both forwards
+            // a right-click WM_CONTEXTMENU to this parent dialog AND synthesizes one
+            // (lParam == -1) from Shift+F10 and the Application/VK_APPS key, so this
+            // single case covers all three triggers — no subclass needed.
+            HWND hList = GetDlgItem(hwnd, IDC_YT_RESULTS);
+            if (reinterpret_cast<HWND>(wParam) != hList) break;  // only the results list
+            int x = GET_X_LPARAM(lParam), y = GET_Y_LPARAM(lParam);
+            if (lParam == static_cast<LPARAM>(-1)) {
+                // Keyboard: anchor under the focused row (select row 0 if none).
+                int sel = static_cast<int>(SendMessageW(hList, LB_GETCURSEL, 0, 0));
+                if (sel < 0 && SendMessageW(hList, LB_GETCOUNT, 0, 0) > 0) {
+                    SendMessageW(hList, LB_SETCURSEL, 0, 0);
+                    sel = 0;
+                }
+                RECT rc;
+                if (sel >= 0 &&
+                    SendMessageW(hList, LB_GETITEMRECT, sel, reinterpret_cast<LPARAM>(&rc)) != LB_ERR) {
+                    POINT pt = { rc.left, rc.bottom };
+                    ClientToScreen(hList, &pt);
+                    x = pt.x; y = pt.y;
+                } else {
+                    RECT wr; GetWindowRect(hList, &wr);
+                    x = wr.left; y = wr.top;
+                }
+            } else {
+                // Mouse: select the row under the cursor (Windows convention).
+                POINT pt = { x, y };
+                ScreenToClient(hList, &pt);
+                DWORD idx = static_cast<DWORD>(SendMessageW(hList, LB_ITEMFROMPOINT, 0,
+                                                MAKELPARAM(pt.x, pt.y)));
+                if (HIWORD(idx) == 0) SendMessageW(hList, LB_SETCURSEL, LOWORD(idx), 0);
+            }
+            ShowYtResultsContextMenu(hwnd, x, y);
+            return TRUE;
+        }
+
         case WM_SIZE: {
             int width = LOWORD(lParam);
             int height = HIWORD(lParam);
@@ -3882,9 +4009,10 @@ INT_PTR CALLBACK YouTubeDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
             SetWindowPos(GetDlgItem(hwnd, IDC_YT_SEARCH), nullptr, 7, 22, width - 14, 14, SWP_NOZORDER);
             SetWindowPos(GetDlgItem(hwnd, IDC_YT_RESULTS), nullptr, 7, 54, width - 14, height - 90, SWP_NOZORDER);
             SetWindowPos(GetDlgItem(hwnd, IDC_YT_LOADMORE), nullptr, 7, height - 30, 55, 14, SWP_NOZORDER);
-            SetWindowPos(GetDlgItem(hwnd, IDC_YT_DOWNLOAD), nullptr, 66, height - 30, 55, 14, SWP_NOZORDER);
-            SetWindowPos(GetDlgItem(hwnd, IDC_YT_DOWNLOAD_ALL), nullptr, 125, height - 30, 80, 14, SWP_NOZORDER);
-            SetWindowPos(GetDlgItem(hwnd, IDC_YT_DOWNLOAD_OPTS), nullptr, 209, height - 30, 110, 14, SWP_NOZORDER);
+            // v2.23 — the simple Download and "Download with options" buttons were
+            // removed; downloads now live in the results context menu (Application
+            // key). Only Load More, Download all (playlist/channel) and Close remain.
+            SetWindowPos(GetDlgItem(hwnd, IDC_YT_DOWNLOAD_ALL), nullptr, 66, height - 30, 80, 14, SWP_NOZORDER);
             SetWindowPos(GetDlgItem(hwnd, IDCANCEL), nullptr, width - 57, height - 30, 50, 14, SWP_NOZORDER);
             InvalidateRect(hwnd, nullptr, TRUE);
             return TRUE;

@@ -297,6 +297,13 @@
 #define IDC_YT_DOWNLOAD_PATH         767
 #define IDC_YT_DOWNLOAD_PATH_BROWSE  768
 #define IDC_LABEL_YT_DOWNLOAD_PATH   769
+// v2.23 — YouTube results context menu (Download submenu + future actions).
+// TrackPopupMenu return ids dispatched in YouTubeDlgProc. 770-789 reserved.
+#define IDM_YT_CTX_DL_M4A    770   // Audio (M4A) — bestaudio m4a, no transcode
+#define IDM_YT_CTX_DL_MP3    771   // Audio (MP3) — ffmpeg transcode
+#define IDM_YT_CTX_DL_OGG    772   // Audio (OGG/vorbis) — ffmpeg transcode
+#define IDM_YT_CTX_DL_VIDEO  773   // Video — bv*+ba/b merged mp4
+#define IDM_YT_CTX_DL_OPTS   774   // Download with options... (existing picker)
 
 // Bookmarks
 #define IDM_BOOKMARK_ADD    800

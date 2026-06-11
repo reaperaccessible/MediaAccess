@@ -577,14 +577,15 @@
   <li>Tapez votre recherche et appuyez sur <kbd>Entrée</kbd>.</li>
   <li>Naviguez dans les résultats avec les flèches. Quand vous atteignez le dernier élément, plus de résultats se chargent automatiquement (vous pouvez aussi utiliser le bouton « Charger plus »).</li>
   <li><kbd>Entrée</kbd> lance la lecture du résultat sélectionné.</li>
-  <li>Le bouton <strong>Télécharger</strong> sauvegarde la vidéo de façon permanente dans <code>Téléchargements\MediaAccess\YouTube\</code> en audio m4a.</li>
+  <li>Pour <strong>télécharger</strong> un résultat, ouvrez son menu contextuel (touche <kbd>Application</kbd>, <kbd>Maj</kbd>+<kbd>F10</kbd> ou clic droit) — voir ci-dessous. Les fichiers vont dans <code>Téléchargements\MediaAccess\YouTube\</code>.</li>
 </ol>
 
-<h3>Télécharger avec options (choisir un format)</h3>
-<p>La fenêtre de recherche YouTube propose deux boutons de téléchargement :</p>
+<h3>Télécharger (menu contextuel)</h3>
+<p>Sur un résultat YouTube, ouvrez le menu contextuel avec la touche <kbd>Application</kbd> (ou <kbd>Maj</kbd>+<kbd>F10</kbd>, ou un clic droit), puis le sous-menu <strong>Télécharger</strong> :</p>
 <ul>
-  <li><strong>Télécharger</strong> : télécharge l'audio au format M4A, simplement, comme avant.</li>
-  <li><strong>Télécharger avec options...</strong> (<kbd>Alt</kbd>+<kbd>O</kbd> quand la fenêtre de résultats a le focus) : ouvre une liste de tous les formats disponibles pour la vidéo sélectionnée.</li>
+  <li><strong>Audio (M4A)</strong>, <strong>Audio (MP3)</strong>, <strong>Audio (OGG)</strong> : téléchargent l'audio en qualité maximale, sans rien demander (MP3 et OGG sont convertis automatiquement — ffmpeg est inclus, rien à installer).</li>
+  <li><strong>Vidéo</strong> : télécharge la meilleure image avec le son, fusionnés dans un fichier MP4.</li>
+  <li><strong>Télécharger avec options...</strong> : ouvre une liste de tous les formats disponibles pour la vidéo sélectionnée (détaillée ci-dessous).</li>
 </ul>
 <p>La liste affiche, en colonnes : extension, résolution, codec vidéo, codec audio, taille estimée et une note. <strong>C'est un tableau</strong> : votre lecteur d'écran lit la cellule de la ligne courante ; déplacez-vous d'une colonne à l'autre avec <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>Flèche gauche</kbd>/<kbd>droite</kbd> (NVDA et JAWS), ou activez la lecture de ligne complète. Une cellule annoncée « aucun » signifie simplement que ce format n'a pas cette piste (par exemple « codec audio : aucun » pour une vidéo sans son) — ce n'est pas une erreur. Le titre du dialogue indique le nombre de formats trouvés.</p>
 <p>Les formats sont triés du meilleur au moins bon, et la première ligne (la meilleure) est déjà sélectionnée : pour la plupart des usages, il suffit d'appuyer sur <kbd>Entrée</kbd>. Vous pouvez aussi choisir un format audio seul (par exemple M4A) ou une vidéo (par exemple MP4 en différentes résolutions : 1080p, 720p, etc.).</p>
@@ -605,7 +606,7 @@
 <h3>Coller une URL (vidéo, playlist ou chaîne)</h3>
 <p>Au lieu de mots-clés, vous pouvez coller une URL YouTube directement dans le champ de recherche. MediaAccess reconnaît trois types d'adresses :</p>
 <ul>
-  <li><strong>Une vidéo</strong> : elle apparaît comme un résultat unique que vous pouvez lire (<kbd>Entrée</kbd>) ou télécharger (bouton <strong>Télécharger</strong> ou <strong>Télécharger avec options...</strong>), exactement comme un résultat de recherche.</li>
+  <li><strong>Une vidéo</strong> : elle apparaît comme un résultat unique que vous pouvez lire (<kbd>Entrée</kbd>) ou télécharger (menu contextuel, touche <kbd>Application</kbd>), exactement comme un résultat de recherche.</li>
   <li><strong>Une liste de lecture (playlist)</strong> : toutes ses vidéos sont listées.</li>
   <li><strong>Une chaîne</strong> (formats <code>/channel/…</code>, <code>/@pseudo</code>, <code>/c/…</code> et <code>/user/…</code>) : ses vidéos sont listées, jusqu'à un maximum de <strong>100</strong>. Quand ce plafond est atteint, MediaAccess annonce « 100 premières vidéos » pour vous indiquer que la liste est tronquée.</li>
 </ul>

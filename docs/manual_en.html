@@ -577,14 +577,15 @@
   <li>Type your search and press <kbd>Enter</kbd>.</li>
   <li>Navigate the results with arrow keys. When you reach the last item, more results load automatically (you can also use the "Load More" button).</li>
   <li><kbd>Enter</kbd> plays the selected result.</li>
-  <li>The <strong>Download</strong> button saves the video permanently to <code>Downloads\MediaAccess\YouTube\</code> as m4a audio.</li>
+  <li>To <strong>download</strong> a result, open its context menu (<kbd>Applications</kbd> key, <kbd>Shift</kbd>+<kbd>F10</kbd>, or right-click) — see below. Files go to <code>Downloads\MediaAccess\YouTube\</code>.</li>
 </ol>
 
-<h3>Download with options (choose a format)</h3>
-<p>The YouTube search window has two download buttons:</p>
+<h3>Download (context menu)</h3>
+<p>On a YouTube result, open the context menu with the <kbd>Applications</kbd> key (or <kbd>Shift</kbd>+<kbd>F10</kbd>, or right-click), then the <strong>Download</strong> submenu:</p>
 <ul>
-  <li><strong>Download</strong>: downloads the audio in M4A format, simply, as before.</li>
-  <li><strong>Download with options...</strong> (<kbd>Alt</kbd>+<kbd>O</kbd> when the results window has focus): opens a list of every format available for the selected video.</li>
+  <li><strong>Audio (M4A)</strong>, <strong>Audio (MP3)</strong>, <strong>Audio (OGG)</strong>: download the audio at the highest quality, without asking (MP3 and OGG are converted automatically — ffmpeg is bundled, nothing to install).</li>
+  <li><strong>Video</strong>: downloads the best video with sound, merged into an MP4 file.</li>
+  <li><strong>Download with options...</strong>: opens a list of every format available for the selected video (described below).</li>
 </ul>
 <p>The list shows, in columns: extension, resolution, video codec, audio codec, estimated size and a note. <strong>It is a table</strong>: your screen reader reads the cell of the current row; move between columns with <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>Left</kbd>/<kbd>Right</kbd> arrow (NVDA and JAWS), or turn on full-row reading. A cell announced "none" simply means this format lacks that track (for example "audio codec: none" for a silent video) — it is not an error. The dialog title announces how many formats were found.</p>
 <p>Formats are sorted best-first, and the first row (the best one) is already selected: for most uses you can just press <kbd>Enter</kbd>. You can also choose an audio-only format (for example M4A) or a video (for example MP4 in various resolutions: 1080p, 720p, etc.).</p>

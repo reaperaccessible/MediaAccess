@@ -1114,6 +1114,14 @@ void RegisterPlayerTranslations() {
     // YouTube dialog button + Help menu cache item
     AddTranslation("en", "&Download", L"&Download");
     AddTranslation("fr", "&Download", L"&Télécharger");
+    // v2.23 — YouTube results context-menu audio-format labels (with mnemonics).
+    // "&Video", "&Download" and "Download with &options..." already exist above.
+    AddTranslation("en", "Audio (&M4A)", L"Audio (&M4A)");
+    AddTranslation("fr", "Audio (&M4A)", L"Audio (&M4A)");
+    AddTranslation("en", "Audio (MP&3)", L"Audio (MP&3)");
+    AddTranslation("fr", "Audio (MP&3)", L"Audio (MP&3)");
+    AddTranslation("en", "Audio (O&GG)", L"Audio (O&GG)");
+    AddTranslation("fr", "Audio (O&GG)", L"Audio (O&GG)");
 
     AddTranslation("en", "C&lear YouTube cache...", L"C&lear YouTube cache...");
     AddTranslation("fr", "C&lear YouTube cache...", L"Vider le cache &YouTube...");

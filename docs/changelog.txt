@@ -1,3 +1,6 @@
+2.23
+Nouveau : menu contextuel sur un résultat YouTube (touche Application, Maj+F10 ou clic droit). Il contient un sous-menu « Télécharger » avec : Audio (M4A), Audio (MP3), Audio (OGG) et Vidéo — chacun télécharge en qualité maximale sans poser de question — ainsi que « Télécharger avec options… ». Les formats MP3 et OGG sont convertis automatiquement (ffmpeg inclus). Les anciens boutons « Télécharger » et « Télécharger avec options » sont retirés : tout passe désormais par ce menu, qui accueillera les futures fonctions YouTube. Suggéré par redlaf.
+
 2.22
 Correction : les deux actions de volume « gros pas » (Ctrl+Maj+Flèche haut/bas) ajoutées en 2.21 utilisaient par erreur un pas logarithmique trop fort (le volume s'effondrait en 3 appuis). Elles montent/descendent maintenant le volume de 10 % par appui (10 appuis pour aller de 0 à 100 %).
 
