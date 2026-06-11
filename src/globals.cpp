@@ -373,6 +373,7 @@ std::wstring g_recordTemplate = L"{année}-{mois}-{jour}_{heure}-{minute}-{secon
 int g_recordFormat = 0;                             // 0=WAV, 1=MP3, 2=OGG, 3=FLAC
 int g_recordBitrate = 192;                          // Bitrate for MP3/OGG
 bool g_isRecording = false;                         // Currently recording?
+bool g_recordPaused = false;                        // v2.24 — recording paused (punch-in/out), both paths
 HENCODE g_encoder = 0;                              // BASS encoder handle
 
 // v1.94 — system-audio (WASAPI loopback) recording selectors. Separate from

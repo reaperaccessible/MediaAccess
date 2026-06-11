@@ -45,6 +45,8 @@ void RegisterUiTranslations() {
     // v1.94 — status bar indicator for an active system capture.
     AddTranslation("en", "REC system", L"REC system");
     AddTranslation("fr", "REC system", L"REC système");
+    AddTranslation("en", "REC system (paused)", L"REC system (paused)");
+    AddTranslation("fr", "REC system (paused)", L"REC système (pause)");
     // v1.94 — device-lost notification (posted from the capture engine watchdog).
     AddTranslation("en", "Recording stopped, device lost",
                    L"Recording stopped, device lost");
@@ -294,6 +296,8 @@ void RegisterUiTranslations() {
     AddTranslation("fr", "Vol",              L"Vol");
     AddTranslation("en", "REC",              L"REC");
     AddTranslation("fr", "REC",              L"ENR");
+    AddTranslation("en", "REC (paused)",     L"REC (paused)");
+    AddTranslation("fr", "REC (paused)",     L"ENR (pause)");
 
     // ============================================================
     // ui.cpp — Speech and dialog strings

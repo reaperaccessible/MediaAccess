@@ -547,6 +547,13 @@ void RegisterPlayerTranslations() {
 
     AddTranslation("en", "Recording started", L"Recording started");
     AddTranslation("fr", "Recording started", L"Enregistrement démarré");
+    // v2.24 — pause/resume recording (punch-in/out)
+    AddTranslation("en", "Recording paused",  L"Recording paused");
+    AddTranslation("fr", "Recording paused",  L"Enregistrement en pause");
+    AddTranslation("en", "Recording resumed", L"Recording resumed");
+    AddTranslation("fr", "Recording resumed", L"Enregistrement repris");
+    AddTranslation("en", "Not recording",     L"Not recording");
+    AddTranslation("fr", "Not recording",     L"Aucun enregistrement en cours");
 
     AddTranslation("en", "Nothing to record", L"Nothing to record");
     AddTranslation("fr", "Nothing to record", L"Rien à enregistrer");

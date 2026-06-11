@@ -415,6 +415,11 @@ static const Action g_actions[] = {
     // default shortcut: users assign one via Actions if desired.
     { "CYCLE_RECORD_SOURCE",      IDM_CYCLE_RECORD_SOURCE,    ActionCategory::Main,
       "Cycle recording source",       "Changer la source d'enregistrement", {} },
+    // v2.24 — pause/resume the active recording (punch-in/out). Shift+R, the
+    // natural companion to R (toggle recording).
+    { "RECORD_PAUSE_TOGGLE",      IDM_RECORD_PAUSE_TOGGLE,    ActionCategory::Main,
+      "Pause/Resume recording",       "Mettre en pause/Reprendre l'enregistrement",
+      { 'R', false, true,  false } },
 
     // ========================================================================
     // CATEGORY: Main — video
@@ -483,6 +488,10 @@ static const Action g_actions[] = {
     { "GLOBAL_CYCLE_RECORD_SOURCE", IDM_CYCLE_RECORD_SOURCE,  ActionCategory::Global,
       "Cycle recording source (global)",
       "Changer la source d'enregistrement (global)", {} },
+    // v2.24 — same commandId as RECORD_PAUSE_TOGGLE above. No global default.
+    { "GLOBAL_RECORD_PAUSE_TOGGLE", IDM_RECORD_PAUSE_TOGGLE,  ActionCategory::Global,
+      "Pause/Resume recording (global)",
+      "Mettre en pause/Reprendre l'enregistrement (global)", {} },
     { "GLOBAL_SHUFFLE",           IDM_PLAY_SHUFFLE,           ActionCategory::Global,
       "Toggle shuffle (global)",      "Basculer la lecture aléatoire (global)", {} },
     // Same commandId as PLAYER_TOGGLE_SEEK_ANNOUNCE above; WM_HOTKEY → WM_COMMAND

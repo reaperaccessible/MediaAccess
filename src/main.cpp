@@ -552,6 +552,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
                 // v1.94 — if a system capture self-stopped because its device was
                 // lost, announce it once (NVDA) on the UI thread.
                 if (mediaaccess::ConsumeSystemCaptureLost()) {
+                    g_recordPaused = false;  // v2.24 — clear paused state if a paused capture was lost
                     Speak(Ts("Recording stopped, device lost"));
                 }
                 UpdateStatusBar();
@@ -1407,6 +1408,9 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
                     break;
                 case IDM_RECORD_TOGGLE:
                     ToggleRecording();
+                    break;
+                case IDM_RECORD_PAUSE_TOGGLE:
+                    ToggleRecordingPause();
                     break;
                 case IDM_SHOW_AUDIO_DEVICES:
                     ShowAudioDeviceMenu(hwnd);

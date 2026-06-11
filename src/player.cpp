@@ -3470,9 +3470,10 @@ static std::wstring GenerateRecordingFilename() {
 void StopRecording() {
     if (!g_isRecording || !g_encoder) return;
 
-    BASS_Encode_Stop(g_encoder);
+    BASS_Encode_Stop(g_encoder);  // finalizes the file with the captured spans
     g_encoder = 0;
     g_isRecording = false;
+    g_recordPaused = false;       // v2.24 — clear punch-in/out state
 
     Speak(Ts("Recording stopped"));
     UpdateStatusBar();
@@ -3496,6 +3497,7 @@ static void ToggleSystemRecording() {
     // Already capturing? Stop and finalize.
     if (mediaaccess::IsSystemCapturing()) {
         mediaaccess::StopSystemCapture();
+        g_recordPaused = false;   // v2.24 — clear punch-in/out state on stop
         Speak(Ts("Recording stopped"));
         UpdateStatusBar();
         return;
@@ -3552,6 +3554,7 @@ static void ToggleSystemRecording() {
                     APP_NAME, MB_ICONERROR);
         return;
     }
+    g_recordPaused = false;   // v2.24 — fresh capture is never paused
 
     // Announce: "Recording started, source system, device <name>".
     std::wstring msg = T("Recording started");
@@ -3677,8 +3680,32 @@ void ToggleRecording() {
     }
 
     g_isRecording = true;
+    g_recordPaused = false;        // v2.24 — never inherit a stale paused state
     Speak(Ts("Recording started"));
     UpdateStatusBar();
+}
+
+// v2.24 — pause/resume whichever recording is active. We pause the ENCODER, not
+// the playback/capture, so the file simply skips the paused span (punch-in/out):
+// one file, only the un-paused segments. Reported by Romain.
+void ToggleRecordingPause() {
+    // Loopback (system audio) path — independent of g_fxStream / g_isRecording.
+    if (mediaaccess::IsSystemCapturing()) {
+        bool nowPaused = mediaaccess::ToggleSystemCapturePaused();
+        g_recordPaused = nowPaused;  // mirror engine truth for the status bar
+        Speak(nowPaused ? Ts("Recording paused") : Ts("Recording resumed"));
+        UpdateStatusBar();
+        return;
+    }
+    // Legacy "MediaAccess output" path.
+    if (g_isRecording && g_encoder) {
+        g_recordPaused = !g_recordPaused;
+        BASS_Encode_SetPaused(g_encoder, g_recordPaused ? TRUE : FALSE);
+        Speak(g_recordPaused ? Ts("Recording paused") : Ts("Recording resumed"));
+        UpdateStatusBar();
+        return;
+    }
+    Speak(Ts("Not recording"));     // neither active; no state change
 }
 
 

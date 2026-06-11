@@ -51,6 +51,7 @@ namespace mediaaccess {
 static HSTREAM            g_pushStream = 0;    // decode push stream feeding the encoder
 static HENCODE            g_systemEncoder = 0; // attached BASS encoder
 static std::atomic<bool>  g_isSystemCapturing{false};
+static std::atomic<bool>  g_systemPaused{false};   // v2.24 — encoder paused (punch-in/out)
 static std::atomic<bool>  g_drainRun{false};   // drives the drain-thread loop
 static std::atomic<bool>  g_deviceLost{false}; // set if capture self-stops on device loss
 static std::thread        g_drainThread;       // dedicated drain (pull) thread
@@ -426,9 +427,11 @@ static bool StartEncoderOnPush(const std::wstring& outputPath, int format,
 static void TeardownEngine() {
     BASS_WASAPI_Stop(TRUE);    // stop + reset the loopback capture
     if (g_systemEncoder) {
-        BASS_Encode_Stop(g_systemEncoder);
+        BASS_Encode_Stop(g_systemEncoder);  // finalizes the file with captured spans
         g_systemEncoder = 0;
     }
+    g_systemPaused.store(false);  // v2.24 — clear paused state on any teardown
+
     BASS_WASAPI_Free();
     if (g_pushStream) {
         BASS_StreamFree(g_pushStream);
@@ -578,6 +581,7 @@ bool StartSystemCapture(int bwaIndex, const std::wstring& outputPath,
     if (bwaIndex < 0) return false;
 
     g_deviceLost.store(false);   // fresh start clears any stale loss flag
+    g_systemPaused.store(false); // v2.24 — never inherit a stale paused state
 
     // Stage parameters for the drain thread.
     s_startBwaIndex   = bwaIndex;
@@ -619,6 +623,28 @@ void StopSystemCapture() {
 
 bool IsSystemCapturing() {
     return g_isSystemCapturing.load();
+}
+
+// v2.24 — pause/resume the encoder of an in-progress system capture. We pause
+// ONLY the encoder, not WASAPI: BASS_WASAPI keeps running so the device-loss
+// watchdog stays satisfied, the drain loop keeps emptying the push stream (no
+// buildup), and the paused encoder simply drops the pulled bytes — so the file
+// just skips the paused span. BASS encode functions are thread-safe.
+// We snapshot g_systemEncoder into a local: the guard makes it live in the common
+// case, but a device-loss self-stop on the drain thread can zero it right after
+// the guard — the local + null-check closes that narrow window cleanly.
+bool ToggleSystemCapturePaused() {
+    if (!g_isSystemCapturing.load()) return false;
+    HENCODE enc = g_systemEncoder;
+    if (!enc) return false;
+    bool np = !g_systemPaused.load();
+    BASS_Encode_SetPaused(enc, np ? TRUE : FALSE);
+    g_systemPaused.store(np);
+    return np;
+}
+
+bool IsSystemCapturePaused() {
+    return g_systemPaused.load();
 }
 
 bool ConsumeSystemCaptureLost() {

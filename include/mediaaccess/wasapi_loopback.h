@@ -57,6 +57,13 @@ void StopSystemCapture();
 // True while a system capture is in progress.
 bool IsSystemCapturing();
 
+// v2.24 — pause/resume the ENCODER of an in-progress system capture WITHOUT
+// stopping WASAPI (the device-loss watchdog stays satisfied; the file simply
+// skips the paused span). Returns the resulting paused state. No-op returning
+// false if not capturing. Safe to call from the UI thread.
+bool ToggleSystemCapturePaused();
+bool IsSystemCapturePaused();
+
 // One-shot edge flag: returns true exactly once if the capture self-stopped
 // because the audio device was lost/invalidated (e.g. unplugged or disabled
 // mid-recording). The caller (UI timer) polls this to announce the event and

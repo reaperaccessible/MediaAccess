@@ -204,7 +204,7 @@ void UpdateStatusBar() {
         // Add recording indicator
         if (g_isRecording) {
             if (!stateText.empty()) stateText += L" | ";
-            stateText += T("REC");
+            stateText += g_recordPaused ? T("REC (paused)") : T("REC");
         }
     }
 
@@ -213,7 +213,7 @@ void UpdateStatusBar() {
     // g_fxStream block) and works even with no MediaAccess stream loaded.
     if (mediaaccess::IsSystemCapturing()) {
         if (!stateText.empty()) stateText += L" | ";
-        stateText += T("REC system");
+        stateText += mediaaccess::IsSystemCapturePaused() ? T("REC system (paused)") : T("REC system");
     }
 
     SendMessageW(g_statusBar, SB_SETTEXTW, SB_PART_POSITION, reinterpret_cast<LPARAM>(posText.c_str()));

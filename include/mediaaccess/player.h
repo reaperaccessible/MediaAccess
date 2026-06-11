@@ -111,6 +111,7 @@ std::wstring GetTagFilename();
 
 // Recording functions
 void ToggleRecording();
+void ToggleRecordingPause();   // v2.24 — pause/resume whichever recording is active
 void StopRecording();
 
 // Expand friendly date tokens ({année}/{year}/etc.) to strftime codes (%Y/%m/etc.)

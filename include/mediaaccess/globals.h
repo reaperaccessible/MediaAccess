@@ -215,6 +215,7 @@ extern std::wstring g_recordTemplate;   // Filename template (default: "%Y-%m-%d
 extern int g_recordFormat;              // 0=WAV, 1=MP3, 2=OGG, 3=FLAC
 extern int g_recordBitrate;             // MP3/OGG bitrate in kbps (128, 192, 256, 320)
 extern bool g_isRecording;              // Currently recording?
+extern bool g_recordPaused;             // v2.24 — recording paused (punch-in/out), both paths
 extern HENCODE g_encoder;               // BASS encoder handle
 
 // v1.94 — system-audio (WASAPI loopback) recording. These are SEPARATE from
