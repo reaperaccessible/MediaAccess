@@ -657,6 +657,13 @@ void RegisterPlayerTranslations() {
     AddTranslation("fr", "Link copied", L"Lien copié");
     AddTranslation("en", "No stream link", L"No stream link");
     AddTranslation("fr", "No stream link", L"Aucun lien de flux");
+    // v2.26 — YouTube results context menu copy actions ("Link copied" reused from above)
+    AddTranslation("en", "Copy &link", L"Copy &link");
+    AddTranslation("fr", "Copy &link", L"Copier le &lien");
+    AddTranslation("en", "Copy c&hannel link", L"Copy c&hannel link");
+    AddTranslation("fr", "Copy c&hannel link", L"Copier le lien de la c&haîne");
+    AddTranslation("en", "No channel link", L"No channel link");
+    AddTranslation("fr", "No channel link", L"Aucun lien de chaîne");
 
     AddTranslation("en", "Station updated", L"Station updated");
     AddTranslation("fr", "Station updated", L"Station mise à jour");

@@ -306,7 +306,10 @@
 #define IDM_YT_CTX_DL_VIDEO  773   // Video — bv*+ba/b merged mp4
 #define IDM_YT_CTX_DL_OPTS   774   // Download with options... (existing picker)
 // v2.25 — Radio list context menu. TrackPopupMenu return ids dispatched in RadioDlgProc.
-#define IDM_RADIO_CTX_COPY_LINK  775   // Copy selected station's stream URL (776-789 reserved)
+#define IDM_RADIO_CTX_COPY_LINK  775   // Copy selected station's stream URL
+// v2.26 — YouTube results context menu copy actions (778-789 reserved).
+#define IDM_YT_CTX_COPY_LINK     776   // Copy selected result's video URL
+#define IDM_YT_CTX_COPY_CHANNEL  777   // Copy selected result's channel URL
 
 // Bookmarks
 #define IDM_BOOKMARK_ADD    800

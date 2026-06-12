@@ -11,6 +11,7 @@ struct YouTubeResult {
     std::wstring videoId;
     std::wstring title;
     std::wstring channel;
+    std::wstring channelUrl;  // v2.26 — canonical channel URL for "Copy channel link" (may be empty)
     std::wstring duration;    // Human-readable duration
     std::wstring uploadDate;  // Human-readable upload date
     bool isPlaylist = false;

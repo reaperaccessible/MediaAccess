@@ -777,6 +777,8 @@ static bool SearchWithAPI(const std::wstring& query, std::vector<YouTubeResult>&
                 lastSnippetPos, searchStart - lastSnippetPos + 1000);
             result.title = ParseJsonString(snippet, L"title");
             result.channel = ParseJsonString(snippet, L"channelTitle");
+            std::wstring cid = ParseJsonString(snippet, L"channelId");
+            if (!cid.empty()) result.channelUrl = L"https://www.youtube.com/channel/" + cid;
         }
 
         if (!result.videoId.empty() && !result.title.empty()) {
@@ -820,6 +822,15 @@ static void ParseYtdlpJsonLines(const std::wstring& output,
         result.title = ParseJsonStringMulti(line, {L"title", L"fulltitle"});
         result.channel = ParseJsonStringMulti(line, {L"channel", L"uploader", L"uploader_id", L"channel_id"});
         result.duration = ParseJsonStringMulti(line, {L"duration_string", L"duration"});
+        // v2.26 — canonical channel URL for "Copy channel link". Precedence:
+        // channel_url -> uploader_url -> build /channel/<channel_id>. Note: do NOT
+        // build from uploader_id — modern yt-dlp may emit an @handle there, which
+        // would yield a broken /channel/@handle URL. Only channel_id is safe.
+        result.channelUrl = ParseJsonStringMulti(line, {L"channel_url", L"uploader_url"});
+        if (result.channelUrl.empty()) {
+            std::wstring cid = ParseJsonString(line, L"channel_id");
+            if (!cid.empty()) result.channelUrl = L"https://www.youtube.com/channel/" + cid;
+        }
 
         if (!result.videoId.empty() && !result.title.empty()) {
             results.push_back(result);
@@ -3847,17 +3858,47 @@ static void DownloadSelectedWithOptions(HWND hwnd) {
 }
 
 
+// v2.26 — clipboard text writer for the YouTube dialog. Kept file-local (distinct
+// name from ui_radio.cpp's static CopyToClipboard, which we can't reach). Correct
+// ownership: after SetClipboardData succeeds the system owns the handle, so we must
+// NOT GlobalFree it; we only free on the failure path.
+static bool YtSetClipboardTextW(HWND owner, const std::wstring& text) {
+    if (text.empty()) return false;
+    if (!OpenClipboard(owner)) return false;
+    EmptyClipboard();
+    bool ok = false;
+    HGLOBAL hMem = GlobalAlloc(GMEM_MOVEABLE, (text.size() + 1) * sizeof(wchar_t));
+    if (hMem) {
+        wchar_t* p = static_cast<wchar_t*>(GlobalLock(hMem));
+        if (p) {
+            wcscpy(p, text.c_str());
+            GlobalUnlock(hMem);
+            if (SetClipboardData(CF_UNICODETEXT, hMem)) ok = true;
+        }
+    }
+    if (!ok && hMem) GlobalFree(hMem);  // free ONLY on failure; on success the OS owns hMem
+    CloseClipboard();
+    return ok;
+}
+
 // v2.23 — context menu on a YouTube result (Application key / Shift+F10 / right
 // click). Holds a "Download" submenu: Audio M4A/MP3/OGG + Video (highest quality,
-// no prompt) and "Download with options...". Built at runtime so future YouTube
-// actions are trivial to add. (x,y) is screen-space; anchored at the row by the
-// WM_CONTEXTMENU handler.
+// no prompt) and "Download with options...". v2.26 adds top-level "Copy link" /
+// "Copy channel link". Built at runtime so future YouTube actions are trivial to
+// add. (x,y) is screen-space; anchored at the row by the WM_CONTEXTMENU handler.
 static void ShowYtResultsContextMenu(HWND hwnd, int x, int y) {
     HWND hList = GetDlgItem(hwnd, IDC_YT_RESULTS);
     int sel = static_cast<int>(SendMessageW(hList, LB_GETCURSEL, 0, 0));
     bool haveRow = (sel >= 0 && sel < static_cast<int>(g_ytResults.size()) &&
                     !g_ytResults[sel].videoId.empty());
     UINT f = haveRow ? MF_STRING : (MF_STRING | MF_GRAYED);
+    // Copy link applies only to actual videos — a playlist/channel row's id is not
+    // a watch?v= id, so enable it only for plain video rows. Copy channel link also
+    // needs a non-empty channelUrl.
+    bool haveVideo   = haveRow && !g_ytResults[sel].isPlaylist && !g_ytResults[sel].isChannel;
+    bool haveChannel = haveRow && !g_ytResults[sel].channelUrl.empty();
+    UINT fv = haveVideo   ? MF_STRING : (MF_STRING | MF_GRAYED);
+    UINT fc = haveChannel ? MF_STRING : (MF_STRING | MF_GRAYED);
 
     HMENU root = CreatePopupMenu();
     HMENU dl   = CreatePopupMenu();
@@ -3868,7 +3909,9 @@ static void ShowYtResultsContextMenu(HWND hwnd, int x, int y) {
     AppendMenuW(dl, MF_SEPARATOR, 0, nullptr);
     AppendMenuW(dl, f, IDM_YT_CTX_DL_OPTS,  T("Download with &options..."));
     AppendMenuW(root, MF_POPUP, reinterpret_cast<UINT_PTR>(dl), T("&Download"));
-    // FUTURE YouTube actions (Play, Copy link, ...) go on `root` here.
+    AppendMenuW(root, MF_SEPARATOR, 0, nullptr);
+    AppendMenuW(root, fv, IDM_YT_CTX_COPY_LINK,    T("Copy &link"));
+    AppendMenuW(root, fc, IDM_YT_CTX_COPY_CHANNEL, T("Copy c&hannel link"));
 
     SetForegroundWindow(hwnd);  // MSDN TrackPopupMenu idiom (dismiss on focus loss)
     int cmd = static_cast<int>(TrackPopupMenu(
@@ -3882,6 +3925,21 @@ static void ShowYtResultsContextMenu(HWND hwnd, int x, int y) {
         case IDM_YT_CTX_DL_OGG:   StartImmediateDownload(hwnd, YtDlKind::AudioTranscode, L"vorbis");  break;
         case IDM_YT_CTX_DL_VIDEO: StartImmediateDownload(hwnd, YtDlKind::VideoBest,      L"");        break;
         case IDM_YT_CTX_DL_OPTS:  DownloadSelectedWithOptions(hwnd);                                  break;
+        case IDM_YT_CTX_COPY_LINK: {
+            if (sel >= 0 && sel < static_cast<int>(g_ytResults.size()) && !g_ytResults[sel].videoId.empty()) {
+                std::wstring url = L"https://www.youtube.com/watch?v=" + g_ytResults[sel].videoId;
+                if (YtSetClipboardTextW(hwnd, url)) Speak(Ts("Link copied"));
+            }
+            break;
+        }
+        case IDM_YT_CTX_COPY_CHANNEL: {
+            if (sel >= 0 && sel < static_cast<int>(g_ytResults.size()) && !g_ytResults[sel].channelUrl.empty()) {
+                if (YtSetClipboardTextW(hwnd, g_ytResults[sel].channelUrl)) Speak(Ts("Link copied"));
+            } else {
+                Speak(Ts("No channel link"));  // belt-and-suspenders; item is normally MF_GRAYED
+            }
+            break;
+        }
         default: break;  // 0 = Escape/cancel
     }
 }
