@@ -670,6 +670,10 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
             YouTubeOnFormatsReady(lParam);
             return 0;
 
+        case WM_YT_DESC_READY:
+            YouTubeOnDescReady(lParam);
+            return 0;
+
         case WM_YT_DOWNLOAD_DONE:
             YouTubeOnDownloadDone(lParam);
             return 0;

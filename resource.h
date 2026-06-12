@@ -117,6 +117,7 @@
 #define WM_APP_DEFERRED_SPEAK (WM_USER + 12) // v2.06 — AnnounceStatus fallback: arm IDT_DEFERRED_SPEAK to Speak after focus settles
 #define WM_YT_BATCH_PROGRESS (WM_USER + 13) // v2.12 — "Download all" per-item progress (wParam=done, lParam=total)
 #define WM_YT_BATCH_DONE     (WM_USER + 14) // v2.12 — "Download all" finished (lParam = YtBatchResult* heap)
+#define WM_YT_DESC_READY     (WM_USER + 15) // v2.27 — background description fetch finished (lParam = YtDescResult* heap). (WM_USER+10 is WM_TRAYICON.)
 
 // Playback tab controls
 #define IDC_BRING_TO_FRONT  531
@@ -310,6 +311,7 @@
 // v2.26 — YouTube results context menu copy actions (778-789 reserved).
 #define IDM_YT_CTX_COPY_LINK     776   // Copy selected result's video URL
 #define IDM_YT_CTX_COPY_CHANNEL  777   // Copy selected result's channel URL
+#define IDM_YT_CTX_COPY_DESC     778   // v2.27 — Copy selected video's full description (async yt-dlp fetch)
 
 // Bookmarks
 #define IDM_BOOKMARK_ADD    800

@@ -1,3 +1,6 @@
+2.27
+Nouveau : une action « Copier la description » ajoutée au menu contextuel d'un résultat YouTube (touche Application, Maj+F10 ou clic droit). Elle copie dans le presse-papiers la description complète de la vidéo, avec ses sauts de ligne. Comme cette information n'est pas chargée d'avance, MediaAccess la récupère au moment du clic : il annonce « Récupération de la description… » puis « Description copiée » (généralement 1 à 3 secondes). Si la vidéo n'a pas de description ou en cas d'erreur (vidéo privée, supprimée, problème réseau), la raison est annoncée et rien n'est copié. Suggéré par un utilisateur.
+
 2.26
 Nouveau : deux actions ajoutées au menu contextuel d'un résultat YouTube (touche Application, Maj+F10 ou clic droit), au même niveau que le sous-menu « Télécharger » : « Copier le lien » copie l'adresse de la vidéo sélectionnée dans le presse-papiers, et « Copier le lien de la chaîne » copie l'adresse de la chaîne YouTube du résultat. MediaAccess annonce « Lien copié ». Si l'adresse de la chaîne n'est pas disponible, l'item est grisé. Suggéré par un utilisateur.
 

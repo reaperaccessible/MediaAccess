@@ -364,6 +364,74 @@ static std::wstring JsonUnescape(const std::wstring& s) {
     return out;
 }
 
+// v2.27 — newline-PRESERVING twin of JsonUnescape, for the YouTube description
+// (a deliberately multi-line field). Byte-for-byte identical to JsonUnescape
+// EXCEPT \n/\r/\t decode to real \n/\r/\t instead of being flattened to spaces.
+// Kept separate so JsonUnescape's sole caller (ParseJsonString → titles, channel,
+// language, every listing field) keeps its newline→space behaviour untouched.
+static std::wstring JsonUnescapeMultiline(const std::wstring& s) {
+    std::wstring out;
+    out.reserve(s.size());
+    size_t i = 0;
+    while (i < s.size()) {
+        wchar_t c = s[i];
+        if (c != L'\\' || i + 1 >= s.size()) { out.push_back(c); ++i; continue; }
+        wchar_t n = s[i + 1];
+        switch (n) {
+            case L'"':  out.push_back(L'"');  i += 2; break;
+            case L'\\': out.push_back(L'\\'); i += 2; break;
+            case L'/':  out.push_back(L'/');  i += 2; break;
+            case L'b':  out.push_back(L'\b'); i += 2; break;
+            case L'f':  out.push_back(L'\f'); i += 2; break;
+            case L'n':  out.push_back(L'\n'); i += 2; break;  // preserved (vs space in JsonUnescape)
+            case L'r':  out.push_back(L'\r'); i += 2; break;
+            case L't':  out.push_back(L'\t'); i += 2; break;
+            case L'u': {
+                if (i + 5 >= s.size()) { out.push_back(c); ++i; break; }
+                unsigned int cp = 0;
+                bool ok = true;
+                for (int k = 0; k < 4; ++k) {
+                    wchar_t h = s[i + 2 + k];
+                    cp <<= 4;
+                    if      (h >= L'0' && h <= L'9') cp |= (unsigned)(h - L'0');
+                    else if (h >= L'a' && h <= L'f') cp |= (unsigned)(h - L'a' + 10);
+                    else if (h >= L'A' && h <= L'F') cp |= (unsigned)(h - L'A' + 10);
+                    else { ok = false; break; }
+                }
+                if (!ok) { out.push_back(c); ++i; break; }
+                i += 6;
+                // High surrogate? Look for a following \uXXXX low surrogate.
+                if (cp >= 0xD800 && cp <= 0xDBFF
+                    && i + 5 < s.size() && s[i] == L'\\' && s[i + 1] == L'u') {
+                    unsigned int low = 0;
+                    bool okLow = true;
+                    for (int k = 0; k < 4; ++k) {
+                        wchar_t h = s[i + 2 + k];
+                        low <<= 4;
+                        if      (h >= L'0' && h <= L'9') low |= (unsigned)(h - L'0');
+                        else if (h >= L'a' && h <= L'f') low |= (unsigned)(h - L'a' + 10);
+                        else if (h >= L'A' && h <= L'F') low |= (unsigned)(h - L'A' + 10);
+                        else { okLow = false; break; }
+                    }
+                    if (okLow && low >= 0xDC00 && low <= 0xDFFF) {
+                        out.push_back((wchar_t)cp);
+                        out.push_back((wchar_t)low);
+                        i += 6;
+                        break;
+                    }
+                }
+                out.push_back((wchar_t)cp);
+                break;
+            }
+            default:
+                out.push_back(c);
+                ++i;
+                break;
+        }
+    }
+    return out;
+}
+
 // Simple JSON string value parser (not a full JSON parser, but it handles
 // every escape sequence correctly).
 static std::wstring ParseJsonString(const std::wstring& json, const std::wstring& key) {
@@ -409,6 +477,43 @@ static std::wstring ParseJsonString(const std::wstring& json, const std::wstring
     }
 
     return JsonUnescape(json.substr(startQuote + 1, endQuote - startQuote - 1));
+}
+
+// v2.27 — newline-PRESERVING twin of ParseJsonString, for the description field.
+// Identical locate+terminate logic (incl. the non-string guard and the
+// backslash-parity closing-quote scan that descriptions need — they routinely
+// contain \" and trailing backslashes) but decodes via JsonUnescapeMultiline so
+// real line breaks survive. A separate function (not a refactor of ParseJsonString)
+// keeps every existing caller's behaviour byte-for-byte unchanged.
+static std::wstring ParseJsonStringMultiline(const std::wstring& json, const std::wstring& key) {
+    std::wstring searchKey = L"\"" + key + L"\"";
+    size_t keyPos = json.find(searchKey);
+    if (keyPos == std::wstring::npos) return L"";
+
+    size_t colonPos = json.find(L':', keyPos + searchKey.length());
+    if (colonPos == std::wstring::npos) return L"";
+
+    size_t valPos = colonPos + 1;
+    while (valPos < json.length() &&
+           (json[valPos] == L' '  || json[valPos] == L'\t' ||
+            json[valPos] == L'\n' || json[valPos] == L'\r')) {
+        ++valPos;
+    }
+    if (valPos >= json.length() || json[valPos] != L'"') return L"";
+
+    size_t startQuote = valPos;
+    size_t endQuote = startQuote + 1;
+    while (endQuote < json.length()) {
+        if (json[endQuote] == L'"') {
+            size_t backslashes = 0;
+            size_t b = endQuote;
+            while (b > startQuote + 1 && json[b - 1] == L'\\') { ++backslashes; --b; }
+            if ((backslashes % 2) == 0) break;  // unescaped quote → string ends
+        }
+        endQuote++;
+    }
+
+    return JsonUnescapeMultiline(json.substr(startQuote + 1, endQuote - startQuote - 1));
 }
 
 // Convert a raw UTF-8 byte buffer (as produced by yt-dlp on its pipes) into a
@@ -3881,6 +3986,134 @@ static bool YtSetClipboardTextW(HWND owner, const std::wstring& text) {
     return ok;
 }
 
+// ============================================================
+// v2.27 — "Copy description" (async, anti-freeze)
+// ============================================================
+//
+// Unlike "Copy link"/"Copy channel link" (data already in g_ytResults, instant),
+// the full multi-line description is NOT in any listing payload — it must be
+// fetched per video. yt-dlp takes 1–3 s (up to 30 s timeout), so it runs on a
+// worker thread that posts WM_YT_DESC_READY; the UI handler does the clipboard
+// copy. This mirrors the proven background-formats flow above.
+
+// Worker-thread fetch: query yt-dlp for the single video's JSON and pull out the
+// full "description". Returns the (CRLF-normalized) text; sets outFound=false and,
+// on a yt-dlp failure, outFailureKey to a static spoken-reason literal.
+static std::wstring FetchVideoDescription(const std::wstring& videoId,
+                                          const char*& outFailureKey, bool& outFound) {
+    outFailureKey = nullptr;
+    outFound = false;
+    if (!IsValidVideoId(videoId)) return L"";   // boundary whitelist (no key → "No description")
+    if (!IsYtdlpAvailable())      return L"";
+
+    std::wstring safeId = SanitizeForCommandLine(videoId);
+    std::wstring url = L"https://www.youtube.com/watch?v=" + safeId;
+    // --dump-json (NOT --print "%(description)s": --print emitted cp1252 on a test
+    // machine; --dump-json is clean UTF-8 via RunYtdlp's Utf8BytesToWide pipeline).
+    // --no-playlist isolates the single video; --quiet --no-warnings keep stdout
+    // pure JSON.
+    std::wstring args = L"--no-playlist --dump-json --quiet --no-warnings \"" + url + L"\"";
+    int exitCode = 0;
+    std::wstring stderrText;
+    std::wstring out = RunYtdlp(args, YTDLP_QUERY_TIMEOUT_MS, &exitCode, &stderrText);
+    if (exitCode != 0 || out.empty()) {
+        outFailureKey = ClassifyYtdlpFailure(exitCode, stderrText);
+        return L"";
+    }
+    std::wstring desc = ParseJsonStringMultiline(out, L"description");
+    if (desc.empty() || desc == L"NA") return L"";  // null/empty/"NA" → "No description"
+
+    // Normalize lone LF to CRLF so the text pastes with line breaks in Notepad/Word
+    // (screen readers read either fine).
+    std::wstring norm;
+    norm.reserve(desc.size() + 32);
+    for (size_t k = 0; k < desc.size(); ++k) {
+        wchar_t c = desc[k];
+        if (c == L'\n' && (k == 0 || desc[k - 1] != L'\r')) norm += L"\r\n";
+        else norm += c;
+    }
+    outFound = true;
+    return norm;
+}
+
+static std::atomic<bool> g_ytDescLoading{false};  // separate from g_ytFormatsLoading
+
+struct YtDescRequest { std::wstring videoId; };                       // heap, owned by worker
+struct YtDescResult {                                                 // heap, owned by UI handler
+    std::wstring description;
+    bool found = false;
+    const char* failureKey = nullptr;   // static literal — safe to copy across threads
+};
+
+static DWORD WINAPI DescThreadProc(LPVOID arg) {
+    YtDescRequest* req = static_cast<YtDescRequest*>(arg);
+    YtDescResult* res = new YtDescResult;
+    // NB: this flow carries the failure reason via res->failureKey (out-param of
+    // FetchVideoDescription, straight from ClassifyYtdlpFailure's literal) — it does
+    // NOT read the g_ytLastFailureKey global, so we deliberately do not touch it here
+    // (avoids clobbering a concurrent formats/search query's global).
+    res->description = FetchVideoDescription(req->videoId, res->failureKey, res->found);
+    delete req;
+    PostMessageW(g_hwnd, WM_YT_DESC_READY, 0, reinterpret_cast<LPARAM>(res));
+    return 0;
+}
+
+// Handler for WM_YT_DESC_READY (MAIN window proc). Runs on the UI thread; does the
+// clipboard copy. If the dialog was closed mid-fetch, drop the UI but free the
+// payload. Mirrors YouTubeOnFormatsReady.
+void YouTubeOnDescReady(LPARAM lParam) {
+    YtDescResult* res = reinterpret_cast<YtDescResult*>(lParam);
+    g_ytDescLoading.store(false);   // release guard FIRST
+    if (!res) return;
+
+    HWND dlg = GetYouTubeDialog();
+    if (!dlg) {                     // user closed the window while we fetched
+        delete res;
+        return;
+    }
+
+    if (!res->found || res->description.empty()) {
+        // Specific yt-dlp reason (private/unavailable/network) if any, else empty/NA.
+        Speak(Ts(res->failureKey ? res->failureKey : "No description"));
+        delete res;
+        return;
+    }
+
+    if (YtSetClipboardTextW(dlg, res->description)) Speak(Ts("Description copied"));
+    else Speak(Ts("No description"));   // clipboard-open failure fallback
+    delete res;
+}
+
+// Launcher — kick off the background description fetch for the selected result.
+static void CopyDescriptionOfSelected(HWND hwnd) {
+    HWND hList = GetDlgItem(hwnd, IDC_YT_RESULTS);
+    int sel = static_cast<int>(SendMessageW(hList, LB_GETCURSEL, 0, 0));
+    if (sel < 0 || sel >= static_cast<int>(g_ytResults.size())) {
+        Speak(Ts("No item selected"));
+        return;
+    }
+    const YouTubeResult& r = g_ytResults[sel];
+    if (r.videoId.empty() || r.isPlaylist || r.isChannel || !IsValidVideoId(r.videoId)) {
+        Speak(Ts("No description"));   // belt-and-suspenders; item is MF_GRAYED for these rows
+        return;
+    }
+    if (g_ytDescLoading.exchange(true)) {   // in-flight guard (double-trigger)
+        Speak(Ts("Fetching description"));
+        return;
+    }
+    Speak(Ts("Fetching description"));      // pre-work cue
+    YtDescRequest* req = new YtDescRequest;
+    req->videoId = r.videoId;               // snapshot id; worker never touches g_ytResults
+    HANDLE t = CreateThread(nullptr, 0, DescThreadProc, req, 0, nullptr);
+    if (!t) {
+        delete req;
+        g_ytDescLoading.store(false);
+        Speak(Ts("No description"));
+    } else {
+        CloseHandle(t);
+    }
+}
+
 // v2.23 — context menu on a YouTube result (Application key / Shift+F10 / right
 // click). Holds a "Download" submenu: Audio M4A/MP3/OGG + Video (highest quality,
 // no prompt) and "Download with options...". v2.26 adds top-level "Copy link" /
@@ -3912,6 +4145,7 @@ static void ShowYtResultsContextMenu(HWND hwnd, int x, int y) {
     AppendMenuW(root, MF_SEPARATOR, 0, nullptr);
     AppendMenuW(root, fv, IDM_YT_CTX_COPY_LINK,    T("Copy &link"));
     AppendMenuW(root, fc, IDM_YT_CTX_COPY_CHANNEL, T("Copy c&hannel link"));
+    AppendMenuW(root, fv, IDM_YT_CTX_COPY_DESC,    T("Copy descri&ption"));
 
     SetForegroundWindow(hwnd);  // MSDN TrackPopupMenu idiom (dismiss on focus loss)
     int cmd = static_cast<int>(TrackPopupMenu(
@@ -3940,6 +4174,9 @@ static void ShowYtResultsContextMenu(HWND hwnd, int x, int y) {
             }
             break;
         }
+        case IDM_YT_CTX_COPY_DESC:
+            CopyDescriptionOfSelected(hwnd);   // async — unlike the inline copy cases, data isn't in memory
+            break;
         default: break;  // 0 = Escape/cancel
     }
 }

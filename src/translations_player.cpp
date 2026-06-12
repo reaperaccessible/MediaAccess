@@ -664,6 +664,16 @@ void RegisterPlayerTranslations() {
     AddTranslation("fr", "Copy c&hannel link", L"Copier le lien de la c&haîne");
     AddTranslation("en", "No channel link", L"No channel link");
     AddTranslation("fr", "No channel link", L"Aucun lien de chaîne");
+    // v2.27 — YouTube "Copy description" (async fetch). "No item selected" and the
+    // ClassifyYtdlpFailure keys (network/private/unavailable) are reused from above.
+    AddTranslation("en", "Copy descri&ption", L"Copy descri&ption");
+    AddTranslation("fr", "Copy descri&ption", L"Copier la &description");
+    AddTranslation("en", "Fetching description", L"Fetching description, please wait...");
+    AddTranslation("fr", "Fetching description", L"Récupération de la description, veuillez patienter...");
+    AddTranslation("en", "Description copied", L"Description copied");
+    AddTranslation("fr", "Description copied", L"Description copiée");
+    AddTranslation("en", "No description", L"No description");
+    AddTranslation("fr", "No description", L"Aucune description");
 
     AddTranslation("en", "Station updated", L"Station updated");
     AddTranslation("fr", "Station updated", L"Station mise à jour");
