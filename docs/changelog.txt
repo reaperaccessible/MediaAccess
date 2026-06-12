@@ -1,3 +1,6 @@
+2.25
+Nouveau : menu contextuel sur la liste des radios (touche Application, Maj+F10 ou clic droit), dans les Favoris comme dans les résultats de recherche. Premier item : « Copier le lien du flux », qui copie l'URL de flux de la station sélectionnée dans le presse-papiers. Ce menu accueillera d'autres actions radio à l'avenir. Suggéré par Romain.
+
 2.24
 Nouveau : on peut mettre l'enregistrement en pause puis le reprendre (Maj+R par défaut), pour ne garder que les passages voulus dans un seul fichier. Exemple : pendant une conférence, enregistrez la phrase 2, mettez en pause, reprenez pour la phrase 4 ; à l'arrêt, le fichier ne contient que les phrases 2 et 4. Fonctionne pour l'enregistrement de la sortie MediaAccess comme de l'audio système. Le raccourci est aussi disponible en global (à assigner dans Outils → Actions). Suggéré par Romain.
 

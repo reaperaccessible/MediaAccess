@@ -305,6 +305,8 @@
 #define IDM_YT_CTX_DL_OGG    772   // Audio (OGG/vorbis) — ffmpeg transcode
 #define IDM_YT_CTX_DL_VIDEO  773   // Video — bv*+ba/b merged mp4
 #define IDM_YT_CTX_DL_OPTS   774   // Download with options... (existing picker)
+// v2.25 — Radio list context menu. TrackPopupMenu return ids dispatched in RadioDlgProc.
+#define IDM_RADIO_CTX_COPY_LINK  775   // Copy selected station's stream URL (776-789 reserved)
 
 // Bookmarks
 #define IDM_BOOKMARK_ADD    800

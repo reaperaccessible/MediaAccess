@@ -1,4 +1,5 @@
 #include "ui_internal.h"
+#include <windowsx.h>   // GET_X_LPARAM / GET_Y_LPARAM for the radio context menu
 
 // ============================================================================
 // Radio Dialog
@@ -1464,6 +1465,45 @@ static LRESULT CALLBACK RadioListSubclassProc(HWND hwnd, UINT msg, WPARAM wParam
     return CallWindowProcW(g_origRadioListProc, hwnd, msg, wParam, lParam);
 }
 
+// v2.25 — context menu on a radio list (Application key / Shift+F10 / right click).
+// One item today ("Copy stream link"); built at runtime so future radio actions are
+// trivial to add. isFavorites picks the backing vector and the URL-acquisition path.
+// (x,y) is screen-space, anchored by the caller. Mirrors the YouTube context menu.
+static void ShowRadioContextMenu(HWND hwnd, HWND hList, bool isFavorites, int x, int y) {
+    int sel = static_cast<int>(SendMessageW(hList, LB_GETCURSEL, 0, 0));
+    size_t count = isFavorites ? g_radioStations.size() : g_radioSearchResults.size();
+    bool haveRow = (sel >= 0 && static_cast<size_t>(sel) < count);
+    UINT f = haveRow ? MF_STRING : (MF_STRING | MF_GRAYED);
+
+    HMENU root = CreatePopupMenu();
+    AppendMenuW(root, f, IDM_RADIO_CTX_COPY_LINK, T("&Copy stream link"));
+    // FUTURE radio actions (Play, Edit, Remove, Add to favorites...) go on `root` here.
+
+    SetForegroundWindow(hwnd);  // MSDN TrackPopupMenu idiom (dismiss on focus loss)
+    int cmd = static_cast<int>(TrackPopupMenu(
+        root, TPM_RETURNCMD | TPM_LEFTALIGN | TPM_TOPALIGN | TPM_RIGHTBUTTON,
+        x, y, 0, hwnd, nullptr));
+    DestroyMenu(root);
+
+    if (cmd == IDM_RADIO_CTX_COPY_LINK && haveRow) {
+        if (isFavorites) {
+            const std::wstring& u = g_radioStations[sel].url;
+            if (u.empty()) { Speak(Ts("No stream link")); return; }
+            if (CopyToClipboard(hwnd, u)) Speak(Ts("Link copied"));
+        } else {
+            const auto& r = g_radioSearchResults[sel];
+            bool hadOptions = false;
+            std::wstring u = ResolveAndPickStreamUrl(hwnd, r, hadOptions);
+            if (!u.empty()) {
+                if (CopyToClipboard(hwnd, u)) Speak(Ts("Link copied"));
+            } else if (!hadOptions) {
+                Speak(Ts("Could not get stream URL"));
+            }
+            // hadOptions && empty => user cancelled the stream picker => stay silent
+        }
+    }
+}
+
 // Radio dialog proc
 static INT_PTR CALLBACK RadioDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
     switch (msg) {
@@ -1991,6 +2031,42 @@ static INT_PTR CALLBACK RadioDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM 
                 return TRUE;
             }
             break;
+
+        case WM_CONTEXTMENU: {
+            // v2.25 — context menu on either radio list (Application key / Shift+F10
+            // / right-click). The subclassed listboxes only intercept WM_KEYDOWN /
+            // WM_GETDLGCODE, so their DefWindowProc still forwards/synthesizes
+            // WM_CONTEXTMENU to this dialog for all three triggers (same as YouTube).
+            HWND src     = reinterpret_cast<HWND>(wParam);
+            HWND hFav    = GetDlgItem(hwnd, IDC_RADIO_LIST);
+            HWND hSearch = GetDlgItem(hwnd, IDC_RADIO_SEARCH_LIST);
+            bool isFav;
+            if      (src == hFav)    isFav = true;
+            else if (src == hSearch) isFav = false;
+            else break;                              // only the two radio lists
+            HWND hList = src;
+            int x = GET_X_LPARAM(lParam), y = GET_Y_LPARAM(lParam);
+            if (lParam == static_cast<LPARAM>(-1)) {  // keyboard: VK_APPS / Shift+F10
+                int sel = static_cast<int>(SendMessageW(hList, LB_GETCURSEL, 0, 0));
+                if (sel < 0 && SendMessageW(hList, LB_GETCOUNT, 0, 0) > 0) {
+                    SendMessageW(hList, LB_SETCURSEL, 0, 0); sel = 0;
+                }
+                RECT rc;
+                if (sel >= 0 &&
+                    SendMessageW(hList, LB_GETITEMRECT, sel, reinterpret_cast<LPARAM>(&rc)) != LB_ERR) {
+                    POINT pt = { rc.left, rc.bottom }; ClientToScreen(hList, &pt); x = pt.x; y = pt.y;
+                } else {
+                    RECT wr; GetWindowRect(hList, &wr); x = wr.left; y = wr.top;
+                }
+            } else {                                   // mouse: select row under cursor
+                POINT pt = { x, y }; ScreenToClient(hList, &pt);
+                DWORD idx = static_cast<DWORD>(SendMessageW(hList, LB_ITEMFROMPOINT, 0,
+                                                  MAKELPARAM(pt.x, pt.y)));
+                if (HIWORD(idx) == 0) SendMessageW(hList, LB_SETCURSEL, LOWORD(idx), 0);
+            }
+            ShowRadioContextMenu(hwnd, hList, isFav, x, y);
+            return TRUE;
+        }
 
         case WM_SIZE: {
             // Resize list and reposition buttons

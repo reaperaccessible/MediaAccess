@@ -650,6 +650,13 @@ void RegisterPlayerTranslations() {
 
     AddTranslation("en", "URL copied", L"URL copied");
     AddTranslation("fr", "URL copied", L"URL copiée");
+    // v2.25 — radio list context menu
+    AddTranslation("en", "&Copy stream link", L"&Copy stream link");
+    AddTranslation("fr", "&Copy stream link", L"&Copier le lien du flux");
+    AddTranslation("en", "Link copied", L"Link copied");
+    AddTranslation("fr", "Link copied", L"Lien copié");
+    AddTranslation("en", "No stream link", L"No stream link");
+    AddTranslation("fr", "No stream link", L"Aucun lien de flux");
 
     AddTranslation("en", "Station updated", L"Station updated");
     AddTranslation("fr", "Station updated", L"Station mise à jour");
