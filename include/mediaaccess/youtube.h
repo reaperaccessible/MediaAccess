@@ -190,6 +190,8 @@ void YouTubeOnDescReady(LPARAM lParam);      // WM_YT_DESC_READY (v2.27)
 void YouTubeDownloadSelectedFromAction(int idmCtxId);
 // Part 2: download the currently-playing YouTube video as audio (M4A).
 void YouTubeDownloadCurrentlyPlaying();
+// v2.31: download the currently-playing YouTube video as VIDEO (best quality).
+void YouTubeDownloadCurrentlyPlayingVideo();
 // Part 2 state lifecycle — called from ui.cpp when a non-YouTube source loads / on clear.
 void YouTubeClearCurrentVideo();
 

@@ -532,6 +532,9 @@ static const Action g_actions[] = {
     { "GLOBAL_YT_DL_PLAYING",     IDM_YT_DL_PLAYING,          ActionCategory::Global,
       "Download currently playing YouTube video (audio M4A) (global)",
       "Télécharger la vidéo YouTube en cours de lecture (audio M4A) (global)", {} },
+    { "GLOBAL_YT_DL_PLAYING_VIDEO", IDM_YT_DL_PLAYING_VIDEO,  ActionCategory::Global,
+      "Download currently playing YouTube video (video) (global)",
+      "Télécharger la vidéo YouTube en cours de lecture (vidéo) (global)", {} },
 
     // In-track seeking — added in v1.56 after user feedback.
     { "GLOBAL_SEEKBACK",          IDM_PLAY_SEEKBACK,          ActionCategory::Global,

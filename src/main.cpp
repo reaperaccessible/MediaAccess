@@ -922,6 +922,9 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
                 case IDM_YT_DL_PLAYING:
                     YouTubeDownloadCurrentlyPlaying();
                     break;
+                case IDM_YT_DL_PLAYING_VIDEO:
+                    YouTubeDownloadCurrentlyPlayingVideo();
+                    break;
                 case IDM_FILE_RADIO:
                     ShowRadioDialog();
                     break;

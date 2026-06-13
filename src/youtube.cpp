@@ -4178,6 +4178,13 @@ void YouTubeDownloadCurrentlyPlaying() {
     StartImmediateDownloadById(YtDlKind::Permanent, L"", g_currentYtVideoId, g_currentYtTitle);
 }
 
+// v2.31 — same as above but downloads the VIDEO (best image + audio, merged),
+// mirroring the context-menu "Video" item.
+void YouTubeDownloadCurrentlyPlayingVideo() {
+    if (g_currentYtVideoId.empty()) { Speak(Ts("No YouTube video playing")); return; }
+    StartImmediateDownloadById(YtDlKind::VideoBest, L"", g_currentYtVideoId, g_currentYtTitle);
+}
+
 // v2.23 — context menu on a YouTube result (Application key / Shift+F10 / right
 // click). Holds a "Download" submenu: Audio M4A/MP3/OGG + Video (highest quality,
 // no prompt) and "Download with options...". v2.26 adds top-level "Copy link" /

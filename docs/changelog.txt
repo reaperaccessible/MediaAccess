@@ -1,3 +1,6 @@
+2.31
+Nouveau : une action « Télécharger la vidéo YouTube en cours de lecture (vidéo) » dans la catégorie Globale de la fenêtre Actions. Elle télécharge la vidéo en cours en format vidéo (meilleure qualité, image + son), en complément de l'action audio M4A existante. Aucune touche n'est attribuée par défaut — assignez-la dans Outils → Actions.
+
 2.30
 Amélioration (suite de l'issue #6) : les actions de téléchargement YouTube qui agissent sur le résultat sélectionné (audio M4A, MP3, OGG, Vidéo, et « avec options ») se trouvent maintenant dans la catégorie « YouTube » de la fenêtre Actions (au lieu de « Globale »), et elles se déclenchent uniquement lorsque la fenêtre YouTube a le focus — là où elles ont du sens. L'action « Télécharger la vidéo YouTube en cours de lecture » reste dans la catégorie « Globale » (elle fonctionne depuis le lecteur, partout). Si vous aviez déjà assigné une touche à l'une de ces actions, elle reste valide.
 
