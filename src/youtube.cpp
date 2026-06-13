@@ -7,6 +7,8 @@
 #include "video_engine.h"  // IsMPVAvailable() — used as YouTube playback fallback
 #include "ui.h"           // v1.60 — SetNowPlaying / SourceType
 #include "resource.h"
+#include "mediaaccess/actions.h"  // v2.30 — Shortcut / ActionCategory (in-dialog download keys)
+#include "mediaaccess/keymap.h"   // v2.30 — GetActiveKeyMap().FindCommandFor
 #include <wininet.h>
 #include <commctrl.h>
 #include <windowsx.h>    // GET_X_LPARAM / GET_Y_LPARAM (context-menu positioning)
@@ -4253,6 +4255,47 @@ static void ShowYtResultsContextMenu(HWND hwnd, int x, int y) {
 // context menu via WM_CONTEXTMENU -> ShowYtResultsContextMenu), IDC_YT_LOADMORE,
 // IDC_YT_DOWNLOAD_ALL (playlist/channel batch). Network work (search, load more,
 // formats, downloads) runs on worker threads — this proc never blocks.
+// v2.30 (issue #6 follow-up) — subclass on the results LISTBOX so user-bound
+// YouTube-category download keys fire while it has focus. A focused Win32 LISTBOX
+// consumes WM_KEYDOWN in its own window proc (it is NOT forwarded to the dialog
+// proc, unlike WM_CONTEXTMENU), so the keymap lookup must happen here. We only act
+// on chords with Ctrl/Alt/Win held, so plain typing and first-letter list
+// navigation are never swallowed. No keyboard-help (F12) announcement logic here —
+// the key simply executes the download.
+static constexpr UINT_PTR kYtResultsSubclassId = 1;
+static LRESULT CALLBACK YtResultsSubclassProc(HWND h, UINT m, WPARAM w, LPARAM l,
+                                              UINT_PTR /*uId*/, DWORD_PTR /*ref*/) {
+    if (m == WM_KEYDOWN || m == WM_SYSKEYDOWN) {
+        UINT vk = static_cast<UINT>(w);
+        bool bareModifier =
+            vk == VK_CONTROL || vk == VK_LCONTROL || vk == VK_RCONTROL ||
+            vk == VK_SHIFT   || vk == VK_LSHIFT   || vk == VK_RSHIFT   ||
+            vk == VK_MENU    || vk == VK_LMENU    || vk == VK_RMENU    ||
+            vk == VK_LWIN    || vk == VK_RWIN     ||
+            vk == VK_CAPITAL || vk == VK_NUMLOCK  || vk == VK_SCROLL;
+        if (!bareModifier) {
+            mediaaccess::Shortcut sc;
+            sc.vk    = vk;
+            sc.ctrl  = (GetKeyState(VK_CONTROL) & 0x8000) != 0;
+            sc.shift = (GetKeyState(VK_SHIFT)   & 0x8000) != 0;
+            sc.alt   = (GetKeyState(VK_MENU)    & 0x8000) != 0;
+            sc.win   = ((GetKeyState(VK_LWIN) & 0x8000) != 0) ||
+                       ((GetKeyState(VK_RWIN) & 0x8000) != 0);
+            // Require Ctrl/Alt/Win so Shift-only chords don't clash with the
+            // listbox's capital-letter type-ahead navigation.
+            if (sc.ctrl || sc.alt || sc.win) {
+                int cmd = mediaaccess::GetActiveKeyMap().FindCommandFor(
+                    sc, mediaaccess::ActionCategory::YouTube);
+                if (cmd != 0) {
+                    YouTubeDownloadSelectedFromAction(cmd);
+                    return 0;  // consume — no default handling, no F12 announce
+                }
+            }
+        }
+    }
+    return DefSubclassProc(h, m, w, l);
+}
+
 INT_PTR CALLBACK YouTubeDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
     switch (msg) {
         case WM_INITDIALOG:
@@ -4273,6 +4316,10 @@ INT_PTR CALLBACK YouTubeDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
             } else {
                 ShowWindow(GetDlgItem(hwnd, IDC_YT_DOWNLOAD_ALL), SW_HIDE);
             }
+            // v2.30 — subclass the results list so YouTube-category download keys
+            // (bound by the user in Tools -> Actions) fire while it has focus.
+            SetWindowSubclass(GetDlgItem(hwnd, IDC_YT_RESULTS),
+                              YtResultsSubclassProc, kYtResultsSubclassId, 0);
             SetFocus(GetDlgItem(hwnd, IDC_YT_SEARCH));
             return FALSE;  // We set focus manually
 
@@ -4404,6 +4451,8 @@ INT_PTR CALLBACK YouTubeDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
             break;
 
         case WM_DESTROY:
+            RemoveWindowSubclass(GetDlgItem(hwnd, IDC_YT_RESULTS),
+                                 YtResultsSubclassProc, kYtResultsSubclassId);  // v2.30
             g_ytDialog = nullptr;
             break;
     }

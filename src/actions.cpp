@@ -507,24 +507,28 @@ static const Action g_actions[] = {
       "YouTube search (global)",      "Recherche YouTube (global)", {} },
 
     // v2.28 (issue #6) — user-assignable YouTube download actions. NO default key:
-    // the user binds them in Tools -> Actions. Part 1 (M4A/MP3/OGG/Video/Options)
-    // acts on the selected results-list row and reuses the context-menu command ids.
-    // Part 2 downloads the currently-playing YouTube video as audio M4A.
-    { "GLOBAL_YT_DL_SEL_M4A",     IDM_YT_CTX_DL_M4A,          ActionCategory::Global,
-      "Download selected YouTube result as audio (M4A) (global)",
-      "Télécharger le résultat YouTube sélectionné en audio (M4A) (global)", {} },
-    { "GLOBAL_YT_DL_SEL_MP3",     IDM_YT_CTX_DL_MP3,          ActionCategory::Global,
-      "Download selected YouTube result as audio (MP3) (global)",
-      "Télécharger le résultat YouTube sélectionné en audio (MP3) (global)", {} },
-    { "GLOBAL_YT_DL_SEL_OGG",     IDM_YT_CTX_DL_OGG,          ActionCategory::Global,
-      "Download selected YouTube result as audio (OGG) (global)",
-      "Télécharger le résultat YouTube sélectionné en audio (OGG) (global)", {} },
-    { "GLOBAL_YT_DL_SEL_VIDEO",   IDM_YT_CTX_DL_VIDEO,        ActionCategory::Global,
-      "Download selected YouTube result as video (global)",
-      "Télécharger le résultat YouTube sélectionné en vidéo (global)", {} },
-    { "GLOBAL_YT_DL_SEL_OPTS",    IDM_YT_CTX_DL_OPTS,         ActionCategory::Global,
-      "Download selected YouTube result with options (global)",
-      "Télécharger le résultat YouTube sélectionné avec options (global)", {} },
+    // the user binds them in Tools -> Actions. The five "selected result" actions
+    // act on the row selected in the YouTube results list, so they live in the
+    // YouTube category (v2.30) and fire while that window is focused. They reuse the
+    // context-menu command ids. stringIds are kept verbatim so any v2.29 user
+    // binding (when they were Global) is preserved across the upgrade.
+    { "GLOBAL_YT_DL_SEL_M4A",     IDM_YT_CTX_DL_M4A,          ActionCategory::YouTube,
+      "Download selected result as audio (M4A)",
+      "Télécharger le résultat sélectionné en audio (M4A)", {} },
+    { "GLOBAL_YT_DL_SEL_MP3",     IDM_YT_CTX_DL_MP3,          ActionCategory::YouTube,
+      "Download selected result as audio (MP3)",
+      "Télécharger le résultat sélectionné en audio (MP3)", {} },
+    { "GLOBAL_YT_DL_SEL_OGG",     IDM_YT_CTX_DL_OGG,          ActionCategory::YouTube,
+      "Download selected result as audio (OGG)",
+      "Télécharger le résultat sélectionné en audio (OGG)", {} },
+    { "GLOBAL_YT_DL_SEL_VIDEO",   IDM_YT_CTX_DL_VIDEO,        ActionCategory::YouTube,
+      "Download selected result as video",
+      "Télécharger le résultat sélectionné en vidéo", {} },
+    { "GLOBAL_YT_DL_SEL_OPTS",    IDM_YT_CTX_DL_OPTS,         ActionCategory::YouTube,
+      "Download selected result with options",
+      "Télécharger le résultat sélectionné avec options", {} },
+    // The "currently playing" action works from the main player, anywhere, so it
+    // stays Global (system hotkey).
     { "GLOBAL_YT_DL_PLAYING",     IDM_YT_DL_PLAYING,          ActionCategory::Global,
       "Download currently playing YouTube video (audio M4A) (global)",
       "Télécharger la vidéo YouTube en cours de lecture (audio M4A) (global)", {} },
