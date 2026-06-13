@@ -80,6 +80,10 @@ void SetNowPlaying(SourceType type,
     g_nowPlayingType   = type;
     g_nowPlayingSource = source;
     g_nowPlayingItem   = item;
+    // v2.28 — any non-YouTube source invalidates the "currently playing YouTube
+    // video" used by the Global download action. (YouTube playback calls this with
+    // SourceType::YouTube BEFORE YouTubePlayById sets the id, so no self-clear.)
+    if (type != SourceType::YouTube) YouTubeClearCurrentVideo();
     UpdateWindowTitle();
     // v2.11 — history recording moved OUT of here: this hook fires with timing
     // that doesn't yet know the playable target (radio/podcast call this BEFORE
@@ -98,6 +102,7 @@ void ClearNowPlaying() {
     g_nowPlayingType   = SourceType::None;
     g_nowPlayingSource.clear();
     g_nowPlayingItem.clear();
+    YouTubeClearCurrentVideo();   // v2.28 — drop the retained playing-video id on stop/clear
     UpdateWindowTitle();
 }
 

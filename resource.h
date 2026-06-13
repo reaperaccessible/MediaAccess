@@ -312,6 +312,7 @@
 #define IDM_YT_CTX_COPY_LINK     776   // Copy selected result's video URL
 #define IDM_YT_CTX_COPY_CHANNEL  777   // Copy selected result's channel URL
 #define IDM_YT_CTX_COPY_DESC     778   // v2.27 — Copy selected video's full description (async yt-dlp fetch)
+#define IDM_YT_DL_PLAYING        779   // v2.28 — download the currently-playing YouTube video as audio M4A (Global, user-bindable)
 
 // Bookmarks
 #define IDM_BOOKMARK_ADD    800
@@ -354,6 +355,7 @@
 #define IDM_HELP_CONTACT         125   // v1.54 — mailto: reaperaccessible@gmail.com
 #define IDM_HELP_DONATE          126   // v1.54 — open PayPal donation URL
 #define IDM_HELP_AUDIO_DIAG      130   // v2.12 — dump audio device tables for support
+#define IDM_HELP_ABOUT           131   // v2.29 — Help -> About: app name, version, publisher, repo
 
 // Sleep timer (v1.55)
 #define IDM_SLEEP_TIMER_OPEN     127   // F8 — opens dialog

@@ -1,3 +1,8 @@
+2.29
+Nouveau : menu Aide → « À propos de MediaAccess… » qui affiche le nom de l'application, la version utilisée, l'éditeur (ReaperAccessible) et la page du projet, pour qu'on sache facilement quelle version on a.
+Nouveau (issue #6) : des actions assignables pour télécharger depuis YouTube au clavier, sans passer par le menu contextuel. Aucune touche n'est attribuée par défaut — assignez-les dans Outils → Actions. Il y a une action par format pour le résultat sélectionné dans la liste (Audio M4A, MP3, OGG, Vidéo, et « Télécharger avec options »), ainsi qu'une action « Télécharger la vidéo YouTube en cours de lecture » (en audio M4A) qui fonctionne directement depuis le lecteur, sans revenir à la liste de résultats. Demandé par Loopz1111.
+Correction : l'éditeur affiché dans « Applications installées » de Windows (et dans les propriétés du fichier) était incorrect ; il indique maintenant ReaperAccessible. Note : pour les installations existantes, le changement n'apparaît qu'après la mise à jour vers la 2.29.
+
 2.27
 Nouveau : une action « Copier la description » ajoutée au menu contextuel d'un résultat YouTube (touche Application, Maj+F10 ou clic droit). Elle copie dans le presse-papiers la description complète de la vidéo, avec ses sauts de ligne. Comme cette information n'est pas chargée d'avance, MediaAccess la récupère au moment du clic : il annonce « Récupération de la description… » puis « Description copiée » (généralement 1 à 3 secondes). Si la vidéo n'a pas de description ou en cas d'erreur (vidéo privée, supprimée, problème réseau), la raison est annoncée et rien n'est copié. Suggéré par un utilisateur.
 

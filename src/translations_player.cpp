@@ -674,6 +674,14 @@ void RegisterPlayerTranslations() {
     AddTranslation("fr", "Description copied", L"Description copiée");
     AddTranslation("en", "No description", L"No description");
     AddTranslation("fr", "No description", L"Aucune description");
+    // v2.28 (issue #6) — user-assignable YouTube download actions. Other spoken
+    // strings (Download started / A download is already in progress / No item
+    // selected / Cannot download this item / Fetching formats / No formats
+    // available) are reused from existing entries.
+    AddTranslation("en", "No YouTube video selected", L"No YouTube video selected");
+    AddTranslation("fr", "No YouTube video selected", L"Aucune vidéo YouTube sélectionnée");
+    AddTranslation("en", "No YouTube video playing", L"No YouTube video playing");
+    AddTranslation("fr", "No YouTube video playing", L"Aucune vidéo YouTube en cours de lecture");
 
     AddTranslation("en", "Station updated", L"Station updated");
     AddTranslation("fr", "Station updated", L"Station mise à jour");

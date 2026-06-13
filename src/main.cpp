@@ -46,6 +46,7 @@
 #include "updater.h"
 #include "resource.h"
 #include "video_engine.h"
+#include "mediaaccess/version.h"   // APP_VERSION, BUILD_COMMIT, GITHUB_REPO (Help -> About)
 #include "mediaaccess/logger.h"
 #include "mediaaccess/keyboard_help.h"
 #include "mediaaccess/actions.h"
@@ -169,6 +170,30 @@ static void OpenHelpDonate(HWND hwnd) {
             T("Could not open the donation page in your browser."),
             T("Make a donation"), MB_OK | MB_ICONWARNING);
     }
+}
+
+// v2.29 — Help -> About. Accessible MessageBox (NVDA/JAWS read it as a standard
+// dialog) showing the app name, running version, publisher and project page so a
+// user can tell which version they have.
+static void ShowAboutDialog(HWND hwnd) {
+    std::wstring msg = L"MediaAccess";
+    msg += L"\n\n";
+    msg += T("Version: ");
+    msg += L"" APP_VERSION;                  // narrow literal -> wide via L"" adjacency
+    if (strlen(BUILD_COMMIT) > 0) {          // "" in non-git builds
+        std::string sha(BUILD_COMMIT);
+        if (sha.size() > 7) sha = sha.substr(0, 7);
+        msg += L" (";
+        msg += std::wstring(sha.begin(), sha.end());   // ASCII SHA, safe widen
+        msg += L")";
+    }
+    msg += L"\n";
+    msg += T("Publisher: ");
+    msg += L"ReaperAccessible";
+    msg += L"\n";
+    msg += T("Project page: ");
+    msg += L"https://github.com/" GITHUB_REPO;          // -> reaperaccessible/MediaAccess
+    MessageBoxW(hwnd, msg.c_str(), T("About MediaAccess"), MB_OK | MB_ICONINFORMATION);
 }
 
 static void HelpSetAsDefault(HWND hwnd) {
@@ -883,6 +908,20 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
                 case IDM_FILE_YOUTUBE:
                     ShowYouTubeDialog(hwnd);
                     break;
+                // v2.28 (issue #6) — user-assignable Global YouTube download actions.
+                // These ids are also context-menu return values inside YouTubeDlgProc
+                // (TrackPopupMenu TPM_RETURNCMD, not posted as WM_COMMAND), so handling
+                // them here only catches the WM_HOTKEY->WM_COMMAND path; no conflict.
+                case IDM_YT_CTX_DL_M4A:
+                case IDM_YT_CTX_DL_MP3:
+                case IDM_YT_CTX_DL_OGG:
+                case IDM_YT_CTX_DL_VIDEO:
+                case IDM_YT_CTX_DL_OPTS:
+                    YouTubeDownloadSelectedFromAction(LOWORD(wParam));
+                    break;
+                case IDM_YT_DL_PLAYING:
+                    YouTubeDownloadCurrentlyPlaying();
+                    break;
                 case IDM_FILE_RADIO:
                     ShowRadioDialog();
                     break;
@@ -1055,6 +1094,9 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
                     break;
                 case IDM_HELP_DONATE:
                     OpenHelpDonate(hwnd);
+                    break;
+                case IDM_HELP_ABOUT:
+                    ShowAboutDialog(hwnd);
                     break;
                 case IDM_BOOKMARK_ADD:
                     if (g_currentTrack >= 0 && g_currentTrack < static_cast<int>(g_playlist.size())) {

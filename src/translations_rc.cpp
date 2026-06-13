@@ -187,6 +187,23 @@ void RegisterRcTranslations() {
     AddTranslation("en", "Make a donation", L"Make a donation");
     AddTranslation("fr", "Make a donation", L"Faire un don");
 
+    // v2.29 — Help -> About (menu label + MessageBox title/body labels). The
+    // app name, "ReaperAccessible", the URL and the commit SHA are NOT localized.
+    AddTranslation("en", "A&bout MediaAccess...", L"A&bout MediaAccess...");
+    AddTranslation("fr", "A&bout MediaAccess...", L"À &propos de MediaAccess...");
+
+    AddTranslation("en", "About MediaAccess", L"About MediaAccess");
+    AddTranslation("fr", "About MediaAccess", L"À propos de MediaAccess");
+
+    AddTranslation("en", "Version: ", L"Version: ");
+    AddTranslation("fr", "Version: ", L"Version : ");
+
+    AddTranslation("en", "Publisher: ", L"Publisher: ");
+    AddTranslation("fr", "Publisher: ", L"Éditeur : ");
+
+    AddTranslation("en", "Project page: ", L"Project page: ");
+    AddTranslation("fr", "Project page: ", L"Page du projet : ");
+
     AddTranslation("en", "Could not open your email client. Please write to "
                          "reaperaccessible@gmail.com manually.",
                    L"Could not open your email client. Please write to "

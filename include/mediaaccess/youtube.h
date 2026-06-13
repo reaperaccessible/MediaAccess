@@ -184,6 +184,15 @@ void YouTubeOnBatchProgress(WPARAM wParam, LPARAM lParam); // WM_YT_BATCH_PROGRE
 void YouTubeOnBatchDone(LPARAM lParam);      // WM_YT_BATCH_DONE (v2.12)
 void YouTubeOnDescReady(LPARAM lParam);      // WM_YT_DESC_READY (v2.27)
 
+// v2.28 (issue #6) — user-assignable download actions (Global, no default key).
+// Part 1: download the currently-selected results-list row in a given format.
+// idmCtxId is one of IDM_YT_CTX_DL_M4A/MP3/OGG/VIDEO/OPTS.
+void YouTubeDownloadSelectedFromAction(int idmCtxId);
+// Part 2: download the currently-playing YouTube video as audio (M4A).
+void YouTubeDownloadCurrentlyPlaying();
+// Part 2 state lifecycle — called from ui.cpp when a non-YouTube source loads / on clear.
+void YouTubeClearCurrentVideo();
+
 // Cancel any pending hybrid swap. Call before loading non-YouTube media so a
 // late-arriving download from a previously-started hybrid playback does not
 // clobber the new track the user just opened.

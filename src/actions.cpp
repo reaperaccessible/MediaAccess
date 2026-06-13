@@ -506,6 +506,29 @@ static const Action g_actions[] = {
     { "GLOBAL_YOUTUBE",           IDM_FILE_YOUTUBE,           ActionCategory::Global,
       "YouTube search (global)",      "Recherche YouTube (global)", {} },
 
+    // v2.28 (issue #6) — user-assignable YouTube download actions. NO default key:
+    // the user binds them in Tools -> Actions. Part 1 (M4A/MP3/OGG/Video/Options)
+    // acts on the selected results-list row and reuses the context-menu command ids.
+    // Part 2 downloads the currently-playing YouTube video as audio M4A.
+    { "GLOBAL_YT_DL_SEL_M4A",     IDM_YT_CTX_DL_M4A,          ActionCategory::Global,
+      "Download selected YouTube result as audio (M4A) (global)",
+      "Télécharger le résultat YouTube sélectionné en audio (M4A) (global)", {} },
+    { "GLOBAL_YT_DL_SEL_MP3",     IDM_YT_CTX_DL_MP3,          ActionCategory::Global,
+      "Download selected YouTube result as audio (MP3) (global)",
+      "Télécharger le résultat YouTube sélectionné en audio (MP3) (global)", {} },
+    { "GLOBAL_YT_DL_SEL_OGG",     IDM_YT_CTX_DL_OGG,          ActionCategory::Global,
+      "Download selected YouTube result as audio (OGG) (global)",
+      "Télécharger le résultat YouTube sélectionné en audio (OGG) (global)", {} },
+    { "GLOBAL_YT_DL_SEL_VIDEO",   IDM_YT_CTX_DL_VIDEO,        ActionCategory::Global,
+      "Download selected YouTube result as video (global)",
+      "Télécharger le résultat YouTube sélectionné en vidéo (global)", {} },
+    { "GLOBAL_YT_DL_SEL_OPTS",    IDM_YT_CTX_DL_OPTS,         ActionCategory::Global,
+      "Download selected YouTube result with options (global)",
+      "Télécharger le résultat YouTube sélectionné avec options (global)", {} },
+    { "GLOBAL_YT_DL_PLAYING",     IDM_YT_DL_PLAYING,          ActionCategory::Global,
+      "Download currently playing YouTube video (audio M4A) (global)",
+      "Télécharger la vidéo YouTube en cours de lecture (audio M4A) (global)", {} },
+
     // In-track seeking — added in v1.56 after user feedback.
     { "GLOBAL_SEEKBACK",          IDM_PLAY_SEEKBACK,          ActionCategory::Global,
       "Seek backward (global)",       "Reculer dans la piste (global)", {} },

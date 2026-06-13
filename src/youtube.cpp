@@ -111,6 +111,13 @@ static bool IsValidVideoId(const std::wstring& id) {
 
 // Dialog state
 static HWND g_ytDialog = nullptr;
+
+// v2.28 (issue #6) — the videoId/title currently loaded for playback, so the Global
+// "download currently playing YouTube video" action knows WHICH video plays. Set in
+// YouTubePlayById; cleared by ui.cpp when a non-YouTube source loads or on stop.
+// UI-thread only (same as g_nowPlayingItem) — plain wstring, no atomics needed.
+static std::wstring g_currentYtVideoId;
+static std::wstring g_currentYtTitle;
 static std::vector<YouTubeResult> g_ytResults;
 static std::wstring g_ytNextPageToken;
 static std::wstring g_ytCurrentQuery;
@@ -2406,6 +2413,13 @@ bool YouTubePlayById(const std::wstring& videoId) {
         return false;
     }
 
+    // v2.28 — remember which YouTube video is now playing (covers all branches
+    // below: video mode, cache hit, hybrid, blocking). g_nowPlayingItem was set by
+    // the caller's SetNowPlaying(SourceType::YouTube,...) just before this, so it
+    // holds the freshest title; fall back to the id.
+    g_currentYtVideoId = videoId;
+    g_currentYtTitle   = (!g_nowPlayingItem.empty() ? g_nowPlayingItem : videoId);
+
     CleanupYouTubeTempFiles();
 
     // Cancel any pending hybrid swap from a previous play — we're moving on.
@@ -3526,11 +3540,35 @@ static std::wstring YtEffectiveTitle(const YouTubeResult& r) {
 // except for AudioTranscode ("mp3"|"vorbis"). Same guards/announcements as the
 // former Download button. The simple path has no modal, so the immediate Speak
 // is never clipped by a focus event.
+// v2.28 — videoId-explicit core, shared by the list-reading wrapper below and by
+// the Global "download currently playing video" action (which has no results row).
+static void StartImmediateDownloadById(YtDlKind kind, const std::wstring& audioFormat,
+                                       const std::wstring& videoId, const std::wstring& title) {
+    if (g_ytBatchActive.load() || g_ytDownloading.load()) {
+        Speak(Ts("A download is already in progress"));
+        return;
+    }
+    if (videoId.empty()) {
+        Speak(Ts("Cannot download this item"));
+        return;
+    }
+    Speak(Ts("Download started"));
+
+    YtDownloadRequest* req = new YtDownloadRequest;
+    req->kind        = kind;
+    req->videoId     = videoId;
+    req->title       = title.empty() ? videoId : title;
+    req->audioFormat = audioFormat;
+    StartDownloadAsync(req);
+}
+
 static void StartImmediateDownload(HWND hwnd, YtDlKind kind,
                                    const std::wstring& audioFormat) {
     // Refuse up-front if a batch OR a single transfer is already running, so the
     // user never hears "Download started" immediately followed by "already in
     // progress" (StartDownloadAsync would reject it a moment later otherwise).
+    // Kept here (before the list read) so the in-progress message takes precedence
+    // over "No item selected" exactly as it did before the v2.28 refactor.
     if (g_ytBatchActive.load() || g_ytDownloading.load()) {
         Speak(Ts("A download is already in progress"));
         return;
@@ -3546,14 +3584,7 @@ static void StartImmediateDownload(HWND hwnd, YtDlKind kind,
         Speak(Ts("Cannot download this item"));
         return;
     }
-    Speak(Ts("Download started"));
-
-    YtDownloadRequest* req = new YtDownloadRequest;
-    req->kind        = kind;
-    req->videoId     = result.videoId;
-    req->title       = YtEffectiveTitle(result);
-    req->audioFormat = audioFormat;
-    StartDownloadAsync(req);
+    StartImmediateDownloadById(kind, audioFormat, result.videoId, YtEffectiveTitle(result));
 }
 
 
@@ -4112,6 +4143,37 @@ static void CopyDescriptionOfSelected(HWND hwnd) {
     } else {
         CloseHandle(t);
     }
+}
+
+// v2.28 (issue #6) — public entry points for the user-assignable Global download
+// actions (dispatched from main.cpp's WM_COMMAND via the WM_HOTKEY path).
+void YouTubeClearCurrentVideo() {
+    g_currentYtVideoId.clear();
+    g_currentYtTitle.clear();
+}
+
+// Part 1 — download the row currently selected in the YouTube results list, in the
+// format mapped to idmCtxId (the same context-menu command ids). No-op with a spoken
+// message when the YouTube dialog isn't open; the list-reading wrappers handle the
+// "no row selected" / "cannot download" cases.
+void YouTubeDownloadSelectedFromAction(int idmCtxId) {
+    HWND dlg = GetYouTubeDialog();
+    if (!dlg) { Speak(Ts("No YouTube video selected")); return; }
+    switch (idmCtxId) {
+        case IDM_YT_CTX_DL_M4A:   StartImmediateDownload(dlg, YtDlKind::Permanent,      L"");        break;
+        case IDM_YT_CTX_DL_MP3:   StartImmediateDownload(dlg, YtDlKind::AudioTranscode, L"mp3");     break;
+        case IDM_YT_CTX_DL_OGG:   StartImmediateDownload(dlg, YtDlKind::AudioTranscode, L"vorbis");  break;
+        case IDM_YT_CTX_DL_VIDEO: StartImmediateDownload(dlg, YtDlKind::VideoBest,      L"");        break;
+        case IDM_YT_CTX_DL_OPTS:  DownloadSelectedWithOptions(dlg);                                  break;
+        default: break;
+    }
+}
+
+// Part 2 — download the currently-playing YouTube video as audio (M4A), straight
+// from the player, without returning to the results list.
+void YouTubeDownloadCurrentlyPlaying() {
+    if (g_currentYtVideoId.empty()) { Speak(Ts("No YouTube video playing")); return; }
+    StartImmediateDownloadById(YtDlKind::Permanent, L"", g_currentYtVideoId, g_currentYtTitle);
 }
 
 // v2.23 — context menu on a YouTube result (Application key / Shift+F10 / right

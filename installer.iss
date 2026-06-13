@@ -2,7 +2,7 @@
 ; This script is used by the GitHub Actions workflow to create an installer
 
 #define MyAppName "MediaAccess"
-#define MyAppPublisher "Mew"
+#define MyAppPublisher "ReaperAccessible"
 #define MyAppURL "https://reaperaccessible.fr"
 #define MyAppExeName "MediaAccess.exe"
 
@@ -51,6 +51,11 @@ ArchitecturesInstallIn64BitMode=x64compatible
 SetupIconFile={#SourceDir}\MediaAccess.ico
 UninstallDisplayIcon={app}\{#MyAppExeName}
 UninstallDisplayName={#MyAppName}
+; v2.29 — brand the installer EXE itself (file properties)
+VersionInfoCompany={#MyAppPublisher}
+VersionInfoProductName={#MyAppName}
+VersionInfoVersion={#MyAppVersion}
+VersionInfoDescription={#MyAppName} Setup
 
 ; ============================================================
 ; Auto-close running MediaAccess before file copy
