@@ -79,6 +79,7 @@ extern "C" void DaisyOnTtsEndOfStream();
 // Forward declarations
 LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
 void ParseCommandLine();
+static void ForceForegroundWindow(HWND hwnd);  // defined near wWinMain (v2.33)
 
 // Declarations from ui.cpp
 int ExpandFileToFolder(const std::wstring& filePath, std::vector<std::wstring>& outFiles);
@@ -830,9 +831,13 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
             // MediaAccess is hidden in the system tray".
             if (cds && cds->dwData == 3) {
                 RestoreFromTray(hwnd);
-                if (IsIconic(hwnd)) ShowWindow(hwnd, SW_RESTORE);
-                ShowWindow(hwnd, SW_SHOW);
-                SetForegroundWindow(hwnd);
+                // v2.33 — route through ForceForegroundWindow, not a plain
+                // SetForegroundWindow: when a relaunch after an in-app update
+                // loses the single-instance race, the new process exits and
+                // this activate path is what brings the existing window back.
+                // It must defeat the foreground lock so NVDA follows the focus
+                // (ForceForegroundWindow also handles the iconic/show steps).
+                ForceForegroundWindow(hwnd);
                 return TRUE;
             }
             if (cds && (cds->dwData == 1 || cds->dwData == 2) && cds->lpData) {
