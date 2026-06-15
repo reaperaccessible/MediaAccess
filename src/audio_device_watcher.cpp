@@ -47,8 +47,13 @@ public:
     }
 
     // IMMNotificationClient — the only events we care about post a message.
-    HRESULT STDMETHODCALLTYPE OnDefaultDeviceChanged(EDataFlow flow, ERole, LPCWSTR) override {
-        if (flow == eRender && g_hwnd) {
+    HRESULT STDMETHODCALLTYPE OnDefaultDeviceChanged(EDataFlow flow, ERole role, LPCWSTR) override {
+        // v2.33 — only the MEDIA render default matters. BASS_Init binds to the
+        // eConsole/eMultimedia default, NEVER eCommunications. The communications
+        // default flips whenever any OTHER app opens/closes a comms session
+        // (browser, notifications, Teams), which caused spurious "Audio device
+        // changed" announcements unrelated to the user's playback device.
+        if (flow == eRender && (role == eConsole || role == eMultimedia) && g_hwnd) {
             PostMessageW(g_hwnd, WM_AUDIO_DEVICE_CHANGED, 0, 0);
         }
         return S_OK;

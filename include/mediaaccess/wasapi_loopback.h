@@ -39,6 +39,13 @@ std::vector<LoopbackDevice> EnumerateLoopbackDevices();
 // device and warn the user.
 int FindLoopbackForCurrentBassDevice();
 
+// v2.33 — lowercased GUID-tail identity of the current Windows default RENDER
+// endpoint (resolved via eConsole, then eMultimedia, then a no-COM BASSWASAPI
+// fallback). Returns "" if no device / unresolvable. UI-thread only. Used by
+// HandleAudioDeviceChange to detect whether the default endpoint TRULY changed,
+// so spurious endpoint notifications don't trigger a reroute/announcement.
+std::string CurrentDefaultRenderEndpointTail();
+
 // Start loopback capture of device `bwaIndex`, encoding to `outputPath`.
 //   format : 0=WAV, 1=MP3, 2=OGG, 3=FLAC (same numbering as g_recordFormat).
 //   bitrate: kbps for MP3/OGG (ignored for WAV/FLAC).

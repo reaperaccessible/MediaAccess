@@ -2347,6 +2347,23 @@ bool ReinitBass(int device) {
 // (the RAII guard below enforces this).
 static bool g_deviceRerouteInProgress = false;
 
+// v2.33 — identity (lowercased GUID tail) of the default render endpoint we are
+// currently bound to. The watcher fires on many endpoint notifications that do
+// NOT actually move the default render device (communications-role changes from
+// other apps, unrelated device-state flips). We only reroute + announce when this
+// identity TRULY changes, which kills the spurious "Audio device changed" reports.
+// UI-thread-only (HandleAudioDeviceChange + SeedAudioRerouteBaseline) — no lock.
+static std::string g_lastDefaultRenderTail;
+static bool        g_lastDefaultTailSeeded = false;
+
+// v2.33 — capture the boot-time default-endpoint baseline (called from WM_CREATE
+// after the watcher starts) so startup is silent and the first REAL change is
+// still detected. seeded stays true even if the tail is "" (no device yet).
+void SeedAudioRerouteBaseline() {
+    g_lastDefaultRenderTail = mediaaccess::CurrentDefaultRenderEndpointTail();
+    g_lastDefaultTailSeeded = true;
+}
+
 // Reroute to targetIndex via ReinitBass. When `transient` is true the device
 // loss is treated as temporary (e.g. a named device vanished and we fell back
 // to the system default): the user's persisted device NAME is restored so that
@@ -2373,13 +2390,23 @@ void HandleAudioDeviceChange() {
     g_deviceRerouteInProgress = true;
 
     // Pure-video MPV session: MPV manages its own audio output and auto-follows
-    // the default device, so there is nothing for BASS to reroute.
+    // the default device, so there is nothing for BASS to reroute. (Above the
+    // tail resolve below so a pure-video session never queries Core Audio.)
     if (!g_fxStream && g_activeEngine == PlaybackEngine::MPV) return;
 
+    // v2.33 — resolve the CURRENT default render endpoint identity ONCE (UI
+    // thread). Empty "" means no resolvable device.
+    std::string nowTail = mediaaccess::CurrentDefaultRenderEndpointTail();
+
     // Recording in progress (legacy or system capture): defer — tearing down
-    // BASS mid-recording would break the capture. Just announce.
+    // BASS mid-recording would break the capture. Announce ONLY if the default
+    // endpoint actually changed, and do NOT update the stored id: we did not
+    // reroute, so we are still logically bound to the OLD endpoint; keeping the
+    // old id means the deferred change is reconciled once recording stops.
     if (g_isRecording || mediaaccess::IsSystemCapturing()) {
-        Speak(Ts("Audio device changed; recording in progress"));
+        if (!nowTail.empty() && (!g_lastDefaultTailSeeded || nowTail != g_lastDefaultRenderTail)) {
+            Speak(Ts("Audio device changed; recording in progress"));
+        }
         return;
     }
 
@@ -2391,9 +2418,15 @@ void HandleAudioDeviceChange() {
     bool userOnDefault = savedName.empty() || savedName == L"Default" || g_selectedDevice <= 1;
 
     if (userOnDefault) {
-        // User is tracking the Windows default device. Reroute to -1 so BASS
-        // picks up the new default endpoint, then announce.
+        // CORE FIX: only reroute + announce when the default render endpoint
+        // TRULY changed. A non-empty tail equal to the stored one means the
+        // notification was chatter (communications role, unrelated state flip) —
+        // do nothing: no BASS reinit, no spurious announcement.
+        if (g_lastDefaultTailSeeded && !nowTail.empty() && nowTail == g_lastDefaultRenderTail) {
+            return;
+        }
         RerouteAudio(-1, false);
+        if (!nowTail.empty()) { g_lastDefaultRenderTail = nowTail; g_lastDefaultTailSeeded = true; }
         Speak(Ts("Audio device changed"));
         return;
     }
@@ -2403,6 +2436,9 @@ void HandleAudioDeviceChange() {
 
     if (idx >= 0 && idx == current) {
         // Named device is still present and still the one we are playing on.
+        // Record the observed default so a later switch back to default measures
+        // from a fresh baseline.
+        if (!nowTail.empty()) { g_lastDefaultRenderTail = nowTail; g_lastDefaultTailSeeded = true; }
         return;
     }
 
@@ -2411,6 +2447,7 @@ void HandleAudioDeviceChange() {
         // disappeared earlier and we fell back to default, and it just came
         // back. Reconnect to it.
         if (RerouteAudio(idx, false)) {
+            if (!nowTail.empty()) { g_lastDefaultRenderTail = nowTail; g_lastDefaultTailSeeded = true; }
             Speak(Ts("Reconnected to device"));
         } else {
             Speak(Ts("No audio device available"));
@@ -2421,6 +2458,7 @@ void HandleAudioDeviceChange() {
     // idx == -1: the named device has vanished. Fall back to the default device
     // but keep the persisted name so we reconnect when it returns (transient).
     if (RerouteAudio(-1, true)) {
+        if (!nowTail.empty()) { g_lastDefaultRenderTail = nowTail; g_lastDefaultTailSeeded = true; }
         Speak(Ts("Audio device disconnected, switched to default device"));
     } else {
         Speak(Ts("No audio device available"));

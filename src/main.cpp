@@ -369,6 +369,9 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
             // auto-reroute playback (GitHub issue #7). Default-ON; opt out via
             // Options → Playback. Safe even if it fails to start.
             StartAudioDeviceWatch(hwnd);
+            // v2.33 — seed the default-endpoint baseline so startup is silent and
+            // only a REAL later change triggers a reroute/announcement.
+            SeedAudioRerouteBaseline();
 
             InitDatabase();
             // v2.11 — shrink an existing history DB to the configured cap (the

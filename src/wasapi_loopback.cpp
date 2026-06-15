@@ -212,6 +212,19 @@ static std::string BasswasapiDefaultRenderTail() {
     return (count == 1) ? tail : "";
 }
 
+// v2.33 — public: the GUID-tail identity of the current default RENDER endpoint.
+// Reuses the v2.14 resolver ladder (eConsole, then eMultimedia, then the no-COM
+// BASSWASAPI fallback) — ZERO new Core Audio code. UI-thread only. Lets the
+// device-change handler tell a REAL default switch from the chatter of
+// communications-role / unrelated state notifications.
+std::string CurrentDefaultRenderEndpointTail() {
+    for (ERole role : { eConsole, eMultimedia }) {
+        std::string t = CoreAudioDefaultRenderTail(role);
+        if (!t.empty()) return t;
+    }
+    return BasswasapiDefaultRenderTail();
+}
+
 // Resolve the human-readable name of the output device BASS is currently using.
 static std::wstring CurrentBassOutputName() {
     // g_selectedDeviceName is the persisted name; prefer it when set.

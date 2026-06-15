@@ -30,4 +30,10 @@ void StopAudioDeviceWatch();
 // coalescing timer once the notification burst has settled.
 void HandleAudioDeviceChange();
 
+// v2.33 — capture the current default-render-endpoint baseline at startup so the
+// first notification is measured against the boot-time default (startup stays
+// silent; the first REAL change is still detected). Implemented in player.cpp;
+// call once from WM_CREATE after StartAudioDeviceWatch.
+void SeedAudioRerouteBaseline();
+
 #endif // MEDIAACCESS_AUDIO_DEVICE_WATCHER_H
