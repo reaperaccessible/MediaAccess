@@ -12,6 +12,7 @@
 #include "mediaaccess/logger.h"   // LogF
 #include "mediaaccess/daisy_player.h"  // DaisyClose() when loading other media
 #include "mediaaccess/wasapi_loopback.h"  // v1.94 — system-audio (loopback) recording
+#include "mediaaccess/audio_device_watcher.h"  // v2.32 — auto-follow default output device
 
 // Forward declaration so LoadURL (earlier in the file) can call it.
 static void TeardownMpvBeforeLoad();
@@ -2328,6 +2329,102 @@ bool ReinitBass(int device) {
     }
 
     return true;
+}
+
+// =============================================================================
+// v2.32 — automatic output-device re-routing (GitHub issue #7).
+//
+// When Windows switches the default render endpoint (headphones unplugged, a
+// device disabled/enabled, etc.), the audio_device_watcher posts
+// WM_AUDIO_DEVICE_CHANGED. The UI thread coalesces the burst and then calls
+// HandleAudioDeviceChange() below, which decides whether/where to reroute and
+// reuses the proven ReinitBass() path. Default-ON; opt out via
+// g_autoFollowDevice (Options → Playback).
+// =============================================================================
+
+// Re-entrancy guard. HandleAudioDeviceChange tears down and re-inits BASS; a
+// nested call during that window would corrupt state. Always reset on exit
+// (the RAII guard below enforces this).
+static bool g_deviceRerouteInProgress = false;
+
+// Reroute to targetIndex via ReinitBass. When `transient` is true the device
+// loss is treated as temporary (e.g. a named device vanished and we fell back
+// to the system default): the user's persisted device NAME is restored so that
+// when the named device reappears we reconnect to it. Never calls SaveSettings.
+static bool RerouteAudio(int targetIndex, bool transient) {
+    std::wstring savedName = g_selectedDeviceName;
+    bool ok = ReinitBass(targetIndex);
+    if (transient) {
+        g_selectedDeviceName = savedName;
+        g_selectedDevice = FindDeviceByName(savedName);
+    }
+    return ok;
+}
+
+void HandleAudioDeviceChange() {
+    // Feature opt-out.
+    if (!g_autoFollowDevice) return;
+
+    // Re-entrancy guard with guaranteed reset on every return path.
+    if (g_deviceRerouteInProgress) return;
+    struct RerouteGuard {
+        ~RerouteGuard() { g_deviceRerouteInProgress = false; }
+    } guard;
+    g_deviceRerouteInProgress = true;
+
+    // Pure-video MPV session: MPV manages its own audio output and auto-follows
+    // the default device, so there is nothing for BASS to reroute.
+    if (!g_fxStream && g_activeEngine == PlaybackEngine::MPV) return;
+
+    // Recording in progress (legacy or system capture): defer — tearing down
+    // BASS mid-recording would break the capture. Just announce.
+    if (g_isRecording || mediaaccess::IsSystemCapturing()) {
+        Speak(Ts("Audio device changed; recording in progress"));
+        return;
+    }
+
+    // BASS_GetDevice() returns the current device index, or 0xFFFFFFFF on error.
+    DWORD curRaw = BASS_GetDevice();
+    int current = (curRaw == (DWORD)-1) ? -1 : static_cast<int>(curRaw);
+
+    const std::wstring& savedName = g_selectedDeviceName;
+    bool userOnDefault = savedName.empty() || savedName == L"Default" || g_selectedDevice <= 1;
+
+    if (userOnDefault) {
+        // User is tracking the Windows default device. Reroute to -1 so BASS
+        // picks up the new default endpoint, then announce.
+        RerouteAudio(-1, false);
+        Speak(Ts("Audio device changed"));
+        return;
+    }
+
+    // User selected a specific named device.
+    int idx = FindDeviceByName(savedName);
+
+    if (idx >= 0 && idx == current) {
+        // Named device is still present and still the one we are playing on.
+        return;
+    }
+
+    if (idx >= 0) {
+        // The named device exists (again) but we are not on it — e.g. it
+        // disappeared earlier and we fell back to default, and it just came
+        // back. Reconnect to it.
+        if (RerouteAudio(idx, false)) {
+            Speak(Ts("Reconnected to device"));
+        } else {
+            Speak(Ts("No audio device available"));
+        }
+        return;
+    }
+
+    // idx == -1: the named device has vanished. Fall back to the default device
+    // but keep the persisted name so we reconnect when it returns (transient).
+    if (RerouteAudio(-1, true)) {
+        Speak(Ts("Audio device disconnected, switched to default device"));
+    } else {
+        Speak(Ts("No audio device available"));
+    }
 }
 
 // ID3v1 genre names table

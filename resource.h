@@ -102,6 +102,7 @@
 #define IDT_SLEEP_TIMER     404   // v1.55 — sleep timer tick (1 s)
 #define IDT_STARTUP_OVER    405   // v1.85 — one-shot: ends startup batch-open coalescing window
 #define IDT_DEFERRED_SPEAK  406   // v2.06 — one-shot: fallback for AnnounceStatus when UIA unavailable
+#define IDT_DEVICE_REROUTE  407   // v2.32 — one-shot: coalesce audio-device-change burst before reroute
 
 // Custom messages
 #define WM_SPEAK            (WM_USER + 1)
@@ -463,6 +464,7 @@
 #define IDC_PROGRESS_TEXT   997
 #define IDC_CHECK_UPDATES   998
 #define IDC_ANNOUNCE_ON_FOCUS   1700  // v1.59 — speak "Now playing" on app focus
+#define IDC_AUTO_FOLLOW_DEVICE  1701  // v2.32 — auto-follow default output device checkbox
 
 // v1.63 — Audio slots (Jack's request)
 #define IDM_TOOLS_AUDIO_SLOTS       1710  // Menu Tools → Audio slots...

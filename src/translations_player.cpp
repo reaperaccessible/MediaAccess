@@ -22,6 +22,26 @@ void RegisterPlayerTranslations() {
     AddTranslation("en", "Failed to switch audio device", L"Failed to switch audio device");
     AddTranslation("fr", "Failed to switch audio device", L"Impossible de changer de périphérique audio");
 
+    // v2.32 — automatic output-device re-routing announcements (GitHub issue #7)
+    AddTranslation("en", "Audio device changed", L"Audio device changed");
+    AddTranslation("fr", "Audio device changed", L"Périphérique audio modifié");
+
+    AddTranslation("en", "Audio device disconnected, switched to default device",
+                   L"Audio device disconnected, switched to default device");
+    AddTranslation("fr", "Audio device disconnected, switched to default device",
+                   L"Périphérique audio déconnecté, basculement vers le périphérique par défaut");
+
+    AddTranslation("en", "Reconnected to device", L"Reconnected to device");
+    AddTranslation("fr", "Reconnected to device", L"Reconnecté au périphérique");
+
+    AddTranslation("en", "No audio device available", L"No audio device available");
+    AddTranslation("fr", "No audio device available", L"Aucun périphérique audio disponible");
+
+    AddTranslation("en", "Audio device changed; recording in progress",
+                   L"Audio device changed; recording in progress");
+    AddTranslation("fr", "Audio device changed; recording in progress",
+                   L"Périphérique audio modifié ; enregistrement en cours");
+
     AddTranslation("en", "Failed to initialize BASS audio library.", L"Audio could not be initialized. Please reinstall MediaAccess.");
     AddTranslation("fr", "Failed to initialize BASS audio library.", L"L'audio n'a pas pu être initialisé. Veuillez réinstaller MediaAccess.");
 

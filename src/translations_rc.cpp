@@ -335,6 +335,9 @@ void RegisterRcTranslations() {
     AddTranslation("en", "Register all supported &file types", L"Register all supported &file types");
     AddTranslation("fr", "Register all supported &file types", L"Associer tous les types de &fichiers pris en charge");
 
+    AddTranslation("en", "Automatically follow the default audio &device", L"Automatically follow the default audio &device");
+    AddTranslation("fr", "Automatically follow the default audio &device", L"Suivre automatiquement le périphérique audio par &défaut");
+
     AddTranslation("en", "Re&wind on pause (ms):", L"Re&wind on pause (ms):");
     AddTranslation("fr", "Re&wind on pause (ms):", L"Re&culer à la pause (ms) :");
 

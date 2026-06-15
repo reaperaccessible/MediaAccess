@@ -61,6 +61,7 @@
 #include "mediaaccess/cli_switches.h"   // v1.63
 #include "mediaaccess/audio_slots.h"    // v1.63
 #include "mediaaccess/wasapi_loopback.h" // v1.94 — system-audio capture state
+#include "mediaaccess/audio_device_watcher.h" // v2.32 — auto-follow default output device
 #include <utility>  // for std::pair
 
 // Custom message posted from daisy_player.cpp BASS sync (worker thread).
@@ -363,6 +364,11 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
                 return -1;
             }
 
+            // v2.32 — start watching for default-output-device changes so we can
+            // auto-reroute playback (GitHub issue #7). Default-ON; opt out via
+            // Options → Playback. Safe even if it fails to start.
+            StartAudioDeviceWatch(hwnd);
+
             InitDatabase();
             // v2.11 — shrink an existing history DB to the configured cap (the
             // old hard cap was 100; the new max is 50). g_historyLimit was set
@@ -624,6 +630,12 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
                 // v1.85 — end of the startup batch-open coalescing window.
                 KillTimer(hwnd, IDT_STARTUP_OVER);
                 g_startupBatchOpen = false;
+            } else if (wParam == IDT_DEVICE_REROUTE) {
+                // v2.32 — the audio-device-change notification burst has
+                // settled; perform the actual reroute now.
+                KillTimer(hwnd, IDT_DEVICE_REROUTE);
+                HandleAudioDeviceChange();
+                return 0;
             }
             return 0;
 
@@ -1534,6 +1546,10 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
             KillTimer(hwnd, IDT_UPDATE_TITLE);
             KillTimer(hwnd, IDT_SCHEDULER);
             KillTimer(hwnd, IDT_SCHED_DURATION);
+            KillTimer(hwnd, IDT_DEVICE_REROUTE);  // v2.32 — cancel pending reroute
+            // v2.32 — stop the device watcher BEFORE FreeBass so no late
+            // PostMessage can hit a dead window / torn-down BASS state.
+            StopAudioDeviceWatch();
             mediaaccess::SleepShutdown();
             RemoveTrayIcon();
             UnregisterGlobalHotkeys();
@@ -1560,6 +1576,14 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
     // first instance and the launcher saw control switches on argv.
     if (msg == WM_APP_CLI) {
         DrainPendingCliCommands(hwnd);
+        return 0;
+    }
+
+    // v2.32 — audio output device changed (posted from the Core Audio watcher
+    // on a COM worker thread). Coalesce the burst of notifications into a single
+    // reroute via a short one-shot timer.
+    if (msg == WM_AUDIO_DEVICE_CHANGED) {
+        SetTimer(hwnd, IDT_DEVICE_REROUTE, 600, nullptr);
         return 0;
     }
 

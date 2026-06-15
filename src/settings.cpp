@@ -295,6 +295,7 @@ void LoadSettings() {
     if (g_repeatMode < 0 || g_repeatMode > 2) g_repeatMode = 0;
     g_playlistFollowPlayback = GetPrivateProfileIntW(L"Playback", L"PlaylistFollow", 1, g_configPath.c_str()) != 0;
     g_checkForUpdates = GetPrivateProfileIntW(L"Playback", L"CheckForUpdates", 1, g_configPath.c_str()) != 0;
+    g_autoFollowDevice = GetPrivateProfileIntW(L"Playback", L"AutoFollowDevice", 1, g_configPath.c_str()) != 0;  // v2.32
     g_allowMultipleInstances = GetPrivateProfileIntW(L"Playback", L"AllowMultipleInstances", 0, g_configPath.c_str()) != 0;
     g_bookSkipMask = (uint32_t)GetPrivateProfileIntW(L"Books", L"SkipMask", 0, g_configPath.c_str());
     g_announceTrackOnFocus = GetPrivateProfileIntW(L"Playback", L"AnnounceTrackOnFocus", 1, g_configPath.c_str()) != 0;
@@ -639,6 +640,7 @@ void SaveSettings() {
     WritePrivateProfileStringW(L"Playback", L"RepeatMode", buf, g_configPath.c_str());
     WritePrivateProfileStringW(L"Playback", L"PlaylistFollow", g_playlistFollowPlayback ? L"1" : L"0", g_configPath.c_str());
     WritePrivateProfileStringW(L"Playback", L"CheckForUpdates", g_checkForUpdates ? L"1" : L"0", g_configPath.c_str());
+    WritePrivateProfileStringW(L"Playback", L"AutoFollowDevice", g_autoFollowDevice ? L"1" : L"0", g_configPath.c_str());  // v2.32
     WritePrivateProfileStringW(L"Playback", L"AllowMultipleInstances", g_allowMultipleInstances ? L"1" : L"0", g_configPath.c_str());
     {
         wchar_t skipBuf[16];

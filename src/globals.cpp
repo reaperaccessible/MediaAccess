@@ -94,6 +94,7 @@ bool g_showTitleInWindow = true;  // Show track name in window title (default tr
 bool g_playlistFollowPlayback = true;  // Auto-select current track in playlist dialog (default true)
 bool g_checkForUpdates = true;  // Check for updates on startup (default true)
 bool g_allowMultipleInstances = false;  // Allow multiple instances (default false)
+bool g_autoFollowDevice = true;  // v2.32 — auto-reroute playback to the new default output device on change (default on)
 
 // Phase 4 — skippable-content mask. Bit per SkipKind (1=Page, 2=Note, 4=Sidebar,
 // 8=Prodnote, 16=Footnote, 32=Reference). Default 0 = nothing skipped.

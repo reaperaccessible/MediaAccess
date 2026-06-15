@@ -942,6 +942,11 @@
 <p>If a previously-saved device is currently disconnected when you open the dialog, it appears as "<em>(disconnected)</em> <em>device name</em>" so the binding is preserved and becomes active again automatically as soon as the device is reconnected.</p>
 <p>The <strong>Refresh device list</strong> button re-enumerates the available audio outputs without closing the dialog — handy when you have just plugged in a new device. <strong>OK</strong> saves your choices, <strong>Cancel</strong> discards them.</p>
 
+<h3>Automatic device switching</h3>
+<p>MediaAccess follows the audio output device automatically. If the device it is playing on disappears (for example you unplug your headphones), or you change the Windows default output device during playback, the sound moves to the right device on its own instead of freezing — your position and play/pause state are kept, and MediaAccess briefly announces "Audio device changed".</p>
+<p>If you had selected a specific device and it disappears, MediaAccess temporarily falls back to the default device and returns to your chosen one as soon as it comes back. If no device is available at all, playback pauses with an announcement and you can pick a device manually.</p>
+<p>This is controlled by the <strong>Automatically follow the default audio device</strong> checkbox in <strong>Options → Sound card</strong> (on by default). Uncheck it to keep the previous behaviour. Video playback (MPV) follows the default device on its own, and the switch is deferred while a recording is in progress.</p>
+
 <h3>Assigning a shortcut to each slot</h3>
 <p>Then open the Actions window (<kbd>F4</kbd> or <strong>Tools → Actions</strong>) and switch to the <strong>Global</strong> category. There you will find:</p>
 <ul>

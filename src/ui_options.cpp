@@ -61,7 +61,7 @@ void ShowTabControls(HWND hwnd, int tab) {
     // (Global Hotkeys tab removed — accessible via Tools → Actions instead.)
 
     // Playback tab controls (tab 0)
-    int playbackCtrls[] = {IDC_SOUNDCARD, IDC_ALLOW_AMPLIFY, IDC_REMEMBER_STATE, IDC_REMEMBER_POS, IDC_BRING_TO_FRONT, IDC_LOAD_FOLDER, IDC_MINIMIZE_TO_TRAY, IDC_VOLUME_STEP, IDC_SHOW_TITLE, IDC_AUTO_ADVANCE, IDC_PLAYLIST_FOLLOW, IDC_CHECK_UPDATES, IDC_MULTI_INSTANCE, IDC_REGISTER_FILE_TYPES, IDC_ANNOUNCE_ON_FOCUS, IDC_DOWNLOAD_PATH, IDC_DOWNLOAD_BROWSE, IDC_REWIND_ON_PAUSE, IDC_REWIND_LABEL,
+    int playbackCtrls[] = {IDC_SOUNDCARD, IDC_ALLOW_AMPLIFY, IDC_REMEMBER_STATE, IDC_REMEMBER_POS, IDC_BRING_TO_FRONT, IDC_LOAD_FOLDER, IDC_MINIMIZE_TO_TRAY, IDC_VOLUME_STEP, IDC_SHOW_TITLE, IDC_AUTO_ADVANCE, IDC_PLAYLIST_FOLLOW, IDC_CHECK_UPDATES, IDC_MULTI_INSTANCE, IDC_REGISTER_FILE_TYPES, IDC_ANNOUNCE_ON_FOCUS, IDC_AUTO_FOLLOW_DEVICE, IDC_DOWNLOAD_PATH, IDC_DOWNLOAD_BROWSE, IDC_REWIND_ON_PAUSE, IDC_REWIND_LABEL,
                            IDC_LABEL_PLAYBACK_OUTPUT_DEVICE, IDC_LABEL_PLAYBACK_REMEMBER_POS, IDC_LABEL_PLAYBACK_VOLUME_STEP,
                            IDC_HISTORY_LIMIT, IDC_LABEL_PLAYBACK_HISTORY_LIMIT,
                            IDC_LANGUAGE_COMBO, IDC_LABEL_LANGUAGE};
@@ -406,6 +406,7 @@ INT_PTR CALLBACK OptionsDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
             CheckDlgButton(hwnd, IDC_CHECK_UPDATES, g_checkForUpdates ? BST_CHECKED : BST_UNCHECKED);
             CheckDlgButton(hwnd, IDC_ANNOUNCE_ON_FOCUS, g_announceTrackOnFocus ? BST_CHECKED : BST_UNCHECKED);
             CheckDlgButton(hwnd, IDC_MULTI_INSTANCE, g_allowMultipleInstances ? BST_CHECKED : BST_UNCHECKED);
+            CheckDlgButton(hwnd, IDC_AUTO_FOLLOW_DEVICE, g_autoFollowDevice ? BST_CHECKED : BST_UNCHECKED);
 
             SetDlgItemInt(hwnd, IDC_REWIND_ON_PAUSE, g_rewindOnPauseMs, FALSE);
 
@@ -803,6 +804,7 @@ INT_PTR CALLBACK OptionsDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
                     g_checkForUpdates = (IsDlgButtonChecked(hwnd, IDC_CHECK_UPDATES) == BST_CHECKED);
                     g_announceTrackOnFocus = (IsDlgButtonChecked(hwnd, IDC_ANNOUNCE_ON_FOCUS) == BST_CHECKED);
                     g_allowMultipleInstances = (IsDlgButtonChecked(hwnd, IDC_MULTI_INSTANCE) == BST_CHECKED);
+                    g_autoFollowDevice = (IsDlgButtonChecked(hwnd, IDC_AUTO_FOLLOW_DEVICE) == BST_CHECKED);
                     UpdateWindowTitle();  // Apply immediately
 
                     g_rewindOnPauseMs = GetDlgItemInt(hwnd, IDC_REWIND_ON_PAUSE, nullptr, FALSE);

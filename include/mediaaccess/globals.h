@@ -90,6 +90,7 @@ extern bool g_showTitleInWindow;           // Show track name in window title (d
 extern bool g_playlistFollowPlayback;      // Auto-select current track in playlist dialog
 extern bool g_checkForUpdates;             // Check for updates on startup
 extern bool g_allowMultipleInstances;      // Allow multiple instances (new windows)
+extern bool g_autoFollowDevice;            // v2.32 — auto-reroute to the new default output device on change (default true)
 extern uint32_t g_bookSkipMask;            // Phase 4 — skip categories bitmask
 extern bool     g_bookSkipBypass;          // Phase 4 — runtime toggle (Shift+S)
 extern bool     g_announceTrackOnFocus;    // v1.59 — speak track on WM_ACTIVATEAPP
