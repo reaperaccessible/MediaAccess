@@ -542,123 +542,61 @@ void ApplyUpdate() {
             return;
         }
 
-        // Write a batch wrapper in %TEMP% that runs the installer
-        // synchronously, then re-launches MediaAccess.exe so the user
-        // doesn't have to do it by hand. Same idea as the zip-path batch
-        // below, but for the standard installer path.
+        // v2.33 — delegate the whole close/replace/relaunch dance to the Inno
+        // installer instead of hand-rolling a batch + ping settle delay.
         //
-        // Why a batch and not chained cmd.exe `&&`: the relaunch must wait
-        // for the installer to fully terminate (Inno's bootstrapper +
-        // Restart Manager + UAC elevation chain) — `start /wait` on the
-        // installer is the simplest way to express that.
+        // The installer already knows how to do all of this correctly:
+        //   - CloseApplications=yes + AppMutex=MediaAccessSingleInstance close
+        //     any running instance (incl. tray-only) via the Restart Manager
+        //     before copying — so we don't need to guess a delay.
+        //   - the /AUTOUPDATE=1 flag triggers a [Run] entry in installer.iss
+        //     that relaunches MediaAccess afterwards, even in silent mode, as
+        //     the (non-elevated) user, passing /fromupdate so the new instance
+        //     forces itself to the foreground (screen-reader focus). This
+        //     replaces the old `start MediaAccess.exe` from a detached batch,
+        //     which lost the foreground race and left NVDA stranded.
         //
-        // Why %TEMP% and not the app directory: under Program Files the
-        // app dir is read-only for a normal user, and Inno may briefly
-        // lock files there during install.
+        // No batch, no `ping` delay, no narrow-string path conversion (the old
+        // std::string(w.begin(), w.end()) truncation broke for users whose
+        // %TEMP% contained accented characters — common for French names).
         //
-        // The batch deliberately does NOT delete itself (`del %~f0`).
-        // Self-deleting batches that spawn an installer + another exe is
-        // a common malware heuristic; Windows nettoie %TEMP% au reboot.
-        //
-        // Belt-and-suspenders: the installer itself still has
-        // CloseApplications=yes + AppMutex=MediaAccessSingleInstance in
-        // installer.iss, so Inno's Restart Manager closes MediaAccess
-        // gracefully before file copy even if the timing slips.
-        //
-        // Chicken-and-egg: this code runs in the OUTGOING version. Users
-        // upgrading from 1.55/1.56 to 1.57 won't see the relaunch (their
-        // old updater doesn't know about it). The auto-relaunch kicks in
-        // for the FIRST upgrade after 1.57. Documented in changelog.txt.
-        wchar_t tempDir[MAX_PATH] = {0};
-        GetTempPathW(MAX_PATH, tempDir);
-        wchar_t batchPath[MAX_PATH] = {0};
-        if (!GetTempFileNameW(tempDir, L"MAU", 0, batchPath)) {
+        // ShellExecuteExW with SEE_MASK_NOASYNC guarantees the installer process
+        // has started before we exit. If the installer needs elevation (default
+        // Program Files install) the UAC consent appears here; if the user
+        // declines, ShellExecuteExW fails and we stay open rather than quitting
+        // into nothing.
+        SHELLEXECUTEINFOW sei{};
+        sei.cbSize = sizeof(sei);
+        sei.fMask = SEE_MASK_NOASYNC;
+        sei.lpVerb = L"open";
+        sei.lpFile = installerPath.c_str();
+        // /SILENT                  — no wizard (a small progress window stays,
+        //                            which NVDA can announce).
+        // /SUPPRESSMSGBOXES         — auto-answer any prompt (incl. the
+        //                            "application in use" OK/Cancel box) instead
+        //                            of blocking on a dialog the user can't see.
+        // /FORCECLOSEAPPLICATIONS   — make the Restart Manager force-close any
+        //                            MediaAccess instance still holding file
+        //                            locks, rather than prompting to retry.
+        // /NORESTART                — never reboot.
+        // /AUTOUPDATE=1             — our flag → installer.iss [Run] relaunches.
+        sei.lpParameters = L"/SILENT /SUPPRESSMSGBOXES /FORCECLOSEAPPLICATIONS /NORESTART /AUTOUPDATE=1";
+        sei.nShow = SW_SHOWNORMAL;
+        if (!ShellExecuteExW(&sei)) {
             MessageBoxW(GetMessageBoxOwner(), T("Failed to launch installer."),
                 T("Update Error"), MB_OK | MB_ICONERROR);
             return;
         }
-        // GetTempFileName gave us a .tmp; rename to .cmd so cmd.exe takes
-        // it as a script. Easiest path: just write to a sibling .cmd file
-        // and delete the .tmp.
-        std::wstring batchPathCmd = std::wstring(batchPath) + L".cmd";
-        DeleteFileW(batchPath);
 
-        wchar_t exePath[MAX_PATH];
-        GetModuleFileNameW(NULL, exePath, MAX_PATH);
-        std::wstring exePathW(exePath);
-
-        // Convert to narrow for std::ofstream. Paths from GetTempPathW /
-        // GetModuleFileNameW on Windows 11 fit ANSI for the standard
-        // user account locations (%LOCALAPPDATA%\Temp, Program Files).
-        std::string narrowBatch(batchPathCmd.begin(), batchPathCmd.end());
-        std::string narrowInstaller(installerPath.begin(), installerPath.end());
-        std::string narrowExe(exePathW.begin(), exePathW.end());
-
-        std::ofstream batch(narrowBatch);
-        if (!batch.is_open()) {
-            MessageBoxW(GetMessageBoxOwner(), T("Failed to launch installer."),
-                T("Update Error"), MB_OK | MB_ICONERROR);
-            return;
-        }
-        // v2.19 — the v2.16 batch polled the app PID with `tasklist | find` in a
-        // loop. That pipeline HANGS when cmd.exe is launched with DETACHED_PROCESS
-        // (no console) — so the batch never reached the installer and NOTHING
-        // updated, by any method (regression empirically reproduced by 10-agent
-        // analysis). Two fixes: (a) drop DETACHED_PROCESS below so the batch has a
-        // valid hidden console; (b) here, drop the console-dependent PID loop —
-        // we no longer NEED it because ApplyUpdate force-exits the app via
-        // ExitProcess(0) right after launching this batch, and Inno's
-        // CloseApplications=yes + AppMutex are the real "app is gone" backstop.
-        // A short headless-safe `ping` settle delay is ample. NO tasklist/find/goto.
-        batch << "@echo off\r\n";
-        batch << "REM MediaAccess auto-relaunch wrapper - safe to delete.\r\n";
-        batch << "ping -n 3 127.0.0.1 >nul\r\n";
-        // start /wait blocks until the installer terminates (including
-        // its elevated bootstrapper child). Quoted empty "" is the window
-        // title argument that start expects when paths are quoted.
-        batch << "start /wait \"\" \"" << narrowInstaller << "\" /SILENT\r\n";
-        // Relaunch unconditionally. If the install failed (UAC denied,
-        // antivirus block, etc.) the old binary at exePath is still there
-        // and starts fine — better than leaving the user with nothing.
-        batch << "start \"\" \"" << narrowExe << "\"\r\n";
-        batch.close();
-
-        // Launch the batch in its own hidden process. v2.19 — MUST NOT use
-        // DETACHED_PROCESS: with no console, the batch's console tools (the old
-        // tasklist|find, and even ping/start) hang or misbehave, which is what
-        // broke ALL updates in 2.16. CREATE_NO_WINDOW alone gives the batch a
-        // valid but invisible console; it still survives our exit as its own
-        // process tree (same as the working pre-2.16 startup updates).
-        std::wstring shellCmd = L"cmd.exe /c \"" + batchPathCmd + L"\"";
-        STARTUPINFOW si{};
-        si.cb = sizeof(si);
-        si.dwFlags = STARTF_USESHOWWINDOW;
-        si.wShowWindow = SW_HIDE;
-        PROCESS_INFORMATION pi{};
-        if (!CreateProcessW(nullptr, &shellCmd[0], nullptr, nullptr, FALSE,
-                            CREATE_NO_WINDOW,
-                            nullptr, nullptr, &si, &pi)) {
-            MessageBoxW(GetMessageBoxOwner(), T("Failed to launch installer."),
-                T("Update Error"), MB_OK | MB_ICONERROR);
-            return;
-        }
-        CloseHandle(pi.hProcess);
-        CloseHandle(pi.hThread);
-
-        // v2.18 — CRITICAL: exit RELIABLY so the waiting installer can replace
-        // our files. The old code POSTED WM_CLOSE and relied on the message loop
-        // delivering the resulting WM_QUIT — but the manual (Help-menu) update
-        // runs through a nested message loop that could swallow the quit, so the
-        // process never actually terminated and the silent installer collided
-        // with the still-running, file-locked app. (The startup update happened
-        // to win the timing.) We now run the normal shutdown cleanup SYNCHRONOUSLY
-        // via SendMessage(WM_CLOSE) — which executes WM_DESTROY (SaveSettings,
-        // SavePlaybackState, FreeBass/FreeMPV, etc.) right here — then guarantee
-        // termination with ExitProcess so no message-loop state can keep us alive.
+        // Close ourselves so the installer can replace the now-unlocked files.
+        // Synchronous SendMessage(WM_CLOSE) runs the normal WM_DESTROY cleanup
+        // (SaveSettings, SavePlaybackState, FreeBass/FreeMPV, etc.) right here,
+        // then ExitProcess guarantees the process is gone even if a nested
+        // message loop would otherwise swallow the quit.
         UpdateLog("ApplyUpdate: installer launched, closing app now");
-        SendMessageW(g_hwnd, WM_CLOSE, 0, 0);   // synchronous WM_DESTROY cleanup
+        SendMessageW(g_hwnd, WM_CLOSE, 0, 0);
         UpdateLog("ApplyUpdate: cleanup done, ExitProcess");
-        ExitProcess(0);                          // unconditional, no loop needed
+        ExitProcess(0);
     } else {
         std::wstring appDir = GetAppDirectory();
         std::wstring zipPath = GetUpdateZipPath();
@@ -925,6 +863,13 @@ void HandleUpdateCheckResult(HWND hwnd, UpdateInfo* info, bool silent) {
                     DispatchMessageW(&msg);
                 }
                 if (!IsWindow(hwndProgress)) break;
+            }
+            // Détruire un dialogue modeless laisse le focus clavier à NULL :
+            // NVDA perd alors sa cible. On le rend explicitement à la fenêtre
+            // principale (un DialogBox modal le ferait tout seul, pas CreateDialog).
+            if (IsWindow(hwnd)) {
+                SetForegroundWindow(hwnd);
+                SetFocus(hwnd);
             }
         }
 
