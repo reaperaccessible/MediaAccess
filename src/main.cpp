@@ -1599,6 +1599,54 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
 }
 
 // Entry point
+// v2.33 — force a window to the foreground, defeating Windows' foreground
+// lock. Needed when the installer relaunches us after an in-app update: the
+// new process starts outside any user-input context, so a plain
+// SetForegroundWindow silently fails and the window comes up without focus —
+// which leaves screen-reader (NVDA) users with nothing to read. Attaching to
+// the current foreground thread's input queue lets us legitimately steal focus.
+static void ForceForegroundWindow(HWND hwnd) {
+    HWND fg = GetForegroundWindow();
+    DWORD fgThread = fg ? GetWindowThreadProcessId(fg, nullptr) : 0;
+    DWORD thisThread = GetCurrentThreadId();
+    DWORD lockTimeout = 0;
+
+    if (fgThread && fgThread != thisThread) {
+        AttachThreadInput(fgThread, thisThread, TRUE);
+    }
+    // Temporarily zero the foreground-lock timeout so SetForegroundWindow is
+    // honoured, then restore it.
+    SystemParametersInfoW(SPI_GETFOREGROUNDLOCKTIMEOUT, 0, &lockTimeout, 0);
+    SystemParametersInfoW(SPI_SETFOREGROUNDLOCKTIMEOUT, 0, (PVOID)0, SPIF_SENDCHANGE);
+
+    if (IsIconic(hwnd)) ShowWindow(hwnd, SW_RESTORE);
+    ShowWindow(hwnd, SW_SHOW);
+    BringWindowToTop(hwnd);
+    SetForegroundWindow(hwnd);
+    SetFocus(hwnd);
+
+    SystemParametersInfoW(SPI_SETFOREGROUNDLOCKTIMEOUT, 0,
+                          (PVOID)(UINT_PTR)lockTimeout, SPIF_SENDCHANGE);
+    if (fgThread && fgThread != thisThread) {
+        AttachThreadInput(fgThread, thisThread, FALSE);
+    }
+}
+
+// v2.33 — was this instance relaunched by the installer right after an in-app
+// update? The installer's [Run] entry passes /fromupdate. It is deliberately
+// NOT a registered CLI switch (IsKnownCliSwitch), so wWinMain's argv scan
+// ignores it for single-instance/file routing; we only use it to grab focus.
+static bool LaunchedFromUpdate() {
+    const wchar_t* cmd = GetCommandLineW();
+    if (!cmd) return false;
+    std::wstring lower(cmd);
+    for (wchar_t& c : lower) {
+        if (c >= L'A' && c <= L'Z') c = (wchar_t)(c + 32);  // ASCII lower, dependency-free
+    }
+    return lower.find(L"/fromupdate") != std::wstring::npos ||
+           lower.find(L"-fromupdate") != std::wstring::npos;
+}
+
 int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLine, int nCmdShow) {
     // Restrict DLL search order to system32 + app dir + user-added dirs (prevents DLL hijacking
     // while still allowing SetDllDirectoryW below to add the lib subfolder)
@@ -1828,6 +1876,13 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLi
 
     ShowWindow(hwnd, nCmdShow);
     UpdateWindow(hwnd);
+
+    // v2.33 — if the installer relaunched us after an in-app update, force the
+    // window to the foreground so the screen reader announces it (the relaunch
+    // happens outside a user-input context and would otherwise come up unfocused).
+    if (LaunchedFromUpdate()) {
+        ForceForegroundWindow(hwnd);
+    }
 
     if (g_playlist.empty()) {
         LoadPlaybackState();

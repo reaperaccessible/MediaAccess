@@ -233,6 +233,12 @@ Name: "{userappdata}\Microsoft\Internet Explorer\Quick Launch\{#MyAppName}"; Fil
 
 [Run]
 Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChange(MyAppName, '&', '&&')}}"; Flags: nowait postinstall skipifsilent
+; v2.33 — in-app auto-update relaunch. The in-app updater runs this installer
+; as "/SILENT /AUTOUPDATE=1", which skips the postinstall checkbox above. This
+; entry fires only on that path (Check: IsAutoUpdate) and relaunches the app
+; even in silent mode, as the original (non-elevated) user, with /fromupdate so
+; the new instance forces itself to the foreground for screen-reader focus.
+Filename: "{app}\{#MyAppExeName}"; Parameters: "/fromupdate"; Flags: nowait runasoriginaluser; Check: IsAutoUpdate
 
 [UninstallDelete]
 Type: files; Name: "{app}\installed.txt"
@@ -245,4 +251,11 @@ var
 begin
   MarkerFile := ExpandConstant('{app}\installed.txt');
   SaveStringToFile(MarkerFile, 'Installed via setup', False);
+end;
+
+// v2.33 — true when the in-app updater launched us with /AUTOUPDATE=1.
+// Used by the [Run] entry that auto-relaunches the app after a silent update.
+function IsAutoUpdate(): Boolean;
+begin
+  Result := ExpandConstant('{param:AUTOUPDATE|0}') = '1';
 end;
