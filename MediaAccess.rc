@@ -9,8 +9,8 @@ IDI_APPICON ICON "MediaAccess.ico"
 // ASCII only (rc.exe mojibake risk). FILEVERSION is hardcoded: bump it each
 // release to match include/mediaaccess/version.h (build_new.bat passes no /D to rc).
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION    2,41,0,0
- PRODUCTVERSION 2,41,0,0
+ FILEVERSION    2,42,0,0
+ PRODUCTVERSION 2,42,0,0
  FILEFLAGSMASK  0x3fL
  FILEFLAGS      0x0L
  FILEOS         VOS__WINDOWS32
@@ -23,12 +23,12 @@ BEGIN
     BEGIN
       VALUE "CompanyName",      "ReaperAccessible"
       VALUE "FileDescription",  "MediaAccess - accessible audio and video player"
-      VALUE "FileVersion",      "2.41"
+      VALUE "FileVersion",      "2.42"
       VALUE "InternalName",     "MediaAccess"
       VALUE "LegalCopyright",   "Copyright (C) 2026 ReaperAccessible. GPL-3.0."
       VALUE "OriginalFilename", "MediaAccess.exe"
       VALUE "ProductName",      "MediaAccess"
-      VALUE "ProductVersion",   "2.41"
+      VALUE "ProductVersion",   "2.42"
     END
   END
   BLOCK "VarFileInfo"
@@ -562,6 +562,20 @@ CAPTION "Tag"
 FONT 8, "MS Shell Dlg", 400, 0, 0x1
 BEGIN
     EDITTEXT        IDC_TAG_TEXT, 7, 7, 286, 36, ES_MULTILINE | ES_AUTOVSCROLL | ES_READONLY | WS_VSCROLL
+END
+
+// Update-notes dialog (v2.42) — release notes shown when an update is offered.
+// ASCII placeholders only; localized at runtime by LocalizeDialog.
+IDD_UPDATE_NOTES DIALOGEX 0, 0, 320, 210
+STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "Update Available"
+FONT 8, "MS Shell Dlg", 400, 0, 0x1
+BEGIN
+    LTEXT           "", IDC_UPDATE_NOTES_SUMMARY, 7, 7, 306, 48
+    LTEXT           "What's new:", IDC_UPDATE_NOTES_LABEL, 7, 58, 306, 9
+    EDITTEXT        IDC_UPDATE_NOTES_EDIT, 7, 70, 306, 104, ES_MULTILINE | ES_AUTOVSCROLL | ES_READONLY | WS_VSCROLL | WS_TABSTOP
+    DEFPUSHBUTTON   "Update now", IDOK, 198, 182, 55, 14
+    PUSHBUTTON      "Later", IDCANCEL, 258, 182, 55, 14
 END
 
 // Playlist manager dialog

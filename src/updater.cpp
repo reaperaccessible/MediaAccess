@@ -725,6 +725,71 @@ void CheckForUpdatesOnStartup() {
     }).detach();
 }
 
+// v2.42 — turn the raw GitHub release "body" (JSON-escaped UTF-8 markdown) into
+// readable wide text for the update-notes dialog. Returns empty when there is
+// nothing to show (caller then falls back to the classic prompt).
+static std::wstring CleanReleaseNotes(const std::string& body) {
+    if (body.empty()) return L"";
+    std::string s = body;
+    auto replaceAll = [](std::string& str, const std::string& from, const std::string& to) {
+        if (from.empty()) return;
+        size_t pos = 0;
+        while ((pos = str.find(from, pos)) != std::string::npos) {
+            str.replace(pos, from.size(), to);
+            pos += to.size();
+        }
+    };
+    // JSON unescape (order matters; CRLF first, backslash-backslash last). Win32
+    // multiline edits need \r\n for line breaks.
+    replaceAll(s, "\\r\\n", "\r\n");
+    replaceAll(s, "\\n", "\r\n");
+    replaceAll(s, "\\r", "\r\n");
+    replaceAll(s, "\\t", "  ");
+    replaceAll(s, "\\\"", "\"");
+    replaceAll(s, "\\/", "/");
+    replaceAll(s, "\\\\", "\\");
+    // Light markdown cleanup (our changelog bodies are plain FR prose).
+    replaceAll(s, "**", "");
+    // Defensive cap.
+    if (s.size() > 32000) s = s.substr(0, 32000) + "\r\n...";
+    // UTF-8 -> wide (never byte-copy: that mojibakes accents).
+    int n = MultiByteToWideChar(CP_UTF8, 0, s.c_str(), -1, nullptr, 0);
+    if (n <= 0) return L"";
+    std::wstring w(n - 1, 0);
+    MultiByteToWideChar(CP_UTF8, 0, s.c_str(), -1, &w[0], n);
+    return w;
+}
+
+struct UpdateNotesData { std::wstring summary; std::wstring notes; };
+
+// Accessible modal dialog: a version summary + a read-only, scrollable, focusable
+// multiline edit holding the release notes. Returns IDOK (update) / IDCANCEL.
+static INT_PTR CALLBACK UpdateNotesDlgProc(HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam) {
+    switch (msg) {
+        case WM_INITDIALOG: {
+            UpdateNotesData* d = reinterpret_cast<UpdateNotesData*>(lParam);
+            LocalizeDialog(hDlg);  // localize caption + "What's new:" + buttons first
+            if (d) {
+                SetDlgItemTextW(hDlg, IDC_UPDATE_NOTES_SUMMARY, d->summary.c_str());
+                HWND edit = GetDlgItem(hDlg, IDC_UPDATE_NOTES_EDIT);
+                SendMessageW(edit, EM_SETLIMITTEXT, 0, 0);    // no length cap (long notes)
+                SetWindowTextW(edit, d->notes.c_str());      // set AFTER LocalizeDialog
+                SendMessageW(edit, EM_SETSEL, 0, 0);
+                SetFocus(edit);  // screen reader lands on the notes
+            }
+            return FALSE;        // we set focus ourselves
+        }
+        case WM_COMMAND:
+            if (LOWORD(wParam) == IDOK)     { EndDialog(hDlg, IDOK);     return TRUE; }
+            if (LOWORD(wParam) == IDCANCEL) { EndDialog(hDlg, IDCANCEL); return TRUE; }
+            break;
+        case WM_CLOSE:
+            EndDialog(hDlg, IDCANCEL);
+            return TRUE;
+    }
+    return FALSE;
+}
+
 void HandleUpdateCheckResult(HWND hwnd, UpdateInfo* info, bool silent) {
     if (!info->errorMessage.empty()) {
         if (!silent) {
@@ -774,28 +839,48 @@ void HandleUpdateCheckResult(HWND hwnd, UpdateInfo* info, bool silent) {
 
     Speak(Ts("Update available. ") + info->latestVersion);
 
-    // Use TaskDialogIndirect so we control the button labels — MessageBoxA/W
-    // takes "Yes"/"No" from the Windows UI language, ignoring our app locale.
-    TASKDIALOG_BUTTON buttons[] = {
-        { IDYES, T("BTN_YES") },
-        { IDNO,  T("BTN_NO")  },
-    };
-    TASKDIALOGCONFIG cfg = {0};
-    cfg.cbSize = sizeof(cfg);
-    cfg.hwndParent = hwnd;
-    cfg.dwFlags = TDF_ALLOW_DIALOG_CANCELLATION | TDF_POSITION_RELATIVE_TO_WINDOW;
-    cfg.pszWindowTitle = T("Update Available");
-    cfg.pszMainIcon = TD_INFORMATION_ICON;
-    cfg.pszContent = wmessage.c_str();
-    cfg.pButtons = buttons;
-    cfg.cButtons = 2;
-    cfg.nDefaultButton = IDYES;
-    int pressed = 0;
-    HRESULT hr = TaskDialogIndirect(&cfg, &pressed, nullptr, nullptr);
-    if (FAILED(hr)) {
-        // Fallback to MessageBoxW if TaskDialog isn't available (very old Windows).
-        pressed = MessageBoxW(hwnd, wmessage.c_str(), T("Update Available"),
-                              MB_YESNO | MB_ICONQUESTION);
+    // v2.42 (Seb) — when the release carries notes, show the "What's new"
+    // list in an accessible, screen-reader-readable dialog (a read-only,
+    // focusable, scrollable multiline edit) with Update/Later buttons. This
+    // runs for BOTH update paths (startup auto-check and Help menu), since
+    // both converge here. Falls back to the TaskDialog Yes/No prompt when
+    // there are no notes or the dialog template fails to load.
+    int pressed = IDNO;
+    std::wstring notes = CleanReleaseNotes(info->releaseNotes);
+    INT_PTR dlgResult = 0;
+    if (!notes.empty()) {
+        UpdateNotesData d{ wmessage, notes };
+        dlgResult = DialogBoxParamW(GetModuleHandle(NULL),
+                                    MAKEINTRESOURCEW(IDD_UPDATE_NOTES), hwnd,
+                                    UpdateNotesDlgProc, reinterpret_cast<LPARAM>(&d));
+    }
+    if (notes.empty() || dlgResult == -1) {
+        // No notes (or the template failed to load): use TaskDialogIndirect so
+        // we control the button labels — MessageBoxA/W takes "Yes"/"No" from the
+        // Windows UI language, ignoring our app locale.
+        TASKDIALOG_BUTTON buttons[] = {
+            { IDYES, T("BTN_YES") },
+            { IDNO,  T("BTN_NO")  },
+        };
+        TASKDIALOGCONFIG cfg = {0};
+        cfg.cbSize = sizeof(cfg);
+        cfg.hwndParent = hwnd;
+        cfg.dwFlags = TDF_ALLOW_DIALOG_CANCELLATION | TDF_POSITION_RELATIVE_TO_WINDOW;
+        cfg.pszWindowTitle = T("Update Available");
+        cfg.pszMainIcon = TD_INFORMATION_ICON;
+        cfg.pszContent = wmessage.c_str();
+        cfg.pButtons = buttons;
+        cfg.cButtons = 2;
+        cfg.nDefaultButton = IDYES;
+        HRESULT hr = TaskDialogIndirect(&cfg, &pressed, nullptr, nullptr);
+        if (FAILED(hr)) {
+            // Fallback to MessageBoxW if TaskDialog isn't available (very old Windows).
+            pressed = MessageBoxW(hwnd, wmessage.c_str(), T("Update Available"),
+                                  MB_YESNO | MB_ICONQUESTION);
+        }
+    } else {
+        // Notes dialog: IDOK = "Update now", anything else (Later / Esc) = decline.
+        pressed = (dlgResult == IDOK) ? IDYES : IDNO;
     }
     if (pressed == IDYES) {
         // Heap-allocate so the background thread has a safe pointer

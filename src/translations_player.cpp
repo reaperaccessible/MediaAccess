@@ -130,6 +130,14 @@ void RegisterPlayerTranslations() {
     AddTranslation("en", "Update Available", L"Update Available");
     AddTranslation("fr", "Update Available", L"Mise à jour disponible");
 
+    // v2.42 — release-notes dialog shown when an update is offered
+    AddTranslation("en", "What's new:", L"What's new:");
+    AddTranslation("fr", "What's new:", L"Nouveautés :");
+    AddTranslation("en", "Update now", L"Update now");
+    AddTranslation("fr", "Update now", L"Mettre à jour");
+    AddTranslation("en", "Later", L"Later");
+    AddTranslation("fr", "Later", L"Plus tard");
+
     AddTranslation("en", "Update Error", L"Update Error");
     AddTranslation("fr", "Update Error", L"Erreur de mise à jour");
 

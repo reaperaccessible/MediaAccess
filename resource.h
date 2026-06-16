@@ -769,5 +769,11 @@
 #define IDD_CUE_SEARCH                     1457   // "Find track" dialog (v2.36)
 #define IDC_CUE_SEARCH_EDIT                1458   // edit box inside IDD_CUE_SEARCH
 
+// Update-notes dialog (v2.42) — release notes shown when an update is offered
+#define IDD_UPDATE_NOTES                   1460
+#define IDC_UPDATE_NOTES_SUMMARY           1461   // LTEXT, version summary (set at runtime)
+#define IDC_UPDATE_NOTES_LABEL             1462   // LTEXT "What's new:"
+#define IDC_UPDATE_NOTES_EDIT              1463   // read-only multiline edit (the notes)
+
 #define IDOK                1
 #define IDCANCEL            2

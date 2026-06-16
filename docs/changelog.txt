@@ -1,3 +1,6 @@
+2.42
+Nouveau : lorsqu'une mise à jour est proposée (au démarrage ou via Aide → Vérifier les mises à jour), MediaAccess affiche désormais la liste des nouveautés et corrections de la nouvelle version, dans une zone de texte navigable au lecteur d'écran, avant de l'installer. Demandé par Séb.
+
 2.41
 Nouveau : entrée « Lire avec MediaAccess » dans le menu contextuel (clic droit) de l'Explorateur Windows pour les fichiers audio, vidéo, listes de lecture (.m3u/.m3u8/.pls) et .cue. Le fichier s'ouvre dans l'instance déjà ouverte de MediaAccess (ou en lance une au besoin) ; une sélection multiple est lue comme une seule liste de lecture. N'affecte pas votre lecteur par défaut. Sous Windows 11, l'entrée se trouve sous « Afficher plus d'options » (ou via Maj+F10). Demandé par Séb.
 
