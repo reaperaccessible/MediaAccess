@@ -21,6 +21,7 @@
 #include "mediaaccess/actions_window.h"
 #include "mediaaccess/actions.h"
 #include "mediaaccess/keymap.h"
+#include "mediaaccess/hotkeys.h"  // suspend global hotkeys during key capture
 #include "mediaaccess/translations.h"
 #include "mediaaccess/accessibility.h"  // Speak()
 #include "resource.h"
@@ -201,8 +202,13 @@ static bool PromptForShortcut(HWND owner, Shortcut* out)
 {
     AssignState st;
     s_assign = &st;
+    // Suspend system-wide hotkeys while capturing: otherwise pressing a combo
+    // that is already a registered global hotkey fires WM_HOTKEY (running the
+    // action) instead of reaching the capture edit box. Restored on close.
+    ::UnregisterGlobalHotkeys();
     INT_PTR r = DialogBoxW(GetModuleHandleW(nullptr),
                            MAKEINTRESOURCEW(IDD_SHORTCUT_ASSIGN), owner, AssignDlgProc);
+    ::RegisterGlobalHotkeys();
     bool ok = (r == IDOK && st.captured.valid());
     if (ok && out) *out = st.captured;
     s_assign = nullptr;
@@ -704,13 +710,18 @@ static void OnNewKeymap(HWND dlg)
 static void OnFindShortcut(HWND dlg)
 {
     // Open the find-by-shortcut dialog. Captures a Shortcut; on Search,
-    // locates the matching action in the active keymap across all
-    // categories, switches to that category, refreshes the list, and
-    // selects the matched row.
+    // locates the matching action WITHIN the currently selected category
+    // (see FindActionFor below) and selects the matched row.
     AssignState st;
     s_assign = &st;
+    // Suspend system-wide hotkeys while capturing: a global shortcut is a
+    // registered hotkey, so without this, pressing it fires WM_HOTKEY (running
+    // the action) instead of being captured — which is exactly why searching
+    // for a global shortcut never worked. Restored on close.
+    ::UnregisterGlobalHotkeys();
     INT_PTR r = DialogBoxW(GetModuleHandleW(nullptr),
                            MAKEINTRESOURCEW(IDD_FIND_SHORTCUT), dlg, FindShortcutDlgProc);
+    ::RegisterGlobalHotkeys();
     Shortcut sc = st.captured;
     s_assign = nullptr;
 

@@ -1,3 +1,6 @@
+2.37
+Correction : « Rechercher un raccourci » (dans la fenêtre Actions) ne fonctionnait pas pour les raccourcis globaux. Comme un raccourci global est enregistré au niveau du système, le presser déclenchait l'action au lieu d'être capturé par la recherche. MediaAccess suspend désormais les raccourcis globaux pendant la capture (recherche et assignation), si bien que la frappe est correctement reconnue. La recherche reste limitée à la catégorie sélectionnée. Signalé par Séb.
+
 2.36
 Correction : coller un fichier .cue avec Ctrl+V affichait « Aucun média dans le presse-papier ». MediaAccess reconnaît désormais un .cue collé (copié depuis l'Explorateur ou comme chemin texte) et l'ouvre comme avec Fichier → Ouvrir. Signalé par Séb.
 Nouveau : recherche dans la liste des pistes. Dans la liste des pistes (.cue), Ctrl+F ouvre un champ « Rechercher une piste », et F3 / Maj+F3 vont à l'occurrence suivante / précédente. La recherche est insensible à la casse et aux accents, et la piste trouvée est annoncée. Demandé par Séb.
