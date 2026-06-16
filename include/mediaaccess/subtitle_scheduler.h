@@ -39,6 +39,44 @@ struct SubCue {
 // sorted by start time; malformed entries are skipped. Empty on total failure.
 std::vector<SubCue> ParseSubtitles(const std::string& utf8Data);
 
+// =============================================================================
+// Scheduler — prefetch + timed playback
+//
+// The scheduler is DRIVEN BY THE APP, not by mpv directly: the caller feeds it
+// the current playback position via SubOnTimePos() (from the time-pos observer)
+// and notifies seek/pause. This keeps the scheduler unit-testable with a fake
+// clock and decouples it from libmpv. It owns a worker thread that pre-renders
+// upcoming cues to MP3 via edge_tts_client, and plays each ready clip via BASS
+// when playback reaches it. Assumes BASS_Init() has already been called.
+// =============================================================================
+
+// Ducking hook: called with 1.0 (restore) when no subtitle is speaking and with
+// `duckLevel` (e.g. 0.3) while a clip plays. The app wires this to lower the mpv
+// video volume; a test can pass a stub. Optional (null = no ducking).
+using SubDuckFn = void (*)(double level);
+void SubSetDuckCallback(SubDuckFn fn);
+
+// Begin prefetching/scheduling `cues` with the given Edge voice short name.
+// `lookaheadSec` is how far ahead of playback to pre-synthesize. Replaces any
+// previous session. Starts the worker thread.
+void SubStart(const std::vector<SubCue>& cues, const std::string& edgeVoice,
+              double lookaheadSec = 2.5, double duckLevel = 0.3);
+
+// Stop scheduling, halt any clip, free everything, join the worker.
+void SubStop();
+
+// Feed the current playback position (seconds). Triggers prefetch of upcoming
+// cues and plays a ready clip when its cue becomes current. Call frequently
+// (e.g. on every time-pos change). No-op if not started.
+void SubOnTimePos(double posSec);
+
+// Notify a seek to `posSec`: stops the current clip and re-arms cues around the
+// new position (kept buffers are reused; passed cues are marked done).
+void SubOnSeek(double posSec);
+
+// Notify pause state change. On pause the current clip is stopped.
+void SubOnPause(bool paused);
+
 } // namespace mediaaccess
 
 #endif // MEDIAACCESS_SUBTITLE_SCHEDULER_H

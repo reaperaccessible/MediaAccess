@@ -4,10 +4,17 @@
 // =============================================================================
 
 #include "mediaaccess/subtitle_scheduler.h"
-#include "mediaaccess/utils.h"   // Utf8ToWide
+#include "mediaaccess/utils.h"          // Utf8ToWide
+#include "mediaaccess/edge_tts_client.h"
+#include "mediaaccess/logger.h"
+#include "bass.h"
 
 #include <algorithm>
 #include <cctype>
+#include <condition_variable>
+#include <deque>
+#include <mutex>
+#include <thread>
 
 namespace mediaaccess {
 
@@ -125,6 +132,172 @@ std::vector<SubCue> ParseSubtitles(const std::string& utf8Data) {
     std::sort(cues.begin(), cues.end(),
               [](const SubCue& a, const SubCue& b) { return a.startSec < b.startSec; });
     return cues;
+}
+
+// =============================================================================
+// Scheduler
+//
+// Threading model: SubStart/SubStop/SubOnTimePos/SubOnSeek/SubOnPause are all
+// called from the app thread (the only thread that touches BASS). The worker
+// thread only synthesizes and writes cue buffers under g_mtx; it never touches
+// BASS or the playback fields (g_clipStream/g_curCue/g_ducked).
+// =============================================================================
+
+namespace {
+
+enum CueState { ST_PENDING, ST_QUEUED, ST_SYNTH, ST_READY, ST_FAILED, ST_PLAYED };
+
+struct SchedCue {
+    SubCue                      cue;
+    int                         state = ST_PENDING;
+    std::vector<unsigned char>  mp3;
+};
+
+std::mutex               g_mtx;
+std::vector<SchedCue>    g_cues;
+std::deque<int>          g_queue;
+std::condition_variable  g_cv;
+std::thread              g_worker;
+bool                     g_running   = false;
+std::string              g_voice;
+double                   g_lookahead = 2.5;
+double                   g_duckLevel = 0.3;
+SubDuckFn                g_duckFn    = nullptr;
+
+// Playback state — app thread only.
+HSTREAM g_clipStream = 0;
+int     g_curCue     = -1;
+bool    g_ducked     = false;
+
+void Duck(double level) { if (g_duckFn) g_duckFn(level); }
+
+void WorkerLoop() {
+    for (;;) {
+        int idx; std::string voice; std::wstring text;
+        {
+            std::unique_lock<std::mutex> lk(g_mtx);
+            g_cv.wait(lk, [] { return !g_running || !g_queue.empty(); });
+            if (!g_running) return;
+            idx = g_queue.front(); g_queue.pop_front();
+            if (idx < 0 || idx >= (int)g_cues.size() || g_cues[idx].state != ST_QUEUED) continue;
+            g_cues[idx].state = ST_SYNTH;
+            voice = g_voice;
+            text  = g_cues[idx].cue.text;
+        }
+        std::vector<unsigned char> mp3; std::string err;
+        bool ok = EdgeSynthesize(voice, text, mp3, "+0%", "+0Hz", &err);
+        {
+            std::lock_guard<std::mutex> lk(g_mtx);
+            if (!g_running) return;
+            if (idx >= 0 && idx < (int)g_cues.size()) {
+                if (ok) { g_cues[idx].mp3 = std::move(mp3); g_cues[idx].state = ST_READY; }
+                else    { g_cues[idx].state = ST_FAILED;
+                          LogF("subtts", "cue %d synth failed: %s", idx, err.c_str()); }
+            }
+        }
+    }
+}
+
+// Stop + free the current clip and restore volume. App thread only.
+void StopClip() {
+    if (g_clipStream) { BASS_ChannelStop(g_clipStream); BASS_StreamFree(g_clipStream); g_clipStream = 0; }
+    g_curCue = -1;
+    if (g_ducked) { Duck(1.0); g_ducked = false; }
+}
+
+} // namespace
+
+void SubSetDuckCallback(SubDuckFn fn) { g_duckFn = fn; }
+
+void SubStart(const std::vector<SubCue>& cues, const std::string& edgeVoice,
+              double lookaheadSec, double duckLevel) {
+    SubStop();
+    std::lock_guard<std::mutex> lk(g_mtx);
+    g_cues.clear(); g_cues.reserve(cues.size());
+    for (const auto& c : cues) { SchedCue s; s.cue = c; g_cues.push_back(std::move(s)); }
+    g_queue.clear();
+    g_voice = edgeVoice; g_lookahead = lookaheadSec; g_duckLevel = duckLevel;
+    g_curCue = -1; g_clipStream = 0; g_ducked = false;
+    g_running = true;
+    g_worker = std::thread(WorkerLoop);
+    LogF("subtts", "started: %zu cues, voice=%s, lookahead=%.1fs",
+         g_cues.size(), edgeVoice.c_str(), lookaheadSec);
+}
+
+void SubStop() {
+    {
+        std::lock_guard<std::mutex> lk(g_mtx);
+        if (!g_running && !g_worker.joinable()) return;
+        g_running = false;
+    }
+    g_cv.notify_all();
+    if (g_worker.joinable()) g_worker.join();
+    StopClip();
+    std::lock_guard<std::mutex> lk(g_mtx);
+    g_cues.clear(); g_queue.clear();
+}
+
+void SubOnTimePos(double pos) {
+    // 1) reap a finished clip
+    if (g_clipStream && BASS_ChannelIsActive(g_clipStream) == BASS_ACTIVE_STOPPED) {
+        BASS_StreamFree(g_clipStream); g_clipStream = 0; g_curCue = -1;
+        if (g_ducked) { Duck(1.0); g_ducked = false; }
+    }
+
+    int toPlay = -1;
+    std::vector<unsigned char> mp3;
+    {
+        std::lock_guard<std::mutex> lk(g_mtx);
+        if (!g_running) return;
+        // 2) prefetch cues entering the lookahead window
+        bool queued = false;
+        for (int i = 0; i < (int)g_cues.size(); i++) {
+            SchedCue& s = g_cues[i];
+            if (s.state == ST_PENDING && s.cue.endSec > pos && s.cue.startSec <= pos + g_lookahead) {
+                s.state = ST_QUEUED; g_queue.push_back(i); queued = true;
+            }
+        }
+        if (queued) g_cv.notify_all();
+        // 3) pick the cue that should be audible now (latest start in [start,end))
+        int sel = -1;
+        for (int i = 0; i < (int)g_cues.size(); i++) {
+            SchedCue& s = g_cues[i];
+            if (s.state == ST_READY && s.cue.startSec <= pos && pos < s.cue.endSec)
+                if (sel < 0 || s.cue.startSec > g_cues[sel].cue.startSec) sel = i;
+        }
+        if (sel >= 0 && sel != g_curCue) {
+            toPlay = sel;
+            mp3 = g_cues[sel].mp3;
+            g_cues[sel].state = ST_PLAYED;
+        }
+    }
+
+    // 4) start the chosen clip (cutting any current one = overlap policy)
+    if (toPlay >= 0) {
+        if (g_clipStream) { BASS_ChannelStop(g_clipStream); BASS_StreamFree(g_clipStream); g_clipStream = 0; }
+        HSTREAM st = BASS_StreamCreateFile(BASS_FILE_MEMCOPY, mp3.data(), 0, mp3.size(), BASS_SAMPLE_FLOAT);
+        if (st) {
+            if (!g_ducked) { Duck(g_duckLevel); g_ducked = true; }
+            BASS_ChannelPlay(st, FALSE);
+            g_clipStream = st; g_curCue = toPlay;
+        } else {
+            LogF("subtts", "BASS clip create failed code=%d", BASS_ErrorGetCode());
+        }
+    }
+}
+
+void SubOnSeek(double pos) {
+    StopClip();
+    std::lock_guard<std::mutex> lk(g_mtx);
+    for (SchedCue& s : g_cues) {
+        if (s.cue.endSec <= pos)                                   s.state = ST_PLAYED;  // already past
+        else if (!s.mp3.empty())                                   s.state = ST_READY;   // reuse buffer
+        else if (s.state != ST_SYNTH && s.state != ST_QUEUED)      s.state = ST_PENDING;
+    }
+}
+
+void SubOnPause(bool paused) {
+    if (paused) StopClip();
 }
 
 } // namespace mediaaccess
