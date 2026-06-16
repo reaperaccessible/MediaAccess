@@ -1433,6 +1433,18 @@ void AnnounceStreamMetadata() {
     std::string streamTitle = GetStreamTitle(stream);
     if (streamTitle.empty()) return;
 
+    // v2.38 — only announce / record when the ICY title actually changed.
+    // Some stations re-send identical metadata repeatedly, which made NVDA
+    // announce the current title non-stop and spammed the song history. The
+    // dedup is keyed to the stream handle so a new connection (station/track
+    // change) re-announces even if the first song matches the previous one.
+    static HSTREAM s_lastMetaStream = 0;
+    static std::wstring s_lastMetaTitle;
+    if (stream != s_lastMetaStream) {
+        s_lastMetaStream = stream;
+        s_lastMetaTitle.clear();
+    }
+
     // v1.60 — update the now-playing item so the window title shows the
     // freshest song name immediately. Order matters: do this BEFORE the
     // existing UpdateWindowTitle() in main.cpp's WM_META_CHANGED handler
@@ -1451,6 +1463,10 @@ void AnnounceStreamMetadata() {
             UpdateWindowTitle();
         }
     }
+
+    // Nothing new to announce or record if the title is unchanged.
+    if (wideTitle == s_lastMetaTitle) return;
+    s_lastMetaTitle = wideTitle;
 
     // Record to song history (independent of speech setting).
     // v2.11 — store the live station URL as the replayable source so Enter in the
@@ -2076,7 +2092,7 @@ void ApplyNowPlayingForCurrentTrack() {
             item == L"Nothing playing" ||
             item == T("No title") ||
             item == T("Nothing playing")) {
-            item = GetFileName(path);
+            item = GetFileNameNoExt(path);
         }
         SetNowPlaying(SourceType::Local, L"", item);
     } else {

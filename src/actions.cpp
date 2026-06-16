@@ -488,6 +488,8 @@ static const Action g_actions[] = {
       "Toggle mute (global)",         "Basculer le mode muet (global)", {} },
     { "GLOBAL_TOGGLE_WINDOW",     IDM_TOGGLE_WINDOW,          ActionCategory::Global,
       "Show / hide MediaAccess window","Afficher / cacher la fenêtre MediaAccess", {} },
+    { "GLOBAL_SHOW_WINDOW",       IDM_SHOW_WINDOW,            ActionCategory::Global,
+      "Show MediaAccess",             "Afficher MediaAccess", {} },
     { "GLOBAL_RECORD_TOGGLE",     IDM_RECORD_TOGGLE,          ActionCategory::Global,
       "Toggle recording (global)",    "Basculer l'enregistrement (global)", {} },
     // v1.94 — Same commandId as CYCLE_RECORD_SOURCE above.

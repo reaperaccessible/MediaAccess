@@ -272,6 +272,7 @@
 #define IDM_TRAY_EXIT       701
 #define WM_TRAYICON         (WM_USER + 10)
 #define IDM_TOGGLE_WINDOW   702
+#define IDM_SHOW_WINDOW     703   // v2.38 — show-only (never hide) MediaAccess window
 
 // YouTube menu and dialog
 #define IDM_FILE_YOUTUBE    105

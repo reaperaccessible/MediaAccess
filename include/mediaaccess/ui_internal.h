@@ -75,6 +75,7 @@ extern bool g_isRecording;
 
 // External functions (defined in other modules)
 extern std::wstring GetFileName(const std::wstring& path);
+extern std::wstring GetFileNameNoExt(const std::wstring& path);
 extern std::wstring FormatTime(double seconds);
 extern void SaveSettings();
 extern bool ReinitBass(int device);

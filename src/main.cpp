@@ -1461,6 +1461,12 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
                 case IDM_TOGGLE_WINDOW:
                     ToggleWindow(hwnd);
                     break;
+                case IDM_SHOW_WINDOW:
+                    // v2.38 — show-only: always bring the window to the front
+                    // (never hides). ForceForegroundWindow also restores from
+                    // iconic and moves focus so NVDA follows.
+                    ForceForegroundWindow(hwnd);
+                    break;
                 case IDM_TRAY_RESTORE:
                     RestoreFromTray(hwnd);
                     break;

@@ -54,7 +54,7 @@ void UpdateWindowTitle() {
             // SetNowPlaying has settled.
             if (g_currentTrack >= 0 &&
                 g_currentTrack < static_cast<int>(g_playlist.size())) {
-                composed = GetFileName(g_playlist[g_currentTrack]);
+                composed = GetFileNameNoExt(g_playlist[g_currentTrack]);
             }
         } else if (src.empty()) {
             composed = itm;
@@ -127,7 +127,7 @@ std::wstring BuildNowPlayingSpeech() {
     if (src.empty() && itm.empty()) {
         if (g_currentTrack >= 0 &&
             g_currentTrack < static_cast<int>(g_playlist.size())) {
-            return GetFileName(g_playlist[g_currentTrack]);
+            return GetFileNameNoExt(g_playlist[g_currentTrack]);
         }
         return L"";
     }

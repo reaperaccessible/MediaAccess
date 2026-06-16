@@ -1,3 +1,8 @@
+2.38
+Amélioration : pour un fichier local sans métadonnées (tags), le titre de la fenêtre et l'annonce de lecture affichent désormais le nom du fichier sans son extension (« Ma chanson » plutôt que « Ma chanson.mp3 »). Demandé par Séb.
+Nouveau : action globale « Afficher MediaAccess » (Outils → Actions, catégorie Globale, sans raccourci par défaut). Contrairement au bascule « Afficher / cacher », elle ne fait que ramener la fenêtre au premier plan (jamais la cacher) — pratique pour un raccourci global qui rappelle toujours MediaAccess. Demandé par Séb.
+Correction : avec certaines stations de radio, NVDA réénonçait le titre en cours sans arrêt (et l'historique se remplissait de doublons) parce que la station renvoyait ses métadonnées en boucle. MediaAccess n'annonce et n'enregistre désormais un titre que lorsqu'il change réellement. Signalé par Séb.
+
 2.37
 Correction : « Rechercher un raccourci » (dans la fenêtre Actions) ne fonctionnait pas pour les raccourcis globaux. Comme un raccourci global est enregistré au niveau du système, le presser déclenchait l'action au lieu d'être capturé par la recherche. MediaAccess suspend désormais les raccourcis globaux pendant la capture (recherche et assignation), si bien que la frappe est correctement reconnue. La recherche reste limitée à la catégorie sélectionnée. Signalé par Séb.
 

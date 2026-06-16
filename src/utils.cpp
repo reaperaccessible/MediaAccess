@@ -28,6 +28,15 @@ std::wstring GetFileName(const std::wstring& path) {
     return path;
 }
 
+std::wstring GetFileNameNoExt(const std::wstring& path) {
+    std::wstring name = GetFileName(path);            // basename, no directory
+    size_t dot = name.find_last_of(L'.');
+    if (dot != std::wstring::npos && dot != 0) {      // keep dotfiles (".cue") and no-dot names intact
+        return name.substr(0, dot);
+    }
+    return name;
+}
+
 std::wstring FormatTime(double seconds) {
     if (seconds < 0) seconds = 0;
     int totalSec = static_cast<int>(seconds);
