@@ -286,6 +286,12 @@ void LoadSettings() {
     g_speechVolume = GetPrivateProfileIntW(L"Speech", L"Volume", 1, g_configPath.c_str()) != 0;
     g_speechSeekPosition = GetPrivateProfileIntW(L"Speech", L"AnnounceSeekPosition", 1, g_configPath.c_str()) != 0;  // v1.65
     g_speakSubtitles = GetPrivateProfileIntW(L"Speech", L"SpeakSubtitles", 0, g_configPath.c_str()) != 0;  // v1.81
+    g_subtitleUseEdgeVoice = GetPrivateProfileIntW(L"Speech", L"SubtitleEdge", 0, g_configPath.c_str()) != 0;
+    {
+        wchar_t buf[128] = {0};
+        GetPrivateProfileStringW(L"Speech", L"SubtitleEdgeVoice", L"", buf, 128, g_configPath.c_str());
+        g_subtitleEdgeVoice = buf;
+    }
     g_speechEffect = GetPrivateProfileIntW(L"Speech", L"Effect", 1, g_configPath.c_str()) != 0;
     g_speechYTHybrid = GetPrivateProfileIntW(L"Speech", L"YTHybrid", 1, g_configPath.c_str()) != 0;
 
@@ -631,6 +637,9 @@ void SaveSettings() {
     WritePrivateProfileStringW(L"Speech", L"Volume", g_speechVolume ? L"1" : L"0", g_configPath.c_str());
     WritePrivateProfileStringW(L"Speech", L"AnnounceSeekPosition", g_speechSeekPosition ? L"1" : L"0", g_configPath.c_str());  // v1.65
     WritePrivateProfileStringW(L"Speech", L"SpeakSubtitles", g_speakSubtitles ? L"1" : L"0", g_configPath.c_str());  // v1.81
+    WritePrivateProfileStringW(L"Speech", L"SubtitleEdge", g_subtitleUseEdgeVoice ? L"1" : L"0", g_configPath.c_str());
+    WritePrivateProfileStringW(L"Speech", L"SubtitleEdgeVoice",
+                               g_subtitleEdgeVoice.empty() ? nullptr : g_subtitleEdgeVoice.c_str(), g_configPath.c_str());
     WritePrivateProfileStringW(L"Speech", L"Effect", g_speechEffect ? L"1" : L"0", g_configPath.c_str());
     WritePrivateProfileStringW(L"Speech", L"YTHybrid", g_speechYTHybrid ? L"1" : L"0", g_configPath.c_str());
 

@@ -196,7 +196,6 @@
 #define IDM_TOGGLE_SUBTITLE_SPEECH 253  // v1.81 — toggle g_speakSubtitles
 #define IDM_CYCLE_RECORD_SOURCE 254  // v1.94 — cycle g_recordSource (MediaAccess output / Windows system)
 #define IDM_RECORD_PAUSE_TOGGLE 255  // v2.24 — pause/resume the active recording (punch-in/out)
-#define IDM_TOGGLE_SUBTITLE_TTS 280  // read subtitles aloud with a prefetched Edge neural voice
 
 // Speak commands
 #define IDM_SPEAK_SEEK          250
@@ -343,6 +342,9 @@
 #define IDC_SPEECH_YT_HYBRID    843
 #define IDC_SPEECH_SEEK_POSITION 844  // v1.65 — announce position after seek
 #define IDC_SPEAK_SUBTITLES      845  // v1.81 — speak video subtitle lines aloud
+#define IDC_SUBTITLE_EDGE        846  // use a prefetched Edge neural voice instead of the screen reader
+#define IDC_SUBTITLE_EDGE_VOICE  847  // Edge voice picker (combo)
+#define IDC_LABEL_SUBTITLE_EDGE_VOICE 848
 
 // Radio dialog
 #define IDM_FILE_RADIO      107

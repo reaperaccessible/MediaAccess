@@ -54,7 +54,11 @@ extern HSYNC g_metaSync;      // Sync for stream metadata changes
 extern HSYNC g_dlSync;        // Sync for URL download complete (re-parse chapters)
 extern float g_volume;
 extern bool g_muted;          // Muted state (recording still works)
-extern bool g_subtitleEdgeTts; // read subtitles aloud via prefetched Edge voice (subtitle_scheduler)
+// Subtitle speech method: when g_speakSubtitles is on, use a prefetched Edge
+// neural voice instead of the live screen-reader path. g_subtitleEdgeVoice is
+// the chosen Edge voice short name (e.g. "fr-FR-DeniseNeural"); empty = default.
+extern bool g_subtitleUseEdgeVoice;
+extern std::wstring g_subtitleEdgeVoice;
 extern bool g_legacyVolume;   // Use legacy volume (faster, but affects recordings)
 extern bool g_disableBatchDelay; // Skip batch delay when opening files from explorer
 extern bool g_startupBatchOpen;  // v1.85 — true during the early startup batch-open coalescing window

@@ -73,6 +73,50 @@ static void SubtitleDuck(double level) {
     MPVSetVolume(g_volume * (float)level);
 }
 
+// Current state of the Edge subtitle reader (the prefetch scheduler). Tracks
+// what it was started for so we can restart on track change / stop on media
+// change. App (UI) thread only.
+static bool         s_subEdgeActive = false;
+static std::wstring s_subEdgeMedia;
+static int          s_subEdgeFf = -2;
+
+static std::wstring CurrentMediaPath() {
+    return (g_currentTrack >= 0 && g_currentTrack < (int)g_playlist.size())
+           ? g_playlist[g_currentTrack] : std::wstring();
+}
+
+// Reconcile the Edge subtitle reader with the current settings/playback. Starts,
+// stops, or restarts the prefetch scheduler as needed. Called when the master
+// "Speak subtitles" toggle, the method/voice options, or the active subtitle
+// track change. Non-static so ui_options.cpp can call it after applying options.
+void RefreshSubtitleEdge() {
+    bool want = g_speakSubtitles && g_subtitleUseEdgeVoice &&
+                g_activeEngine == PlaybackEngine::MPV && IsMPVInitialized();
+    std::wstring media = CurrentMediaPath();
+    long ff = want ? MPVGetActiveSubtitleFfIndex() : -1;
+
+    if (want && (!s_subEdgeActive || media != s_subEdgeMedia || (int)ff != s_subEdgeFf)) {
+        mediaaccess::SubStop();
+        s_subEdgeActive = false;
+        mediaaccess::SubSetDuckCallback(SubtitleDuck);
+        // Voice short names are ASCII; a narrow copy is safe.
+        std::string voice = g_subtitleEdgeVoice.empty()
+            ? std::string("fr-FR-DeniseNeural")
+            : std::string(g_subtitleEdgeVoice.begin(), g_subtitleEdgeVoice.end());
+        std::wstring err;
+        if (!media.empty() &&
+            mediaaccess::SubStartForMedia(media, voice, 2.5, 0.3, (int)ff, &err)) {
+            s_subEdgeActive = true; s_subEdgeMedia = media; s_subEdgeFf = (int)ff;
+        } else {
+            MPVSetVolume(g_volume);
+        }
+    } else if (!want && s_subEdgeActive) {
+        mediaaccess::SubStop();
+        MPVSetVolume(g_volume);
+        s_subEdgeActive = false; s_subEdgeMedia.clear(); s_subEdgeFf = -2;
+    }
+}
+
 // Custom message posted from daisy_player.cpp BASS sync (worker thread).
 #define WM_DAISY_NEXT_CLIP_LOCAL (WM_USER + 50)
 extern "C" void DaisyOnClipEnded(int endedClipIndex);
@@ -700,8 +744,16 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
                 UpdateStatusBar();
                 // Drive the subtitle prefetch scheduler on the UI thread (BASS
                 // playback must stay on one thread). 250 ms granularity is fine
-                // given the lookahead absorbs synthesis latency.
-                if (g_subtitleEdgeTts) mediaaccess::SubOnTimePos(MPVGetPosition());
+                // given the lookahead absorbs synthesis latency. Bail out if the
+                // media changed under us (stale cues would play over a new file).
+                if (s_subEdgeActive) {
+                    if (CurrentMediaPath() != s_subEdgeMedia) {
+                        mediaaccess::SubStop(); MPVSetVolume(g_volume);
+                        s_subEdgeActive = false; s_subEdgeMedia.clear(); s_subEdgeFf = -2;
+                    } else {
+                        mediaaccess::SubOnTimePos(MPVGetPosition());
+                    }
+                }
             } else if (wParam == IDT_BATCH_FILES) {
                 KillTimer(hwnd, IDT_BATCH_FILES);
                 if (!g_pendingFiles.empty()) {
@@ -766,9 +818,9 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
             // would lag behind the picture). Gated by g_speakSubtitles.
             wchar_t* text = reinterpret_cast<wchar_t*>(lParam);
             if (text) {
-                // Skip the live screen-reader path when the prefetch Edge voice
-                // is active, so a line is not spoken twice.
-                if (g_speakSubtitles && !g_subtitleEdgeTts) SpeakW(text, true);
+                // Live screen-reader path: only when speaking subtitles AND the
+                // method is the screen reader (not the prefetched Edge voice).
+                if (g_speakSubtitles && !g_subtitleUseEdgeVoice) SpeakW(text, true);
                 free(text);
             }
             return 0;
@@ -1309,37 +1361,9 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
                     g_speakSubtitles = !g_speakSubtitles;
                     Speak(g_speakSubtitles ? Ts("Subtitle speech on")
                                            : Ts("Subtitle speech off"));
+                    RefreshSubtitleEdge();  // start/stop the Edge reader if that's the method
                     SaveSettings();
                     break;
-                case IDM_TOGGLE_SUBTITLE_TTS: {
-                    // Read subtitles aloud with a prefetched Edge neural voice.
-                    // First test: a fixed default voice; full Options UI later.
-                    if (!g_subtitleEdgeTts) {
-                        std::wstring media =
-                            (g_currentTrack >= 0 && g_currentTrack < (int)g_playlist.size())
-                            ? g_playlist[g_currentTrack] : std::wstring();
-                        long ffIdx = MPVGetActiveSubtitleFfIndex();
-                        std::wstring err;
-                        mediaaccess::SubSetDuckCallback(SubtitleDuck);
-                        Speak("Preparing subtitles");  // extraction can take ~1 s
-                        if (!media.empty() &&
-                            mediaaccess::SubStartForMedia(media, "fr-FR-DeniseNeural",
-                                                          2.5, 0.3, (int)ffIdx, &err)) {
-                            g_subtitleEdgeTts = true;
-                            Speak("Subtitle voice on");
-                        } else {
-                            MPVSetVolume(g_volume);  // make sure nothing stays ducked
-                            Speak(ffIdx < 0 ? "Select a subtitle track first"
-                                            : "No subtitles to read");
-                        }
-                    } else {
-                        g_subtitleEdgeTts = false;
-                        mediaaccess::SubStop();
-                        MPVSetVolume(g_volume);      // restore volume
-                        Speak("Subtitle voice off");
-                    }
-                    break;
-                }
                 case IDM_PLAY_REPEAT_TOGGLE:
                     ToggleRepeatMode();
                     break;
@@ -1664,12 +1688,15 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
                     break;
                 case IDM_VIDEO_SUB_CYCLE:
                     if (g_activeEngine == PlaybackEngine::MPV) MPVCycleSubtitles();
+                    RefreshSubtitleEdge();  // follow the newly-active track
                     break;
                 case IDM_VIDEO_SUB_LOAD:
                     OpenSubtitleFile(hwnd);
+                    RefreshSubtitleEdge();
                     break;
                 case IDM_VIDEO_SUB_OFF:
                     if (g_activeEngine == PlaybackEngine::MPV) MPVSetSubtitleTrack(0);
+                    RefreshSubtitleEdge();
                     break;
                 case IDM_VIDEO_AUDIO_CYCLE:
                     if (g_activeEngine == PlaybackEngine::MPV) MPVCycleAudioTracks();

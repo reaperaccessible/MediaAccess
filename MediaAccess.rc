@@ -99,7 +99,6 @@ BEGIN
         MENUITEM "Cycle &Subtitles",                IDM_VIDEO_SUB_CYCLE
         MENUITEM "&Load Subtitle File...",          IDM_VIDEO_SUB_LOAD
         MENUITEM "Subtitles &Off",                  IDM_VIDEO_SUB_OFF
-        MENUITEM "Read Subtitles Aloud (&Edge voice)", IDM_TOGGLE_SUBTITLE_TTS
         MENUITEM SEPARATOR
         MENUITEM "Cycle &Audio Track",              IDM_VIDEO_AUDIO_CYCLE
         MENUITEM SEPARATOR
@@ -221,6 +220,9 @@ BEGIN
     AUTOCHECKBOX    "Announce YouTube effects activation", IDC_SPEECH_YT_HYBRID, 17, 110, 260, 10
     AUTOCHECKBOX    "Announce &position after a seek", IDC_SPEECH_SEEK_POSITION, 17, 130, 260, 10
     AUTOCHECKBOX    "Speak &subtitles", IDC_SPEAK_SUBTITLES, 17, 150, 260, 10
+    AUTOCHECKBOX    "Read subtitles with a &neural voice (Edge, online)", IDC_SUBTITLE_EDGE, 27, 168, 250, 10
+    LTEXT           "Subtitle &voice:", IDC_LABEL_SUBTITLE_EDGE_VOICE, 27, 184, 60, 10
+    COMBOBOX        IDC_SUBTITLE_EDGE_VOICE, 90, 182, 180, 200, CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
 
     // Movement tab controls (shown when tab 4 selected)
     LTEXT           "Seek amounts (use , and . to cycle):", IDC_LABEL_MOVEMENT_DESCRIPTION, 17, 30, 260, 10

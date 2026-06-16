@@ -7,6 +7,11 @@
 #include "mediaaccess/tts_player.h"        // SAPI voice list / set active
 #include "mediaaccess/book_text_window.h"  // theme + always-hide
 #include "mediaaccess/wasapi_loopback.h"   // v1.94 — system loopback device list
+#include "mediaaccess/edge_tts_client.h"   // Edge voice list for the subtitle reader
+
+// Cached Edge voice list backing the subtitle-voice combo, so WM_COMMAND can map
+// the selected index back to a short name. Populated in WM_INITDIALOG.
+static std::vector<mediaaccess::EdgeVoice> s_subEdgeVoices;
 
 // Update the small hint under the SoundFont path field that tells the user
 // what will actually be used when the field is empty. Three cases:
@@ -75,6 +80,7 @@ void ShowTabControls(HWND hwnd, int tab) {
     // Speech tab controls (tab 3)
     int speechCtrls[] = {IDC_SPEECH_TRACKCHANGE, IDC_SPEECH_VOLUME, IDC_SPEECH_EFFECT, IDC_SPEECH_YT_HYBRID,
                          IDC_SPEECH_SEEK_POSITION, IDC_SPEAK_SUBTITLES,
+                         IDC_SUBTITLE_EDGE, IDC_SUBTITLE_EDGE_VOICE, IDC_LABEL_SUBTITLE_EDGE_VOICE,
                          IDC_LABEL_SPEECH_DESCRIPTION};
     // Movement tab controls (tab 4)
     int movementCtrls[] = {IDC_SEEK_1S, IDC_SEEK_5S, IDC_SEEK_10S, IDC_SEEK_30S, IDC_SEEK_1M, IDC_SEEK_5M, IDC_SEEK_10M,
@@ -665,6 +671,19 @@ INT_PTR CALLBACK OptionsDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
             CheckDlgButton(hwnd, IDC_SPEECH_YT_HYBRID, g_speechYTHybrid ? BST_CHECKED : BST_UNCHECKED);
             CheckDlgButton(hwnd, IDC_SPEECH_SEEK_POSITION, g_speechSeekPosition ? BST_CHECKED : BST_UNCHECKED);
             CheckDlgButton(hwnd, IDC_SPEAK_SUBTITLES, g_speakSubtitles ? BST_CHECKED : BST_UNCHECKED);  // v1.81
+            CheckDlgButton(hwnd, IDC_SUBTITLE_EDGE, g_subtitleUseEdgeVoice ? BST_CHECKED : BST_UNCHECKED);
+            {
+                // Populate the Edge subtitle-voice combo (cached after first fetch).
+                s_subEdgeVoices = mediaaccess::EdgeListVoices();
+                HWND combo = GetDlgItem(hwnd, IDC_SUBTITLE_EDGE_VOICE);
+                SendMessageW(combo, CB_RESETCONTENT, 0, 0);
+                int sel = 0;
+                for (size_t i = 0; i < s_subEdgeVoices.size(); i++) {
+                    SendMessageW(combo, CB_ADDSTRING, 0, (LPARAM)s_subEdgeVoices[i].displayName.c_str());
+                    if (Utf8ToWide(s_subEdgeVoices[i].shortName) == g_subtitleEdgeVoice) sel = (int)i;
+                }
+                SendMessageW(combo, CB_SETCURSEL, sel, 0);
+            }
 
             // Initialize SoundTouch tab
             {
@@ -1066,6 +1085,14 @@ INT_PTR CALLBACK OptionsDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
                     g_speechYTHybrid = (IsDlgButtonChecked(hwnd, IDC_SPEECH_YT_HYBRID) == BST_CHECKED);
                     g_speechSeekPosition = (IsDlgButtonChecked(hwnd, IDC_SPEECH_SEEK_POSITION) == BST_CHECKED);
                     g_speakSubtitles = (IsDlgButtonChecked(hwnd, IDC_SPEAK_SUBTITLES) == BST_CHECKED);  // v1.81
+                    g_subtitleUseEdgeVoice = (IsDlgButtonChecked(hwnd, IDC_SUBTITLE_EDGE) == BST_CHECKED);
+                    {
+                        int idx = (int)SendMessageW(GetDlgItem(hwnd, IDC_SUBTITLE_EDGE_VOICE), CB_GETCURSEL, 0, 0);
+                        if (idx >= 0 && idx < (int)s_subEdgeVoices.size())
+                            g_subtitleEdgeVoice = Utf8ToWide(s_subEdgeVoices[idx].shortName);
+                    }
+                    extern void RefreshSubtitleEdge();
+                    RefreshSubtitleEdge();   // apply method/voice change immediately
 
                     // Get SoundTouch settings
                     {
