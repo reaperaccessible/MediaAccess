@@ -94,6 +94,10 @@ french.VideoFileDesc=Fichier vidéo MediaAccess
 french.PlaylistDesc=Liste de lecture MediaAccess
 french.AppDesc=Lecteur audio et vidéo accessible avec contrôles de tempo, pitch et effets
 
+; v2.41 — Explorer right-click "Play with MediaAccess" verb label (install language)
+english.PlayWithVerb=Play with MediaAccess
+french.PlayWithVerb=Lire avec MediaAccess
+
 [Tasks]
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
 Name: "quicklaunchicon"; Description: "{cm:CreateQuickLaunchIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked; OnlyBelowVersion: 6.1; Check: not IsAdminInstallMode
@@ -222,6 +226,194 @@ Root: HKA; Subkey: "SOFTWARE\Classes\Applications\{#MyAppExeName}\SupportedTypes
 Root: HKA; Subkey: "SOFTWARE\Classes\Applications\{#MyAppExeName}\SupportedTypes"; ValueType: string; ValueName: ".m4a";  ValueData: ""
 Root: HKA; Subkey: "SOFTWARE\Classes\Applications\{#MyAppExeName}\SupportedTypes"; ValueType: string; ValueName: ".webm"; ValueData: ""
 Root: HKA; Subkey: "SOFTWARE\Classes\Applications\{#MyAppExeName}\SupportedTypes"; ValueType: string; ValueName: ".mov";  ValueData: ""
+
+; ============================================================
+; Step 7 (v2.41) - Explorer right-click "Play with MediaAccess".
+; Per-extension legacy verb under SystemFileAssociations so it appears
+; for media files WITHOUT changing the user's default player.
+; uninsdeletekey on the MediaAccess.Play key removes the whole subtree
+; (incl. \command) on uninstall; shared parent keys are left intact.
+; On Windows 11 it appears under "Show more options" (Shift+F10).
+; ============================================================
+Root: HKA; Subkey: "SOFTWARE\Classes\SystemFileAssociations\.mp3\shell\MediaAccess.Play"; ValueType: string; ValueName: ""; ValueData: "{cm:PlayWithVerb}"; Flags: uninsdeletekey
+Root: HKA; Subkey: "SOFTWARE\Classes\SystemFileAssociations\.mp3\shell\MediaAccess.Play"; ValueType: string; ValueName: "Icon"; ValueData: """{app}\{#MyAppExeName}"",0"
+Root: HKA; Subkey: "SOFTWARE\Classes\SystemFileAssociations\.mp3\shell\MediaAccess.Play\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"" ""%1"""
+
+Root: HKA; Subkey: "SOFTWARE\Classes\SystemFileAssociations\.mp2\shell\MediaAccess.Play"; ValueType: string; ValueName: ""; ValueData: "{cm:PlayWithVerb}"; Flags: uninsdeletekey
+Root: HKA; Subkey: "SOFTWARE\Classes\SystemFileAssociations\.mp2\shell\MediaAccess.Play"; ValueType: string; ValueName: "Icon"; ValueData: """{app}\{#MyAppExeName}"",0"
+Root: HKA; Subkey: "SOFTWARE\Classes\SystemFileAssociations\.mp2\shell\MediaAccess.Play\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"" ""%1"""
+
+Root: HKA; Subkey: "SOFTWARE\Classes\SystemFileAssociations\.wav\shell\MediaAccess.Play"; ValueType: string; ValueName: ""; ValueData: "{cm:PlayWithVerb}"; Flags: uninsdeletekey
+Root: HKA; Subkey: "SOFTWARE\Classes\SystemFileAssociations\.wav\shell\MediaAccess.Play"; ValueType: string; ValueName: "Icon"; ValueData: """{app}\{#MyAppExeName}"",0"
+Root: HKA; Subkey: "SOFTWARE\Classes\SystemFileAssociations\.wav\shell\MediaAccess.Play\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"" ""%1"""
+
+Root: HKA; Subkey: "SOFTWARE\Classes\SystemFileAssociations\.ogg\shell\MediaAccess.Play"; ValueType: string; ValueName: ""; ValueData: "{cm:PlayWithVerb}"; Flags: uninsdeletekey
+Root: HKA; Subkey: "SOFTWARE\Classes\SystemFileAssociations\.ogg\shell\MediaAccess.Play"; ValueType: string; ValueName: "Icon"; ValueData: """{app}\{#MyAppExeName}"",0"
+Root: HKA; Subkey: "SOFTWARE\Classes\SystemFileAssociations\.ogg\shell\MediaAccess.Play\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"" ""%1"""
+
+Root: HKA; Subkey: "SOFTWARE\Classes\SystemFileAssociations\.aiff\shell\MediaAccess.Play"; ValueType: string; ValueName: ""; ValueData: "{cm:PlayWithVerb}"; Flags: uninsdeletekey
+Root: HKA; Subkey: "SOFTWARE\Classes\SystemFileAssociations\.aiff\shell\MediaAccess.Play"; ValueType: string; ValueName: "Icon"; ValueData: """{app}\{#MyAppExeName}"",0"
+Root: HKA; Subkey: "SOFTWARE\Classes\SystemFileAssociations\.aiff\shell\MediaAccess.Play\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"" ""%1"""
+
+Root: HKA; Subkey: "SOFTWARE\Classes\SystemFileAssociations\.flac\shell\MediaAccess.Play"; ValueType: string; ValueName: ""; ValueData: "{cm:PlayWithVerb}"; Flags: uninsdeletekey
+Root: HKA; Subkey: "SOFTWARE\Classes\SystemFileAssociations\.flac\shell\MediaAccess.Play"; ValueType: string; ValueName: "Icon"; ValueData: """{app}\{#MyAppExeName}"",0"
+Root: HKA; Subkey: "SOFTWARE\Classes\SystemFileAssociations\.flac\shell\MediaAccess.Play\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"" ""%1"""
+
+Root: HKA; Subkey: "SOFTWARE\Classes\SystemFileAssociations\.aac\shell\MediaAccess.Play"; ValueType: string; ValueName: ""; ValueData: "{cm:PlayWithVerb}"; Flags: uninsdeletekey
+Root: HKA; Subkey: "SOFTWARE\Classes\SystemFileAssociations\.aac\shell\MediaAccess.Play"; ValueType: string; ValueName: "Icon"; ValueData: """{app}\{#MyAppExeName}"",0"
+Root: HKA; Subkey: "SOFTWARE\Classes\SystemFileAssociations\.aac\shell\MediaAccess.Play\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"" ""%1"""
+
+Root: HKA; Subkey: "SOFTWARE\Classes\SystemFileAssociations\.m4a\shell\MediaAccess.Play"; ValueType: string; ValueName: ""; ValueData: "{cm:PlayWithVerb}"; Flags: uninsdeletekey
+Root: HKA; Subkey: "SOFTWARE\Classes\SystemFileAssociations\.m4a\shell\MediaAccess.Play"; ValueType: string; ValueName: "Icon"; ValueData: """{app}\{#MyAppExeName}"",0"
+Root: HKA; Subkey: "SOFTWARE\Classes\SystemFileAssociations\.m4a\shell\MediaAccess.Play\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"" ""%1"""
+
+Root: HKA; Subkey: "SOFTWARE\Classes\SystemFileAssociations\.m4b\shell\MediaAccess.Play"; ValueType: string; ValueName: ""; ValueData: "{cm:PlayWithVerb}"; Flags: uninsdeletekey
+Root: HKA; Subkey: "SOFTWARE\Classes\SystemFileAssociations\.m4b\shell\MediaAccess.Play"; ValueType: string; ValueName: "Icon"; ValueData: """{app}\{#MyAppExeName}"",0"
+Root: HKA; Subkey: "SOFTWARE\Classes\SystemFileAssociations\.m4b\shell\MediaAccess.Play\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"" ""%1"""
+
+Root: HKA; Subkey: "SOFTWARE\Classes\SystemFileAssociations\.m4r\shell\MediaAccess.Play"; ValueType: string; ValueName: ""; ValueData: "{cm:PlayWithVerb}"; Flags: uninsdeletekey
+Root: HKA; Subkey: "SOFTWARE\Classes\SystemFileAssociations\.m4r\shell\MediaAccess.Play"; ValueType: string; ValueName: "Icon"; ValueData: """{app}\{#MyAppExeName}"",0"
+Root: HKA; Subkey: "SOFTWARE\Classes\SystemFileAssociations\.m4r\shell\MediaAccess.Play\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"" ""%1"""
+
+Root: HKA; Subkey: "SOFTWARE\Classes\SystemFileAssociations\.wma\shell\MediaAccess.Play"; ValueType: string; ValueName: ""; ValueData: "{cm:PlayWithVerb}"; Flags: uninsdeletekey
+Root: HKA; Subkey: "SOFTWARE\Classes\SystemFileAssociations\.wma\shell\MediaAccess.Play"; ValueType: string; ValueName: "Icon"; ValueData: """{app}\{#MyAppExeName}"",0"
+Root: HKA; Subkey: "SOFTWARE\Classes\SystemFileAssociations\.wma\shell\MediaAccess.Play\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"" ""%1"""
+
+Root: HKA; Subkey: "SOFTWARE\Classes\SystemFileAssociations\.opus\shell\MediaAccess.Play"; ValueType: string; ValueName: ""; ValueData: "{cm:PlayWithVerb}"; Flags: uninsdeletekey
+Root: HKA; Subkey: "SOFTWARE\Classes\SystemFileAssociations\.opus\shell\MediaAccess.Play"; ValueType: string; ValueName: "Icon"; ValueData: """{app}\{#MyAppExeName}"",0"
+Root: HKA; Subkey: "SOFTWARE\Classes\SystemFileAssociations\.opus\shell\MediaAccess.Play\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"" ""%1"""
+
+Root: HKA; Subkey: "SOFTWARE\Classes\SystemFileAssociations\.wv\shell\MediaAccess.Play"; ValueType: string; ValueName: ""; ValueData: "{cm:PlayWithVerb}"; Flags: uninsdeletekey
+Root: HKA; Subkey: "SOFTWARE\Classes\SystemFileAssociations\.wv\shell\MediaAccess.Play"; ValueType: string; ValueName: "Icon"; ValueData: """{app}\{#MyAppExeName}"",0"
+Root: HKA; Subkey: "SOFTWARE\Classes\SystemFileAssociations\.wv\shell\MediaAccess.Play\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"" ""%1"""
+
+Root: HKA; Subkey: "SOFTWARE\Classes\SystemFileAssociations\.ape\shell\MediaAccess.Play"; ValueType: string; ValueName: ""; ValueData: "{cm:PlayWithVerb}"; Flags: uninsdeletekey
+Root: HKA; Subkey: "SOFTWARE\Classes\SystemFileAssociations\.ape\shell\MediaAccess.Play"; ValueType: string; ValueName: "Icon"; ValueData: """{app}\{#MyAppExeName}"",0"
+Root: HKA; Subkey: "SOFTWARE\Classes\SystemFileAssociations\.ape\shell\MediaAccess.Play\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"" ""%1"""
+
+Root: HKA; Subkey: "SOFTWARE\Classes\SystemFileAssociations\.alac\shell\MediaAccess.Play"; ValueType: string; ValueName: ""; ValueData: "{cm:PlayWithVerb}"; Flags: uninsdeletekey
+Root: HKA; Subkey: "SOFTWARE\Classes\SystemFileAssociations\.alac\shell\MediaAccess.Play"; ValueType: string; ValueName: "Icon"; ValueData: """{app}\{#MyAppExeName}"",0"
+Root: HKA; Subkey: "SOFTWARE\Classes\SystemFileAssociations\.alac\shell\MediaAccess.Play\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"" ""%1"""
+
+Root: HKA; Subkey: "SOFTWARE\Classes\SystemFileAssociations\.mid\shell\MediaAccess.Play"; ValueType: string; ValueName: ""; ValueData: "{cm:PlayWithVerb}"; Flags: uninsdeletekey
+Root: HKA; Subkey: "SOFTWARE\Classes\SystemFileAssociations\.mid\shell\MediaAccess.Play"; ValueType: string; ValueName: "Icon"; ValueData: """{app}\{#MyAppExeName}"",0"
+Root: HKA; Subkey: "SOFTWARE\Classes\SystemFileAssociations\.mid\shell\MediaAccess.Play\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"" ""%1"""
+
+Root: HKA; Subkey: "SOFTWARE\Classes\SystemFileAssociations\.midi\shell\MediaAccess.Play"; ValueType: string; ValueName: ""; ValueData: "{cm:PlayWithVerb}"; Flags: uninsdeletekey
+Root: HKA; Subkey: "SOFTWARE\Classes\SystemFileAssociations\.midi\shell\MediaAccess.Play"; ValueType: string; ValueName: "Icon"; ValueData: """{app}\{#MyAppExeName}"",0"
+Root: HKA; Subkey: "SOFTWARE\Classes\SystemFileAssociations\.midi\shell\MediaAccess.Play\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"" ""%1"""
+
+Root: HKA; Subkey: "SOFTWARE\Classes\SystemFileAssociations\.dff\shell\MediaAccess.Play"; ValueType: string; ValueName: ""; ValueData: "{cm:PlayWithVerb}"; Flags: uninsdeletekey
+Root: HKA; Subkey: "SOFTWARE\Classes\SystemFileAssociations\.dff\shell\MediaAccess.Play"; ValueType: string; ValueName: "Icon"; ValueData: """{app}\{#MyAppExeName}"",0"
+Root: HKA; Subkey: "SOFTWARE\Classes\SystemFileAssociations\.dff\shell\MediaAccess.Play\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"" ""%1"""
+
+Root: HKA; Subkey: "SOFTWARE\Classes\SystemFileAssociations\.dsf\shell\MediaAccess.Play"; ValueType: string; ValueName: ""; ValueData: "{cm:PlayWithVerb}"; Flags: uninsdeletekey
+Root: HKA; Subkey: "SOFTWARE\Classes\SystemFileAssociations\.dsf\shell\MediaAccess.Play"; ValueType: string; ValueName: "Icon"; ValueData: """{app}\{#MyAppExeName}"",0"
+Root: HKA; Subkey: "SOFTWARE\Classes\SystemFileAssociations\.dsf\shell\MediaAccess.Play\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"" ""%1"""
+
+Root: HKA; Subkey: "SOFTWARE\Classes\SystemFileAssociations\.cda\shell\MediaAccess.Play"; ValueType: string; ValueName: ""; ValueData: "{cm:PlayWithVerb}"; Flags: uninsdeletekey
+Root: HKA; Subkey: "SOFTWARE\Classes\SystemFileAssociations\.cda\shell\MediaAccess.Play"; ValueType: string; ValueName: "Icon"; ValueData: """{app}\{#MyAppExeName}"",0"
+Root: HKA; Subkey: "SOFTWARE\Classes\SystemFileAssociations\.cda\shell\MediaAccess.Play\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"" ""%1"""
+
+Root: HKA; Subkey: "SOFTWARE\Classes\SystemFileAssociations\.mod\shell\MediaAccess.Play"; ValueType: string; ValueName: ""; ValueData: "{cm:PlayWithVerb}"; Flags: uninsdeletekey
+Root: HKA; Subkey: "SOFTWARE\Classes\SystemFileAssociations\.mod\shell\MediaAccess.Play"; ValueType: string; ValueName: "Icon"; ValueData: """{app}\{#MyAppExeName}"",0"
+Root: HKA; Subkey: "SOFTWARE\Classes\SystemFileAssociations\.mod\shell\MediaAccess.Play\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"" ""%1"""
+
+Root: HKA; Subkey: "SOFTWARE\Classes\SystemFileAssociations\.s3m\shell\MediaAccess.Play"; ValueType: string; ValueName: ""; ValueData: "{cm:PlayWithVerb}"; Flags: uninsdeletekey
+Root: HKA; Subkey: "SOFTWARE\Classes\SystemFileAssociations\.s3m\shell\MediaAccess.Play"; ValueType: string; ValueName: "Icon"; ValueData: """{app}\{#MyAppExeName}"",0"
+Root: HKA; Subkey: "SOFTWARE\Classes\SystemFileAssociations\.s3m\shell\MediaAccess.Play\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"" ""%1"""
+
+Root: HKA; Subkey: "SOFTWARE\Classes\SystemFileAssociations\.xm\shell\MediaAccess.Play"; ValueType: string; ValueName: ""; ValueData: "{cm:PlayWithVerb}"; Flags: uninsdeletekey
+Root: HKA; Subkey: "SOFTWARE\Classes\SystemFileAssociations\.xm\shell\MediaAccess.Play"; ValueType: string; ValueName: "Icon"; ValueData: """{app}\{#MyAppExeName}"",0"
+Root: HKA; Subkey: "SOFTWARE\Classes\SystemFileAssociations\.xm\shell\MediaAccess.Play\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"" ""%1"""
+
+Root: HKA; Subkey: "SOFTWARE\Classes\SystemFileAssociations\.it\shell\MediaAccess.Play"; ValueType: string; ValueName: ""; ValueData: "{cm:PlayWithVerb}"; Flags: uninsdeletekey
+Root: HKA; Subkey: "SOFTWARE\Classes\SystemFileAssociations\.it\shell\MediaAccess.Play"; ValueType: string; ValueName: "Icon"; ValueData: """{app}\{#MyAppExeName}"",0"
+Root: HKA; Subkey: "SOFTWARE\Classes\SystemFileAssociations\.it\shell\MediaAccess.Play\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"" ""%1"""
+
+Root: HKA; Subkey: "SOFTWARE\Classes\SystemFileAssociations\.mtm\shell\MediaAccess.Play"; ValueType: string; ValueName: ""; ValueData: "{cm:PlayWithVerb}"; Flags: uninsdeletekey
+Root: HKA; Subkey: "SOFTWARE\Classes\SystemFileAssociations\.mtm\shell\MediaAccess.Play"; ValueType: string; ValueName: "Icon"; ValueData: """{app}\{#MyAppExeName}"",0"
+Root: HKA; Subkey: "SOFTWARE\Classes\SystemFileAssociations\.mtm\shell\MediaAccess.Play\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"" ""%1"""
+
+Root: HKA; Subkey: "SOFTWARE\Classes\SystemFileAssociations\.umx\shell\MediaAccess.Play"; ValueType: string; ValueName: ""; ValueData: "{cm:PlayWithVerb}"; Flags: uninsdeletekey
+Root: HKA; Subkey: "SOFTWARE\Classes\SystemFileAssociations\.umx\shell\MediaAccess.Play"; ValueType: string; ValueName: "Icon"; ValueData: """{app}\{#MyAppExeName}"",0"
+Root: HKA; Subkey: "SOFTWARE\Classes\SystemFileAssociations\.umx\shell\MediaAccess.Play\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"" ""%1"""
+
+Root: HKA; Subkey: "SOFTWARE\Classes\SystemFileAssociations\.mp4\shell\MediaAccess.Play"; ValueType: string; ValueName: ""; ValueData: "{cm:PlayWithVerb}"; Flags: uninsdeletekey
+Root: HKA; Subkey: "SOFTWARE\Classes\SystemFileAssociations\.mp4\shell\MediaAccess.Play"; ValueType: string; ValueName: "Icon"; ValueData: """{app}\{#MyAppExeName}"",0"
+Root: HKA; Subkey: "SOFTWARE\Classes\SystemFileAssociations\.mp4\shell\MediaAccess.Play\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"" ""%1"""
+
+Root: HKA; Subkey: "SOFTWARE\Classes\SystemFileAssociations\.mkv\shell\MediaAccess.Play"; ValueType: string; ValueName: ""; ValueData: "{cm:PlayWithVerb}"; Flags: uninsdeletekey
+Root: HKA; Subkey: "SOFTWARE\Classes\SystemFileAssociations\.mkv\shell\MediaAccess.Play"; ValueType: string; ValueName: "Icon"; ValueData: """{app}\{#MyAppExeName}"",0"
+Root: HKA; Subkey: "SOFTWARE\Classes\SystemFileAssociations\.mkv\shell\MediaAccess.Play\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"" ""%1"""
+
+Root: HKA; Subkey: "SOFTWARE\Classes\SystemFileAssociations\.avi\shell\MediaAccess.Play"; ValueType: string; ValueName: ""; ValueData: "{cm:PlayWithVerb}"; Flags: uninsdeletekey
+Root: HKA; Subkey: "SOFTWARE\Classes\SystemFileAssociations\.avi\shell\MediaAccess.Play"; ValueType: string; ValueName: "Icon"; ValueData: """{app}\{#MyAppExeName}"",0"
+Root: HKA; Subkey: "SOFTWARE\Classes\SystemFileAssociations\.avi\shell\MediaAccess.Play\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"" ""%1"""
+
+Root: HKA; Subkey: "SOFTWARE\Classes\SystemFileAssociations\.mov\shell\MediaAccess.Play"; ValueType: string; ValueName: ""; ValueData: "{cm:PlayWithVerb}"; Flags: uninsdeletekey
+Root: HKA; Subkey: "SOFTWARE\Classes\SystemFileAssociations\.mov\shell\MediaAccess.Play"; ValueType: string; ValueName: "Icon"; ValueData: """{app}\{#MyAppExeName}"",0"
+Root: HKA; Subkey: "SOFTWARE\Classes\SystemFileAssociations\.mov\shell\MediaAccess.Play\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"" ""%1"""
+
+Root: HKA; Subkey: "SOFTWARE\Classes\SystemFileAssociations\.webm\shell\MediaAccess.Play"; ValueType: string; ValueName: ""; ValueData: "{cm:PlayWithVerb}"; Flags: uninsdeletekey
+Root: HKA; Subkey: "SOFTWARE\Classes\SystemFileAssociations\.webm\shell\MediaAccess.Play"; ValueType: string; ValueName: "Icon"; ValueData: """{app}\{#MyAppExeName}"",0"
+Root: HKA; Subkey: "SOFTWARE\Classes\SystemFileAssociations\.webm\shell\MediaAccess.Play\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"" ""%1"""
+
+Root: HKA; Subkey: "SOFTWARE\Classes\SystemFileAssociations\.flv\shell\MediaAccess.Play"; ValueType: string; ValueName: ""; ValueData: "{cm:PlayWithVerb}"; Flags: uninsdeletekey
+Root: HKA; Subkey: "SOFTWARE\Classes\SystemFileAssociations\.flv\shell\MediaAccess.Play"; ValueType: string; ValueName: "Icon"; ValueData: """{app}\{#MyAppExeName}"",0"
+Root: HKA; Subkey: "SOFTWARE\Classes\SystemFileAssociations\.flv\shell\MediaAccess.Play\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"" ""%1"""
+
+Root: HKA; Subkey: "SOFTWARE\Classes\SystemFileAssociations\.wmv\shell\MediaAccess.Play"; ValueType: string; ValueName: ""; ValueData: "{cm:PlayWithVerb}"; Flags: uninsdeletekey
+Root: HKA; Subkey: "SOFTWARE\Classes\SystemFileAssociations\.wmv\shell\MediaAccess.Play"; ValueType: string; ValueName: "Icon"; ValueData: """{app}\{#MyAppExeName}"",0"
+Root: HKA; Subkey: "SOFTWARE\Classes\SystemFileAssociations\.wmv\shell\MediaAccess.Play\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"" ""%1"""
+
+Root: HKA; Subkey: "SOFTWARE\Classes\SystemFileAssociations\.ts\shell\MediaAccess.Play"; ValueType: string; ValueName: ""; ValueData: "{cm:PlayWithVerb}"; Flags: uninsdeletekey
+Root: HKA; Subkey: "SOFTWARE\Classes\SystemFileAssociations\.ts\shell\MediaAccess.Play"; ValueType: string; ValueName: "Icon"; ValueData: """{app}\{#MyAppExeName}"",0"
+Root: HKA; Subkey: "SOFTWARE\Classes\SystemFileAssociations\.ts\shell\MediaAccess.Play\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"" ""%1"""
+
+Root: HKA; Subkey: "SOFTWARE\Classes\SystemFileAssociations\.m2ts\shell\MediaAccess.Play"; ValueType: string; ValueName: ""; ValueData: "{cm:PlayWithVerb}"; Flags: uninsdeletekey
+Root: HKA; Subkey: "SOFTWARE\Classes\SystemFileAssociations\.m2ts\shell\MediaAccess.Play"; ValueType: string; ValueName: "Icon"; ValueData: """{app}\{#MyAppExeName}"",0"
+Root: HKA; Subkey: "SOFTWARE\Classes\SystemFileAssociations\.m2ts\shell\MediaAccess.Play\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"" ""%1"""
+
+Root: HKA; Subkey: "SOFTWARE\Classes\SystemFileAssociations\.vob\shell\MediaAccess.Play"; ValueType: string; ValueName: ""; ValueData: "{cm:PlayWithVerb}"; Flags: uninsdeletekey
+Root: HKA; Subkey: "SOFTWARE\Classes\SystemFileAssociations\.vob\shell\MediaAccess.Play"; ValueType: string; ValueName: "Icon"; ValueData: """{app}\{#MyAppExeName}"",0"
+Root: HKA; Subkey: "SOFTWARE\Classes\SystemFileAssociations\.vob\shell\MediaAccess.Play\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"" ""%1"""
+
+Root: HKA; Subkey: "SOFTWARE\Classes\SystemFileAssociations\.ogv\shell\MediaAccess.Play"; ValueType: string; ValueName: ""; ValueData: "{cm:PlayWithVerb}"; Flags: uninsdeletekey
+Root: HKA; Subkey: "SOFTWARE\Classes\SystemFileAssociations\.ogv\shell\MediaAccess.Play"; ValueType: string; ValueName: "Icon"; ValueData: """{app}\{#MyAppExeName}"",0"
+Root: HKA; Subkey: "SOFTWARE\Classes\SystemFileAssociations\.ogv\shell\MediaAccess.Play\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"" ""%1"""
+
+Root: HKA; Subkey: "SOFTWARE\Classes\SystemFileAssociations\.3gp\shell\MediaAccess.Play"; ValueType: string; ValueName: ""; ValueData: "{cm:PlayWithVerb}"; Flags: uninsdeletekey
+Root: HKA; Subkey: "SOFTWARE\Classes\SystemFileAssociations\.3gp\shell\MediaAccess.Play"; ValueType: string; ValueName: "Icon"; ValueData: """{app}\{#MyAppExeName}"",0"
+Root: HKA; Subkey: "SOFTWARE\Classes\SystemFileAssociations\.3gp\shell\MediaAccess.Play\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"" ""%1"""
+
+Root: HKA; Subkey: "SOFTWARE\Classes\SystemFileAssociations\.mpg\shell\MediaAccess.Play"; ValueType: string; ValueName: ""; ValueData: "{cm:PlayWithVerb}"; Flags: uninsdeletekey
+Root: HKA; Subkey: "SOFTWARE\Classes\SystemFileAssociations\.mpg\shell\MediaAccess.Play"; ValueType: string; ValueName: "Icon"; ValueData: """{app}\{#MyAppExeName}"",0"
+Root: HKA; Subkey: "SOFTWARE\Classes\SystemFileAssociations\.mpg\shell\MediaAccess.Play\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"" ""%1"""
+
+Root: HKA; Subkey: "SOFTWARE\Classes\SystemFileAssociations\.mpeg\shell\MediaAccess.Play"; ValueType: string; ValueName: ""; ValueData: "{cm:PlayWithVerb}"; Flags: uninsdeletekey
+Root: HKA; Subkey: "SOFTWARE\Classes\SystemFileAssociations\.mpeg\shell\MediaAccess.Play"; ValueType: string; ValueName: "Icon"; ValueData: """{app}\{#MyAppExeName}"",0"
+Root: HKA; Subkey: "SOFTWARE\Classes\SystemFileAssociations\.mpeg\shell\MediaAccess.Play\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"" ""%1"""
+
+Root: HKA; Subkey: "SOFTWARE\Classes\SystemFileAssociations\.m4v\shell\MediaAccess.Play"; ValueType: string; ValueName: ""; ValueData: "{cm:PlayWithVerb}"; Flags: uninsdeletekey
+Root: HKA; Subkey: "SOFTWARE\Classes\SystemFileAssociations\.m4v\shell\MediaAccess.Play"; ValueType: string; ValueName: "Icon"; ValueData: """{app}\{#MyAppExeName}"",0"
+Root: HKA; Subkey: "SOFTWARE\Classes\SystemFileAssociations\.m4v\shell\MediaAccess.Play\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"" ""%1"""
+
+Root: HKA; Subkey: "SOFTWARE\Classes\SystemFileAssociations\.m3u\shell\MediaAccess.Play"; ValueType: string; ValueName: ""; ValueData: "{cm:PlayWithVerb}"; Flags: uninsdeletekey
+Root: HKA; Subkey: "SOFTWARE\Classes\SystemFileAssociations\.m3u\shell\MediaAccess.Play"; ValueType: string; ValueName: "Icon"; ValueData: """{app}\{#MyAppExeName}"",0"
+Root: HKA; Subkey: "SOFTWARE\Classes\SystemFileAssociations\.m3u\shell\MediaAccess.Play\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"" ""%1"""
+
+Root: HKA; Subkey: "SOFTWARE\Classes\SystemFileAssociations\.m3u8\shell\MediaAccess.Play"; ValueType: string; ValueName: ""; ValueData: "{cm:PlayWithVerb}"; Flags: uninsdeletekey
+Root: HKA; Subkey: "SOFTWARE\Classes\SystemFileAssociations\.m3u8\shell\MediaAccess.Play"; ValueType: string; ValueName: "Icon"; ValueData: """{app}\{#MyAppExeName}"",0"
+Root: HKA; Subkey: "SOFTWARE\Classes\SystemFileAssociations\.m3u8\shell\MediaAccess.Play\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"" ""%1"""
+
+Root: HKA; Subkey: "SOFTWARE\Classes\SystemFileAssociations\.pls\shell\MediaAccess.Play"; ValueType: string; ValueName: ""; ValueData: "{cm:PlayWithVerb}"; Flags: uninsdeletekey
+Root: HKA; Subkey: "SOFTWARE\Classes\SystemFileAssociations\.pls\shell\MediaAccess.Play"; ValueType: string; ValueName: "Icon"; ValueData: """{app}\{#MyAppExeName}"",0"
+Root: HKA; Subkey: "SOFTWARE\Classes\SystemFileAssociations\.pls\shell\MediaAccess.Play\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"" ""%1"""
+
+Root: HKA; Subkey: "SOFTWARE\Classes\SystemFileAssociations\.cue\shell\MediaAccess.Play"; ValueType: string; ValueName: ""; ValueData: "{cm:PlayWithVerb}"; Flags: uninsdeletekey
+Root: HKA; Subkey: "SOFTWARE\Classes\SystemFileAssociations\.cue\shell\MediaAccess.Play"; ValueType: string; ValueName: "Icon"; ValueData: """{app}\{#MyAppExeName}"",0"
+Root: HKA; Subkey: "SOFTWARE\Classes\SystemFileAssociations\.cue\shell\MediaAccess.Play\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"" ""%1"""
 
 [Icons]
 Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"

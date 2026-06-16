@@ -1,3 +1,6 @@
+2.41
+Nouveau : entrée « Lire avec MediaAccess » dans le menu contextuel (clic droit) de l'Explorateur Windows pour les fichiers audio, vidéo, listes de lecture (.m3u/.m3u8/.pls) et .cue. Le fichier s'ouvre dans l'instance déjà ouverte de MediaAccess (ou en lance une au besoin) ; une sélection multiple est lue comme une seule liste de lecture. N'affecte pas votre lecteur par défaut. Sous Windows 11, l'entrée se trouve sous « Afficher plus d'options » (ou via Maj+F10). Demandé par Séb.
+
 2.40
 Amélioration : lorsqu'un raccourci global ouvre une fenêtre (liste des pistes, signets, recherche YouTube, aller à un temps, minuterie de veille), MediaAccess passe maintenant au premier plan et le lecteur d'écran se positionne sur la nouvelle fenêtre, même depuis l'arrière-plan ou la zone de notification. Les raccourcis globaux qui ne font qu'agir (lecture/pause, volume, déplacement, sourdine, enregistrement, annonces) continuent de ne pas voler le focus. Demandé par Séb.
 
