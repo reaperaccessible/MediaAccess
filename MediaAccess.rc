@@ -9,8 +9,8 @@ IDI_APPICON ICON "MediaAccess.ico"
 // ASCII only (rc.exe mojibake risk). FILEVERSION is hardcoded: bump it each
 // release to match include/mediaaccess/version.h (build_new.bat passes no /D to rc).
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION    2,33,0,0
- PRODUCTVERSION 2,33,0,0
+ FILEVERSION    2,34,0,0
+ PRODUCTVERSION 2,34,0,0
  FILEFLAGSMASK  0x3fL
  FILEFLAGS      0x0L
  FILEOS         VOS__WINDOWS32
@@ -23,12 +23,12 @@ BEGIN
     BEGIN
       VALUE "CompanyName",      "ReaperAccessible"
       VALUE "FileDescription",  "MediaAccess - accessible audio and video player"
-      VALUE "FileVersion",      "2.33"
+      VALUE "FileVersion",      "2.34"
       VALUE "InternalName",     "MediaAccess"
       VALUE "LegalCopyright",   "Copyright (C) 2026 ReaperAccessible. GPL-3.0."
       VALUE "OriginalFilename", "MediaAccess.exe"
       VALUE "ProductName",      "MediaAccess"
-      VALUE "ProductVersion",   "2.33"
+      VALUE "ProductVersion",   "2.34"
     END
   END
   BLOCK "VarFileInfo"
@@ -88,6 +88,9 @@ BEGIN
         MENUITEM "Speak &Elapsed\tCtrl+Shift+E", IDM_PLAY_ELAPSED
         MENUITEM "Speak &Remaining\tCtrl+Shift+R", IDM_PLAY_REMAINING
         MENUITEM "Speak &Total\tCtrl+Shift+T", IDM_PLAY_TOTAL
+        MENUITEM SEPARATOR
+        MENUITEM "Track &list...", IDM_SHOW_TRACK_LIST
+        MENUITEM "Announce &current track", IDM_CUE_ANNOUNCE_TRACK
     END
     POPUP "&Video"
     BEGIN
@@ -570,6 +573,16 @@ BEGIN
     LISTBOX         IDC_PLAYLIST_LIST, 7, 7, 336, 205, LBS_NOINTEGRALHEIGHT | LBS_EXTENDEDSEL | WS_VSCROLL | WS_TABSTOP
     PUSHBUTTON      "&Save...", IDC_PLAYLIST_SAVE, 7, 217, 50, 14
     LTEXT           "Alt+Up/Down: Move  |  Delete: Remove  |  Enter: Play  |  Ctrl+V: Paste  |  Esc: Close", -1, 65, 220, 278, 10
+END
+
+// Track list dialog (.cue sheet) — v2.34
+IDD_TRACK_LIST DIALOGEX 0, 0, 350, 250
+STYLE DS_SETFONT | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU | WS_THICKFRAME | WS_MINIMIZEBOX | WS_MAXIMIZEBOX
+CAPTION "Track list"
+FONT 8, "MS Shell Dlg", 400, 0, 0x1
+BEGIN
+    LISTBOX         IDC_TRACK_LIST, 7, 7, 336, 215, LBS_NOINTEGRALHEIGHT | WS_VSCROLL | WS_TABSTOP
+    LTEXT           "Enter: Jump to track  |  Esc: Close", -1, 7, 228, 336, 10
 END
 
 // Podcast dialog

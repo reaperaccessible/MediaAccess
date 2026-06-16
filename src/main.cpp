@@ -62,6 +62,7 @@
 #include "mediaaccess/audio_slots.h"    // v1.63
 #include "mediaaccess/wasapi_loopback.h" // v1.94 — system-audio capture state
 #include "mediaaccess/audio_device_watcher.h" // v2.32 — auto-follow default output device
+#include "mediaaccess/cue_sheet.h"      // v2.34 — .cue sheet support
 #include <utility>  // for std::pair
 
 // Custom message posted from daisy_player.cpp BASS sync (worker thread).
@@ -331,6 +332,11 @@ void ParseCommandLine() {
                     // refused to open it. Mirror the Ctrl+V code path in ui.cpp
                     // and recursively enumerate the folder's media files.
                     AddFilesFromFolder(path, g_playlist);
+                } else if (IsCueFile(path)) {
+                    // v2.34 — stash the cue; WM_CREATE opens it via OpenCueSheet
+                    // (which keeps SetExternalChapters + the load atomic) INSTEAD
+                    // of the generic PlayTrack path.
+                    g_pendingCuePath = path;
                 } else if (IsPlaylistFile(path)) {
                     // Parse playlist and add its contents
                     auto entries = ParsePlaylist(path);
@@ -402,7 +408,14 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
             g_startupBatchOpen = true;
             SetTimer(hwnd, IDT_STARTUP_OVER, BATCH_DELAY, nullptr);
 
-            if (!g_playlist.empty()) {
+            if (!g_pendingCuePath.empty()) {
+                // v2.34 — a .cue was passed on the command line. Open it via the
+                // synchronous orchestrator (SetExternalChapters + load atomic);
+                // skip the generic playlist/folder-expand path.
+                std::wstring cue = g_pendingCuePath;
+                g_pendingCuePath.clear();
+                OpenCueSheet(cue);
+            } else if (!g_playlist.empty()) {
                 int startIndex = 0;
                 if (g_loadFolder && g_playlist.size() == 1) {
                     std::wstring singleFile = g_playlist[0];
@@ -858,7 +871,15 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
                     // g_playlist with no PlayTrack call ever scheduled.
                     // v1.93 — folder paths handled like Ctrl+V (Jack's CLI bug):
                     // recursively enumerate instead of pushing the raw string.
-                    if (!g_disableBatchDelay && g_startupBatchOpen && !g_playlist.empty()) {
+                    // v2.34 — a .cue is a single logical "open album", not a
+                    // member of an Explorer multi-file storm. Route it OUTSIDE
+                    // the batch coalescer and open it synchronously so the
+                    // SetExternalChapters + load stay atomic (a deferred path
+                    // risks the one-shot external-chapter latch firing on the
+                    // wrong load).
+                    if (!isFolder && IsCueFile(path)) {
+                        OpenCueSheet(path);
+                    } else if (!g_disableBatchDelay && g_startupBatchOpen && !g_playlist.empty()) {
                         if (isFolder) {
                             AddFilesFromFolder(path, g_playlist);
                         } else if (IsPlaylistFile(path)) {
@@ -1340,6 +1361,15 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
                     break;
                 case IDM_PLAY_NOWPLAYING:
                     SpeakTagTitle();
+                    break;
+                // .cue sheet (v2.34) — dedicated cases, outside the granular-seek
+                // ID range so the subtraction decode at the seek block never sees
+                // them.
+                case IDM_CUE_ANNOUNCE_TRACK:
+                    AnnounceCurrentCueTrack();
+                    break;
+                case IDM_SHOW_TRACK_LIST:
+                    ShowTrackListDialog();
                     break;
                 case IDM_TOGGLE_WINDOW:
                     ToggleWindow(hwnd);

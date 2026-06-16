@@ -1290,10 +1290,17 @@ static DWORD WINAPI RefreshCacheThread(LPVOID arg) {
     std::wstring outArg  = outBase + L".%(ext)s";
 
     std::wstring url = L"https://www.youtube.com/watch?v=" + videoId;
+    // v2.34 — pass ffmpeg's location so yt-dlp can run the m4a container fixup
+    // (FixupM4a). The active yt-dlp is the auto-updated copy in %LOCALAPPDATA%,
+    // which has NO ffmpeg beside it; without this, the fixup is skipped and the
+    // cached m4a has a broken container -> BASS rejects it ("unsupported format")
+    // for the videos whose stream needs the fixup. Mirrors the download paths.
+    std::wstring ffmpeg = GetFfmpegLocation();
     std::wstring args = L"-f \"" + std::wstring(kAudioFormatSelector) + L"\" "
                         L"--no-playlist --no-progress --no-warnings --quiet "
-                        L"--embed-chapters --no-overwrites "
-                        L"-o \"" + outArg + L"\" \"" + url + L"\"";
+                        L"--embed-chapters --no-overwrites ";
+    if (!ffmpeg.empty()) args += L"--ffmpeg-location \"" + ffmpeg + L"\" ";
+    args += L"-o \"" + outArg + L"\" \"" + url + L"\"";
     // A (v2.00): BOUNDED timeout. This is a background PLAYBACK-support refresh
     // (re-fetch a cached file to embed chapters), not an explicit user download.
     // An unlimited cap here meant a video that became a never-ending LIVE stream
@@ -1380,10 +1387,15 @@ bool YouTubeDownloadAudio(const std::wstring& videoId, std::wstring& outFilePath
     // --embed-chapters writes YouTube chapter markers into the M4A file so
     // BASS sees them via ID3v2/Vorbis tags after our chapter-detection fix.
     std::wstring url = L"https://www.youtube.com/watch?v=" + safeId;
+    // v2.34 — provide ffmpeg so yt-dlp's FixupM4a (container correction) runs;
+    // the auto-updated yt-dlp in %LOCALAPPDATA% has no ffmpeg beside it, so
+    // otherwise a fixup-needing m4a is cached broken and BASS can't decode it.
+    std::wstring ffmpeg = GetFfmpegLocation();
     std::wstring args = L"-f \"" + std::wstring(kAudioFormatSelector) + L"\" "
                         L"--no-playlist --no-progress --no-warnings --quiet "
-                        L"--embed-chapters "
-                        L"-o \"" + outArg + L"\" \"" + url + L"\"";
+                        L"--embed-chapters ";
+    if (!ffmpeg.empty()) args += L"--ffmpeg-location \"" + ffmpeg + L"\" ";
+    args += L"-o \"" + outArg + L"\" \"" + url + L"\"";
     // A (v2.00): BOUNDED playback timeout (not the unlimited download timeout).
     // This function feeds the PLAYBACK path only — cache fill, the hybrid
     // background download (HybridDownloadThread), and the last-resort blocking
@@ -1609,10 +1621,14 @@ bool YouTubeDownloadPermanent(const std::wstring& videoId,
     // exists, but be explicit by adding --no-overwrites.
     std::wstring outArg = outBase + L".%(ext)s";
     std::wstring url = L"https://www.youtube.com/watch?v=" + safeId;
+    // v2.34 — pass ffmpeg location so yt-dlp can run the m4a container fixup;
+    // the active (auto-updated) yt-dlp in %LOCALAPPDATA% has no ffmpeg beside it.
+    std::wstring ffmpeg = GetFfmpegLocation();
     std::wstring args = L"-f \"" + std::wstring(kAudioFormatSelector) + L"\" "
                         L"--no-playlist --no-progress --no-warnings --quiet "
-                        L"--no-overwrites --embed-chapters "
-                        L"-o \"" + outArg + L"\" \"" + url + L"\"";
+                        L"--no-overwrites --embed-chapters ";
+    if (!ffmpeg.empty()) args += L"--ffmpeg-location \"" + ffmpeg + L"\" ";
+    args += L"-o \"" + outArg + L"\" \"" + url + L"\"";
     // Unlimited timeout — see RunYtdlp/YTDLP_DOWNLOAD_TIMEOUT_MS rationale.
     // M1 (v1.99): a non-zero exit code is a HARD failure. Previously success
     // was inferred from FindProducedFile alone, so a stale/partial file made us

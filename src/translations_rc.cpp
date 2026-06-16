@@ -1057,6 +1057,21 @@ void RegisterRcTranslations() {
                    L"Alt+Haut/Bas : Déplacer  |  Suppr : Retirer  |  Entrée : Lire  |  Ctrl+V : Coller  |  Échap : Fermer");
 
     // ===================================================================
+    // DIALOG: IDD_TRACK_LIST - "Track list" (.cue sheet, v2.34)
+    // + Playback-menu items
+    // ===================================================================
+    AddTranslation("en", "Track list", L"Track list");
+    AddTranslation("fr", "Track list", L"Liste des pistes");
+    AddTranslation("en", "Track &list...", L"Track &list...");
+    AddTranslation("fr", "Track &list...", L"&Liste des pistes...");
+    AddTranslation("en", "Announce &current track", L"Announce &current track");
+    AddTranslation("fr", "Announce &current track", L"Annoncer la piste &courante");
+    AddTranslation("en", "Enter: Jump to track  |  Esc: Close",
+                   L"Enter: Jump to track  |  Esc: Close");
+    AddTranslation("fr", "Enter: Jump to track  |  Esc: Close",
+                   L"Entrée : Aller à la piste  |  Échap : Fermer");
+
+    // ===================================================================
     // DIALOG: IDD_PODCAST - "Podcasts"
     // ===================================================================
     AddTranslation("en", "Podcasts", L"Podcasts");

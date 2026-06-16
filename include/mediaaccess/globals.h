@@ -246,6 +246,20 @@ struct Chapter {
 };
 extern std::vector<Chapter> g_chapters;     // Chapters for current file
 extern bool g_chapterSeekEnabled;           // Enable chapter seeking in movement options
+
+// .cue sheet support. When the current chapters were injected from a .cue
+// sheet (single-FILE case), g_chaptersAreCueTracks switches the chapter
+// Prev/Next announcements from "Chapter N" to "Track N". It is set in the cue
+// loader and cleared in ParseChapters() whenever real embedded parsing runs.
+extern bool g_chaptersAreCueTracks;
+// Absolute path of the .cue currently driving playback ("" when none). Used to
+// re-inject the track names on cross-restart state restore, and so the
+// track-list dialog can tell it is in cue mode. Cleared when a non-cue file
+// loads.
+extern std::wstring g_currentCuePath;
+// Stashed cue path from ParseCommandLine — consumed once in WM_CREATE so the
+// chapter injection + load stay atomic (outside the batch coalescer).
+extern std::wstring g_pendingCuePath;
 extern bool g_subtitleSeekEnabled;          // v1.83 — Enable "1 subtitle" cycle unit (MPV sub-seek)
 
 #endif // MEDIAACCESS_GLOBALS_H

@@ -757,5 +757,14 @@
 #define IDC_NEW_KEYMAP_LABEL                1451
 #define IDC_NEW_KEYMAP_EDIT                 1452
 
+// =========================================================================
+// .cue sheet support (v2.34) — command IDs deliberately OUTSIDE the granular
+// seek range (1810-1835), each with its own dedicated WM_COMMAND case.
+// =========================================================================
+#define IDM_CUE_ANNOUNCE_TRACK             1453   // "Announce current track" (user-assignable)
+#define IDM_SHOW_TRACK_LIST                1454   // "Show track list"
+#define IDD_TRACK_LIST                     1455   // track-list dialog template
+#define IDC_TRACK_LIST                     1456   // listbox inside IDD_TRACK_LIST
+
 #define IDOK                1
 #define IDCANCEL            2

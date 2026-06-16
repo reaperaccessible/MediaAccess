@@ -400,3 +400,8 @@ int g_repeatMode = 0;                               // 0 = off, 1 = repeat one, 
 std::vector<Chapter> g_chapters;                    // Chapters for current file
 bool g_chapterSeekEnabled = true;                   // Enable chapter seeking (default on)
 bool g_subtitleSeekEnabled = true;                  // v1.83 — Enable "1 subtitle" cycle unit (default on)
+
+// .cue sheet support (v2.34). See globals.h for the contract.
+bool g_chaptersAreCueTracks = false;                // current chapters came from a .cue -> say "Track"
+std::wstring g_currentCuePath;                       // active cue path ("" = none)
+std::wstring g_pendingCuePath;                       // CLI cue stashed for WM_CREATE

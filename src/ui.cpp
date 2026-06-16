@@ -3,6 +3,7 @@
 #include "mediaaccess/translations.h"
 #include "mediaaccess/wasapi_loopback.h"  // v1.94 — system-capture state for status bar
 #include "mediaaccess/youtube.h"          // v2.11 — YouTubePlayById for history replay
+#include "mediaaccess/cue_sheet.h"        // v2.34 — .cue sheet support
 #include <shlwapi.h>
 #include <vector>
 
@@ -432,10 +433,11 @@ void ShowOpenDialog() {
     ofn.lpstrFile = szFile;
     ofn.nMaxFile = sizeof(szFile) / sizeof(wchar_t);
     // Keep these lists in sync with IsVideoExtension() in player.cpp.
-    ofn.lpstrFilter = L"All Supported\0*.mp3;*.mp2;*.mp1;*.wav;*.ogg;*.oga;*.flac;*.m4a;*.m4b;*.m4r;*.mp4;*.wma;*.wmv;*.aac;*.opus;*.aiff;*.aif;*.ape;*.wv;*.alac;*.mid;*.midi;*.rmi;*.kar;*.dff;*.dsf;*.cda;*.mod;*.s3m;*.xm;*.it;*.mtm;*.umx;*.mkv;*.avi;*.mov;*.webm;*.flv;*.ts;*.m2ts;*.vob;*.ogv;*.3gp;*.mpg;*.mpeg;*.m4v;*.divx;*.rmvb;*.m3u;*.m3u8;*.pls\0"
+    ofn.lpstrFilter = L"All Supported\0*.mp3;*.mp2;*.mp1;*.wav;*.ogg;*.oga;*.flac;*.m4a;*.m4b;*.m4r;*.mp4;*.wma;*.wmv;*.aac;*.opus;*.aiff;*.aif;*.ape;*.wv;*.alac;*.mid;*.midi;*.rmi;*.kar;*.dff;*.dsf;*.cda;*.mod;*.s3m;*.xm;*.it;*.mtm;*.umx;*.mkv;*.avi;*.mov;*.webm;*.flv;*.ts;*.m2ts;*.vob;*.ogv;*.3gp;*.mpg;*.mpeg;*.m4v;*.divx;*.rmvb;*.m3u;*.m3u8;*.pls;*.cue\0"
                       L"Audio Files\0*.mp3;*.mp2;*.mp1;*.wav;*.ogg;*.oga;*.flac;*.m4a;*.m4b;*.m4r;*.mp4;*.wma;*.aac;*.opus;*.aiff;*.aif;*.ape;*.wv;*.alac;*.mid;*.midi;*.rmi;*.kar;*.dff;*.dsf;*.cda;*.mod;*.s3m;*.xm;*.it;*.mtm;*.umx\0"
                       L"Video Files\0*.mp4;*.mkv;*.avi;*.mov;*.webm;*.wmv;*.flv;*.ts;*.m2ts;*.vob;*.ogv;*.3gp;*.mpg;*.mpeg;*.m4v;*.divx;*.rmvb\0"
                       L"Playlists\0*.m3u;*.m3u8;*.pls\0"
+                      L"Cue Sheets\0*.cue\0"
                       L"All Files (*.*)\0*.*\0";
     ofn.nFilterIndex = 1;
     ofn.Flags = OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST | OFN_ALLOWMULTISELECT | OFN_EXPLORER;
@@ -452,6 +454,12 @@ void ShowOpenDialog() {
         int startIndex = 0;
         if (*p == 0) {
             // Single file selected
+            // v2.34 — a .cue opens via the orchestrator (atomic chapter inject +
+            // load); it manages g_playlist itself, so we're done here.
+            if (IsCueFile(dir)) {
+                OpenCueSheet(dir);
+                return;
+            }
             // Check if it's a playlist file
             if (IsPlaylistFile(dir)) {
                 g_playlist = ParsePlaylist(dir);

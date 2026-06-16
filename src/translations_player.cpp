@@ -480,6 +480,20 @@ void RegisterPlayerTranslations() {
     AddTranslation("en", "No track", L"No track");
     AddTranslation("fr", "No track", L"Aucune piste");
 
+    // .cue sheet (v2.34) — spoken strings.
+    AddTranslation("en", "Track ", L"Track ");
+    AddTranslation("fr", "Track ", L"Piste ");
+    AddTranslation("en", "of ", L"of ");
+    AddTranslation("fr", "of ", L"sur ");
+    AddTranslation("en", "Could not read this cue sheet.",
+                   L"Could not read this cue sheet.");
+    AddTranslation("fr", "Could not read this cue sheet.",
+                   L"Impossible de lire cette feuille de montage cue.");
+    AddTranslation("en", "Audio file for this cue sheet was not found.",
+                   L"Audio file for this cue sheet was not found.");
+    AddTranslation("fr", "Audio file for this cue sheet was not found.",
+                   L"Le fichier audio de cette feuille cue est introuvable.");
+
     AddTranslation("en", "No genre", L"No genre");
     AddTranslation("fr", "No genre", L"Aucun genre");
 

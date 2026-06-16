@@ -887,6 +887,12 @@ static bool g_chaptersExternal = false;
 void SetExternalChapters(const std::vector<Chapter>& chapters) {
     g_chapters = chapters;
     g_chaptersExternal = !chapters.empty();
+    // v2.34 — external chapters from a non-cue source (e.g. Podcast 2.0 chapters)
+    // are NOT cue tracks, so they must announce as "Chapter", not "Track". The
+    // armed latch makes ParseChapters skip its embedded branch (where the flag is
+    // otherwise reset), so this is the ONLY reset point for the external path.
+    // The cue loader re-asserts g_chaptersAreCueTracks=true AFTER calling this.
+    g_chaptersAreCueTracks = false;
 }
 
 // Fill g_chapters from whatever embedded-chapter format the stream uses.
@@ -899,6 +905,12 @@ void ParseChapters(HSTREAM stream) {
         return;
     }
 
+    // v2.34 — real embedded parsing is running, so these chapters are NOT cue
+    // tracks. Reset the wording flag and forget the stored cue path so a later
+    // non-cue load says "Chapter" and isn't re-associated with the old cue on
+    // restart.
+    g_chaptersAreCueTracks = false;
+    g_currentCuePath.clear();
     g_chapters.clear();
 
     if (!stream) return;
@@ -1815,6 +1827,13 @@ int GetCurrentChapterIndex() {
     return currentChapter;
 }
 
+// v2.34 — chapter vs. cue-track announcement label. When the current chapters
+// were injected from a .cue sheet, the navigation announcements say "Track N"
+// instead of "Chapter N". Localized via the existing Ts() table.
+static std::string ChapterLabel() {
+    return g_chaptersAreCueTracks ? Ts("Track ") : Ts("Chapter ");
+}
+
 // Seek to next chapter (returns true if successful)
 bool SeekToNextChapter() {
     if (g_chapters.empty() || !g_fxStream) return false;
@@ -1828,9 +1847,9 @@ bool SeekToNextChapter() {
 
             // Announce chapter name
             if (!g_chapters[i].name.empty()) {
-                Speak(Ts("Chapter ") + std::to_string(i + 1) + ": " + WideToUtf8(g_chapters[i].name));
+                Speak(ChapterLabel() + std::to_string(i + 1) + ": " + WideToUtf8(g_chapters[i].name));
             } else {
-                Speak(Ts("Chapter ") + std::to_string(i + 1));
+                Speak(ChapterLabel() + std::to_string(i + 1));
             }
             return true;
         }
@@ -1861,9 +1880,9 @@ bool SeekToPrevChapter() {
         // More than 3 seconds into current chapter - restart it
         SeekToPosition(chapterStart);
         if (!g_chapters[currentChapter].name.empty()) {
-            Speak(Ts("Chapter ") + std::to_string(currentChapter + 1) + ": " + WideToUtf8(g_chapters[currentChapter].name));
+            Speak(ChapterLabel() + std::to_string(currentChapter + 1) + ": " + WideToUtf8(g_chapters[currentChapter].name));
         } else {
-            Speak(Ts("Chapter ") + std::to_string(currentChapter + 1));
+            Speak(ChapterLabel() + std::to_string(currentChapter + 1));
         }
         return true;
     } else if (currentChapter > 0) {
@@ -1871,9 +1890,9 @@ bool SeekToPrevChapter() {
         int prevChapter = currentChapter - 1;
         SeekToPosition(g_chapters[prevChapter].position);
         if (!g_chapters[prevChapter].name.empty()) {
-            Speak(Ts("Chapter ") + std::to_string(prevChapter + 1) + ": " + WideToUtf8(g_chapters[prevChapter].name));
+            Speak(ChapterLabel() + std::to_string(prevChapter + 1) + ": " + WideToUtf8(g_chapters[prevChapter].name));
         } else {
-            Speak(Ts("Chapter ") + std::to_string(prevChapter + 1));
+            Speak(ChapterLabel() + std::to_string(prevChapter + 1));
         }
         return true;
     } else {

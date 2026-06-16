@@ -11,6 +11,7 @@
 #include "youtube.h"
 #include "translations.h"
 #include "resource.h"
+#include "mediaaccess/cue_sheet.h"  // v2.34 — cross-restart cue restore
 #include <cstdio>
 #include <shlobj.h>
 #include <shlwapi.h>  // PathFileExistsW
@@ -809,8 +810,14 @@ void SavePlaybackState() {
         WritePrivateProfileStringW(L"State", L"LastPosition", L"0", g_configPath.c_str());
         WritePrivateProfileStringW(L"State", L"TrackCount", L"0", g_configPath.c_str());
         WritePrivateProfileStringW(L"State", L"CurrentTrack", L"0", g_configPath.c_str());
+        WritePrivateProfileStringW(L"State", L"LastCuePath", L"", g_configPath.c_str());
         return;
     }
+
+    // v2.34 — remember the active .cue so its track names can be re-injected on
+    // restart. Cleared (to "") when no cue is driving playback.
+    WritePrivateProfileStringW(L"State", L"LastCuePath",
+                               g_currentCuePath.c_str(), g_configPath.c_str());
 
     // Save playlist
     wchar_t buf[32];
@@ -844,6 +851,28 @@ void SavePlaybackState() {
 // Load last playback state and resume if enabled
 void LoadPlaybackState() {
     if (!g_rememberState) return;
+
+    // v2.34 — if a .cue was driving playback last session, re-open it so the
+    // track names are restored (a plain LoadFile would only re-parse embedded
+    // chapters and lose them). OpenCueSheet rebuilds g_playlist + chapters and
+    // starts playback; we then restore the saved position. Falls through to the
+    // generic restore if the cue is gone or fails to parse.
+    {
+        wchar_t cueBuf[2048] = {0};
+        GetPrivateProfileStringW(L"State", L"LastCuePath", L"", cueBuf, 2048, g_configPath.c_str());
+        if (cueBuf[0] != L'\0' && GetFileAttributesW(cueBuf) != INVALID_FILE_ATTRIBUTES) {
+            if (OpenCueSheet(cueBuf, /*restoreMode=*/true)) {
+                if (!g_isLiveStream) {
+                    wchar_t posBuf[32] = {0};
+                    GetPrivateProfileStringW(L"State", L"LastPosition", L"0", posBuf, 32, g_configPath.c_str());
+                    double position = _wtof(posBuf);
+                    if (position > 0) SeekToPosition(position);
+                }
+                ApplyNowPlayingForCurrentTrack();
+                return;
+            }
+        }
+    }
 
     // Try to load full playlist first
     int trackCount = GetPrivateProfileIntW(L"State", L"TrackCount", 0, g_configPath.c_str());
