@@ -728,6 +728,24 @@ void MPVSetVolume(float vol)
     fn_mpv_set_property(g_mpv, "volume", MPV_FORMAT_DOUBLE, &v);
 }
 
+/* v2.44 — single-owner video volume. The subtitle reader ducks the video by
+ * setting s_videoDuck < 1.0; all volume writes go through ApplyVideoVolume so
+ * the duck and the user's g_volume never fight (see video_engine.h). */
+static float s_videoDuck = 1.0f;
+
+void ApplyVideoVolume()
+{
+    MPVSetVolume(g_volume * s_videoDuck);
+}
+
+void MPVSetDuck(float mul)
+{
+    if (mul < 0.0f) mul = 0.0f;
+    if (mul > 1.0f) mul = 1.0f;
+    s_videoDuck = mul;
+    ApplyVideoVolume();
+}
+
 void MPVSetMute(bool mute)
 {
     if (!g_mpv) return;

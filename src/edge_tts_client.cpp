@@ -42,7 +42,58 @@ const wchar_t* USER_AGENT   =
 // server Date that disagrees with our clock. Guarded for multi-worker safety.
 std::atomic<double> g_skewSeconds{0.0};
 
+// Cooperative cancellation: set by EdgeCancelPending() so an in-flight synth
+// aborts at the next bounded receive instead of running to the full timeout.
+// v2.44.
+std::atomic<bool> g_cancelPending{false};
+
+// WinHTTP timeouts (ms): resolve / connect / send / receive. The finite receive
+// timeout is the load-bearing part for the websocket — WinHttpWebSocketReceive
+// on a synchronous handle returns within it instead of blocking forever on a
+// half-open connection, letting the receive loop re-check its wall-clock
+// deadline and the cancel flag between frames. v2.44.
+const int kTimeoutResolveMs = 5000;
+const int kTimeoutConnectMs = 5000;
+const int kTimeoutSendMs    = 10000;
+const int kTimeoutRecvMs    = 8000;
+
+// Hard wall-clock cap on a single synthesis round trip (ms) and on the audio we
+// accumulate for one cue, so a misbehaving/stalled connection can't hang the
+// worker or grow memory without bound. v2.44.
+const ULONGLONG kSynthDeadlineMs = 20000;
+const size_t    kMaxAudioBytes   = 8u * 1024u * 1024u;
+
 // ---- small helpers ----------------------------------------------------------
+
+// Voice short names come from settings (a hand-editable INI), so validate before
+// they reach the SSML. Edge ShortNames are dashed identifiers (e.g.
+// "fr-FR-DeniseNeural", "en-US-AvaMultilingualNeural"); allow only that charset
+// so an injected value cannot break out of the <voice name='…'> attribute.
+bool IsSafeVoiceName(const std::string& v) {
+    if (v.empty() || v.size() > 128) return false;
+    for (unsigned char c : v) {
+        bool ok = (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') ||
+                  (c >= '0' && c <= '9') || c == '-' || c == '_' || c == ':' || c == '.';
+        if (!ok) return false;
+    }
+    return true;
+}
+
+// XML-escape a plain ASCII/UTF-8 string for use inside an SSML attribute/value.
+std::string XmlEscape(const std::string& in) {
+    std::string out; out.reserve(in.size());
+    for (char c : in) {
+        switch (c) {
+            case '&':  out += "&amp;";  break;
+            case '<':  out += "&lt;";   break;
+            case '>':  out += "&gt;";   break;
+            case '\'': out += "&apos;"; break;
+            case '"':  out += "&quot;"; break;
+            default:   out += c;        break;
+        }
+    }
+    return out;
+}
 
 std::string Sha256Upper(const std::string& in) {
     BCRYPT_ALG_HANDLE alg = nullptr; BCRYPT_HASH_HANDLE h = nullptr;
@@ -158,9 +209,14 @@ Attempt SynthAttempt(const std::string& voice, const std::string& ssmlText,
                      std::vector<unsigned char>& out, std::string* err) {
     out.clear();
 
+    if (!IsSafeVoiceName(voice)) { if (err) *err = "invalid voice name"; return Attempt::Failed; }
+
     AutoInternet ses(WinHttpOpen(L"MediaAccess-EdgeTTS", WINHTTP_ACCESS_TYPE_AUTOMATIC_PROXY,
                                  WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_BYPASS, 0));
     if (!ses.h) { if (err) *err = "WinHttpOpen failed"; return Attempt::Failed; }
+    // Bound every phase so a stalled connection can never block the worker (and
+    // thus app shutdown, which joins it) indefinitely. v2.44.
+    WinHttpSetTimeouts(ses, kTimeoutResolveMs, kTimeoutConnectMs, kTimeoutSendMs, kTimeoutRecvMs);
 
     AutoInternet con(WinHttpConnect(ses, HOST, INTERNET_DEFAULT_HTTPS_PORT, 0));
     if (!con.h) { if (err) *err = "WinHttpConnect failed"; return Attempt::Failed; }
@@ -240,12 +296,15 @@ Attempt SynthAttempt(const std::string& voice, const std::string& ssmlText,
         if (p2 != std::string::npos) lang = voice.substr(0, p2);
     }
 
-    // (b) SSML
+    // (b) SSML. X-Timestamp uses JsDate() verbatim (it already ends with the
+    // "(Coordinated Universal Time)" suffix the service expects) — no trailing
+    // "Z", matching speech.config above. v2.44. voice/lang are XML-escaped as
+    // defense in depth on top of IsSafeVoiceName().
     std::string ssml =
         "X-RequestId:" + UuidHex() + "\r\nContent-Type:application/ssml+xml\r\n"
-        "X-Timestamp:" + JsDate() + "Z\r\nPath:ssml\r\n\r\n"
-        "<speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis' xml:lang='" + lang + "'>"
-        "<voice name='" + voice + "'>"
+        "X-Timestamp:" + JsDate() + "\r\nPath:ssml\r\n\r\n"
+        "<speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis' xml:lang='" + XmlEscape(lang) + "'>"
+        "<voice name='" + XmlEscape(voice) + "'>"
         "<prosody pitch='" + pitch + "' rate='" + rate + "' volume='+0%'>" + ssmlText +
         "</prosody></voice></speak>";
     if (WinHttpWebSocketSend(ws, WINHTTP_WEB_SOCKET_UTF8_MESSAGE_BUFFER_TYPE,
@@ -254,13 +313,24 @@ Attempt SynthAttempt(const std::string& voice, const std::string& ssmlText,
     }
 
     // Receive: assemble fragmented messages; binary frames carry the MP3.
+    // Guards (v2.44): a wall-clock deadline and the cancel flag (checked between
+    // frames, which the finite receive timeout above makes reachable), plus a
+    // hard cap on accumulated audio. Hitting any of them is an explicit failure
+    // so a truncated MP3 is never mistaken for a complete clip.
+    const ULONGLONG deadline = GetTickCount64() + kSynthDeadlineMs;
+    bool aborted = false;
     std::vector<unsigned char> msg;
     for (;;) {
+        if (g_cancelPending.load()) { if (err) *err = "cancelled"; aborted = true; break; }
+        if (GetTickCount64() >= deadline) { if (err) *err = "synth timed out"; aborted = true; break; }
         unsigned char buf[16384]; DWORD got = 0; WINHTTP_WEB_SOCKET_BUFFER_TYPE bt;
         if (WinHttpWebSocketReceive(ws, buf, sizeof(buf), &got, &bt) != NO_ERROR) {
-            if (err) *err = "websocket receive failed"; break;
+            if (err) *err = "websocket receive failed"; aborted = true; break;
         }
         msg.insert(msg.end(), buf, buf + got);
+        if (msg.size() > kMaxAudioBytes || out.size() > kMaxAudioBytes) {
+            if (err) *err = "audio exceeded size cap"; aborted = true; break;
+        }
         if (bt == WINHTTP_WEB_SOCKET_UTF8_FRAGMENT_BUFFER_TYPE ||
             bt == WINHTTP_WEB_SOCKET_BINARY_FRAGMENT_BUFFER_TYPE) continue;
         if (bt == WINHTTP_WEB_SOCKET_CLOSE_BUFFER_TYPE) break;
@@ -282,6 +352,7 @@ Attempt SynthAttempt(const std::string& voice, const std::string& ssmlText,
     }
 
     WinHttpWebSocketClose(ws, WINHTTP_WEB_SOCKET_SUCCESS_CLOSE_STATUS, nullptr, 0);
+    if (aborted) { out.clear(); return Attempt::Failed; }
     if (out.empty()) { if (err && err->empty()) *err = "no audio received"; return Attempt::Failed; }
     return Attempt::Ok;
 }
@@ -291,6 +362,7 @@ std::string HttpGet(const std::wstring& pathWithQuery) {
     AutoInternet ses(WinHttpOpen(L"MediaAccess-EdgeTTS", WINHTTP_ACCESS_TYPE_AUTOMATIC_PROXY,
                                  WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_BYPASS, 0));
     if (!ses.h) return "";
+    WinHttpSetTimeouts(ses, kTimeoutResolveMs, kTimeoutConnectMs, kTimeoutSendMs, kTimeoutRecvMs);  // v2.44
     AutoInternet con(WinHttpConnect(ses, HOST, INTERNET_DEFAULT_HTTPS_PORT, 0));
     if (!con.h) return "";
     AutoInternet req(WinHttpOpenRequest(con, L"GET", pathWithQuery.c_str(), nullptr,
@@ -360,6 +432,7 @@ bool EdgeSynthesize(const std::string& voiceShortName, const std::wstring& text,
                     const std::string& rate, const std::string& pitch,
                     std::string* err) {
     outMp3.clear();
+    if (g_cancelPending.load()) { if (err) *err = "cancelled"; return false; }
     if (voiceShortName.empty() || text.empty()) {
         if (err) *err = "empty voice or text";
         return false;
@@ -381,12 +454,17 @@ bool EdgeSynthesize(const std::string& voiceShortName, const std::wstring& text,
     return true;
 }
 
+namespace {
+// Process-wide voice catalog cache, shared by the blocking fetch (EdgeListVoices)
+// and the non-blocking peeks (EdgeVoicesReady / EdgeListVoicesCached). v2.44.
+std::mutex              g_voicesMtx;
+std::vector<EdgeVoice>  g_voicesCache;
+std::atomic<bool>       g_voicesCached{false};
+} // namespace
+
 std::vector<EdgeVoice> EdgeListVoices() {
-    static std::mutex mtx;
-    static std::vector<EdgeVoice> cache;
-    static bool cached = false;
-    std::lock_guard<std::mutex> lk(mtx);
-    if (cached) return cache;
+    std::lock_guard<std::mutex> lk(g_voicesMtx);
+    if (g_voicesCached.load()) return g_voicesCache;
 
     std::wstring url = std::wstring(VOICES_PATH)
         + L"?trustedclienttoken=" + Widen(TRUSTED)
@@ -418,9 +496,22 @@ std::vector<EdgeVoice> EdgeListVoices() {
     } else {
         LogF("edge", "fetched %zu Edge voices", out.size());
     }
-    cache = out;
-    cached = true;
-    return cache;
+    g_voicesCache = out;
+    g_voicesCached.store(true);
+    return g_voicesCache;
 }
+
+bool EdgeVoicesReady() { return g_voicesCached.load(); }
+
+std::vector<EdgeVoice> EdgeListVoicesCached() {
+    if (g_voicesCached.load()) {
+        std::lock_guard<std::mutex> lk(g_voicesMtx);
+        return g_voicesCache;
+    }
+    return BuiltinFallbackVoices();   // never touch the network on the UI thread
+}
+
+void EdgeCancelPending() { g_cancelPending.store(true); }
+void EdgeClearCancel()   { g_cancelPending.store(false); }
 
 } // namespace mediaaccess

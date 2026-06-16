@@ -860,7 +860,7 @@ void SetParamValue(ParamId id, float value) {
             // the engine-aware SetVolume() facade so the selected-Volume arrows
             // change the actual video volume, not just g_volume.
             if (g_activeEngine == PlaybackEngine::MPV) {
-                MPVSetVolume(g_volume);
+                ApplyVideoVolume();   // v2.44 — keeps subtitle duck on volume change
             }
             // In legacy mode, apply via BASS_ATTRIB_VOL
             // In normal mode, volume DSP automatically uses updated g_volume

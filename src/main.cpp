@@ -87,7 +87,7 @@ static void SubtitleDuck(double level) {
 static void SubtitleVolumeRestoreNow() {
     s_duckCurrent = s_duckTarget = 1.0;
     if (g_hwnd) KillTimer(g_hwnd, IDT_SUBTITLE_FADE);
-    MPVSetVolume(g_volume);
+    MPVSetDuck(1.0f);   // v2.44 — clear the duck multiplier and re-apply full volume
 }
 
 // Current state of the Edge subtitle reader (the prefetch scheduler). Tracks
@@ -160,7 +160,10 @@ void RefreshSubtitleEdge() {
         std::thread([gen, media, ffi, voice, rate, duck]() {
             auto cues = mediaaccess::SubExtractCues(media, ffi);
             auto* r = new SubPrepResult{ gen, media, ffi, voice, rate, duck, std::move(cues) };
-            if (g_hwnd) PostMessageW(g_hwnd, WM_SUBTITLE_READY, 0, (LPARAM)r);
+            // v2.44 — gate on the real shutdown flag, not g_hwnd (which is never
+            // cleared): posting to a live window after shutdown began would leak
+            // `r` since WM_SUBTITLE_READY is no longer pumped/handled.
+            if (!g_isShuttingDown && g_hwnd) PostMessageW(g_hwnd, WM_SUBTITLE_READY, 0, (LPARAM)r);
             else delete r;
         }).detach();
     } else if (!want && (s_subEdgeActive || s_subEdgeFailed)) {
@@ -886,7 +889,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
                     s_duckCurrent = (s_duckCurrent + step > s_duckTarget) ? s_duckTarget : s_duckCurrent + step;
                 else
                     s_duckCurrent = (s_duckCurrent - step < s_duckTarget) ? s_duckTarget : s_duckCurrent - step;
-                MPVSetVolume(g_volume * (float)s_duckCurrent);
+                MPVSetDuck((float)s_duckCurrent);   // v2.44 — single-owner video volume
                 if (s_duckCurrent == s_duckTarget) KillTimer(hwnd, IDT_SUBTITLE_FADE);
                 return 0;
             }
@@ -949,7 +952,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
                                  codec.find(L"dvb") != std::wstring::npos ||
                                  codec.find(L"dvd") != std::wstring::npos ||
                                  codec.find(L"vob") != std::wstring::npos;
-                    if (image) Speak("Image-based subtitles cannot be read aloud");
+                    if (image) Speak(Ts("Image-based subtitles cannot be read aloud"));  // v2.44 — localized
                 }
                 delete r;
             }
@@ -1849,6 +1852,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
             // v1.63 — mark shutdown so WM_COPYDATA dwData=4 (CLI deliveries)
             // arriving after this point are dropped before they touch BASS.
             g_isShuttingDown = true;
+            mediaaccess::SubShutdownExtraction();  // v2.44 — kill any orphan ffmpeg extraction
             mediaaccess::SubStop();  // stop subtitle prefetch worker + clip before BASS teardown
             // -----------------------------------------------------------
             // Kill audio IMMEDIATELY before doing anything else.

@@ -97,6 +97,11 @@ bool SubStartForMedia(const std::wstring& mediaPath, const std::string& edgeVoic
 // Stop scheduling, halt any clip, free everything, join the worker.
 void SubStop();
 
+// Terminate any in-flight ffmpeg subtitle-extraction child processes and block
+// further extractions. Call once on app shutdown (WM_DESTROY) so a detached
+// extraction worker can't leave an orphaned ffmpeg running past exit. v2.44.
+void SubShutdownExtraction();
+
 // Feed the current playback position (seconds). Triggers prefetch of upcoming
 // cues and plays a ready clip when its cue becomes current. Call frequently
 // (e.g. on every time-pos change). No-op if not started.

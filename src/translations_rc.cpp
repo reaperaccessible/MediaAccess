@@ -235,22 +235,36 @@ void RegisterRcTranslations() {
                    L"Read subtitles with a &neural voice (Edge, online)");
     AddTranslation("fr", "Read subtitles with a &neural voice (Edge, online)",
                    L"Lire les sous-titres avec une voix &neuronale (Edge, en ligne)");
-    AddTranslation("en", "Subtitle &voice:", L"Subtitle &voice:");
-    AddTranslation("fr", "Subtitle &voice:", L"&Voix des sous-titres :");
+    // v2.44 — mnemonics deconflicted on the Speech tab: voice uses Alt+C
+    // (EN "voi&ce:" / FR Alt+X "Voi&x"), Preview uses Alt+W (EN "Previe&w" /
+    // FR Alt+U "Aperç&u"), the duck label gets Alt+K (EN) / Alt+O (FR).
+    AddTranslation("en", "Subtitle voi&ce:", L"Subtitle voi&ce:");
+    AddTranslation("fr", "Subtitle voi&ce:", L"Voi&x des sous-titres :");
     AddTranslation("en", "&Language:", L"&Language:");
     AddTranslation("fr", "&Language:", L"&Langue :");
-    AddTranslation("en", "&Preview", L"&Preview");
-    AddTranslation("fr", "&Preview", L"&Aperçu");
-    AddTranslation("en", "Video volume while speaking:", L"Video volume while speaking:");
-    AddTranslation("fr", "Video volume while speaking:", L"Volume de la vidéo pendant la voix :");
+    AddTranslation("en", "Previe&w", L"Previe&w");
+    AddTranslation("fr", "Previe&w", L"Aperç&u");
+    AddTranslation("en", "Video volume while spea&king:", L"Video volume while spea&king:");
+    AddTranslation("fr", "Video volume while spea&king:", L"V&olume de la vidéo pendant la voix :");
     AddTranslation("en", "Speech &rate:", L"Speech &rate:");
     AddTranslation("fr", "Speech &rate:", L"&Débit :");
     AddTranslation("en", "Normal", L"Normal");
     AddTranslation("fr", "Normal", L"Normal");
+    // Ducking-combo parenthetical hints (v2.44).
+    AddTranslation("en", "(off)", L"(off)");
+    AddTranslation("fr", "(off)", L"(désactivé)");
+    AddTranslation("en", "(mute)", L"(mute)");
+    AddTranslation("fr", "(mute)", L"(muet)");
     AddTranslation("en", "All languages", L"All languages");
     AddTranslation("fr", "All languages", L"Toutes les langues");
     AddTranslation("en", "Preview failed", L"Preview failed");
     AddTranslation("fr", "Preview failed", L"Échec de l'aperçu");
+    // v2.44 — spoken when the active subtitle track is image-based (PGS/VobSub):
+    // there is no text to synthesize, so explain the silence in the user's language.
+    AddTranslation("en", "Image-based subtitles cannot be read aloud",
+                   L"Image-based subtitles cannot be read aloud");
+    AddTranslation("fr", "Image-based subtitles cannot be read aloud",
+                   L"Les sous-titres en image ne peuvent pas être lus à voix haute");
 
     // v1.63 — Audio slots menu and dialog
     AddTranslation("en", "Audio &slots...", L"Audio &slots...");

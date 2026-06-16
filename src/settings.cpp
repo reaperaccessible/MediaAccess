@@ -293,6 +293,8 @@ void LoadSettings() {
         g_subtitleEdgeVoice = buf;
     }
     g_subtitleDuckLevel = GetPrivateProfileIntW(L"Speech", L"SubtitleDuck", 30, g_configPath.c_str()) / 100.0;
+    if (g_subtitleDuckLevel < 0.0)      g_subtitleDuckLevel = 0.0;   // v2.44 — clamp a hand-edited INI
+    else if (g_subtitleDuckLevel > 1.0) g_subtitleDuckLevel = 1.0;   // (SubtitleDuck=500 would over-amplify)
     {
         wchar_t rb[16] = {0};   // string read so a negative rate parses correctly
         GetPrivateProfileStringW(L"Speech", L"SubtitleEdgeRate", L"0", rb, 16, g_configPath.c_str());

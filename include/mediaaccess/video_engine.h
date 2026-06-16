@@ -43,6 +43,18 @@ double MPVGetLength();
 void MPVSetVolume(float vol);
 void MPVSetMute(bool mute);
 
+// Single owner of the mpv video volume (v2.44). Every write to the mpv volume
+// must go through ApplyVideoVolume() — it pushes g_volume scaled by the current
+// subtitle-duck multiplier, so a user volume change during a spoken subtitle
+// keeps the duck, and a duck change keeps the user's volume. Never call
+// MPVSetVolume(g_volume) directly from outside this owner.
+void ApplyVideoVolume();
+
+// Set the subtitle-duck multiplier [0..1] applied on top of g_volume and re-apply
+// immediately. 1.0 = no ducking (full volume). Driven by the subtitle reader's
+// fade ramp.
+void MPVSetDuck(float mul);
+
 // ===== State =====
 bool MPVIsPlaying();
 bool MPVIsPaused();

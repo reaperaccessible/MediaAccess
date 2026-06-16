@@ -60,6 +60,26 @@ bool EdgeSynthesize(const std::string& voiceShortName,
 // returns a small built-in fallback list so the UI is never empty. BLOCKING.
 std::vector<EdgeVoice> EdgeListVoices();
 
+// True once the voice catalog has been fetched (the startup prewarm or a prior
+// EdgeListVoices() call populated the cache). Lets the UI decide whether it can
+// fill the voice combo without a blocking network call.
+bool EdgeVoicesReady();
+
+// Non-blocking voice list for the UI thread: returns the cached catalog if it
+// has been fetched, otherwise a small built-in fallback list. NEVER touches the
+// network, so it is safe to call from WM_INITDIALOG. Pair with EdgeVoicesReady()
+// to know whether a background refresh (then a re-populate) is still needed.
+std::vector<EdgeVoice> EdgeListVoicesCached();
+
+// Cooperative cancellation for an in-flight EdgeSynthesize(). Call
+// EdgeCancelPending() before joining the synth worker (e.g. SubStop / app
+// shutdown) so a frozen network connection can't keep the worker — and thus the
+// caller — blocked: combined with the finite WinHTTP timeouts, the synth returns
+// within a few seconds at most. Call EdgeClearCancel() before starting fresh
+// work to re-arm. v2.44.
+void EdgeCancelPending();
+void EdgeClearCancel();
+
 } // namespace mediaaccess
 
 #endif // MEDIAACCESS_EDGE_TTS_CLIENT_H

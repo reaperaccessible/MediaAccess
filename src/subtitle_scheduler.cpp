@@ -12,10 +12,13 @@
 #include "bass.h"
 
 #include <algorithm>
+#include <atomic>
 #include <cctype>
 #include <condition_variable>
+#include <cstdio>
 #include <deque>
 #include <mutex>
+#include <set>
 #include <thread>
 
 namespace mediaaccess {
@@ -131,8 +134,11 @@ std::vector<SubCue> ParseSubtitles(const std::string& utf8Data) {
         if (!text.empty()) cues.push_back({start, end, std::move(text)});
     }
 
-    std::sort(cues.begin(), cues.end(),
-              [](const SubCue& a, const SubCue& b) { return a.startSec < b.startSec; });
+    // Stable sort so cues that share a start time keep source order — the
+    // overlap policy in SubOnTimePos (latest-start cue wins) then resolves ties
+    // deterministically instead of depending on std::sort's unspecified order.
+    std::stable_sort(cues.begin(), cues.end(),
+                     [](const SubCue& a, const SubCue& b) { return a.startSec < b.startSec; });
     return cues;
 }
 
@@ -237,6 +243,7 @@ void SubStart(const std::vector<SubCue>& cues, const std::string& edgeVoice,
     g_speed = 1.0;
     g_curCue = -1; g_clipStream = 0; g_ducked = false;
     g_running = true;
+    EdgeClearCancel();        // v2.44 — re-arm in case a prior SubStop cancelled
     g_worker = std::thread(WorkerLoop);
     LogF("subtts", "started: %zu cues, voice=%s, lookahead=%.1fs",
          g_cues.size(), edgeVoice.c_str(), lookaheadSec);
@@ -248,8 +255,12 @@ void SubStop() {
         if (!g_running && !g_worker.joinable()) return;
         g_running = false;
     }
+    // v2.44 — ask any in-flight synth to abort so a frozen network connection
+    // can't keep the worker (and thus this join, on the UI thread) blocked.
+    EdgeCancelPending();
     g_cv.notify_all();
     if (g_worker.joinable()) g_worker.join();
+    EdgeClearCancel();        // worker is gone; clear so the next session is fresh
     StopClip();
     std::lock_guard<std::mutex> lk(g_mtx);
     g_cues.clear(); g_queue.clear();
@@ -282,6 +293,12 @@ void SubOnTimePos(double pos) {
         if (queued) g_cv.notify_all();
         // 3) the cue currently on screen = latest-start, not-yet-handled cue whose
         //    window contains pos. Act on its state.
+        //    Overlap policy (v2.44, explicit): at most ONE cue is spoken at a
+        //    time — the latest-starting cue whose window contains pos. We never
+        //    play two at once (simultaneous voices are unintelligible). An
+        //    earlier overlapping cue is therefore superseded by a later-starting
+        //    one; it is only spoken if still current after the later cue is
+        //    handled. This is the intended trade-off for overlapping/karaoke cues.
         int sel = -1;
         for (int i = 0; i < (int)g_cues.size(); i++) {
             SchedCue& s = g_cues[i];
@@ -327,6 +344,12 @@ void SubOnSeek(double pos) {
         else if (!s.mp3.empty())                                   s.state = ST_READY;   // reuse buffer
         else if (s.state != ST_SYNTH && s.state != ST_QUEUED)    { s.state = ST_PENDING; s.fails = 0; }
     }
+    // NOTE: we deliberately do NOT purge g_queue or reset ST_QUEUED/ST_SYNTH
+    // cues here. The worker already revalidates each dequeued index against its
+    // state (see WorkerLoop) and a cue seeked-past was set to ST_PLAYED above,
+    // so a now-stale queue entry is simply skipped — no wasted synthesis. Force-
+    // clearing the queue while leaving cues in ST_QUEUED would orphan them (the
+    // worker would never pick them up again), so it is intentionally avoided.
 }
 
 void SubOnPause(bool paused) {
@@ -374,9 +397,18 @@ std::string ReadFileRetry(const std::wstring& path, int tries = 15) {
     return "";
 }
 
+// Tracking for in-flight ffmpeg extraction processes so app shutdown can
+// terminate them instead of orphaning a child that may sit on a 60 s wait.
+// v2.44 — extractions run on detached worker threads; SubShutdownExtraction()
+// (called from WM_DESTROY) sets the flag and kills every registered process.
+std::mutex            g_extractMtx;
+std::set<HANDLE>      g_extractProcs;
+std::atomic<bool>     g_extractShutdown{false};
+
 // Extract a subtitle stream to outSrt via the bundled ffmpeg. `ffIndex` is the
 // container-wide ffmpeg stream index (use the active track), or -1 for 0:s:0.
 bool ExtractEmbeddedSrt(const std::wstring& media, const std::wstring& outSrt, int ffIndex) {
+    if (g_extractShutdown.load()) return false;
     std::wstring ff = GetFfmpegLocation();
     if (ff.empty()) { LogF("subtts", "ffmpeg not found for subtitle extraction"); return false; }
     DeleteFileW(outSrt.c_str());
@@ -391,12 +423,26 @@ bool ExtractEmbeddedSrt(const std::wstring& media, const std::wstring& outSrt, i
         LogF("subtts", "CreateProcess(ffmpeg) failed err=%lu", GetLastError());
         return false;
     }
-    WaitForSingleObject(pi.hProcess, 60000);
+    { std::lock_guard<std::mutex> lk(g_extractMtx); g_extractProcs.insert(pi.hProcess); }
+    // Poll in short slices so a shutdown can terminate ffmpeg promptly rather
+    // than letting a detached worker linger on a single 60 s wait.
+    const int kSliceMs = 250, kMaxSlices = 240;   // 60 s overall budget
+    for (int i = 0; i < kMaxSlices; i++) {
+        if (WaitForSingleObject(pi.hProcess, kSliceMs) == WAIT_OBJECT_0) break;
+        if (g_extractShutdown.load()) { TerminateProcess(pi.hProcess, 1); break; }
+    }
+    { std::lock_guard<std::mutex> lk(g_extractMtx); g_extractProcs.erase(pi.hProcess); }
     CloseHandle(pi.hThread); CloseHandle(pi.hProcess);
-    return FileExists(outSrt);
+    return !g_extractShutdown.load() && FileExists(outSrt);
 }
 
 } // namespace
+
+void SubShutdownExtraction() {
+    g_extractShutdown.store(true);
+    std::lock_guard<std::mutex> lk(g_extractMtx);
+    for (HANDLE h : g_extractProcs) TerminateProcess(h, 1);
+}
 
 std::vector<SubCue> SubExtractCues(const std::wstring& mediaPath, int subFfIndex) {
     std::vector<SubCue> cues;
@@ -407,8 +453,17 @@ std::vector<SubCue> SubExtractCues(const std::wstring& mediaPath, int subFfIndex
         LogF("subtts", "sidecar subtitle %ls -> %zu cues", sidecar.c_str(), cues.size());
     }
     if (cues.empty()) {
+        // v2.44 — unique temp name per extraction (PID + sequence) so two
+        // concurrent refreshes (track/option change) can't clobber each other's
+        // file: ffmpeg -y truncating one while another reads, or one's
+        // DeleteFileW erasing the other's. The .srt extension is required for
+        // ffmpeg to pick the SubRip muxer.
+        static std::atomic<unsigned> s_extractSeq{0};
         wchar_t tmpDir[MAX_PATH]; GetTempPathW(MAX_PATH, tmpDir);
-        std::wstring tmp = std::wstring(tmpDir) + L"mediaaccess_subs.srt";
+        wchar_t name[64];
+        swprintf(name, 64, L"mediaaccess_subs_%lu_%u.srt",
+                 GetCurrentProcessId(), s_extractSeq.fetch_add(1));
+        std::wstring tmp = std::wstring(tmpDir) + name;
         if (ExtractEmbeddedSrt(mediaPath, tmp, subFfIndex)) {
             std::string data = ReadFileRetry(tmp);
             cues = ParseSubtitles(data);

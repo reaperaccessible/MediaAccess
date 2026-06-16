@@ -223,12 +223,12 @@ BEGIN
     AUTOCHECKBOX    "Read subtitles with a &neural voice (Edge, online)", IDC_SUBTITLE_EDGE, 27, 168, 250, 10
     LTEXT           "&Language:", IDC_LABEL_SUBTITLE_EDGE_LANG, 27, 186, 55, 10
     COMBOBOX        IDC_SUBTITLE_EDGE_LANG, 85, 184, 95, 200, CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
-    LTEXT           "Subtitle &voice:", IDC_LABEL_SUBTITLE_EDGE_VOICE, 27, 204, 55, 10
+    LTEXT           "Subtitle voi&ce:", IDC_LABEL_SUBTITLE_EDGE_VOICE, 27, 204, 55, 10
     COMBOBOX        IDC_SUBTITLE_EDGE_VOICE, 85, 202, 140, 200, CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
-    PUSHBUTTON      "&Preview", IDC_SUBTITLE_EDGE_PREVIEW, 230, 202, 45, 12
+    PUSHBUTTON      "Previe&w", IDC_SUBTITLE_EDGE_PREVIEW, 230, 202, 45, 12
     LTEXT           "Speech &rate:", IDC_LABEL_SUBTITLE_RATE, 27, 222, 55, 10
     COMBOBOX        IDC_SUBTITLE_RATE, 85, 220, 95, 200, CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
-    LTEXT           "Video volume while speaking:", IDC_LABEL_SUBTITLE_DUCK, 27, 240, 100, 10
+    LTEXT           "Video volume while spea&king:", IDC_LABEL_SUBTITLE_DUCK, 27, 240, 100, 10
     COMBOBOX        IDC_SUBTITLE_DUCK, 130, 238, 55, 100, CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
 
     // Movement tab controls (shown when tab 4 selected)
