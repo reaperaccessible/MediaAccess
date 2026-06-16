@@ -320,6 +320,8 @@
 // Bookmarks
 #define IDM_BOOKMARK_ADD    800
 #define IDM_BOOKMARK_LIST   801
+#define IDM_BOOKMARK_PREV   802   // Feature #9 (Romain) — seek to previous media bookmark
+#define IDM_BOOKMARK_NEXT   803   // Feature #9 (Romain) — seek to next media bookmark
 #define IDD_BOOKMARKS       810
 #define IDC_BOOKMARK_LIST   811
 #define IDC_BOOKMARK_FILTER 812

@@ -1267,6 +1267,12 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
                 case IDM_BOOKMARK_LIST:
                     ShowBookmarksDialog();
                     break;
+                case IDM_BOOKMARK_PREV:
+                    SeekToPrevBookmark();
+                    break;
+                case IDM_BOOKMARK_NEXT:
+                    SeekToNextBookmark();
+                    break;
                 case IDM_VIEW_SONG_HISTORY:
                     ShowSongHistoryDialog();
                     break;

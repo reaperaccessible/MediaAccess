@@ -28,6 +28,7 @@ static void TeardownMpvBeforeLoad();
 #include <ctime>
 #include <shlobj.h>
 #include <map>
+#include <algorithm>  // std::sort (v2.43 bookmark navigation)
 #include <algorithm>
 #include <vector>
 #include <cstdint>
@@ -1917,6 +1918,55 @@ bool SeekToPrevChapter() {
         Speak(Ts("Beginning"));
         return true;
     }
+}
+
+// v2.43 (Feature #9, Romain) — jump to the previous/next MEDIA bookmark of the
+// current file relative to the playback position. Book bookmarks use a separate
+// clip/offset model and are out of scope. We seek IN PLACE (not JumpToBookmark,
+// which switches tracks). The "Bookmark N of M" announcement is distinct from
+// the optional seek-timecode SeekToPosition may speak, so they complement rather
+// than duplicate. Works for BASS and MPV (GetCurrentPosition/SeekToPosition both
+// branch on the engine) — no g_fxStream guard.
+static std::vector<Bookmark> BookmarksForCurrentFileSorted() {
+    std::vector<Bookmark> v;
+    if (g_currentTrack < 0 || g_currentTrack >= (int)g_playlist.size()) return v;
+    const std::wstring& cur = g_playlist[g_currentTrack];
+    // GetAllBookmarks() is ordered by creation (DESC), across ALL files — filter
+    // to the current file, then sort ascending by position.
+    for (const auto& bm : GetAllBookmarks()) {
+        if (_wcsicmp(bm.filePath.c_str(), cur.c_str()) == 0) v.push_back(bm);
+    }
+    std::sort(v.begin(), v.end(),
+              [](const Bookmark& a, const Bookmark& b) { return a.position < b.position; });
+    return v;
+}
+
+void SeekToNextBookmark() {
+    std::vector<Bookmark> v = BookmarksForCurrentFileSorted();
+    if (v.empty()) { Speak(Ts("No bookmarks")); return; }
+    double pos = GetCurrentPosition();
+    for (size_t i = 0; i < v.size(); i++) {
+        if (v[i].position > pos + 0.5) {  // 0.5s tolerance, like SeekToNextChapter
+            SeekToPosition(v[i].position);
+            Speak(Ts("Bookmark ") + std::to_string(i + 1) + " " + Ts("of ") + std::to_string(v.size()));
+            return;
+        }
+    }
+    Speak(Ts("No next bookmark"));  // announce and stay, no wrap
+}
+
+void SeekToPrevBookmark() {
+    std::vector<Bookmark> v = BookmarksForCurrentFileSorted();
+    if (v.empty()) { Speak(Ts("No bookmarks")); return; }
+    double pos = GetCurrentPosition();
+    for (int i = (int)v.size() - 1; i >= 0; i--) {
+        if (v[i].position < pos - 0.5) {
+            SeekToPosition(v[i].position);
+            Speak(Ts("Bookmark ") + std::to_string(i + 1) + " " + Ts("of ") + std::to_string(v.size()));
+            return;
+        }
+    }
+    Speak(Ts("No previous bookmark"));  // announce and stay, no wrap
 }
 
 // Set volume (0.0 - 1.0)

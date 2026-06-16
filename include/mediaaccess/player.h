@@ -48,6 +48,10 @@ bool SeekToNextChapter();
 bool SeekToPrevChapter();
 int GetCurrentChapterIndex();
 
+// v2.43 — media bookmark navigation (Feature #9, Romain)
+void SeekToNextBookmark();
+void SeekToPrevBookmark();
+
 // Volume
 void SetVolume(float vol);
 void ToggleMute();

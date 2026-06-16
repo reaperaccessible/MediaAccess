@@ -1,3 +1,6 @@
+2.43
+Nouveau : deux actions « Signet précédent » et « Signet suivant » (Outils → Actions, catégories Principale et Globale, sans raccourci par défaut) permettent de sauter directement au signet adjacent dans le fichier en cours de lecture, sans ouvrir le gestionnaire de signets. Assignez-leur le raccourci de votre choix. Demandé par Romain.
+
 2.42
 Nouveau : lorsqu'une mise à jour est proposée (au démarrage ou via Aide → Vérifier les mises à jour), MediaAccess affiche désormais la liste des nouveautés et corrections de la nouvelle version, dans une zone de texte navigable au lecteur d'écran, avant de l'installer. Demandé par Séb.
 

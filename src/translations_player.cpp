@@ -496,6 +496,16 @@ void RegisterPlayerTranslations() {
     AddTranslation("fr", "Track ", L"Piste ");
     AddTranslation("en", "of ", L"of ");
     AddTranslation("fr", "of ", L"sur ");
+
+    // v2.43 — bookmark navigation (Feature #9, Romain)
+    AddTranslation("en", "Bookmark ", L"Bookmark ");
+    AddTranslation("fr", "Bookmark ", L"Signet ");
+    AddTranslation("en", "No bookmarks", L"No bookmarks");
+    AddTranslation("fr", "No bookmarks", L"Aucun signet");
+    AddTranslation("en", "No next bookmark", L"No next bookmark");
+    AddTranslation("fr", "No next bookmark", L"Aucun signet suivant");
+    AddTranslation("en", "No previous bookmark", L"No previous bookmark");
+    AddTranslation("fr", "No previous bookmark", L"Aucun signet précédent");
     AddTranslation("en", "Could not read this cue sheet.",
                    L"Could not read this cue sheet.");
     AddTranslation("fr", "Could not read this cue sheet.",
