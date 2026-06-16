@@ -82,6 +82,27 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
 void ParseCommandLine();
 static void ForceForegroundWindow(HWND hwnd);  // defined near wWinMain (v2.33)
 
+// v2.40 (Feature #5, Seb) — Global hotkeys whose action OPENS a window/modal
+// dialog owned by g_hwnd. When fired from the background or the tray, we bring
+// g_hwnd to the foreground FIRST so the (modal) dialog activates and the screen
+// reader lands on it. Transport/volume/seek/mute/record/announce/toggle Global
+// actions are deliberately ABSENT — they must NOT steal focus (that is the whole
+// point of a global hotkey). Allow-list (not a range): a new Global action is
+// excluded by default until explicitly opted in here. Keep in sync with the
+// window-opening ActionCategory::Global rows in actions.cpp.
+static bool IsWindowOpeningGlobalCommand(int cmd) {
+    switch (cmd) {
+        case IDM_SHOW_TRACK_LIST:   // GLOBAL_CUE_TRACK_LIST
+        case IDM_BOOKMARK_LIST:     // GLOBAL_BOOKMARK_LIST
+        case IDM_FILE_YOUTUBE:      // GLOBAL_YOUTUBE
+        case IDM_PLAY_JUMPTOTIME:   // GLOBAL_JUMP_TO_TIME
+        case IDM_SLEEP_TIMER_OPEN:  // GLOBAL_SLEEP_TIMER_OPEN
+            return true;
+        default:
+            return false;
+    }
+}
+
 // Declarations from ui.cpp
 int ExpandFileToFolder(const std::wstring& filePath, std::vector<std::wstring>& outFiles);
 void AddFilesFromFolder(const std::wstring& folder, std::vector<std::wstring>& files);
@@ -888,6 +909,11 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
                     int cmd = (hk.commandId != 0)
                                 ? hk.commandId
                                 : g_hotkeyActions[hk.actionIdx].commandId;
+                    // v2.40 — for actions that open a (modal) window, raise the
+                    // owner to the foreground now, before the queued WM_COMMAND
+                    // opens the dialog, so it activates and NVDA follows.
+                    if (IsWindowOpeningGlobalCommand(cmd))
+                        ForceForegroundWindow(hwnd);
                     PostMessage(hwnd, WM_COMMAND, cmd, 0);
                     break;
                 }

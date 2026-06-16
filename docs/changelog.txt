@@ -1,3 +1,6 @@
+2.40
+Amélioration : lorsqu'un raccourci global ouvre une fenêtre (liste des pistes, signets, recherche YouTube, aller à un temps, minuterie de veille), MediaAccess passe maintenant au premier plan et le lecteur d'écran se positionne sur la nouvelle fenêtre, même depuis l'arrière-plan ou la zone de notification. Les raccourcis globaux qui ne font qu'agir (lecture/pause, volume, déplacement, sourdine, enregistrement, annonces) continuent de ne pas voler le focus. Demandé par Séb.
+
 2.39
 Correction : certaines stations trouvées via la recherche TuneIn (typiquement celles diffusées par StreamTheWorld, fréquentes au Québec comme QUB Radio) affichaient « impossible d'obtenir l'URL du flux » et refusaient de jouer. MediaAccess résout désormais correctement ces flux à plusieurs niveaux (la station renvoyait plusieurs variantes pointant vers des playlists .pls qui étaient écartées au lieu d'être résolues). Signalé par Séb.
 
