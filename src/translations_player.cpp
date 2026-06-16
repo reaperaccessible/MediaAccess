@@ -480,6 +480,9 @@ void RegisterPlayerTranslations() {
     AddTranslation("en", "No track", L"No track");
     AddTranslation("fr", "No track", L"Aucune piste");
 
+    AddTranslation("en", "No matching track", L"No matching track");
+    AddTranslation("fr", "No matching track", L"Aucune piste correspondante");
+
     // .cue sheet (v2.34) — spoken strings.
     AddTranslation("en", "Track ", L"Track ");
     AddTranslation("fr", "Track ", L"Piste ");

@@ -765,6 +765,8 @@
 #define IDM_SHOW_TRACK_LIST                1454   // "Show track list"
 #define IDD_TRACK_LIST                     1455   // track-list dialog template
 #define IDC_TRACK_LIST                     1456   // listbox inside IDD_TRACK_LIST
+#define IDD_CUE_SEARCH                     1457   // "Find track" dialog (v2.36)
+#define IDC_CUE_SEARCH_EDIT                1458   // edit box inside IDD_CUE_SEARCH
 
 #define IDOK                1
 #define IDCANCEL            2

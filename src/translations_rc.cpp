@@ -1066,10 +1066,14 @@ void RegisterRcTranslations() {
     AddTranslation("fr", "Track &list...", L"&Liste des pistes...");
     AddTranslation("en", "Announce &current track", L"Announce &current track");
     AddTranslation("fr", "Announce &current track", L"Annoncer la piste &courante");
-    AddTranslation("en", "Enter: Jump to track  |  Esc: Close",
-                   L"Enter: Jump to track  |  Esc: Close");
-    AddTranslation("fr", "Enter: Jump to track  |  Esc: Close",
-                   L"Entrée : Aller à la piste  |  Échap : Fermer");
+    AddTranslation("en", "Enter: Jump to track  |  Ctrl+F: Find  |  F3: Next  |  Esc: Close",
+                   L"Enter: Jump to track  |  Ctrl+F: Find  |  F3: Next  |  Esc: Close");
+    AddTranslation("fr", "Enter: Jump to track  |  Ctrl+F: Find  |  F3: Next  |  Esc: Close",
+                   L"Entrée : Aller à la piste  |  Ctrl+F : Rechercher  |  F3 : Suivant  |  Échap : Fermer");
+
+    // DIALOG: IDD_CUE_SEARCH - "Find track" (.cue track list search, v2.36)
+    AddTranslation("en", "Find track", L"Find track");
+    AddTranslation("fr", "Find track", L"Rechercher une piste");
 
     // ===================================================================
     // DIALOG: IDD_PODCAST - "Podcasts"

@@ -212,6 +212,12 @@ static const Action g_actions[] = {
     { "SEEK_FWD_CHAPTER", IDM_SEEK_FWD_CHAPTER, ActionCategory::Main,
       "Skip forward 1 chapter", "Chapitre suivant",       {} },
 
+    // .cue sheet (v2.34) — no default shortcut; user assigns in Tools > Actions.
+    { "CUE_ANNOUNCE_TRACK", IDM_CUE_ANNOUNCE_TRACK, ActionCategory::Main,
+      "Announce current track", "Annoncer la piste courante", {} },
+    { "CUE_TRACK_LIST",     IDM_SHOW_TRACK_LIST,    ActionCategory::Main,
+      "Show track list",        "Afficher la liste des pistes", {} },
+
     { "SEEK_BEGINNING",           IDM_PLAY_BEGINNING,         ActionCategory::Main,
       "Go to beginning",              "Aller au début",
       { VK_HOME, false, false, false } },
@@ -697,6 +703,12 @@ static const Action g_actions[] = {
       "Skip forward 10 tracks (global)", "Avancer de 10 pistes (global)",   {} },
     { "GLOBAL_SEEK_FWD_CHAPTER", IDM_SEEK_FWD_CHAPTER, ActionCategory::Global,
       "Skip forward 1 chapter (global)", "Chapitre suivant (global)",       {} },
+
+    // .cue sheet (v2.34) Global mirrors — no default shortcut.
+    { "GLOBAL_CUE_ANNOUNCE_TRACK", IDM_CUE_ANNOUNCE_TRACK, ActionCategory::Global,
+      "Announce current track (global)", "Annoncer la piste courante (global)", {} },
+    { "GLOBAL_CUE_TRACK_LIST",     IDM_SHOW_TRACK_LIST,    ActionCategory::Global,
+      "Show track list (global)",        "Afficher la liste des pistes (global)", {} },
 
     // ------------------------------------------------------------------------
     // v1.79 — additional Global mirrors of existing Main actions. Sèb asked

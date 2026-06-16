@@ -9,8 +9,8 @@ IDI_APPICON ICON "MediaAccess.ico"
 // ASCII only (rc.exe mojibake risk). FILEVERSION is hardcoded: bump it each
 // release to match include/mediaaccess/version.h (build_new.bat passes no /D to rc).
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION    2,35,0,0
- PRODUCTVERSION 2,35,0,0
+ FILEVERSION    2,36,0,0
+ PRODUCTVERSION 2,36,0,0
  FILEFLAGSMASK  0x3fL
  FILEFLAGS      0x0L
  FILEOS         VOS__WINDOWS32
@@ -23,12 +23,12 @@ BEGIN
     BEGIN
       VALUE "CompanyName",      "ReaperAccessible"
       VALUE "FileDescription",  "MediaAccess - accessible audio and video player"
-      VALUE "FileVersion",      "2.35"
+      VALUE "FileVersion",      "2.36"
       VALUE "InternalName",     "MediaAccess"
       VALUE "LegalCopyright",   "Copyright (C) 2026 ReaperAccessible. GPL-3.0."
       VALUE "OriginalFilename", "MediaAccess.exe"
       VALUE "ProductName",      "MediaAccess"
-      VALUE "ProductVersion",   "2.35"
+      VALUE "ProductVersion",   "2.36"
     END
   END
   BLOCK "VarFileInfo"
@@ -582,7 +582,20 @@ CAPTION "Track list"
 FONT 8, "MS Shell Dlg", 400, 0, 0x1
 BEGIN
     LISTBOX         IDC_TRACK_LIST, 7, 7, 336, 215, LBS_NOINTEGRALHEIGHT | WS_VSCROLL | WS_TABSTOP
-    LTEXT           "Enter: Jump to track  |  Esc: Close", -1, 7, 228, 336, 10
+    LTEXT           "Enter: Jump to track  |  Ctrl+F: Find  |  F3: Next  |  Esc: Close", -1, 7, 228, 336, 10
+END
+
+// Find-track dialog (.cue track list, v2.36)
+IDD_CUE_SEARCH DIALOGEX 0, 0, 280, 80
+STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "Find track"
+FONT 9, "MS Shell Dlg"
+BEGIN
+    LTEXT           "Find:", -1, 10, 10, 40, 10
+    EDITTEXT        IDC_CUE_SEARCH_EDIT, 55, 8, 215, 14, ES_AUTOHSCROLL
+
+    DEFPUSHBUTTON   "Find &next", IDOK,     110, 50, 70, 14
+    PUSHBUTTON      "Close",      IDCANCEL, 200, 50, 70, 14
 END
 
 // Podcast dialog

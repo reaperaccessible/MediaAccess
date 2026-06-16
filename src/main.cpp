@@ -234,11 +234,97 @@ static void HelpClearYouTubeCache(HWND hwnd) {
     MessageBoxW(hwnd, done, T("Clear YouTube cache"), MB_OK | MB_ICONINFORMATION);
 }
 
+// Detect a single .cue file on the clipboard (v2.36). A lone .cue — copied from
+// Explorer (CF_HDROP) or as a text path ("Copy as path", possibly quoted) — must
+// open via OpenCueSheet, exactly like File>Open, rather than being mishandled as
+// raw audio. Returns false (leaving the normal media-paste path untouched) for an
+// empty clipboard, a non-.cue item, or a multi-item selection.
+static bool GetLoneCuePathFromClipboard(std::wstring& outCue) {
+    bool found = false;
+    if (!OpenClipboard(nullptr)) return false;
+
+    // CF_HDROP first: a single file copied from Explorer.
+    HANDLE hData = GetClipboardData(CF_HDROP);
+    if (hData) {
+        HDROP hDrop = static_cast<HDROP>(hData);
+        UINT count = DragQueryFileW(hDrop, 0xFFFFFFFF, nullptr, 0);
+        if (count == 1) {
+            UINT pathLen = DragQueryFileW(hDrop, 0, nullptr, 0);
+            if (pathLen > 0 && pathLen < 32768) {
+                std::wstring path(pathLen + 1, L'\0');
+                if (DragQueryFileW(hDrop, 0, &path[0], pathLen + 1)) {
+                    path.resize(wcslen(path.c_str()));
+                    DWORD attrs = GetFileAttributesW(path.c_str());
+                    if (attrs != INVALID_FILE_ATTRIBUTES &&
+                        !(attrs & FILE_ATTRIBUTE_DIRECTORY) && IsCueFile(path)) {
+                        outCue = path;
+                        found = true;
+                    }
+                }
+            }
+        }
+    }
+
+    // CF_UNICODETEXT fallback: a path copied as text. Only treat it as a lone
+    // cue when the clipboard holds exactly ONE non-empty line.
+    if (!found) {
+        HANDLE hText = GetClipboardData(CF_UNICODETEXT);
+        if (hText) {
+            const wchar_t* text = static_cast<const wchar_t*>(GlobalLock(hText));
+            if (text) {
+                std::wstring clip = text;
+                GlobalUnlock(hText);
+
+                std::wstring line;
+                int nonEmpty = 0;
+                size_t start = 0;
+                while (start < clip.length()) {
+                    size_t end = clip.find_first_of(L"\r\n", start);
+                    if (end == std::wstring::npos) end = clip.length();
+                    std::wstring l = clip.substr(start, end - start);
+                    while (!l.empty() && (l[0] == L' ' || l[0] == L'\t')) l.erase(0, 1);
+                    while (!l.empty() && (l.back() == L' ' || l.back() == L'\t')) l.pop_back();
+                    if (!l.empty()) { nonEmpty++; line = l; }
+                    start = end + 1;
+                    while (start < clip.length() && (clip[start] == L'\r' || clip[start] == L'\n')) start++;
+                }
+
+                if (nonEmpty == 1) {
+                    // Strip a surrounding pair of double quotes ("Copy as path").
+                    if (line.size() >= 2 && line.front() == L'"' && line.back() == L'"') {
+                        line = line.substr(1, line.size() - 2);
+                    }
+                    bool isUrl = line.find(L"http://") == 0 || line.find(L"https://") == 0 ||
+                                 line.find(L"mms://") == 0 || line.find(L"rtsp://") == 0;
+                    if (!isUrl) {
+                        DWORD attrs = GetFileAttributesW(line.c_str());
+                        if (attrs != INVALID_FILE_ATTRIBUTES &&
+                            !(attrs & FILE_ATTRIBUTE_DIRECTORY) && IsCueFile(line)) {
+                            outCue = line;
+                            found = true;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    CloseClipboard();
+    return found;
+}
+
 static void PasteMediaFromClipboard() {
     extern std::vector<std::wstring> GetFilesFromClipboard();
     // Ctrl+V on the main window: paste media files/URLs from the clipboard.
     // Replaces the current playlist (matching the "Open file" semantics —
     // paste behaves like a fresh open).
+    // A lone .cue is opened via OpenCueSheet (like File>Open) before the normal
+    // media-paste path runs, so it never gets mishandled as raw audio (v2.36).
+    std::wstring cuePath;
+    if (GetLoneCuePathFromClipboard(cuePath)) {
+        OpenCueSheet(cuePath);
+        return;
+    }
     std::vector<std::wstring> files;
     try {
         files = GetFilesFromClipboard();

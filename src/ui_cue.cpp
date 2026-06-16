@@ -60,6 +60,102 @@ static void JumpToTrack(int sel) {
     }
 }
 
+// ---- Track-list search (v2.36) ------------------------------------------
+// Ctrl+F opens a small "Find track" prompt; F3 / Shift+F3 jump to the next /
+// previous title match (case-insensitive substring, wrap-around). Keys are
+// LOCAL to this modal dialog — not registered actions, so no keymap impact.
+static std::wstring s_cueSearchQuery;
+
+// Title text of row i (without the "N. " prefix RebuildTrackList adds), so a
+// digit in the query never false-matches the numbering of every row.
+static std::wstring TrackRowTitle(int i) {
+    if (TrackListIsChapters()) {
+        if (i < 0 || i >= (int)g_chapters.size()) return L"";
+        return g_chapters[i].name;
+    }
+    if (i < 0 || i >= (int)g_playlist.size()) return L"";
+    std::wstring f = g_playlist[i];
+    size_t pos = f.find_last_of(L"\\/");
+    if (pos != std::wstring::npos) f = f.substr(pos + 1);
+    return f;
+}
+
+// Case-insensitive substring test using CompareStringW with NORM_IGNORECASE so
+// accented characters fold correctly (é matches É) — important for French track
+// titles. Mirrors FindCI in daisy_book.cpp; towlower in the "C" locale does NOT
+// fold accents, which would silently miss accented titles for the FR user.
+static bool TitleContainsCI(const std::wstring& hay, const std::wstring& needle) {
+    if (needle.empty()) return true;
+    if (hay.size() < needle.size()) return false;
+    for (size_t i = 0; i + needle.size() <= hay.size(); ++i) {
+        if (CompareStringW(LOCALE_USER_DEFAULT, NORM_IGNORECASE,
+                           hay.c_str() + i, (int)needle.size(),
+                           needle.c_str(), (int)needle.size()) == CSTR_EQUAL) {
+            return true;
+        }
+    }
+    return false;
+}
+
+// Next row whose title contains s_cueSearchQuery, scanning from startIdx in
+// direction dir (+1/-1) with wrap-around. includeStart checks startIdx itself
+// first (used for a fresh Ctrl+F so a matching current row counts). -1 if none.
+static int FindCueMatch(int startIdx, int dir, bool includeStart) {
+    int rowCount = TrackListIsChapters() ? (int)g_chapters.size() : (int)g_playlist.size();
+    if (rowCount <= 0 || s_cueSearchQuery.empty()) return -1;
+    if (startIdx < 0) startIdx = 0;
+    for (int step = includeStart ? 0 : 1; step <= rowCount; step++) {
+        int idx = ((startIdx + dir * step) % rowCount + rowCount) % rowCount;
+        if (TitleContainsCI(TrackRowTitle(idx), s_cueSearchQuery)) return idx;
+    }
+    return -1;
+}
+
+static INT_PTR CALLBACK CueSearchDlgProc(HWND dlg, UINT msg, WPARAM wp, LPARAM /*lp*/) {
+    switch (msg) {
+        case WM_INITDIALOG:
+            LocalizeDialog(dlg);
+            SetDlgItemTextW(dlg, IDC_CUE_SEARCH_EDIT, s_cueSearchQuery.c_str());
+            SendDlgItemMessageW(dlg, IDC_CUE_SEARCH_EDIT, EM_SETSEL, 0, -1);
+            SetFocus(GetDlgItem(dlg, IDC_CUE_SEARCH_EDIT));
+            return FALSE;
+        case WM_COMMAND:
+            if (LOWORD(wp) == IDOK) {
+                wchar_t buf[1024] = {0};
+                GetDlgItemTextW(dlg, IDC_CUE_SEARCH_EDIT, buf, 1024);
+                s_cueSearchQuery = buf;
+                EndDialog(dlg, IDOK);
+                return TRUE;
+            }
+            if (LOWORD(wp) == IDCANCEL) { EndDialog(dlg, IDCANCEL); return TRUE; }
+            break;
+        case WM_CLOSE:
+            EndDialog(dlg, IDCANCEL);
+            return TRUE;
+    }
+    return FALSE;
+}
+
+// Show the "Find track" prompt; true when the user confirmed a non-empty query.
+static bool PromptCueSearch(HWND owner) {
+    return DialogBoxW(GetModuleHandleW(nullptr), MAKEINTRESOURCEW(IDD_CUE_SEARCH),
+                      owner, CueSearchDlgProc) == IDOK && !s_cueSearchQuery.empty();
+}
+
+// Move the selection to the next/previous matching track and announce it.
+// A programmatic LB_SETCURSEL is not reliably spoken by NVDA/JAWS without a
+// user keystroke, so we announce the matched title explicitly.
+static void DoCueSearch(HWND hList, int dir, bool includeCurrent) {
+    int sel = (int)SendMessageW(hList, LB_GETCURSEL, 0, 0);
+    int m = FindCueMatch(sel, dir, includeCurrent);
+    if (m >= 0) {
+        SendMessageW(hList, LB_SETCURSEL, m, 0);
+        Speak(WideToUtf8(TrackRowTitle(m)));
+    } else {
+        Speak(Ts("No matching track"));
+    }
+}
+
 static LRESULT CALLBACK TrackListProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
     if (msg == WM_KEYDOWN) {
         int sel = (int)SendMessageW(hwnd, LB_GETCURSEL, 0, 0);
@@ -72,11 +168,29 @@ static LRESULT CALLBACK TrackListProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM
             EndDialog(g_trackListDlg, IDOK);
             return 0;
         }
+        // Ctrl+F: open the find prompt, then jump to the first match.
+        if ((GetKeyState(VK_CONTROL) & 0x8000) && (wParam == 'F' || wParam == 'f')) {
+            if (PromptCueSearch(g_trackListDlg)) DoCueSearch(hwnd, +1, true);
+            SetFocus(hwnd);
+            return 0;
+        }
+        // F3 / Shift+F3: next / previous match (open the prompt if no query yet).
+        if (wParam == VK_F3) {
+            bool back = (GetKeyState(VK_SHIFT) & 0x8000) != 0;
+            if (s_cueSearchQuery.empty()) {
+                if (PromptCueSearch(g_trackListDlg)) DoCueSearch(hwnd, back ? -1 : +1, true);
+                SetFocus(hwnd);
+            } else {
+                DoCueSearch(hwnd, back ? -1 : +1, false);
+            }
+            return 0;
+        }
     }
 
     if (msg == WM_GETDLGCODE) {
         MSG* pmsg = reinterpret_cast<MSG*>(lParam);
-        if (pmsg && (pmsg->wParam == VK_RETURN || pmsg->wParam == VK_ESCAPE)) {
+        if (pmsg && (pmsg->wParam == VK_RETURN || pmsg->wParam == VK_ESCAPE ||
+                     pmsg->wParam == VK_F3)) {
             return DLGC_WANTMESSAGE;
         }
     }
@@ -134,5 +248,6 @@ void ShowTrackListDialog() {
         Speak(Ts("No track"));
         return;
     }
+    s_cueSearchQuery.clear();  // fresh search per opening (v2.36)
     DialogBoxW(GetModuleHandle(nullptr), MAKEINTRESOURCEW(IDD_TRACK_LIST), g_hwnd, TrackListDlgProc);
 }
