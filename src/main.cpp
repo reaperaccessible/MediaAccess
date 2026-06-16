@@ -1318,15 +1318,19 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
                         std::wstring media =
                             (g_currentTrack >= 0 && g_currentTrack < (int)g_playlist.size())
                             ? g_playlist[g_currentTrack] : std::wstring();
+                        long ffIdx = MPVGetActiveSubtitleFfIndex();
                         std::wstring err;
                         mediaaccess::SubSetDuckCallback(SubtitleDuck);
+                        Speak("Preparing subtitles");  // extraction can take ~1 s
                         if (!media.empty() &&
-                            mediaaccess::SubStartForMedia(media, "fr-FR-DeniseNeural", 2.5, 0.3, &err)) {
+                            mediaaccess::SubStartForMedia(media, "fr-FR-DeniseNeural",
+                                                          2.5, 0.3, (int)ffIdx, &err)) {
                             g_subtitleEdgeTts = true;
                             Speak("Subtitle voice on");
                         } else {
                             MPVSetVolume(g_volume);  // make sure nothing stays ducked
-                            Speak("No subtitles to read");
+                            Speak(ffIdx < 0 ? "Select a subtitle track first"
+                                            : "No subtitles to read");
                         }
                     } else {
                         g_subtitleEdgeTts = false;

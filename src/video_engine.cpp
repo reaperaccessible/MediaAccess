@@ -817,6 +817,16 @@ std::wstring MPVGetSubtitleTrackName(int index)
     return GetTrackNameByType("sub", index);
 }
 
+long MPVGetActiveSubtitleFfIndex()
+{
+    if (!g_mpv) return -1;
+    __int64 idx = -1;
+    if (fn_mpv_get_property(g_mpv, "current-tracks/sub/ff-index",
+                            MPV_FORMAT_INT64, &idx) < 0)
+        return -1;
+    return (long)idx;
+}
+
 void MPVSetSubtitleTrack(int index)
 {
     if (!g_mpv) return;

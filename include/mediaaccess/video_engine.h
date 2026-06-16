@@ -58,6 +58,9 @@ std::wstring MPVGetSubtitleTrackName(int index);
 void MPVSetSubtitleTrack(int index);
 void MPVCycleSubtitles();
 bool MPVLoadExternalSubtitle(const wchar_t* path);
+// ffmpeg stream index (container-wide, 0-based) of the active subtitle track,
+// or -1 if none is selected. Used to extract exactly the track being watched.
+long MPVGetActiveSubtitleFfIndex();
 
 // ===== Audio Tracks =====
 int MPVGetAudioTrackCount();

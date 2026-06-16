@@ -332,12 +332,26 @@ std::wstring FindSidecar(const std::wstring& media) {
     return L"";
 }
 
-// Extract the first embedded subtitle stream to outSrt via the bundled ffmpeg.
-bool ExtractEmbeddedSrt(const std::wstring& media, const std::wstring& outSrt) {
+// Read a file with a few retries: ffmpeg has just created it and an AV scan can
+// briefly lock the fresh file, making the first open fail (observed on Windows).
+std::string ReadFileRetry(const std::wstring& path, int tries = 15) {
+    for (int i = 0; i < tries; i++) {
+        std::string s = ReadWholeFile(path);
+        if (!s.empty()) return s;
+        Sleep(100);
+    }
+    return "";
+}
+
+// Extract a subtitle stream to outSrt via the bundled ffmpeg. `ffIndex` is the
+// container-wide ffmpeg stream index (use the active track), or -1 for 0:s:0.
+bool ExtractEmbeddedSrt(const std::wstring& media, const std::wstring& outSrt, int ffIndex) {
     std::wstring ff = GetFfmpegLocation();
     if (ff.empty()) { LogF("subtts", "ffmpeg not found for subtitle extraction"); return false; }
     DeleteFileW(outSrt.c_str());
-    std::wstring cmd = L"\"" + ff + L"\" -y -i \"" + media + L"\" -map 0:s:0 \"" + outSrt + L"\"";
+    std::wstring map = (ffIndex >= 0) ? (L"0:" + std::to_wstring(ffIndex)) : L"0:s:0";
+    std::wstring cmd = L"\"" + ff + L"\" -y -loglevel error -i \"" + media +
+                       L"\" -map " + map + L" \"" + outSrt + L"\"";
     std::vector<wchar_t> buf(cmd.begin(), cmd.end()); buf.push_back(0);
     STARTUPINFOW si{}; si.cb = sizeof(si);
     PROCESS_INFORMATION pi{};
@@ -346,7 +360,7 @@ bool ExtractEmbeddedSrt(const std::wstring& media, const std::wstring& outSrt) {
         LogF("subtts", "CreateProcess(ffmpeg) failed err=%lu", GetLastError());
         return false;
     }
-    WaitForSingleObject(pi.hProcess, 30000);
+    WaitForSingleObject(pi.hProcess, 60000);
     CloseHandle(pi.hThread); CloseHandle(pi.hProcess);
     return FileExists(outSrt);
 }
@@ -354,20 +368,23 @@ bool ExtractEmbeddedSrt(const std::wstring& media, const std::wstring& outSrt) {
 } // namespace
 
 bool SubStartForMedia(const std::wstring& mediaPath, const std::string& edgeVoice,
-                      double lookaheadSec, double duckLevel, std::wstring* err) {
+                      double lookaheadSec, double duckLevel, int subFfIndex,
+                      std::wstring* err) {
     std::vector<SubCue> cues;
 
     std::wstring sidecar = FindSidecar(mediaPath);
     if (!sidecar.empty()) {
-        cues = ParseSubtitles(ReadWholeFile(sidecar));
+        cues = ParseSubtitles(ReadFileRetry(sidecar));
         LogF("subtts", "sidecar subtitle %ls -> %zu cues", sidecar.c_str(), cues.size());
     }
     if (cues.empty()) {
         wchar_t tmpDir[MAX_PATH]; GetTempPathW(MAX_PATH, tmpDir);
         std::wstring tmp = std::wstring(tmpDir) + L"mediaaccess_subs.srt";
-        if (ExtractEmbeddedSrt(mediaPath, tmp)) {
-            cues = ParseSubtitles(ReadWholeFile(tmp));
-            LogF("subtts", "embedded extraction -> %zu cues", cues.size());
+        if (ExtractEmbeddedSrt(mediaPath, tmp, subFfIndex)) {
+            std::string data = ReadFileRetry(tmp);
+            cues = ParseSubtitles(data);
+            LogF("subtts", "embedded extraction (ff-index %d, %zu bytes) -> %zu cues",
+                 subFfIndex, data.size(), cues.size());
         }
     }
     if (cues.empty()) {

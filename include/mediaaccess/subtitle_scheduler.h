@@ -67,9 +67,12 @@ void SubStart(const std::vector<SubCue>& cues, const std::string& edgeVoice,
 // the bundled ffmpeg — parse them, and begin prefetch scheduling with `voice`.
 // Returns false (and sets *err) when no usable subtitles are found. BLOCKING
 // (runs ffmpeg synchronously); call off the time-critical path.
+// `subFfIndex` is the ffmpeg stream index of the subtitle track to extract
+// (from MPVGetActiveSubtitleFfIndex); pass -1 to fall back to the first text
+// subtitle stream.
 bool SubStartForMedia(const std::wstring& mediaPath, const std::string& edgeVoice,
                       double lookaheadSec = 2.5, double duckLevel = 0.3,
-                      std::wstring* err = nullptr);
+                      int subFfIndex = -1, std::wstring* err = nullptr);
 
 // Stop scheduling, halt any clip, free everything, join the worker.
 void SubStop();
