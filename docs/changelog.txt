@@ -1,3 +1,6 @@
+2.39
+Correction : certaines stations trouvées via la recherche TuneIn (typiquement celles diffusées par StreamTheWorld, fréquentes au Québec comme QUB Radio) affichaient « impossible d'obtenir l'URL du flux » et refusaient de jouer. MediaAccess résout désormais correctement ces flux à plusieurs niveaux (la station renvoyait plusieurs variantes pointant vers des playlists .pls qui étaient écartées au lieu d'être résolues). Signalé par Séb.
+
 2.38
 Amélioration : pour un fichier local sans métadonnées (tags), le titre de la fenêtre et l'annonce de lecture affichent désormais le nom du fichier sans son extension (« Ma chanson » plutôt que « Ma chanson.mp3 »). Demandé par Séb.
 Nouveau : action globale « Afficher MediaAccess » (Outils → Actions, catégorie Globale, sans raccourci par défaut). Contrairement au bascule « Afficher / cacher », elle ne fait que ramener la fenêtre au premier plan (jamais la cacher) — pratique pour un raccourci global qui rappelle toujours MediaAccess. Demandé par Séb.

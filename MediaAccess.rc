@@ -9,8 +9,8 @@ IDI_APPICON ICON "MediaAccess.ico"
 // ASCII only (rc.exe mojibake risk). FILEVERSION is hardcoded: bump it each
 // release to match include/mediaaccess/version.h (build_new.bat passes no /D to rc).
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION    2,38,0,0
- PRODUCTVERSION 2,38,0,0
+ FILEVERSION    2,39,0,0
+ PRODUCTVERSION 2,39,0,0
  FILEFLAGSMASK  0x3fL
  FILEFLAGS      0x0L
  FILEOS         VOS__WINDOWS32
@@ -23,12 +23,12 @@ BEGIN
     BEGIN
       VALUE "CompanyName",      "ReaperAccessible"
       VALUE "FileDescription",  "MediaAccess - accessible audio and video player"
-      VALUE "FileVersion",      "2.38"
+      VALUE "FileVersion",      "2.39"
       VALUE "InternalName",     "MediaAccess"
       VALUE "LegalCopyright",   "Copyright (C) 2026 ReaperAccessible. GPL-3.0."
       VALUE "OriginalFilename", "MediaAccess.exe"
       VALUE "ProductName",      "MediaAccess"
-      VALUE "ProductVersion",   "2.38"
+      VALUE "ProductVersion",   "2.39"
     END
   END
   BLOCK "VarFileInfo"

@@ -776,13 +776,26 @@ static std::vector<StreamOption> ResolveTuneInUrls(const std::wstring& playlistU
         }
     }
 
-    // Filter out any remaining playlist URLs and deduplicate
+    // Resolve any entries that are themselves playlists, then deduplicate by the
+    // FINAL stream URL. TuneIn's Tune.ashx can return an M3U with several entries
+    // (e.g. http + https variants) that each point at a StreamTheWorld .pls — one
+    // more resolution hop. Previously these playlist URLs were simply DROPPED
+    // here, leaving QUB Radio (and other StreamTheWorld stations) with an empty
+    // list and a "Could not get stream URL" error. Resolve them instead.
     std::vector<StreamOption> filtered;
     std::set<std::wstring> seen;
     for (const auto& opt : result) {
-        if (!IsPlaylistUrl(opt.url) && seen.find(opt.url) == seen.end()) {
-            filtered.push_back(opt);
-            seen.insert(opt.url);
+        std::wstring url = opt.url;
+        if (IsPlaylistUrl(url)) {
+            std::wstring resolved = ResolveTuneInUrl(url);
+            // ResolveTuneInUrl can fall through still pointing at a playlist when
+            // it exhausts its 3-hop budget; skip such unresolvable entries.
+            if (resolved.empty() || IsPlaylistUrl(resolved)) continue;
+            url = resolved;
+        }
+        if (seen.find(url) == seen.end()) {
+            filtered.push_back({url, opt.label});
+            seen.insert(url);
         }
     }
 
