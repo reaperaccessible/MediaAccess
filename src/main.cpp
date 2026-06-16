@@ -63,7 +63,15 @@
 #include "mediaaccess/wasapi_loopback.h" // v1.94 — system-audio capture state
 #include "mediaaccess/audio_device_watcher.h" // v2.32 — auto-follow default output device
 #include "mediaaccess/cue_sheet.h"      // v2.34 — .cue sheet support
+#include "mediaaccess/subtitle_scheduler.h" // read subtitles aloud (prefetched Edge voice)
 #include <utility>  // for std::pair
+
+// Ducking hook for the subtitle scheduler: lower the mpv video volume while a
+// subtitle line is spoken (level<1), restore on level==1. Uses the app's
+// current g_volume so a user volume change is respected.
+static void SubtitleDuck(double level) {
+    MPVSetVolume(g_volume * (float)level);
+}
 
 // Custom message posted from daisy_player.cpp BASS sync (worker thread).
 #define WM_DAISY_NEXT_CLIP_LOCAL (WM_USER + 50)
@@ -690,6 +698,10 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
                     Speak(Ts("Recording stopped, device lost"));
                 }
                 UpdateStatusBar();
+                // Drive the subtitle prefetch scheduler on the UI thread (BASS
+                // playback must stay on one thread). 250 ms granularity is fine
+                // given the lookahead absorbs synthesis latency.
+                if (g_subtitleEdgeTts) mediaaccess::SubOnTimePos(MPVGetPosition());
             } else if (wParam == IDT_BATCH_FILES) {
                 KillTimer(hwnd, IDT_BATCH_FILES);
                 if (!g_pendingFiles.empty()) {
@@ -754,7 +766,9 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
             // would lag behind the picture). Gated by g_speakSubtitles.
             wchar_t* text = reinterpret_cast<wchar_t*>(lParam);
             if (text) {
-                if (g_speakSubtitles) SpeakW(text, true);
+                // Skip the live screen-reader path when the prefetch Edge voice
+                // is active, so a line is not spoken twice.
+                if (g_speakSubtitles && !g_subtitleEdgeTts) SpeakW(text, true);
                 free(text);
             }
             return 0;
@@ -1297,6 +1311,31 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
                                            : Ts("Subtitle speech off"));
                     SaveSettings();
                     break;
+                case IDM_TOGGLE_SUBTITLE_TTS: {
+                    // Read subtitles aloud with a prefetched Edge neural voice.
+                    // First test: a fixed default voice; full Options UI later.
+                    if (!g_subtitleEdgeTts) {
+                        std::wstring media =
+                            (g_currentTrack >= 0 && g_currentTrack < (int)g_playlist.size())
+                            ? g_playlist[g_currentTrack] : std::wstring();
+                        std::wstring err;
+                        mediaaccess::SubSetDuckCallback(SubtitleDuck);
+                        if (!media.empty() &&
+                            mediaaccess::SubStartForMedia(media, "fr-FR-DeniseNeural", 2.5, 0.3, &err)) {
+                            g_subtitleEdgeTts = true;
+                            Speak("Subtitle voice on");
+                        } else {
+                            MPVSetVolume(g_volume);  // make sure nothing stays ducked
+                            Speak("No subtitles to read");
+                        }
+                    } else {
+                        g_subtitleEdgeTts = false;
+                        mediaaccess::SubStop();
+                        MPVSetVolume(g_volume);      // restore volume
+                        Speak("Subtitle voice off");
+                    }
+                    break;
+                }
                 case IDM_PLAY_REPEAT_TOGGLE:
                     ToggleRepeatMode();
                     break;
@@ -1649,6 +1688,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
             // v1.63 — mark shutdown so WM_COPYDATA dwData=4 (CLI deliveries)
             // arriving after this point are dropped before they touch BASS.
             g_isShuttingDown = true;
+            mediaaccess::SubStop();  // stop subtitle prefetch worker + clip before BASS teardown
             // -----------------------------------------------------------
             // Kill audio IMMEDIATELY before doing anything else.
             // Otherwise the BASS device keeps producing sound for the

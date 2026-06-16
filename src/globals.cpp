@@ -123,6 +123,10 @@ bool g_speechSeekPosition = true;
 // TOGGLE_SUBTITLE_SPEECH action. Persisted under [Speech] SpeakSubtitles.
 bool g_speakSubtitles = false;
 
+// Read subtitles aloud with a prefetched Edge neural voice (subtitle_scheduler).
+// Mutually the "prefetch" path; when ON the live g_speakSubtitles path is bypassed.
+bool g_subtitleEdgeTts = false;
+
 // v1.60 — Now-playing display state. Definitions; the SourceType enum is
 // in mediaaccess/ui.h so we have to include it here.
 #include "mediaaccess/ui.h"

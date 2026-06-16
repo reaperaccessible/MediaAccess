@@ -196,6 +196,7 @@
 #define IDM_TOGGLE_SUBTITLE_SPEECH 253  // v1.81 — toggle g_speakSubtitles
 #define IDM_CYCLE_RECORD_SOURCE 254  // v1.94 — cycle g_recordSource (MediaAccess output / Windows system)
 #define IDM_RECORD_PAUSE_TOGGLE 255  // v2.24 — pause/resume the active recording (punch-in/out)
+#define IDM_TOGGLE_SUBTITLE_TTS 280  // read subtitles aloud with a prefetched Edge neural voice
 
 // Speak commands
 #define IDM_SPEAK_SEEK          250

@@ -99,6 +99,7 @@ BEGIN
         MENUITEM "Cycle &Subtitles",                IDM_VIDEO_SUB_CYCLE
         MENUITEM "&Load Subtitle File...",          IDM_VIDEO_SUB_LOAD
         MENUITEM "Subtitles &Off",                  IDM_VIDEO_SUB_OFF
+        MENUITEM "Read Subtitles Aloud (&Edge voice)", IDM_TOGGLE_SUBTITLE_TTS
         MENUITEM SEPARATOR
         MENUITEM "Cycle &Audio Track",              IDM_VIDEO_AUDIO_CYCLE
         MENUITEM SEPARATOR

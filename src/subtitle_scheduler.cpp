@@ -7,6 +7,8 @@
 #include "mediaaccess/utils.h"          // Utf8ToWide
 #include "mediaaccess/edge_tts_client.h"
 #include "mediaaccess/logger.h"
+#include "mediaaccess/youtube.h"        // GetFfmpegLocation
+#include <windows.h>
 #include "bass.h"
 
 #include <algorithm>
@@ -298,6 +300,82 @@ void SubOnSeek(double pos) {
 
 void SubOnPause(bool paused) {
     if (paused) StopClip();
+}
+
+// -----------------------------------------------------------------------------
+// High-level: source subtitles for a media file, then start scheduling.
+// -----------------------------------------------------------------------------
+
+namespace {
+
+std::string ReadWholeFile(const std::wstring& path) {
+    HANDLE h = CreateFileW(path.c_str(), GENERIC_READ, FILE_SHARE_READ, nullptr,
+                           OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
+    if (h == INVALID_HANDLE_VALUE) return "";
+    std::string out; char buf[8192]; DWORD rd = 0;
+    while (ReadFile(h, buf, sizeof(buf), &rd, nullptr) && rd > 0) out.append(buf, rd);
+    CloseHandle(h);
+    return out;
+}
+
+bool FileExists(const std::wstring& p) {
+    DWORD a = GetFileAttributesW(p.c_str());
+    return a != INVALID_FILE_ATTRIBUTES && !(a & FILE_ATTRIBUTE_DIRECTORY);
+}
+
+// Look for a sidecar subtitle next to the media (same base name).
+std::wstring FindSidecar(const std::wstring& media) {
+    size_t dot = media.find_last_of(L'.');
+    std::wstring base = (dot == std::wstring::npos) ? media : media.substr(0, dot);
+    const wchar_t* exts[] = {L".srt", L".vtt"};
+    for (const wchar_t* e : exts) { std::wstring p = base + e; if (FileExists(p)) return p; }
+    return L"";
+}
+
+// Extract the first embedded subtitle stream to outSrt via the bundled ffmpeg.
+bool ExtractEmbeddedSrt(const std::wstring& media, const std::wstring& outSrt) {
+    std::wstring ff = GetFfmpegLocation();
+    if (ff.empty()) { LogF("subtts", "ffmpeg not found for subtitle extraction"); return false; }
+    DeleteFileW(outSrt.c_str());
+    std::wstring cmd = L"\"" + ff + L"\" -y -i \"" + media + L"\" -map 0:s:0 \"" + outSrt + L"\"";
+    std::vector<wchar_t> buf(cmd.begin(), cmd.end()); buf.push_back(0);
+    STARTUPINFOW si{}; si.cb = sizeof(si);
+    PROCESS_INFORMATION pi{};
+    if (!CreateProcessW(nullptr, buf.data(), nullptr, nullptr, FALSE,
+                        CREATE_NO_WINDOW, nullptr, nullptr, &si, &pi)) {
+        LogF("subtts", "CreateProcess(ffmpeg) failed err=%lu", GetLastError());
+        return false;
+    }
+    WaitForSingleObject(pi.hProcess, 30000);
+    CloseHandle(pi.hThread); CloseHandle(pi.hProcess);
+    return FileExists(outSrt);
+}
+
+} // namespace
+
+bool SubStartForMedia(const std::wstring& mediaPath, const std::string& edgeVoice,
+                      double lookaheadSec, double duckLevel, std::wstring* err) {
+    std::vector<SubCue> cues;
+
+    std::wstring sidecar = FindSidecar(mediaPath);
+    if (!sidecar.empty()) {
+        cues = ParseSubtitles(ReadWholeFile(sidecar));
+        LogF("subtts", "sidecar subtitle %ls -> %zu cues", sidecar.c_str(), cues.size());
+    }
+    if (cues.empty()) {
+        wchar_t tmpDir[MAX_PATH]; GetTempPathW(MAX_PATH, tmpDir);
+        std::wstring tmp = std::wstring(tmpDir) + L"mediaaccess_subs.srt";
+        if (ExtractEmbeddedSrt(mediaPath, tmp)) {
+            cues = ParseSubtitles(ReadWholeFile(tmp));
+            LogF("subtts", "embedded extraction -> %zu cues", cues.size());
+        }
+    }
+    if (cues.empty()) {
+        if (err) *err = L"No subtitles found for this video";
+        return false;
+    }
+    SubStart(cues, edgeVoice, lookaheadSec, duckLevel);
+    return true;
 }
 
 } // namespace mediaaccess
