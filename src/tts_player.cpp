@@ -89,7 +89,11 @@ static void __stdcall OnSapiEvent(WPARAM /*wParam*/, LPARAM /*lParam*/) {
     ULONG fetched = 0;
     while (g_voice->GetEvents(1, &ev, &fetched) == S_OK && fetched > 0) {
         if (ev.eEventId == SPEI_END_INPUT_STREAM) {
-            if (g_hwnd) PostMessageW(g_hwnd, WM_TTS_END_OF_STREAM, 0, 0);
+            // v2.35 — carry the ended SAPI stream number so the consumer can tell
+            // a natural end of the CURRENT utterance from a stale/purged stream
+            // (navigation jump) — see DaisyOnTtsEndOfStream.
+            if (g_hwnd) PostMessageW(g_hwnd, WM_TTS_END_OF_STREAM,
+                                     (WPARAM)ev.ulStreamNum, 0);
         }
         // No SpClearEvent helper without sphelper — manually free the
         // event payload if it was an object/string.
@@ -279,13 +283,26 @@ double TtsGetSpeedMultiplier() { return g_speedMultiplier; }
 // Speech control
 // -----------------------------------------------------------------------------
 
+// v2.35 — SAPI stream number of the most recently started utterance. The
+// END_INPUT_STREAM consumer compares the ended stream to this so a stale/purged
+// stream (from a navigation jump) is not mistaken for a natural end. 0 = none.
+static ULONG g_lastTtsStream = 0;
+
 bool TtsSpeak(const std::wstring& text) {
     if (!g_voice) return false;
     if (text.empty()) return false;
     DWORD flags = SPF_ASYNC | SPF_PURGEBEFORESPEAK | SPF_IS_NOT_XML;
-    HRESULT hr = g_voice->Speak(text.c_str(), flags, nullptr);
+    ULONG streamNum = 0;
+    // ISpVoice::Speak fills pulStreamNumber synchronously on return, even with
+    // SPF_ASYNC — this is the number SAPI will report in the matching
+    // SPEI_END_INPUT_STREAM event. Record it BEFORE returning to the caller so
+    // any older pending purge end-event still carries the prior number.
+    HRESULT hr = g_voice->Speak(text.c_str(), flags, &streamNum);
+    if (SUCCEEDED(hr)) g_lastTtsStream = streamNum;
     return SUCCEEDED(hr);
 }
+
+unsigned long TtsLastStreamNumber() { return (unsigned long)g_lastTtsStream; }
 
 void TtsStop() {
     if (!g_voice) return;

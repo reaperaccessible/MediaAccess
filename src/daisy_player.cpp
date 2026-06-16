@@ -75,6 +75,7 @@ struct DaisyState {
     bool     textOnlyMode    = false;
     int      currentSegment  = 0;
     bool     ttsPaused       = false;
+    bool     ttsReading      = false;  // v2.35 — continuous-narration intent; gates auto-advance
 };
 
 static DaisyState g_d;
@@ -184,6 +185,7 @@ static bool StartTtsSegment(int segIdx) {
         return false;
     }
     g_d.ttsPaused = false;
+    g_d.ttsReading = true;   // v2.35 — a new utterance is the active continuous read
     // Refresh title with the segment's chapter / page label.
     SetNowPlayingItem(BuildLocationLabel());
     return true;
@@ -268,6 +270,7 @@ void DaisyClose() {
     g_d.textOnlyMode = false;
     g_d.currentSegment = 0;
     g_d.ttsPaused = false;
+    g_d.ttsReading = false;   // v2.35
     // v1.78 — Only clear the now-playing state if we were actually
     // showing a book. The comment below assumed every caller would
     // call SetNowPlaying right after (and many do), but YouTube cache
@@ -353,6 +356,7 @@ void DaisyPlay() {
         if (g_d.ttsPaused) {
             TtsResume();
             g_d.ttsPaused = false;
+            g_d.ttsReading = true;   // v2.35 — resuming continuous narration
         } else if (!TtsIsSpeaking()) {
             StartTtsSegment(g_d.currentSegment);
         }
@@ -388,6 +392,13 @@ void DaisyPlayPause() {
 
 void DaisyStop() {
     if (g_d.textOnlyMode) {
+        // v2.35 — clear the reading intent BEFORE purging. TtsStop() purges via
+        // SPF_PURGEBEFORESPEAK, which emits an SPEI_END_INPUT_STREAM for the
+        // stopped stream; without clearing intent first, DaisyOnTtsEndOfStream
+        // would treat that as a natural end and auto-advance (the "cannot stop"
+        // bug). The purged stream still carries the current stream number, so the
+        // stream-number check alone would NOT catch it — intent is what stops it.
+        g_d.ttsReading = false;
         TtsStop();
         g_d.ttsPaused = false;
         SaveTtsPosition();
@@ -1058,11 +1069,20 @@ extern "C" void DaisyOnClipEnded(int endedClipIndex) {
 
 // Called from main.cpp WndProc when SAPI signals end of utterance via
 // WM_TTS_END_OF_STREAM. Advance to the next paragraph in text-only mode.
-extern "C" void DaisyOnTtsEndOfStream() {
+extern "C" void DaisyOnTtsEndOfStream(unsigned long endedStream) {
     using namespace mediaaccess;
     if (!g_d.book) return;
     if (!g_d.textOnlyMode) return;
-    if (g_d.ttsPaused) return;  // User paused — don't auto-advance
+    // v2.35 — auto-advance ONLY on the natural end of the CURRENT utterance while
+    // continuous reading is intended. This rejects the three look-alike cases:
+    //  (b) Stop purge -> ttsReading is false;
+    //  (a) pause -> ttsPaused;
+    //  (c) a stale/purged stream from a navigation jump -> its number no longer
+    //      matches the latest utterance (TtsLastStreamNumber), even when the
+    //      late end-event is delivered after we've started the new segment.
+    if (!g_d.ttsReading) return;
+    if (g_d.ttsPaused) return;
+    if (endedStream != TtsLastStreamNumber()) return;
     int next = g_d.currentSegment + 1;
     int safety = 0;
     while (next < (int)g_d.book->textSegments.size() && safety < kClipSkipSafetyBound &&
@@ -1070,6 +1090,7 @@ extern "C" void DaisyOnTtsEndOfStream() {
         ++next; ++safety;
     }
     if (next >= (int)g_d.book->textSegments.size()) {
+        g_d.ttsReading = false;   // v2.35 — narration genuinely ended
         SaveTtsPosition();
         Speak(Ts("End of book"));
         return;

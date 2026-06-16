@@ -68,7 +68,7 @@
 // Custom message posted from daisy_player.cpp BASS sync (worker thread).
 #define WM_DAISY_NEXT_CLIP_LOCAL (WM_USER + 50)
 extern "C" void DaisyOnClipEnded(int endedClipIndex);
-extern "C" void DaisyOnTtsEndOfStream();
+extern "C" void DaisyOnTtsEndOfStream(unsigned long endedStream);
 
 #pragma comment(lib, "bass.lib")
 #pragma comment(lib, "user32.lib")
@@ -766,8 +766,9 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
             return 0;
 
         case mediaaccess::WM_TTS_END_OF_STREAM:
-            // SAPI told us the current paragraph finished speaking — advance.
-            DaisyOnTtsEndOfStream();
+            // SAPI told us a paragraph stream ended — wParam carries the ended
+            // stream number (v2.35) so the handler can ignore stale/purged streams.
+            DaisyOnTtsEndOfStream((unsigned long)wParam);
             return 0;
 
         case WM_HOTKEY: {

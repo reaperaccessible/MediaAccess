@@ -73,7 +73,11 @@ double TtsGetSpeedMultiplier();
 // paragraph when EndOfStream fires.
 bool TtsSpeak(const std::wstring& text);
 
-// Cancel current speech immediately. No EndOfStream notification.
+// Cancel current speech immediately. NOTE (v2.35): this purges via
+// SPF_PURGEBEFORESPEAK and DOES emit an SPEI_END_INPUT_STREAM for the purged
+// stream. Consumers must guard auto-advance with the ended stream number
+// (carried in WM_TTS_END_OF_STREAM's wParam) vs TtsLastStreamNumber() plus a
+// reading-intent flag — see DaisyOnTtsEndOfStream.
 void TtsStop();
 
 // Pause / resume the current utterance. SAPI supports SPVES_PAUSED.
@@ -82,6 +86,11 @@ void TtsResume();
 
 bool TtsIsSpeaking();
 bool TtsIsPaused();
+
+// v2.35 — SAPI stream number of the most recently started utterance (0 = none).
+// Used to distinguish a natural end of the current utterance from a stale/purged
+// stream's late end-event. unsigned long avoids leaking sapi.h's ULONG here.
+unsigned long TtsLastStreamNumber();
 
 // =============================================================================
 // End-of-stream notification

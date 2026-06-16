@@ -1,3 +1,6 @@
+2.35
+Correction : lors de la lecture d'un livre EPUB en mode texte avec une synthèse SAPI5, il était impossible d'arrêter la synthèse (l'arrêt enchaînait sur le paragraphe suivant et reprenait la lecture). MediaAccess distingue désormais correctement une fin de paragraphe naturelle d'un arrêt ou d'un saut de navigation, et l'arrêt (touche d'arrêt) stoppe bien la lecture. Signalé par Jacques.
+
 2.34
 Nouveau : prise en charge des fichiers .cue (albums rippés, enregistrements radio). Ouvrez un .cue (Fichier → Ouvrir, glisser-déposer, ou ligne de commande) et MediaAccess charge l'audio correspondant et expose les pistes : naviguez de piste en piste avec les touches « chapitre précédent/suivant », et deux nouvelles actions (à assigner dans Outils → Actions) permettent d'annoncer la piste en cours et d'ouvrir la liste des pistes (Entrée saute à une piste). Les noms de pistes sont restaurés au redémarrage. Les .cue à plusieurs fichiers sont gérés au niveau fichier (une entrée de liste par fichier). Demandé par Séb.
 Correction : certaines vidéos YouTube ne se lisaient pas (« Format de fichier non pris en charge ») parce que yt-dlp ne trouvait pas ffmpeg pour corriger le conteneur M4A de certains flux. MediaAccess indique désormais explicitement l'emplacement de ffmpeg à yt-dlp lors du téléchargement pour la lecture, ce qui corrige ces échecs.
