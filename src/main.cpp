@@ -64,7 +64,10 @@
 #include "mediaaccess/audio_device_watcher.h" // v2.32 — auto-follow default output device
 #include "mediaaccess/cue_sheet.h"      // v2.34 — .cue sheet support
 #include "mediaaccess/subtitle_scheduler.h" // read subtitles aloud (prefetched Edge voice)
+#include "mediaaccess/edge_tts_client.h"    // EdgeListVoices (startup prewarm)
 #include <utility>  // for std::pair
+#include <thread>   // background subtitle-cue extraction + voice prewarm
+#include <atomic>
 
 // Ducking hook for the subtitle scheduler: smoothly fade the mpv video volume
 // down while a subtitle line is spoken (level<1) and back up after (level==1),
@@ -100,34 +103,56 @@ static std::wstring CurrentMediaPath() {
            ? g_playlist[g_currentTrack] : std::wstring();
 }
 
+// Result of a background cue-extraction, handed back to the UI thread via
+// WM_SUBTITLE_READY. `gen` lets the UI ignore a result that a newer request
+// (track change / option change / stop) has already superseded.
+struct SubPrepResult {
+    int                                gen;
+    std::wstring                       media;
+    int                                ff;
+    std::string                        voice;
+    std::string                        rate;
+    double                             duck;
+    std::vector<mediaaccess::SubCue>   cues;
+};
+static std::atomic<int> s_subPrepGen{0};
+
 // Reconcile the Edge subtitle reader with the current settings/playback. Starts,
-// stops, or restarts the prefetch scheduler as needed. Called when the master
-// "Speak subtitles" toggle, the method/voice options, or the active subtitle
-// track change. Non-static so ui_options.cpp can call it after applying options.
+// stops, or restarts the prefetch scheduler as needed. Called from the master
+// "Speak subtitles" toggle, the method/voice options, the active subtitle track
+// change, and on video load (WM_SUBTITLE_AUTOSTART). Non-static so
+// ui_options.cpp can call it after applying options.
+//
+// The slow part (ffmpeg extraction + parse) runs on a WORKER thread so the UI
+// never freezes; the worker posts WM_SUBTITLE_READY back and the scheduler is
+// started on the UI thread there.
 void RefreshSubtitleEdge() {
     bool want = g_speakSubtitles && g_subtitleUseEdgeVoice &&
                 g_activeEngine == PlaybackEngine::MPV && IsMPVInitialized();
     std::wstring media = CurrentMediaPath();
     long ff = want ? MPVGetActiveSubtitleFfIndex() : -1;
 
-    if (want && (!s_subEdgeActive || media != s_subEdgeMedia || (int)ff != s_subEdgeFf)) {
+    if (want && !media.empty() &&
+        (!s_subEdgeActive || media != s_subEdgeMedia || (int)ff != s_subEdgeFf)) {
         mediaaccess::SubStop();
-        s_subEdgeActive = false;
-        mediaaccess::SubSetDuckCallback(SubtitleDuck);
-        // Voice short names are ASCII; a narrow copy is safe.
+        s_subEdgeActive = false; s_subEdgeMedia.clear(); s_subEdgeFf = -2;
+        SubtitleVolumeRestoreNow();
+        int gen = ++s_subPrepGen;                 // invalidate any older in-flight prep
         std::string voice = g_subtitleEdgeVoice.empty()
             ? std::string("fr-FR-DeniseNeural")
             : std::string(g_subtitleEdgeVoice.begin(), g_subtitleEdgeVoice.end());
-        char rateBuf[16]; sprintf_s(rateBuf, "%+d%%", g_subtitleEdgeRate);  // e.g. "+0%", "+25%", "-10%"
-        std::wstring err;
-        if (!media.empty() &&
-            mediaaccess::SubStartForMedia(media, voice, 2.5, g_subtitleDuckLevel, (int)ff, rateBuf, &err)) {
-            s_subEdgeActive = true; s_subEdgeMedia = media; s_subEdgeFf = (int)ff;
-            s_subLastPos = MPVGetPosition(); s_subLastPaused = MPVIsPaused();
-        } else {
-            SubtitleVolumeRestoreNow();
-        }
+        char rateBuf[16]; sprintf_s(rateBuf, "%+d%%", g_subtitleEdgeRate);
+        std::string rate = rateBuf;
+        double duck = g_subtitleDuckLevel;
+        int ffi = (int)ff;
+        std::thread([gen, media, ffi, voice, rate, duck]() {
+            auto cues = mediaaccess::SubExtractCues(media, ffi);
+            auto* r = new SubPrepResult{ gen, media, ffi, voice, rate, duck, std::move(cues) };
+            if (g_hwnd) PostMessageW(g_hwnd, WM_SUBTITLE_READY, 0, (LPARAM)r);
+            else delete r;
+        }).detach();
     } else if (!want && s_subEdgeActive) {
+        ++s_subPrepGen;                           // discard any in-flight prep
         mediaaccess::SubStop();
         SubtitleVolumeRestoreNow();
         s_subEdgeActive = false; s_subEdgeMedia.clear(); s_subEdgeFf = -2;
@@ -553,6 +578,10 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
 
             SetTimer(hwnd, IDT_UPDATE_TITLE, UPDATE_INTERVAL, nullptr);
             SetTimer(hwnd, IDT_SCHEDULER, 60000, nullptr);  // Check schedules every minute
+            // Pre-warm the Edge voice catalog on a background thread so opening
+            // Options (which fills the subtitle-voice combo) never blocks the UI
+            // on the network. EdgeListVoices caches the result for the session.
+            std::thread([]() { mediaaccess::EdgeListVoices(); }).detach();
             g_startupTime = GetTickCount();
             // v1.85 — explicit flag for the batch-open coalescing window.
             // Sèb reported that opening a .ts video from Explorer did nothing
@@ -861,6 +890,35 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
                 // method is the screen reader (not the prefetched Edge voice).
                 if (g_speakSubtitles && !g_subtitleUseEdgeVoice) SpeakW(text, true);
                 free(text);
+            }
+            return 0;
+        }
+
+        case WM_SUBTITLE_AUTOSTART:
+            // mpv finished loading a file (tracks known) — (re)start the Edge
+            // subtitle reader for it if that method is enabled. The heavy work
+            // is dispatched to a worker inside RefreshSubtitleEdge, so this
+            // does not block the UI.
+            RefreshSubtitleEdge();
+            return 0;
+
+        case WM_SUBTITLE_READY: {
+            // A background cue extraction finished; start the scheduler on the
+            // UI thread if this result is still the current request and wanted.
+            SubPrepResult* r = reinterpret_cast<SubPrepResult*>(lParam);
+            if (r) {
+                bool current = (r->gen == s_subPrepGen.load()) &&
+                               g_speakSubtitles && g_subtitleUseEdgeVoice &&
+                               r->media == CurrentMediaPath();
+                if (current && !r->cues.empty()) {
+                    mediaaccess::SubSetDuckCallback(SubtitleDuck);
+                    mediaaccess::SubStart(r->cues, r->voice, 2.5, r->duck, r->rate);
+                    s_subEdgeActive = true; s_subEdgeMedia = r->media; s_subEdgeFf = r->ff;
+                    s_subLastPos = MPVGetPosition(); s_subLastPaused = MPVIsPaused();
+                } else if (r->gen == s_subPrepGen.load()) {
+                    SubtitleVolumeRestoreNow();   // latest request but no usable cues
+                }
+                delete r;
             }
             return 0;
         }

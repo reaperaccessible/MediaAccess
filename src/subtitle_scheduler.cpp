@@ -369,9 +369,7 @@ bool ExtractEmbeddedSrt(const std::wstring& media, const std::wstring& outSrt, i
 
 } // namespace
 
-bool SubStartForMedia(const std::wstring& mediaPath, const std::string& edgeVoice,
-                      double lookaheadSec, double duckLevel, int subFfIndex,
-                      const std::string& rate, std::wstring* err) {
+std::vector<SubCue> SubExtractCues(const std::wstring& mediaPath, int subFfIndex) {
     std::vector<SubCue> cues;
 
     std::wstring sidecar = FindSidecar(mediaPath);
@@ -389,6 +387,13 @@ bool SubStartForMedia(const std::wstring& mediaPath, const std::string& edgeVoic
                  subFfIndex, data.size(), cues.size());
         }
     }
+    return cues;
+}
+
+bool SubStartForMedia(const std::wstring& mediaPath, const std::string& edgeVoice,
+                      double lookaheadSec, double duckLevel, int subFfIndex,
+                      const std::string& rate, std::wstring* err) {
+    std::vector<SubCue> cues = SubExtractCues(mediaPath, subFfIndex);
     if (cues.empty()) {
         if (err) *err = L"No subtitles found for this video";
         return false;

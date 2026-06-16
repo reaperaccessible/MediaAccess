@@ -401,6 +401,14 @@ static DWORD WINAPI MPVEventThread(LPVOID /*param*/)
             break;
         }
 
+        case MPV_EVENT_FILE_LOADED:
+            // A new video finished loading and its track list is now known.
+            // Let the UI thread (re)start the Edge subtitle reader for this
+            // file if that method is enabled — the subtitle ff-index is valid
+            // at this point. Posted so the work happens off the mpv thread.
+            if (g_hwnd) PostMessageW(g_hwnd, WM_SUBTITLE_AUTOSTART, 0, 0);
+            break;
+
         case MPV_EVENT_SHUTDOWN:
             g_mpvThreadRunning.store(false);
             break;

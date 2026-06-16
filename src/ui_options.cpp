@@ -11,6 +11,11 @@
 #include "bass.h"                          // preview playback
 #include <set>
 #include <cmath>
+#include <thread>                          // off-UI-thread voice preview synthesis
+
+// Dialog-private message: a background voice-preview synthesis finished.
+// lParam = std::vector<unsigned char>* MP3 (heap, owned here) or nullptr on failure.
+#define WM_SUB_PREVIEW_READY (WM_APP + 41)
 
 // Edge subtitle-voice picker state (Options > Speech). s_subEdgeVoices is the
 // full catalog; s_subEdgeShown maps the currently-shown (language-filtered)
@@ -871,6 +876,21 @@ INT_PTR CALLBACK OptionsDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
             break;
         }
 
+        case WM_SUB_PREVIEW_READY: {
+            // Background voice preview finished; play it on the UI thread.
+            auto* mp3 = reinterpret_cast<std::vector<unsigned char>*>(lParam);
+            if (mp3) {
+                if (s_subPreviewStream) { BASS_ChannelStop(s_subPreviewStream); BASS_StreamFree(s_subPreviewStream); }
+                s_subPreviewStream = BASS_StreamCreateFile(BASS_FILE_MEMCOPY, mp3->data(), 0,
+                                                           mp3->size(), BASS_SAMPLE_FLOAT);
+                if (s_subPreviewStream) BASS_ChannelPlay(s_subPreviewStream, FALSE);
+                delete mp3;
+            } else {
+                Speak(Ts("Preview failed"));
+            }
+            return TRUE;
+        }
+
         case WM_NOTIFY: {
             NMHDR* pnmh = reinterpret_cast<NMHDR*>(lParam);
             if (pnmh->idFrom == IDC_TAB && pnmh->code == TCN_SELCHANGE) {
@@ -1439,20 +1459,23 @@ INT_PTR CALLBACK OptionsDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
                 case IDC_SUBTITLE_EDGE_PREVIEW: {
                     int vi = (int)SendDlgItemMessageW(hwnd, IDC_SUBTITLE_EDGE_VOICE, CB_GETCURSEL, 0, 0);
                     if (vi < 0 || vi >= (int)s_subEdgeShown.size()) return TRUE;
-                    const std::string& voice = s_subEdgeVoices[s_subEdgeShown[vi]].shortName;
+                    std::string voice = s_subEdgeVoices[s_subEdgeShown[vi]].shortName;  // copy for the worker
                     std::wstring sample = (voice.rfind("fr", 0) == 0)
                         ? L"Bonjour, ceci est un aperçu de la voix des sous-titres."
                         : L"Hello, this is a preview of the subtitle voice.";
-                    char rateBuf[16]; sprintf_s(rateBuf, "%+d%%", SubRatePercentFromCombo(hwnd));
-                    std::vector<unsigned char> mp3; std::string err;
-                    if (mediaaccess::EdgeSynthesize(voice, sample, mp3, rateBuf, "+0Hz", &err) && !mp3.empty()) {
-                        if (s_subPreviewStream) { BASS_ChannelStop(s_subPreviewStream); BASS_StreamFree(s_subPreviewStream); }
-                        s_subPreviewStream = BASS_StreamCreateFile(BASS_FILE_MEMCOPY, mp3.data(), 0,
-                                                                   mp3.size(), BASS_SAMPLE_FLOAT);
-                        if (s_subPreviewStream) BASS_ChannelPlay(s_subPreviewStream, FALSE);
-                    } else {
-                        Speak(Ts("Preview failed"));
-                    }
+                    char rb[16]; sprintf_s(rb, "%+d%%", SubRatePercentFromCombo(hwnd));
+                    std::string rate = rb;
+                    HWND dlg = hwnd;
+                    // Synthesize off the UI thread (network round trip) and post the
+                    // MP3 back to the dialog to play — keeps Options responsive.
+                    std::thread([dlg, voice, sample, rate]() {
+                        auto* mp3 = new std::vector<unsigned char>();
+                        std::string err;
+                        bool ok = mediaaccess::EdgeSynthesize(voice, sample, *mp3, rate, "+0Hz", &err)
+                                  && !mp3->empty();
+                        if (!ok) { delete mp3; mp3 = nullptr; }
+                        PostMessageW(dlg, WM_SUB_PREVIEW_READY, 0, (LPARAM)mp3);
+                    }).detach();
                     return TRUE;
                 }
 

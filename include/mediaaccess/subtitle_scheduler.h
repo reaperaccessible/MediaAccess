@@ -63,6 +63,13 @@ void SubStart(const std::vector<SubCue>& cues, const std::string& edgeVoice,
               double lookaheadSec = 2.5, double duckLevel = 0.3,
               const std::string& rate = "+0%");
 
+// Source subtitle cues for `mediaPath` — first a sidecar .srt/.vtt next to the
+// file, else the embedded subtitle track `subFfIndex` extracted via the bundled
+// ffmpeg (or the first text track if -1). Returns the parsed cues (empty on
+// failure). BLOCKING (runs ffmpeg + file reads) — call on a worker thread, never
+// the UI thread; the result is then handed to SubStart.
+std::vector<SubCue> SubExtractCues(const std::wstring& mediaPath, int subFfIndex = -1);
+
 // High-level start: source subtitles for `mediaPath` — first a sidecar
 // .srt/.vtt next to the file, else the embedded subtitle track extracted via
 // the bundled ffmpeg — parse them, and begin prefetch scheduling with `voice`.

@@ -120,6 +120,8 @@
 #define WM_YT_BATCH_PROGRESS (WM_USER + 13) // v2.12 — "Download all" per-item progress (wParam=done, lParam=total)
 #define WM_YT_BATCH_DONE     (WM_USER + 14) // v2.12 — "Download all" finished (lParam = YtBatchResult* heap)
 #define WM_YT_DESC_READY     (WM_USER + 15) // v2.27 — background description fetch finished (lParam = YtDescResult* heap). (WM_USER+10 is WM_TRAYICON.)
+#define WM_SUBTITLE_AUTOSTART (WM_USER + 16) // mpv FILE_LOADED -> (re)start the Edge subtitle reader on the UI thread
+#define WM_SUBTITLE_READY     (WM_USER + 17) // background cue extraction done (lParam = SubPrepResult* heap)
 
 // Playback tab controls
 #define IDC_BRING_TO_FRONT  531
