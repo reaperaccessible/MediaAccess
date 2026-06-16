@@ -59,6 +59,8 @@ extern bool g_muted;          // Muted state (recording still works)
 // the chosen Edge voice short name (e.g. "fr-FR-DeniseNeural"); empty = default.
 extern bool g_subtitleUseEdgeVoice;
 extern std::wstring g_subtitleEdgeVoice;
+extern double g_subtitleDuckLevel;   // video volume multiplier while a subtitle line is spoken (0..1)
+extern int g_subtitleEdgeRate;       // Edge speech rate as a percent offset (-50..+100; 0 = normal)
 extern bool g_legacyVolume;   // Use legacy volume (faster, but affects recordings)
 extern bool g_disableBatchDelay; // Skip batch delay when opening files from explorer
 extern bool g_startupBatchOpen;  // v1.85 — true during the early startup batch-open coalescing window

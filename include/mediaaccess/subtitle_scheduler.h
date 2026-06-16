@@ -60,7 +60,8 @@ void SubSetDuckCallback(SubDuckFn fn);
 // `lookaheadSec` is how far ahead of playback to pre-synthesize. Replaces any
 // previous session. Starts the worker thread.
 void SubStart(const std::vector<SubCue>& cues, const std::string& edgeVoice,
-              double lookaheadSec = 2.5, double duckLevel = 0.3);
+              double lookaheadSec = 2.5, double duckLevel = 0.3,
+              const std::string& rate = "+0%");
 
 // High-level start: source subtitles for `mediaPath` — first a sidecar
 // .srt/.vtt next to the file, else the embedded subtitle track extracted via
@@ -72,7 +73,8 @@ void SubStart(const std::vector<SubCue>& cues, const std::string& edgeVoice,
 // subtitle stream.
 bool SubStartForMedia(const std::wstring& mediaPath, const std::string& edgeVoice,
                       double lookaheadSec = 2.5, double duckLevel = 0.3,
-                      int subFfIndex = -1, std::wstring* err = nullptr);
+                      int subFfIndex = -1, const std::string& rate = "+0%",
+                      std::wstring* err = nullptr);
 
 // Stop scheduling, halt any clip, free everything, join the worker.
 void SubStop();

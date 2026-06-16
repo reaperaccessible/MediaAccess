@@ -7,11 +7,62 @@
 #include "mediaaccess/tts_player.h"        // SAPI voice list / set active
 #include "mediaaccess/book_text_window.h"  // theme + always-hide
 #include "mediaaccess/wasapi_loopback.h"   // v1.94 — system loopback device list
-#include "mediaaccess/edge_tts_client.h"   // Edge voice list for the subtitle reader
+#include "mediaaccess/edge_tts_client.h"   // Edge voice list + preview synthesis
+#include "bass.h"                          // preview playback
+#include <set>
+#include <cmath>
 
-// Cached Edge voice list backing the subtitle-voice combo, so WM_COMMAND can map
-// the selected index back to a short name. Populated in WM_INITDIALOG.
+// Edge subtitle-voice picker state (Options > Speech). s_subEdgeVoices is the
+// full catalog; s_subEdgeShown maps the currently-shown (language-filtered)
+// combo rows back to indices in it. Populated in WM_INITDIALOG.
 static std::vector<mediaaccess::EdgeVoice> s_subEdgeVoices;
+static std::vector<int>                    s_subEdgeShown;
+static HSTREAM                             s_subPreviewStream = 0;
+
+// Ducking choices for the "Video volume while speaking" combo.
+struct SubDuckOpt { const wchar_t* label; double value; };
+static const SubDuckOpt s_subDuckOpts[] = {
+    {L"100% (off)", 1.00}, {L"75%", 0.75}, {L"50%", 0.50},
+    {L"30%", 0.30}, {L"15%", 0.15}, {L"0% (mute)", 0.00},
+};
+
+// Speech-rate choices (percent offset) for the "Speech rate" combo.
+struct SubRateOpt { const wchar_t* label; int value; };
+static const SubRateOpt s_subRateOpts[] = {
+    {L"-50%", -50}, {L"-25%", -25}, {L"-10%", -10}, {L"Normal", 0},
+    {L"+10%", 10}, {L"+25%", 25}, {L"+50%", 50}, {L"+75%", 75}, {L"+100%", 100},
+};
+static int SubRatePercentFromCombo(HWND hwnd) {
+    int i = (int)SendMessageW(GetDlgItem(hwnd, IDC_SUBTITLE_RATE), CB_GETCURSEL, 0, 0);
+    if (i >= 0 && i < (int)(sizeof(s_subRateOpts)/sizeof(s_subRateOpts[0]))) return s_subRateOpts[i].value;
+    return 0;
+}
+
+// Distinct, sorted voice locales (e.g. "fr-FR", "en-US").
+static std::vector<std::wstring> SubEdgeLocales() {
+    std::set<std::wstring> s;
+    for (auto& v : s_subEdgeVoices) if (!v.locale.empty()) s.insert(Utf8ToWide(v.locale));
+    return std::vector<std::wstring>(s.begin(), s.end());
+}
+
+// Fill the voice combo with voices matching langFilter ("" = all); select the
+// row whose short name equals selectShortName (else the first). Updates
+// s_subEdgeShown so apply/preview can resolve the chosen row.
+static void SubEdgePopulateVoices(HWND hwnd, const std::wstring& langFilter,
+                                  const std::wstring& selectShortName) {
+    HWND combo = GetDlgItem(hwnd, IDC_SUBTITLE_EDGE_VOICE);
+    SendMessageW(combo, CB_RESETCONTENT, 0, 0);
+    s_subEdgeShown.clear();
+    int sel = -1;
+    for (size_t i = 0; i < s_subEdgeVoices.size(); i++) {
+        if (!langFilter.empty() && Utf8ToWide(s_subEdgeVoices[i].locale) != langFilter) continue;
+        SendMessageW(combo, CB_ADDSTRING, 0, (LPARAM)s_subEdgeVoices[i].displayName.c_str());
+        if (Utf8ToWide(s_subEdgeVoices[i].shortName) == selectShortName) sel = (int)s_subEdgeShown.size();
+        s_subEdgeShown.push_back((int)i);
+    }
+    if (sel < 0 && !s_subEdgeShown.empty()) sel = 0;
+    SendMessageW(combo, CB_SETCURSEL, sel, 0);
+}
 
 // Update the small hint under the SoundFont path field that tells the user
 // what will actually be used when the field is empty. Three cases:
@@ -81,6 +132,9 @@ void ShowTabControls(HWND hwnd, int tab) {
     int speechCtrls[] = {IDC_SPEECH_TRACKCHANGE, IDC_SPEECH_VOLUME, IDC_SPEECH_EFFECT, IDC_SPEECH_YT_HYBRID,
                          IDC_SPEECH_SEEK_POSITION, IDC_SPEAK_SUBTITLES,
                          IDC_SUBTITLE_EDGE, IDC_SUBTITLE_EDGE_VOICE, IDC_LABEL_SUBTITLE_EDGE_VOICE,
+                         IDC_SUBTITLE_EDGE_LANG, IDC_LABEL_SUBTITLE_EDGE_LANG, IDC_SUBTITLE_EDGE_PREVIEW,
+                         IDC_SUBTITLE_DUCK, IDC_LABEL_SUBTITLE_DUCK,
+                         IDC_SUBTITLE_RATE, IDC_LABEL_SUBTITLE_RATE,
                          IDC_LABEL_SPEECH_DESCRIPTION};
     // Movement tab controls (tab 4)
     int movementCtrls[] = {IDC_SEEK_1S, IDC_SEEK_5S, IDC_SEEK_10S, IDC_SEEK_30S, IDC_SEEK_1M, IDC_SEEK_5M, IDC_SEEK_10M,
@@ -673,16 +727,43 @@ INT_PTR CALLBACK OptionsDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
             CheckDlgButton(hwnd, IDC_SPEAK_SUBTITLES, g_speakSubtitles ? BST_CHECKED : BST_UNCHECKED);  // v1.81
             CheckDlgButton(hwnd, IDC_SUBTITLE_EDGE, g_subtitleUseEdgeVoice ? BST_CHECKED : BST_UNCHECKED);
             {
-                // Populate the Edge subtitle-voice combo (cached after first fetch).
-                s_subEdgeVoices = mediaaccess::EdgeListVoices();
-                HWND combo = GetDlgItem(hwnd, IDC_SUBTITLE_EDGE_VOICE);
-                SendMessageW(combo, CB_RESETCONTENT, 0, 0);
-                int sel = 0;
-                for (size_t i = 0; i < s_subEdgeVoices.size(); i++) {
-                    SendMessageW(combo, CB_ADDSTRING, 0, (LPARAM)s_subEdgeVoices[i].displayName.c_str());
-                    if (Utf8ToWide(s_subEdgeVoices[i].shortName) == g_subtitleEdgeVoice) sel = (int)i;
+                s_subEdgeVoices = mediaaccess::EdgeListVoices();  // cached after first fetch
+                // Locale of the saved voice, to preselect the language filter.
+                std::wstring curLoc;
+                for (auto& v : s_subEdgeVoices)
+                    if (Utf8ToWide(v.shortName) == g_subtitleEdgeVoice) { curLoc = Utf8ToWide(v.locale); break; }
+                // Language filter: "All languages" + each locale.
+                HWND lang = GetDlgItem(hwnd, IDC_SUBTITLE_EDGE_LANG);
+                SendMessageW(lang, CB_RESETCONTENT, 0, 0);
+                SendMessageW(lang, CB_ADDSTRING, 0, (LPARAM)T("All languages"));
+                auto locs = SubEdgeLocales();
+                int langSel = 0;
+                for (size_t i = 0; i < locs.size(); i++) {
+                    SendMessageW(lang, CB_ADDSTRING, 0, (LPARAM)locs[i].c_str());
+                    if (locs[i] == curLoc) langSel = (int)i + 1;
                 }
-                SendMessageW(combo, CB_SETCURSEL, sel, 0);
+                SendMessageW(lang, CB_SETCURSEL, langSel, 0);
+                SubEdgePopulateVoices(hwnd, langSel == 0 ? L"" : curLoc, g_subtitleEdgeVoice);
+                // Ducking combo.
+                HWND duck = GetDlgItem(hwnd, IDC_SUBTITLE_DUCK);
+                SendMessageW(duck, CB_RESETCONTENT, 0, 0);
+                int duckSel = 0; double best = 1e9;
+                for (int i = 0; i < (int)(sizeof(s_subDuckOpts)/sizeof(s_subDuckOpts[0])); i++) {
+                    SendMessageW(duck, CB_ADDSTRING, 0, (LPARAM)s_subDuckOpts[i].label);
+                    double d = fabs(s_subDuckOpts[i].value - g_subtitleDuckLevel);
+                    if (d < best) { best = d; duckSel = i; }
+                }
+                SendMessageW(duck, CB_SETCURSEL, duckSel, 0);
+                // Speech-rate combo.
+                HWND rate = GetDlgItem(hwnd, IDC_SUBTITLE_RATE);
+                SendMessageW(rate, CB_RESETCONTENT, 0, 0);
+                int rateSel = 0, bestR = 1000;
+                for (int i = 0; i < (int)(sizeof(s_subRateOpts)/sizeof(s_subRateOpts[0])); i++) {
+                    SendMessageW(rate, CB_ADDSTRING, 0, (LPARAM)s_subRateOpts[i].label);
+                    int d = abs(s_subRateOpts[i].value - g_subtitleEdgeRate);
+                    if (d < bestR) { bestR = d; rateSel = i; }
+                }
+                SendMessageW(rate, CB_SETCURSEL, rateSel, 0);
             }
 
             // Initialize SoundTouch tab
@@ -1088,11 +1169,15 @@ INT_PTR CALLBACK OptionsDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
                     g_subtitleUseEdgeVoice = (IsDlgButtonChecked(hwnd, IDC_SUBTITLE_EDGE) == BST_CHECKED);
                     {
                         int idx = (int)SendMessageW(GetDlgItem(hwnd, IDC_SUBTITLE_EDGE_VOICE), CB_GETCURSEL, 0, 0);
-                        if (idx >= 0 && idx < (int)s_subEdgeVoices.size())
-                            g_subtitleEdgeVoice = Utf8ToWide(s_subEdgeVoices[idx].shortName);
+                        if (idx >= 0 && idx < (int)s_subEdgeShown.size())
+                            g_subtitleEdgeVoice = Utf8ToWide(s_subEdgeVoices[s_subEdgeShown[idx]].shortName);
+                        int di = (int)SendMessageW(GetDlgItem(hwnd, IDC_SUBTITLE_DUCK), CB_GETCURSEL, 0, 0);
+                        if (di >= 0 && di < (int)(sizeof(s_subDuckOpts)/sizeof(s_subDuckOpts[0])))
+                            g_subtitleDuckLevel = s_subDuckOpts[di].value;
+                        g_subtitleEdgeRate = SubRatePercentFromCombo(hwnd);
                     }
                     extern void RefreshSubtitleEdge();
-                    RefreshSubtitleEdge();   // apply method/voice change immediately
+                    RefreshSubtitleEdge();   // apply method/voice/ducking change immediately
 
                     // Get SoundTouch settings
                     {
@@ -1181,11 +1266,13 @@ INT_PTR CALLBACK OptionsDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
                     // Save settings
                     SaveSettings();
 
+                    if (s_subPreviewStream) { BASS_ChannelStop(s_subPreviewStream); BASS_StreamFree(s_subPreviewStream); s_subPreviewStream = 0; }
                     EndDialog(hwnd, IDOK);
                     return TRUE;
                 }
 
                 case IDCANCEL:
+                    if (s_subPreviewStream) { BASS_ChannelStop(s_subPreviewStream); BASS_StreamFree(s_subPreviewStream); s_subPreviewStream = 0; }
                     EndDialog(hwnd, IDCANCEL);
                     return TRUE;
 
@@ -1333,6 +1420,38 @@ INT_PTR CALLBACK OptionsDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
                         if (voiceIdx >= 0 && voiceIdx < (int)voices.size()) {
                             mediaaccess::TtsSetActiveVoiceId(voices[voiceIdx].id);
                         }
+                    }
+                    return TRUE;
+                }
+
+                case IDC_SUBTITLE_EDGE_LANG: {
+                    if (HIWORD(wParam) != CBN_SELCHANGE) break;
+                    int li = (int)SendDlgItemMessageW(hwnd, IDC_SUBTITLE_EDGE_LANG, CB_GETCURSEL, 0, 0);
+                    std::wstring filter;
+                    if (li > 0) {
+                        auto locs = SubEdgeLocales();
+                        if (li - 1 < (int)locs.size()) filter = locs[li - 1];
+                    }
+                    SubEdgePopulateVoices(hwnd, filter, g_subtitleEdgeVoice);
+                    return TRUE;
+                }
+
+                case IDC_SUBTITLE_EDGE_PREVIEW: {
+                    int vi = (int)SendDlgItemMessageW(hwnd, IDC_SUBTITLE_EDGE_VOICE, CB_GETCURSEL, 0, 0);
+                    if (vi < 0 || vi >= (int)s_subEdgeShown.size()) return TRUE;
+                    const std::string& voice = s_subEdgeVoices[s_subEdgeShown[vi]].shortName;
+                    std::wstring sample = (voice.rfind("fr", 0) == 0)
+                        ? L"Bonjour, ceci est un aperçu de la voix des sous-titres."
+                        : L"Hello, this is a preview of the subtitle voice.";
+                    char rateBuf[16]; sprintf_s(rateBuf, "%+d%%", SubRatePercentFromCombo(hwnd));
+                    std::vector<unsigned char> mp3; std::string err;
+                    if (mediaaccess::EdgeSynthesize(voice, sample, mp3, rateBuf, "+0Hz", &err) && !mp3.empty()) {
+                        if (s_subPreviewStream) { BASS_ChannelStop(s_subPreviewStream); BASS_StreamFree(s_subPreviewStream); }
+                        s_subPreviewStream = BASS_StreamCreateFile(BASS_FILE_MEMCOPY, mp3.data(), 0,
+                                                                   mp3.size(), BASS_SAMPLE_FLOAT);
+                        if (s_subPreviewStream) BASS_ChannelPlay(s_subPreviewStream, FALSE);
+                    } else {
+                        Speak(Ts("Preview failed"));
                     }
                     return TRUE;
                 }

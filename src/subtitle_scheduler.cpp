@@ -162,6 +162,7 @@ std::condition_variable  g_cv;
 std::thread              g_worker;
 bool                     g_running   = false;
 std::string              g_voice;
+std::string              g_rate = "+0%";
 double                   g_lookahead = 2.5;
 double                   g_duckLevel = 0.3;
 SubDuckFn                g_duckFn    = nullptr;
@@ -175,7 +176,7 @@ void Duck(double level) { if (g_duckFn) g_duckFn(level); }
 
 void WorkerLoop() {
     for (;;) {
-        int idx; std::string voice; std::wstring text;
+        int idx; std::string voice, rate; std::wstring text;
         {
             std::unique_lock<std::mutex> lk(g_mtx);
             g_cv.wait(lk, [] { return !g_running || !g_queue.empty(); });
@@ -185,9 +186,10 @@ void WorkerLoop() {
             g_cues[idx].state = ST_SYNTH;
             voice = g_voice;
             text  = g_cues[idx].cue.text;
+            rate  = g_rate;
         }
         std::vector<unsigned char> mp3; std::string err;
-        bool ok = EdgeSynthesize(voice, text, mp3, "+0%", "+0Hz", &err);
+        bool ok = EdgeSynthesize(voice, text, mp3, rate, "+0Hz", &err);
         {
             std::lock_guard<std::mutex> lk(g_mtx);
             if (!g_running) return;
@@ -212,13 +214,13 @@ void StopClip() {
 void SubSetDuckCallback(SubDuckFn fn) { g_duckFn = fn; }
 
 void SubStart(const std::vector<SubCue>& cues, const std::string& edgeVoice,
-              double lookaheadSec, double duckLevel) {
+              double lookaheadSec, double duckLevel, const std::string& rate) {
     SubStop();
     std::lock_guard<std::mutex> lk(g_mtx);
     g_cues.clear(); g_cues.reserve(cues.size());
     for (const auto& c : cues) { SchedCue s; s.cue = c; g_cues.push_back(std::move(s)); }
     g_queue.clear();
-    g_voice = edgeVoice; g_lookahead = lookaheadSec; g_duckLevel = duckLevel;
+    g_voice = edgeVoice; g_rate = rate; g_lookahead = lookaheadSec; g_duckLevel = duckLevel;
     g_curCue = -1; g_clipStream = 0; g_ducked = false;
     g_running = true;
     g_worker = std::thread(WorkerLoop);
@@ -369,7 +371,7 @@ bool ExtractEmbeddedSrt(const std::wstring& media, const std::wstring& outSrt, i
 
 bool SubStartForMedia(const std::wstring& mediaPath, const std::string& edgeVoice,
                       double lookaheadSec, double duckLevel, int subFfIndex,
-                      std::wstring* err) {
+                      const std::string& rate, std::wstring* err) {
     std::vector<SubCue> cues;
 
     std::wstring sidecar = FindSidecar(mediaPath);
@@ -391,7 +393,7 @@ bool SubStartForMedia(const std::wstring& mediaPath, const std::string& edgeVoic
         if (err) *err = L"No subtitles found for this video";
         return false;
     }
-    SubStart(cues, edgeVoice, lookaheadSec, duckLevel);
+    SubStart(cues, edgeVoice, lookaheadSec, duckLevel, rate);
     return true;
 }
 

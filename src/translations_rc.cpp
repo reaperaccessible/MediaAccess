@@ -230,6 +230,28 @@ void RegisterRcTranslations() {
     AddTranslation("fr", "Speak &subtitles",
                    L"Énoncer les &sous-titres");
 
+    // Speech tab: read subtitles with a prefetched Edge neural voice
+    AddTranslation("en", "Read subtitles with a &neural voice (Edge, online)",
+                   L"Read subtitles with a &neural voice (Edge, online)");
+    AddTranslation("fr", "Read subtitles with a &neural voice (Edge, online)",
+                   L"Lire les sous-titres avec une voix &neuronale (Edge, en ligne)");
+    AddTranslation("en", "Subtitle &voice:", L"Subtitle &voice:");
+    AddTranslation("fr", "Subtitle &voice:", L"&Voix des sous-titres :");
+    AddTranslation("en", "&Language:", L"&Language:");
+    AddTranslation("fr", "&Language:", L"&Langue :");
+    AddTranslation("en", "&Preview", L"&Preview");
+    AddTranslation("fr", "&Preview", L"&Aperçu");
+    AddTranslation("en", "Video volume while speaking:", L"Video volume while speaking:");
+    AddTranslation("fr", "Video volume while speaking:", L"Volume de la vidéo pendant la voix :");
+    AddTranslation("en", "Speech &rate:", L"Speech &rate:");
+    AddTranslation("fr", "Speech &rate:", L"&Débit :");
+    AddTranslation("en", "Normal", L"Normal");
+    AddTranslation("fr", "Normal", L"Normal");
+    AddTranslation("en", "All languages", L"All languages");
+    AddTranslation("fr", "All languages", L"Toutes les langues");
+    AddTranslation("en", "Preview failed", L"Preview failed");
+    AddTranslation("fr", "Preview failed", L"Échec de l'aperçu");
+
     // v1.63 — Audio slots menu and dialog
     AddTranslation("en", "Audio &slots...", L"Audio &slots...");
     AddTranslation("fr", "Audio &slots...", L"&Slots audio...");

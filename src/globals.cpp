@@ -128,6 +128,8 @@ bool g_speakSubtitles = false;
 // reader. Persisted under [Speech] SubtitleEdge / SubtitleEdgeVoice.
 bool g_subtitleUseEdgeVoice = false;
 std::wstring g_subtitleEdgeVoice;   // Edge voice short name; empty = default
+double g_subtitleDuckLevel = 0.30;  // lower video to 30% while a subtitle is spoken
+int g_subtitleEdgeRate = 0;         // Edge speech rate percent offset (0 = normal)
 
 // v1.60 — Now-playing display state. Definitions; the SourceType enum is
 // in mediaaccess/ui.h so we have to include it here.

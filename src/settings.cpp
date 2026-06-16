@@ -292,6 +292,12 @@ void LoadSettings() {
         GetPrivateProfileStringW(L"Speech", L"SubtitleEdgeVoice", L"", buf, 128, g_configPath.c_str());
         g_subtitleEdgeVoice = buf;
     }
+    g_subtitleDuckLevel = GetPrivateProfileIntW(L"Speech", L"SubtitleDuck", 30, g_configPath.c_str()) / 100.0;
+    {
+        wchar_t rb[16] = {0};   // string read so a negative rate parses correctly
+        GetPrivateProfileStringW(L"Speech", L"SubtitleEdgeRate", L"0", rb, 16, g_configPath.c_str());
+        g_subtitleEdgeRate = _wtoi(rb);
+    }
     g_speechEffect = GetPrivateProfileIntW(L"Speech", L"Effect", 1, g_configPath.c_str()) != 0;
     g_speechYTHybrid = GetPrivateProfileIntW(L"Speech", L"YTHybrid", 1, g_configPath.c_str()) != 0;
 
@@ -640,6 +646,12 @@ void SaveSettings() {
     WritePrivateProfileStringW(L"Speech", L"SubtitleEdge", g_subtitleUseEdgeVoice ? L"1" : L"0", g_configPath.c_str());
     WritePrivateProfileStringW(L"Speech", L"SubtitleEdgeVoice",
                                g_subtitleEdgeVoice.empty() ? nullptr : g_subtitleEdgeVoice.c_str(), g_configPath.c_str());
+    {
+        wchar_t db[8]; _snwprintf_s(db, _TRUNCATE, L"%d", (int)(g_subtitleDuckLevel * 100 + 0.5));
+        WritePrivateProfileStringW(L"Speech", L"SubtitleDuck", db, g_configPath.c_str());
+        wchar_t rb[8]; _snwprintf_s(rb, _TRUNCATE, L"%d", g_subtitleEdgeRate);
+        WritePrivateProfileStringW(L"Speech", L"SubtitleEdgeRate", rb, g_configPath.c_str());
+    }
     WritePrivateProfileStringW(L"Speech", L"Effect", g_speechEffect ? L"1" : L"0", g_configPath.c_str());
     WritePrivateProfileStringW(L"Speech", L"YTHybrid", g_speechYTHybrid ? L"1" : L"0", g_configPath.c_str());
 

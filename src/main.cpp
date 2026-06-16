@@ -79,6 +79,8 @@ static void SubtitleDuck(double level) {
 static bool         s_subEdgeActive = false;
 static std::wstring s_subEdgeMedia;
 static int          s_subEdgeFf = -2;
+static double       s_subLastPos = 0.0;     // for seek detection (position discontinuity)
+static bool         s_subLastPaused = false;
 
 static std::wstring CurrentMediaPath() {
     return (g_currentTrack >= 0 && g_currentTrack < (int)g_playlist.size())
@@ -103,10 +105,12 @@ void RefreshSubtitleEdge() {
         std::string voice = g_subtitleEdgeVoice.empty()
             ? std::string("fr-FR-DeniseNeural")
             : std::string(g_subtitleEdgeVoice.begin(), g_subtitleEdgeVoice.end());
+        char rateBuf[16]; sprintf_s(rateBuf, "%+d%%", g_subtitleEdgeRate);  // e.g. "+0%", "+25%", "-10%"
         std::wstring err;
         if (!media.empty() &&
-            mediaaccess::SubStartForMedia(media, voice, 2.5, 0.3, (int)ff, &err)) {
+            mediaaccess::SubStartForMedia(media, voice, 2.5, g_subtitleDuckLevel, (int)ff, rateBuf, &err)) {
             s_subEdgeActive = true; s_subEdgeMedia = media; s_subEdgeFf = (int)ff;
+            s_subLastPos = MPVGetPosition(); s_subLastPaused = MPVIsPaused();
         } else {
             MPVSetVolume(g_volume);
         }
@@ -751,7 +755,18 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
                         mediaaccess::SubStop(); MPVSetVolume(g_volume);
                         s_subEdgeActive = false; s_subEdgeMedia.clear(); s_subEdgeFf = -2;
                     } else {
-                        mediaaccess::SubOnTimePos(MPVGetPosition());
+                        double pos = MPVGetPosition();
+                        bool paused = MPVIsPaused();
+                        if (paused != s_subLastPaused) {
+                            mediaaccess::SubOnPause(paused);
+                            s_subLastPaused = paused;
+                        }
+                        // A position jump that isn't normal forward playback (the
+                        // tick is 250 ms, so ~0.25 s/tick at 1x) means a seek.
+                        double dt = pos - s_subLastPos;
+                        if (dt < -0.4 || dt > 1.5) mediaaccess::SubOnSeek(pos);
+                        s_subLastPos = pos;
+                        if (!paused) mediaaccess::SubOnTimePos(pos);
                     }
                 }
             } else if (wParam == IDT_BATCH_FILES) {

@@ -345,6 +345,13 @@
 #define IDC_SUBTITLE_EDGE        846  // use a prefetched Edge neural voice instead of the screen reader
 #define IDC_SUBTITLE_EDGE_VOICE  847  // Edge voice picker (combo)
 #define IDC_LABEL_SUBTITLE_EDGE_VOICE 848
+#define IDC_SUBTITLE_EDGE_LANG   893  // language filter for the voice list (combo)
+#define IDC_LABEL_SUBTITLE_EDGE_LANG 894
+#define IDC_SUBTITLE_EDGE_PREVIEW 895 // play a sample of the selected voice (button)
+#define IDC_SUBTITLE_DUCK        896  // how far to lower video volume while speaking (combo)
+#define IDC_LABEL_SUBTITLE_DUCK  897
+#define IDC_SUBTITLE_RATE        898  // Edge speech rate (combo)
+#define IDC_LABEL_SUBTITLE_RATE  899
 
 // Radio dialog
 #define IDM_FILE_RADIO      107
