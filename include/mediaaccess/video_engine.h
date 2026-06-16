@@ -61,6 +61,11 @@ bool MPVLoadExternalSubtitle(const wchar_t* path);
 // ffmpeg stream index (container-wide, 0-based) of the active subtitle track,
 // or -1 if none is selected. Used to extract exactly the track being watched.
 long MPVGetActiveSubtitleFfIndex();
+// Codec name of the active subtitle track (e.g. "subrip", "ass", "hdmv_pgs_subtitle"),
+// or "" if none. Used to detect image-based tracks that cannot be read aloud.
+std::wstring MPVGetActiveSubtitleCodec();
+// Current playback speed (1.0 = normal). Used to widen the subtitle lookahead.
+double MPVGetSpeed();
 
 // ===== Audio Tracks =====
 int MPVGetAudioTrackCount();

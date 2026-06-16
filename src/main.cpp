@@ -65,6 +65,7 @@
 #include "mediaaccess/cue_sheet.h"      // v2.34 — .cue sheet support
 #include "mediaaccess/subtitle_scheduler.h" // read subtitles aloud (prefetched Edge voice)
 #include "mediaaccess/edge_tts_client.h"    // EdgeListVoices (startup prewarm)
+#include "utils.h"                           // WideToUtf8
 #include <utility>  // for std::pair
 #include <thread>   // background subtitle-cue extraction + voice prewarm
 #include <atomic>
@@ -97,6 +98,16 @@ static std::wstring s_subEdgeMedia;
 static int          s_subEdgeFf = -2;
 static double       s_subLastPos = 0.0;     // for seek detection (position discontinuity)
 static bool         s_subLastPaused = false;
+// True when the Edge reader could not produce cues for the current media (no
+// text track / network down). While set, the live screen-reader subtitle path
+// is re-enabled so the user still hears text subtitles.
+static bool         s_subEdgeFailed = false;
+
+// Per-cue fallback: a single line whose Edge synthesis gave up is read by the
+// screen reader instead of being silent. Wired into the scheduler.
+static void SubtitleFallbackSpeak(const std::wstring& text) {
+    if (!text.empty()) SpeakW(text, true);
+}
 
 static std::wstring CurrentMediaPath() {
     return (g_currentTrack >= 0 && g_currentTrack < (int)g_playlist.size())
@@ -136,11 +147,12 @@ void RefreshSubtitleEdge() {
         (!s_subEdgeActive || media != s_subEdgeMedia || (int)ff != s_subEdgeFf)) {
         mediaaccess::SubStop();
         s_subEdgeActive = false; s_subEdgeMedia.clear(); s_subEdgeFf = -2;
+        s_subEdgeFailed = false;
         SubtitleVolumeRestoreNow();
         int gen = ++s_subPrepGen;                 // invalidate any older in-flight prep
         std::string voice = g_subtitleEdgeVoice.empty()
             ? std::string("fr-FR-DeniseNeural")
-            : std::string(g_subtitleEdgeVoice.begin(), g_subtitleEdgeVoice.end());
+            : WideToUtf8(g_subtitleEdgeVoice);
         char rateBuf[16]; sprintf_s(rateBuf, "%+d%%", g_subtitleEdgeRate);
         std::string rate = rateBuf;
         double duck = g_subtitleDuckLevel;
@@ -151,11 +163,12 @@ void RefreshSubtitleEdge() {
             if (g_hwnd) PostMessageW(g_hwnd, WM_SUBTITLE_READY, 0, (LPARAM)r);
             else delete r;
         }).detach();
-    } else if (!want && s_subEdgeActive) {
+    } else if (!want && (s_subEdgeActive || s_subEdgeFailed)) {
         ++s_subPrepGen;                           // discard any in-flight prep
         mediaaccess::SubStop();
         SubtitleVolumeRestoreNow();
         s_subEdgeActive = false; s_subEdgeMedia.clear(); s_subEdgeFf = -2;
+        s_subEdgeFailed = false;
     }
 }
 
@@ -803,12 +816,17 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
                             mediaaccess::SubOnPause(paused);
                             s_subLastPaused = paused;
                         }
-                        // A position jump that isn't normal forward playback (the
-                        // tick is 250 ms, so ~0.25 s/tick at 1x) means a seek.
+                        // A position jump that isn't normal forward playback means
+                        // a seek. The forward threshold scales with playback speed
+                        // so fast playback isn't mistaken for a seek.
+                        double speed = MPVGetSpeed();
                         double dt = pos - s_subLastPos;
-                        if (dt < -0.4 || dt > 1.5) mediaaccess::SubOnSeek(pos);
+                        if (dt < -0.4 || dt > 0.5 + 0.3 * speed) mediaaccess::SubOnSeek(pos);
                         s_subLastPos = pos;
-                        if (!paused) mediaaccess::SubOnTimePos(pos);
+                        if (!paused) {
+                            mediaaccess::SubSetSpeed(speed);   // widen lookahead at fast speeds
+                            mediaaccess::SubOnTimePos(pos);
+                        }
                     }
                 }
             } else if (wParam == IDT_BATCH_FILES) {
@@ -886,9 +904,11 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
             // would lag behind the picture). Gated by g_speakSubtitles.
             wchar_t* text = reinterpret_cast<wchar_t*>(lParam);
             if (text) {
-                // Live screen-reader path: only when speaking subtitles AND the
-                // method is the screen reader (not the prefetched Edge voice).
-                if (g_speakSubtitles && !g_subtitleUseEdgeVoice) SpeakW(text, true);
+                // Live screen-reader path: when speaking subtitles AND either the
+                // method is the screen reader, OR the Edge reader failed for this
+                // media (no text cues / network down) so we fall back to live.
+                if (g_speakSubtitles && (!g_subtitleUseEdgeVoice || s_subEdgeFailed))
+                    SpeakW(text, true);
                 free(text);
             }
             return 0;
@@ -912,11 +932,24 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
                                r->media == CurrentMediaPath();
                 if (current && !r->cues.empty()) {
                     mediaaccess::SubSetDuckCallback(SubtitleDuck);
+                    mediaaccess::SubSetFallbackCallback(SubtitleFallbackSpeak);
                     mediaaccess::SubStart(r->cues, r->voice, 2.5, r->duck, r->rate);
-                    s_subEdgeActive = true; s_subEdgeMedia = r->media; s_subEdgeFf = r->ff;
+                    s_subEdgeActive = true; s_subEdgeFailed = false;
+                    s_subEdgeMedia = r->media; s_subEdgeFf = r->ff;
                     s_subLastPos = MPVGetPosition(); s_subLastPaused = MPVIsPaused();
                 } else if (r->gen == s_subPrepGen.load()) {
-                    SubtitleVolumeRestoreNow();   // latest request but no usable cues
+                    // No usable text cues for this media. Mark failed so the live
+                    // screen-reader path takes over for text tracks; for image
+                    // tracks (no text anywhere) tell the user once why it's silent.
+                    SubtitleVolumeRestoreNow();
+                    s_subEdgeActive = false; s_subEdgeFailed = true;
+                    s_subEdgeMedia = r->media;
+                    std::wstring codec = MPVGetActiveSubtitleCodec();
+                    bool image = codec.find(L"pgs") != std::wstring::npos ||
+                                 codec.find(L"dvb") != std::wstring::npos ||
+                                 codec.find(L"dvd") != std::wstring::npos ||
+                                 codec.find(L"vob") != std::wstring::npos;
+                    if (image) Speak("Image-based subtitles cannot be read aloud");
                 }
                 delete r;
             }

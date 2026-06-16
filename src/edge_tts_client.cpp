@@ -231,11 +231,20 @@ Attempt SynthAttempt(const std::string& voice, const std::string& ssmlText,
         if (err) *err = "send config failed"; return Attempt::Failed;
     }
 
+    // Derive xml:lang from the voice locale (e.g. "fr-FR-DeniseNeural" -> "fr-FR")
+    // so text normalization/prosody match the voice's language, not always en-US.
+    std::string lang = "en-US";
+    {
+        size_t p1 = voice.find('-');
+        size_t p2 = (p1 == std::string::npos) ? std::string::npos : voice.find('-', p1 + 1);
+        if (p2 != std::string::npos) lang = voice.substr(0, p2);
+    }
+
     // (b) SSML
     std::string ssml =
         "X-RequestId:" + UuidHex() + "\r\nContent-Type:application/ssml+xml\r\n"
         "X-Timestamp:" + JsDate() + "Z\r\nPath:ssml\r\n\r\n"
-        "<speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis' xml:lang='en-US'>"
+        "<speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis' xml:lang='" + lang + "'>"
         "<voice name='" + voice + "'>"
         "<prosody pitch='" + pitch + "' rate='" + rate + "' volume='+0%'>" + ssmlText +
         "</prosody></voice></speak>";

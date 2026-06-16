@@ -835,6 +835,24 @@ long MPVGetActiveSubtitleFfIndex()
     return (long)idx;
 }
 
+std::wstring MPVGetActiveSubtitleCodec()
+{
+    if (!g_mpv) return L"";
+    char* codec = fn_mpv_get_property_string(g_mpv, "current-tracks/sub/codec");
+    if (!codec) return L"";
+    std::wstring w = Utf8ToWide(codec);
+    fn_mpv_free(codec);
+    return w;
+}
+
+double MPVGetSpeed()
+{
+    if (!g_mpv) return 1.0;
+    double s = 1.0;
+    if (fn_mpv_get_property(g_mpv, "speed", MPV_FORMAT_DOUBLE, &s) < 0) return 1.0;
+    return s;
+}
+
 void MPVSetSubtitleTrack(int index)
 {
     if (!g_mpv) return;

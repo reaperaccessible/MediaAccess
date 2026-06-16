@@ -297,6 +297,8 @@ void LoadSettings() {
         wchar_t rb[16] = {0};   // string read so a negative rate parses correctly
         GetPrivateProfileStringW(L"Speech", L"SubtitleEdgeRate", L"0", rb, 16, g_configPath.c_str());
         g_subtitleEdgeRate = _wtoi(rb);
+        if (g_subtitleEdgeRate < -50)       g_subtitleEdgeRate = -50;   // clamp a hand-edited INI
+        else if (g_subtitleEdgeRate > 100)  g_subtitleEdgeRate = 100;
     }
     g_speechEffect = GetPrivateProfileIntW(L"Speech", L"Effect", 1, g_configPath.c_str()) != 0;
     g_speechYTHybrid = GetPrivateProfileIntW(L"Speech", L"YTHybrid", 1, g_configPath.c_str()) != 0;

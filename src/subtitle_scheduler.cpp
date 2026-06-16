@@ -152,8 +152,11 @@ enum CueState { ST_PENDING, ST_QUEUED, ST_SYNTH, ST_READY, ST_FAILED, ST_PLAYED 
 struct SchedCue {
     SubCue                      cue;
     int                         state = ST_PENDING;
+    int                         fails = 0;     // synth failures so far (bounded retry)
     std::vector<unsigned char>  mp3;
 };
+
+const int kMaxSynthRetries = 2;
 
 std::mutex               g_mtx;
 std::vector<SchedCue>    g_cues;
@@ -165,7 +168,9 @@ std::string              g_voice;
 std::string              g_rate = "+0%";
 double                   g_lookahead = 2.5;
 double                   g_duckLevel = 0.3;
+double                   g_speed     = 1.0;     // current playback speed (for lookahead scaling)
 SubDuckFn                g_duckFn    = nullptr;
+SubFallbackFn            g_fallbackFn = nullptr;
 
 // Playback state — app thread only.
 HSTREAM g_clipStream = 0;
@@ -194,9 +199,15 @@ void WorkerLoop() {
             std::lock_guard<std::mutex> lk(g_mtx);
             if (!g_running) return;
             if (idx >= 0 && idx < (int)g_cues.size()) {
-                if (ok) { g_cues[idx].mp3 = std::move(mp3); g_cues[idx].state = ST_READY; }
-                else    { g_cues[idx].state = ST_FAILED;
-                          LogF("subtts", "cue %d synth failed: %s", idx, err.c_str()); }
+                SchedCue& c = g_cues[idx];
+                if (ok) { c.mp3 = std::move(mp3); c.state = ST_READY; }
+                else {
+                    // Bounded retry on transient failures (network blip / token);
+                    // re-queue via PENDING until exhausted, then give up (FAILED).
+                    c.fails++;
+                    c.state = (c.fails <= kMaxSynthRetries) ? ST_PENDING : ST_FAILED;
+                    LogF("subtts", "cue %d synth failed (try %d): %s", idx, c.fails, err.c_str());
+                }
             }
         }
     }
@@ -212,6 +223,8 @@ void StopClip() {
 } // namespace
 
 void SubSetDuckCallback(SubDuckFn fn) { g_duckFn = fn; }
+void SubSetFallbackCallback(SubFallbackFn fn) { g_fallbackFn = fn; }
+void SubSetSpeed(double speed) { std::lock_guard<std::mutex> lk(g_mtx); g_speed = speed; }
 
 void SubStart(const std::vector<SubCue>& cues, const std::string& edgeVoice,
               double lookaheadSec, double duckLevel, const std::string& rate) {
@@ -221,6 +234,7 @@ void SubStart(const std::vector<SubCue>& cues, const std::string& edgeVoice,
     for (const auto& c : cues) { SchedCue s; s.cue = c; g_cues.push_back(std::move(s)); }
     g_queue.clear();
     g_voice = edgeVoice; g_rate = rate; g_lookahead = lookaheadSec; g_duckLevel = duckLevel;
+    g_speed = 1.0;
     g_curCue = -1; g_clipStream = 0; g_ducked = false;
     g_running = true;
     g_worker = std::thread(WorkerLoop);
@@ -250,31 +264,46 @@ void SubOnTimePos(double pos) {
 
     int toPlay = -1;
     std::vector<unsigned char> mp3;
+    std::wstring fallbackText;
     {
         std::lock_guard<std::mutex> lk(g_mtx);
         if (!g_running) return;
-        // 2) prefetch cues entering the lookahead window
+        // 2) prefetch cues entering the lookahead window. The window is widened
+        // at fast playback (synthesis latency is wall-clock, so video advances
+        // faster and we need more video-seconds of lead).
+        double lead = g_lookahead * (g_speed > 1.0 ? g_speed : 1.0);
         bool queued = false;
         for (int i = 0; i < (int)g_cues.size(); i++) {
             SchedCue& s = g_cues[i];
-            if (s.state == ST_PENDING && s.cue.endSec > pos && s.cue.startSec <= pos + g_lookahead) {
+            if (s.state == ST_PENDING && s.cue.endSec > pos && s.cue.startSec <= pos + lead) {
                 s.state = ST_QUEUED; g_queue.push_back(i); queued = true;
             }
         }
         if (queued) g_cv.notify_all();
-        // 3) pick the cue that should be audible now (latest start in [start,end))
+        // 3) the cue currently on screen = latest-start, not-yet-handled cue whose
+        //    window contains pos. Act on its state.
         int sel = -1;
         for (int i = 0; i < (int)g_cues.size(); i++) {
             SchedCue& s = g_cues[i];
-            if (s.state == ST_READY && s.cue.startSec <= pos && pos < s.cue.endSec)
+            if (s.state != ST_PLAYED && s.cue.startSec <= pos && pos < s.cue.endSec)
                 if (sel < 0 || s.cue.startSec > g_cues[sel].cue.startSec) sel = i;
         }
         if (sel >= 0 && sel != g_curCue) {
-            toPlay = sel;
-            mp3 = g_cues[sel].mp3;
-            g_cues[sel].state = ST_PLAYED;
+            if (g_cues[sel].state == ST_READY) {
+                toPlay = sel;
+                mp3 = g_cues[sel].mp3;
+                g_cues[sel].state = ST_PLAYED;
+            } else if (g_cues[sel].state == ST_FAILED) {
+                // Synthesis gave up for this line — read it via the screen reader
+                // so the user is not left in silence on that cue.
+                fallbackText = g_cues[sel].cue.text;
+                g_cues[sel].state = ST_PLAYED;
+            }
+            // PENDING/QUEUED/SYNTH: not ready yet — leave it for a later tick.
         }
     }
+
+    if (!fallbackText.empty() && g_fallbackFn) g_fallbackFn(fallbackText);
 
     // 4) start the chosen clip (cutting any current one = overlap policy)
     if (toPlay >= 0) {
@@ -296,7 +325,7 @@ void SubOnSeek(double pos) {
     for (SchedCue& s : g_cues) {
         if (s.cue.endSec <= pos)                                   s.state = ST_PLAYED;  // already past
         else if (!s.mp3.empty())                                   s.state = ST_READY;   // reuse buffer
-        else if (s.state != ST_SYNTH && s.state != ST_QUEUED)      s.state = ST_PENDING;
+        else if (s.state != ST_SYNTH && s.state != ST_QUEUED)    { s.state = ST_PENDING; s.fails = 0; }
     }
 }
 
@@ -385,6 +414,7 @@ std::vector<SubCue> SubExtractCues(const std::wstring& mediaPath, int subFfIndex
             cues = ParseSubtitles(data);
             LogF("subtts", "embedded extraction (ff-index %d, %zu bytes) -> %zu cues",
                  subFfIndex, data.size(), cues.size());
+            DeleteFileW(tmp.c_str());   // don't leave the temp .srt behind
         }
     }
     return cues;

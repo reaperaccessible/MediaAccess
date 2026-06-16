@@ -56,6 +56,17 @@ std::vector<SubCue> ParseSubtitles(const std::string& utf8Data);
 using SubDuckFn = void (*)(double level);
 void SubSetDuckCallback(SubDuckFn fn);
 
+// Per-cue fallback: called (on the app thread, from SubOnTimePos) with a cue's
+// text when its synthesis has permanently failed, so the app can read that one
+// line via the screen reader instead of leaving it silent. Optional.
+using SubFallbackFn = void (*)(const std::wstring& text);
+void SubSetFallbackCallback(SubFallbackFn fn);
+
+// Tell the scheduler the current video playback speed so the lookahead window
+// (in video-seconds) is widened at fast speeds — synthesis latency is wall-clock,
+// so faster playback needs more video lookahead to stay ahead. 1.0 = normal.
+void SubSetSpeed(double speed);
+
 // Begin prefetching/scheduling `cues` with the given Edge voice short name.
 // `lookaheadSec` is how far ahead of playback to pre-synthesize. Replaces any
 // previous session. Starts the worker thread.
