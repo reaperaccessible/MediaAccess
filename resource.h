@@ -103,6 +103,7 @@
 #define IDT_STARTUP_OVER    405   // v1.85 — one-shot: ends startup batch-open coalescing window
 #define IDT_DEFERRED_SPEAK  406   // v2.06 — one-shot: fallback for AnnounceStatus when UIA unavailable
 #define IDT_DEVICE_REROUTE  407   // v2.32 — one-shot: coalesce audio-device-change burst before reroute
+#define IDT_SUBTITLE_FADE   408   // smooth duck fade of the mpv video volume while a subtitle is spoken
 
 // Custom messages
 #define WM_SPEAK            (WM_USER + 1)

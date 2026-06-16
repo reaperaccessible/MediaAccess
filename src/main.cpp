@@ -66,11 +66,24 @@
 #include "mediaaccess/subtitle_scheduler.h" // read subtitles aloud (prefetched Edge voice)
 #include <utility>  // for std::pair
 
-// Ducking hook for the subtitle scheduler: lower the mpv video volume while a
-// subtitle line is spoken (level<1), restore on level==1. Uses the app's
-// current g_volume so a user volume change is respected.
+// Ducking hook for the subtitle scheduler: smoothly fade the mpv video volume
+// down while a subtitle line is spoken (level<1) and back up after (level==1),
+// instead of a hard jump. Uses the app's current g_volume so a user volume
+// change is respected. The ramp runs on IDT_SUBTITLE_FADE (see WM_TIMER).
+static double s_duckCurrent = 1.0;   // multiplier currently applied to g_volume
+static double s_duckTarget  = 1.0;   // multiplier we are fading toward
+
 static void SubtitleDuck(double level) {
-    MPVSetVolume(g_volume * (float)level);
+    s_duckTarget = level;
+    if (g_hwnd) SetTimer(g_hwnd, IDT_SUBTITLE_FADE, 20, nullptr);  // ~20 ms ramp ticks
+}
+
+// Cancel any fade and restore full video volume immediately (used when the
+// reader stops, so nothing lingers ducked).
+static void SubtitleVolumeRestoreNow() {
+    s_duckCurrent = s_duckTarget = 1.0;
+    if (g_hwnd) KillTimer(g_hwnd, IDT_SUBTITLE_FADE);
+    MPVSetVolume(g_volume);
 }
 
 // Current state of the Edge subtitle reader (the prefetch scheduler). Tracks
@@ -112,11 +125,11 @@ void RefreshSubtitleEdge() {
             s_subEdgeActive = true; s_subEdgeMedia = media; s_subEdgeFf = (int)ff;
             s_subLastPos = MPVGetPosition(); s_subLastPaused = MPVIsPaused();
         } else {
-            MPVSetVolume(g_volume);
+            SubtitleVolumeRestoreNow();
         }
     } else if (!want && s_subEdgeActive) {
         mediaaccess::SubStop();
-        MPVSetVolume(g_volume);
+        SubtitleVolumeRestoreNow();
         s_subEdgeActive = false; s_subEdgeMedia.clear(); s_subEdgeFf = -2;
     }
 }
@@ -752,7 +765,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
                 // media changed under us (stale cues would play over a new file).
                 if (s_subEdgeActive) {
                     if (CurrentMediaPath() != s_subEdgeMedia) {
-                        mediaaccess::SubStop(); MPVSetVolume(g_volume);
+                        mediaaccess::SubStop(); SubtitleVolumeRestoreNow();
                         s_subEdgeActive = false; s_subEdgeMedia.clear(); s_subEdgeFf = -2;
                     } else {
                         double pos = MPVGetPosition();
@@ -817,6 +830,17 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
                 // settled; perform the actual reroute now.
                 KillTimer(hwnd, IDT_DEVICE_REROUTE);
                 HandleAudioDeviceChange();
+                return 0;
+            } else if (wParam == IDT_SUBTITLE_FADE) {
+                // Smoothly ramp the mpv video volume toward the duck target
+                // (~0.10 per 20 ms tick => a 0.7 swing fades in ~140 ms).
+                const double step = 0.10;
+                if (s_duckCurrent < s_duckTarget)
+                    s_duckCurrent = (s_duckCurrent + step > s_duckTarget) ? s_duckTarget : s_duckCurrent + step;
+                else
+                    s_duckCurrent = (s_duckCurrent - step < s_duckTarget) ? s_duckTarget : s_duckCurrent - step;
+                MPVSetVolume(g_volume * (float)s_duckCurrent);
+                if (s_duckCurrent == s_duckTarget) KillTimer(hwnd, IDT_SUBTITLE_FADE);
                 return 0;
             }
             return 0;
@@ -1758,6 +1782,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
             KillTimer(hwnd, IDT_SCHEDULER);
             KillTimer(hwnd, IDT_SCHED_DURATION);
             KillTimer(hwnd, IDT_DEVICE_REROUTE);  // v2.32 — cancel pending reroute
+            KillTimer(hwnd, IDT_SUBTITLE_FADE);   // cancel any subtitle duck fade
             // v2.32 — stop the device watcher BEFORE FreeBass so no late
             // PostMessage can hit a dead window / torn-down BASS state.
             StopAudioDeviceWatch();
