@@ -42,11 +42,6 @@ const wchar_t* USER_AGENT   =
 // server Date that disagrees with our clock. Guarded for multi-worker safety.
 std::atomic<double> g_skewSeconds{0.0};
 
-// Cooperative cancellation: set by EdgeCancelPending() so an in-flight synth
-// aborts at the next bounded receive instead of running to the full timeout.
-// v2.44.
-std::atomic<bool> g_cancelPending{false};
-
 // WinHTTP timeouts (ms): resolve / connect / send / receive. The finite receive
 // timeout is the load-bearing part for the websocket — WinHttpWebSocketReceive
 // on a synchronous handle returns within it instead of blocking forever on a
@@ -206,7 +201,8 @@ enum class Attempt { Ok, Forbidden, Failed };
 // server clock skew so the caller can retry with a corrected token.
 Attempt SynthAttempt(const std::string& voice, const std::string& ssmlText,
                      const std::string& rate, const std::string& pitch,
-                     std::vector<unsigned char>& out, std::string* err) {
+                     std::vector<unsigned char>& out, std::string* err,
+                     const std::atomic<bool>* cancel) {
     out.clear();
 
     if (!IsSafeVoiceName(voice)) { if (err) *err = "invalid voice name"; return Attempt::Failed; }
@@ -321,7 +317,7 @@ Attempt SynthAttempt(const std::string& voice, const std::string& ssmlText,
     bool aborted = false;
     std::vector<unsigned char> msg;
     for (;;) {
-        if (g_cancelPending.load()) { if (err) *err = "cancelled"; aborted = true; break; }
+        if (cancel && cancel->load()) { if (err) *err = "cancelled"; aborted = true; break; }
         if (GetTickCount64() >= deadline) { if (err) *err = "synth timed out"; aborted = true; break; }
         unsigned char buf[16384]; DWORD got = 0; WINHTTP_WEB_SOCKET_BUFFER_TYPE bt;
         if (WinHttpWebSocketReceive(ws, buf, sizeof(buf), &got, &bt) != NO_ERROR) {
@@ -430,9 +426,9 @@ std::vector<EdgeVoice> BuiltinFallbackVoices() {
 bool EdgeSynthesize(const std::string& voiceShortName, const std::wstring& text,
                     std::vector<unsigned char>& outMp3,
                     const std::string& rate, const std::string& pitch,
-                    std::string* err) {
+                    std::string* err, const std::atomic<bool>* cancel) {
     outMp3.clear();
-    if (g_cancelPending.load()) { if (err) *err = "cancelled"; return false; }
+    if (cancel && cancel->load()) { if (err) *err = "cancelled"; return false; }
     if (voiceShortName.empty() || text.empty()) {
         if (err) *err = "empty voice or text";
         return false;
@@ -440,11 +436,11 @@ bool EdgeSynthesize(const std::string& voiceShortName, const std::wstring& text,
     std::string ssmlText = SanitizeForSsml(text);
 
     std::string localErr;
-    Attempt a = SynthAttempt(voiceShortName, ssmlText, rate, pitch, outMp3, &localErr);
+    Attempt a = SynthAttempt(voiceShortName, ssmlText, rate, pitch, outMp3, &localErr, cancel);
     if (a == Attempt::Forbidden) {
         // Token rejected; clock skew is now recorded — retry once.
         LogF("edge", "403, retrying with skew=%.1fs", g_skewSeconds.load());
-        a = SynthAttempt(voiceShortName, ssmlText, rate, pitch, outMp3, &localErr);
+        a = SynthAttempt(voiceShortName, ssmlText, rate, pitch, outMp3, &localErr, cancel);
     }
     if (a != Attempt::Ok) {
         LogF("edge", "synth failed: %s", localErr.c_str());
@@ -510,8 +506,5 @@ std::vector<EdgeVoice> EdgeListVoicesCached() {
     }
     return BuiltinFallbackVoices();   // never touch the network on the UI thread
 }
-
-void EdgeCancelPending() { g_cancelPending.store(true); }
-void EdgeClearCancel()   { g_cancelPending.store(false); }
 
 } // namespace mediaaccess

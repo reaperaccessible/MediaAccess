@@ -1534,13 +1534,20 @@ INT_PTR CALLBACK OptionsDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
                     // Synthesize off the UI thread (network round trip) and post the
                     // MP3 back to the dialog to play — keeps Options responsive.
                     std::thread([dlg, voice, sample, rate]() {
+                        // No cancel token: the preview is never explicitly
+                        // cancelled (it owns no token, and SubStop's cancel is
+                        // private to the scheduler), so it's bounded only by the
+                        // WinHTTP timeouts — which is fine for a short sample. v2.44
                         auto* mp3 = new std::vector<unsigned char>();
                         std::string err;
-                        mediaaccess::EdgeClearCancel();   // v2.44 — a prior SubStop may have armed cancel
                         bool ok = mediaaccess::EdgeSynthesize(voice, sample, *mp3, rate, "+0Hz", &err)
                                   && !mp3->empty();
                         if (!ok) { delete mp3; mp3 = nullptr; }
-                        PostMessageW(dlg, WM_SUB_PREVIEW_READY, 0, (LPARAM)mp3);
+                        // v2.44 — if the dialog is already gone the post fails;
+                        // free the payload here so it can't leak (the handler's
+                        // delete would never run).
+                        if (!PostMessageW(dlg, WM_SUB_PREVIEW_READY, 0, (LPARAM)mp3) && mp3)
+                            delete mp3;
                     }).detach();
                     return TRUE;
                 }

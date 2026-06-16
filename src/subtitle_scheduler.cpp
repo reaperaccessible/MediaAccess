@@ -170,6 +170,10 @@ std::deque<int>          g_queue;
 std::condition_variable  g_cv;
 std::thread              g_worker;
 bool                     g_running   = false;
+// Per-subsystem cancel token for the synth worker (v2.44). Owned solely by the
+// scheduler: SubStop sets it before join, SubStart clears it. NOT shared with
+// the Options voice-preview, so stopping the reader can't abort a preview.
+std::atomic<bool>        g_workerCancel{false};
 std::string              g_voice;
 std::string              g_rate = "+0%";
 double                   g_lookahead = 2.5;
@@ -200,7 +204,7 @@ void WorkerLoop() {
             rate  = g_rate;
         }
         std::vector<unsigned char> mp3; std::string err;
-        bool ok = EdgeSynthesize(voice, text, mp3, rate, "+0Hz", &err);
+        bool ok = EdgeSynthesize(voice, text, mp3, rate, "+0Hz", &err, &g_workerCancel);
         {
             std::lock_guard<std::mutex> lk(g_mtx);
             if (!g_running) return;
@@ -243,7 +247,7 @@ void SubStart(const std::vector<SubCue>& cues, const std::string& edgeVoice,
     g_speed = 1.0;
     g_curCue = -1; g_clipStream = 0; g_ducked = false;
     g_running = true;
-    EdgeClearCancel();        // v2.44 — re-arm in case a prior SubStop cancelled
+    g_workerCancel.store(false);   // v2.44 — re-arm in case a prior SubStop cancelled
     g_worker = std::thread(WorkerLoop);
     LogF("subtts", "started: %zu cues, voice=%s, lookahead=%.1fs",
          g_cues.size(), edgeVoice.c_str(), lookaheadSec);
@@ -255,12 +259,12 @@ void SubStop() {
         if (!g_running && !g_worker.joinable()) return;
         g_running = false;
     }
-    // v2.44 — ask any in-flight synth to abort so a frozen network connection
-    // can't keep the worker (and thus this join, on the UI thread) blocked.
-    EdgeCancelPending();
+    // v2.44 — ask any in-flight synth to abort (via the scheduler's OWN token)
+    // so a frozen network connection can't keep the worker (and thus this join,
+    // on the UI thread) blocked. SubStart re-arms the token for the next session.
+    g_workerCancel.store(true);
     g_cv.notify_all();
     if (g_worker.joinable()) g_worker.join();
-    EdgeClearCancel();        // worker is gone; clear so the next session is fresh
     StopClip();
     std::lock_guard<std::mutex> lk(g_mtx);
     g_cues.clear(); g_queue.clear();
@@ -469,8 +473,11 @@ std::vector<SubCue> SubExtractCues(const std::wstring& mediaPath, int subFfIndex
             cues = ParseSubtitles(data);
             LogF("subtts", "embedded extraction (ff-index %d, %zu bytes) -> %zu cues",
                  subFfIndex, data.size(), cues.size());
-            DeleteFileW(tmp.c_str());   // don't leave the temp .srt behind
         }
+        // v2.44 — delete the unique temp unconditionally: ExtractEmbeddedSrt can
+        // create a partial file then fail or be TerminateProcess'd at shutdown,
+        // and the unique name means nothing else ever reclaims it. No-op if absent.
+        DeleteFileW(tmp.c_str());
     }
     return cues;
 }

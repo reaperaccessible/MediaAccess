@@ -29,6 +29,7 @@
 // screen-reader path) rather than assuming synthesis always succeeds.
 // =============================================================================
 
+#include <atomic>
 #include <string>
 #include <vector>
 
@@ -48,12 +49,21 @@ struct EdgeVoice {
 // Returns true and fills `outMp3` on success. On failure returns false, leaves
 // `outMp3` empty, and (if `err` non-null) sets a short human-readable reason.
 // BLOCKING — run on a worker thread.
+//
+// `cancel` is an OPTIONAL per-operation cancellation token (v2.44): pass the
+// address of an atomic your subsystem owns; when it becomes true the synth
+// aborts at the next receive iteration (combined with the finite WinHTTP
+// timeouts, within a few seconds). Pass nullptr for no cancellation. Each
+// caller MUST own its own token — there is intentionally no shared/global
+// cancel state, so one subsystem (e.g. SubStop) can't abort another's synth
+// (e.g. a voice preview).
 bool EdgeSynthesize(const std::string& voiceShortName,
                     const std::wstring& text,
                     std::vector<unsigned char>& outMp3,
                     const std::string& rate = "+0%",
                     const std::string& pitch = "+0Hz",
-                    std::string* err = nullptr);
+                    std::string* err = nullptr,
+                    const std::atomic<bool>* cancel = nullptr);
 
 // Catalog of available Edge online voices, fetched once from the service and
 // cached for the process lifetime. If the fetch fails (offline / token broken)
@@ -70,15 +80,6 @@ bool EdgeVoicesReady();
 // network, so it is safe to call from WM_INITDIALOG. Pair with EdgeVoicesReady()
 // to know whether a background refresh (then a re-populate) is still needed.
 std::vector<EdgeVoice> EdgeListVoicesCached();
-
-// Cooperative cancellation for an in-flight EdgeSynthesize(). Call
-// EdgeCancelPending() before joining the synth worker (e.g. SubStop / app
-// shutdown) so a frozen network connection can't keep the worker — and thus the
-// caller — blocked: combined with the finite WinHTTP timeouts, the synth returns
-// within a few seconds at most. Call EdgeClearCancel() before starting fresh
-// work to re-arm. v2.44.
-void EdgeCancelPending();
-void EdgeClearCancel();
 
 } // namespace mediaaccess
 
