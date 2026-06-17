@@ -760,6 +760,72 @@ static std::wstring CleanReleaseNotes(const std::string& body) {
     return w;
 }
 
+// v2.47 — pick the release-notes section matching the app language. The gh
+// release body may contain "[lang=fr]" / "[lang=en]" marker lines; we return
+// only the matching section. Robust fallbacks keep older un-marked releases
+// working: no markers -> whole text; missing section -> the other language ->
+// any non-empty section -> whole text. Never blanks a non-empty body.
+static std::wstring ExtractNotesForLanguage(const std::wstring& cleaned, const char* lang) {
+    if (cleaned.empty()) return cleaned;
+
+    auto trim = [](const std::wstring& s) -> std::wstring {
+        size_t a = s.find_first_not_of(L" \t\r\n");
+        if (a == std::wstring::npos) return std::wstring();
+        size_t b = s.find_last_not_of(L" \t\r\n");
+        return s.substr(a, b - a + 1);
+    };
+    // The code inside a "[lang=xx]" marker line, or empty if the line is not one.
+    auto markerCode = [&](const std::wstring& line) -> std::wstring {
+        std::wstring t = trim(line);
+        if (t.size() >= 8 && t.compare(0, 6, L"[lang=") == 0 && t.back() == L']')
+            return t.substr(6, t.size() - 7);
+        return std::wstring();
+    };
+
+    std::vector<std::wstring> lines;
+    size_t start = 0;
+    for (size_t i = 0; i <= cleaned.size(); ++i) {
+        if (i == cleaned.size() || cleaned[i] == L'\n') {
+            std::wstring ln = cleaned.substr(start, i - start);
+            if (!ln.empty() && ln.back() == L'\r') ln.pop_back();
+            lines.push_back(ln);
+            start = i + 1;
+        }
+    }
+
+    std::vector<std::pair<std::wstring, std::wstring>> sections;
+    bool anyMarker = false, inSection = false;
+    for (auto& ln : lines) {
+        std::wstring code = markerCode(ln);
+        if (!code.empty()) {
+            anyMarker = true; inSection = true;
+            sections.push_back({code, std::wstring()});
+            continue;
+        }
+        if (!inSection) continue;  // drop any preamble before the first marker
+        std::wstring& dst = sections.back().second;
+        if (!dst.empty()) dst += L"\r\n";
+        dst += ln;
+    }
+
+    if (!anyMarker) return cleaned;  // FALLBACK 1: un-marked release -> full notes
+
+    auto pick = [&](const std::wstring& want) -> std::wstring {
+        for (auto& kv : sections)
+            if (kv.first == want && !trim(kv.second).empty()) return trim(kv.second);
+        return std::wstring();
+    };
+    std::wstring want = (lang && strcmp(lang, "fr") == 0) ? L"fr" : L"en";
+    std::wstring out = pick(want);
+    if (out.empty()) out = pick(want == L"fr" ? L"en" : L"fr");  // FALLBACK 2: other language
+    if (out.empty())                                            // FALLBACK 2b: any non-empty section
+        for (auto& kv : sections) { std::wstring t = trim(kv.second); if (!t.empty()) { out = t; break; } }
+    if (out.empty()) return cleaned;                            // FALLBACK 3: never blank a non-empty body
+
+    if (out.size() > 32000) out = out.substr(0, 32000) + L"\r\n...";  // cap the extracted section
+    return out;
+}
+
 struct UpdateNotesData { std::wstring summary; std::wstring notes; };
 
 // Accessible modal dialog: a version summary + a read-only, scrollable, focusable
@@ -846,7 +912,7 @@ void HandleUpdateCheckResult(HWND hwnd, UpdateInfo* info, bool silent) {
     // both converge here. Falls back to the TaskDialog Yes/No prompt when
     // there are no notes or the dialog template fails to load.
     int pressed = IDNO;
-    std::wstring notes = CleanReleaseNotes(info->releaseNotes);
+    std::wstring notes = ExtractNotesForLanguage(CleanReleaseNotes(info->releaseNotes), GetCurrentLanguage());
     INT_PTR dlgResult = 0;
     if (!notes.empty()) {
         UpdateNotesData d{ wmessage, notes };
