@@ -9,8 +9,8 @@ IDI_APPICON ICON "MediaAccess.ico"
 // ASCII only (rc.exe mojibake risk). FILEVERSION is hardcoded: bump it each
 // release to match include/mediaaccess/version.h (build_new.bat passes no /D to rc).
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION    2,44,0,0
- PRODUCTVERSION 2,44,0,0
+ FILEVERSION    2,46,0,0
+ PRODUCTVERSION 2,46,0,0
  FILEFLAGSMASK  0x3fL
  FILEFLAGS      0x0L
  FILEOS         VOS__WINDOWS32
@@ -23,12 +23,12 @@ BEGIN
     BEGIN
       VALUE "CompanyName",      "ReaperAccessible"
       VALUE "FileDescription",  "MediaAccess - accessible audio and video player"
-      VALUE "FileVersion",      "2.44"
+      VALUE "FileVersion",      "2.46"
       VALUE "InternalName",     "MediaAccess"
       VALUE "LegalCopyright",   "Copyright (C) 2026 ReaperAccessible. GPL-3.0."
       VALUE "OriginalFilename", "MediaAccess.exe"
       VALUE "ProductName",      "MediaAccess"
-      VALUE "ProductVersion",   "2.44"
+      VALUE "ProductVersion",   "2.46"
     END
   END
   BLOCK "VarFileInfo"
@@ -75,7 +75,12 @@ BEGIN
         MENUITEM "&Next\tB", IDM_PLAY_NEXT
         MENUITEM SEPARATOR
         MENUITEM "S&huffle\tH", IDM_PLAY_SHUFFLE
-        MENUITEM "R&epeat\tE", IDM_PLAY_REPEAT_TOGGLE
+        POPUP "R&epeat"
+        BEGIN
+            MENUITEM "Repeat &off",   IDM_PLAY_REPEAT_OFF
+            MENUITEM "Repeat &track", IDM_PLAY_REPEAT_ONE
+            MENUITEM "Repeat &all",   IDM_PLAY_REPEAT_ALL
+        END
         MENUITEM SEPARATOR
         MENUITEM "Seek &Backward\tLeft", IDM_PLAY_SEEKBACK
         MENUITEM "Seek &Forward\tRight", IDM_PLAY_SEEKFWD
@@ -132,6 +137,7 @@ BEGIN
     POPUP "&Help"
     BEGIN
         MENUITEM "&Manual\tF1", IDM_HELP_MANUAL
+        MENUITEM "&Changelog\tF2", IDM_HELP_CHANGELOG
         MENUITEM "&Readme", IDM_HELP_README
         MENUITEM "Check for &Updates...", IDM_HELP_UPDATES
         MENUITEM SEPARATOR
