@@ -121,7 +121,8 @@ Source: "{#SourceDir}\lib\ffprobe.exe"; DestDir: "{app}\lib"; Flags: ignoreversi
 Source: "{#SourceDir}\lib\FluidR3_GM.sf2"; DestDir: "{app}\lib"; Flags: ignoreversion skipifsourcedoesntexist
 ; Install documentation
 Source: "{#SourceDir}\docs\readme.txt"; DestDir: "{app}\docs"; Flags: ignoreversion
-Source: "{#SourceDir}\docs\changelog.txt"; DestDir: "{app}\docs"; Flags: ignoreversion
+Source: "{#SourceDir}\docs\changelog_fr.html"; DestDir: "{app}\docs"; Flags: ignoreversion
+Source: "{#SourceDir}\docs\changelog_en.html"; DestDir: "{app}\docs"; Flags: ignoreversion
 Source: "{#SourceDir}\docs\manual_fr.html"; DestDir: "{app}\docs"; Flags: ignoreversion
 Source: "{#SourceDir}\docs\manual_en.html"; DestDir: "{app}\docs"; Flags: ignoreversion
 ; Install regional default keymaps (USA / FR-CA / FR-FR). The app also
@@ -418,7 +419,7 @@ Root: HKA; Subkey: "SOFTWARE\Classes\SystemFileAssociations\.cue\shell\MediaAcce
 [Icons]
 Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
 Name: "{group}\Readme"; Filename: "{app}\docs\readme.txt"
-Name: "{group}\Changelog"; Filename: "{app}\docs\changelog.txt"
+Name: "{group}\Changelog"; Filename: "{app}\docs\changelog_fr.html"
 Name: "{group}\{cm:UninstallProgram,{#MyAppName}}"; Filename: "{uninstallexe}"
 Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
 Name: "{userappdata}\Microsoft\Internet Explorer\Quick Launch\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: quicklaunchicon

@@ -402,6 +402,16 @@ void RegisterPlayerTranslations() {
     // Help menu — Manual (F1) opens the bilingual HTML manual
     AddTranslation("en", "&Manual\tF1", L"&Manual\tF1");
     AddTranslation("fr", "&Manual\tF1", L"&Manuel\tF1");
+    AddTranslation("en", "Open changelog", L"Open changelog");
+    AddTranslation("fr", "Open changelog", L"Ouvrir le journal des modifications");
+    AddTranslation("en", "&Changelog\tF2", L"&Changelog\tF2");
+    AddTranslation("fr", "&Changelog\tF2", L"&Journal des modifications\tF2");
+    AddTranslation("en", "Changelog", L"Changelog");
+    AddTranslation("fr", "Changelog", L"Journal des modifications");
+    AddTranslation("en", "Could not open the changelog. Make sure the docs folder is present alongside MediaAccess.exe.",
+                   L"Could not open the changelog. Make sure the docs folder is present alongside MediaAccess.exe.");
+    AddTranslation("fr", "Could not open the changelog. Make sure the docs folder is present alongside MediaAccess.exe.",
+                   L"Impossible d'ouvrir le journal des modifications. Assurez-vous que le dossier docs est présent à côté de MediaAccess.exe.");
     AddTranslation("en", "Manual", L"Manual");
     AddTranslation("fr", "Manual", L"Manuel");
     AddTranslation("en", "Could not open the manual. Make sure the docs folder is present alongside MediaAccess.exe.",

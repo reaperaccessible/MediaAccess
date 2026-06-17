@@ -284,6 +284,28 @@ static void OpenHelpReadme(HWND hwnd) {
     }
 }
 
+// v2.46 — open the bundled bilingual changelog in the default web browser, in
+// the user's language (changelog_fr.html / changelog_en.html), mirroring
+// OpenHelpManual. Default key F2.
+static void OpenHelpChangelog(HWND hwnd) {
+    wchar_t clogPath[MAX_PATH];
+    GetModuleFileNameW(nullptr, clogPath, MAX_PATH);
+    wchar_t* slash = wcsrchr(clogPath, L'\\');
+    if (!slash) return;
+    *(slash + 1) = L'\0';
+    const char* lang = GetCurrentLanguage();
+    const wchar_t* file = (lang && strcmp(lang, "fr") == 0)
+        ? L"docs\\changelog_fr.html"
+        : L"docs\\changelog_en.html";
+    wcscat_s(clogPath, MAX_PATH, file);
+    HINSTANCE r = ShellExecuteW(hwnd, L"open", clogPath, nullptr, nullptr, SW_SHOWNORMAL);
+    if ((INT_PTR)r <= 32) {
+        MessageBoxW(hwnd,
+            T("Could not open the changelog. Make sure the docs folder is present alongside MediaAccess.exe."),
+            T("Changelog"), MB_OK | MB_ICONWARNING);
+    }
+}
+
 static void OpenHelpContact(HWND hwnd) {
     // mailto: link — Windows opens the default mail client pre-filled with
     // our address + a subject line that helps us triage.
@@ -1454,6 +1476,9 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
                     break;
                 case IDM_HELP_MANUAL:
                     OpenHelpManual(hwnd);
+                    break;
+                case IDM_HELP_CHANGELOG:
+                    OpenHelpChangelog(hwnd);
                     break;
                 case IDM_HELP_README:
                     OpenHelpReadme(hwnd);
