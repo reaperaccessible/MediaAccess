@@ -131,7 +131,7 @@ std::wstring g_subtitleEdgeVoice;   // Edge voice short name; empty = default
 double g_subtitleDuckLevel = 0.30;  // lower video to 30% while a subtitle is spoken
 int g_subtitleEdgeRate = 0;         // Edge speech rate percent offset (0 = normal)
 
-// v2.45 — book reading via Edge neural voice. Persisted under [Books] BookEdge /
+// v2.48 — book reading via Edge neural voice. Persisted under [Books] BookEdge /
 // BookEdgeVoice / BookEdgeRate. Independent of the subtitle settings above.
 bool g_bookUseEdgeVoice = false;
 std::wstring g_bookEdgeVoice;       // Edge voice short name; empty = default

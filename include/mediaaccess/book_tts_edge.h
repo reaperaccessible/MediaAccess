@@ -59,9 +59,15 @@ void BookEdgePlay(const std::wstring& curText, int curSeg,
                   const std::wstring& nextText, int nextSeg);
 
 // Stop narration: bump the generation (cancels pending synth), stop+free the
-// BASS stream. The MP3 cache is kept (cheap re-read), use BookEdgeShutdown to
-// drop everything at app exit.
+// BASS stream. The MP3 cache is kept (cheap re-read within the SAME book), use
+// BookEdgeReset on book change or BookEdgeShutdown at app exit to drop it.
 void BookEdgeStop();
+
+// Drop ALL cached/queued/in-flight synthesis (under the lock) and bump the
+// generation + audio epoch so any in-flight synth is discarded. MUST be called
+// when switching books: the cache is keyed by paragraph index only, so without
+// a reset a new book would replay the previous book's audio for the same index.
+void BookEdgeReset();
 
 // Pause / resume the current paragraph clip.
 void BookEdgePause();

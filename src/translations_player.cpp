@@ -1723,7 +1723,7 @@ void RegisterPlayerTranslations() {
     AddTranslation("en", "(Windows default voice)", L"(Windows default voice)");
     AddTranslation("fr", "(Windows default voice)", L"(Voix Windows par défaut)");
 
-    // v2.45 — spoken once if the Edge online book voice fails and we fall back to SAPI.
+    // v2.48 — spoken once if the Edge online book voice fails and we fall back to SAPI.
     AddTranslation("en", "Online voice unavailable, using the system voice",
                    L"Online voice unavailable, using the system voice");
     AddTranslation("fr", "Online voice unavailable, using the system voice",

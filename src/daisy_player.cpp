@@ -16,7 +16,7 @@
 #include "mediaaccess/translations.h"
 #include "mediaaccess/logger.h"
 #include "mediaaccess/tts_player.h"          // SAPI TTS for text-only books
-#include "mediaaccess/book_tts_edge.h"       // v2.45 — Edge neural voice for text-only books
+#include "mediaaccess/book_tts_edge.h"       // v2.48 — Edge neural voice for text-only books
 #include "mediaaccess/book_text_window.h"    // synced text-display window
 #include "mediaaccess/player.h"              // GetEffectivePlaybackSpeed
 #include "mediaaccess/globals.h"             // g_bookSkipMask / g_bookSkipBypass
@@ -50,7 +50,7 @@ static constexpr int kClipSkipSafetyBound = 5000;
 // to DaisyOnClipEnded().
 extern "C" void DaisyOnClipEnded(int endedClipIndex);
 
-// v2.45 — forward declaration: BookSkipShouldSkip is defined (static inline) near
+// v2.48 — forward declaration: BookSkipShouldSkip is defined (static inline) near
 // the bottom of the file but is needed by the Edge prefetch/advance helpers above.
 static inline bool BookSkipShouldSkip(mediaaccess::SkipKind k);
 
@@ -82,7 +82,7 @@ struct DaisyState {
     int      currentSegment  = 0;
     bool     ttsPaused       = false;
     bool     ttsReading      = false;  // v2.35 — continuous-narration intent; gates auto-advance
-    bool     bookUseEdge     = false;  // v2.45 — narrate this book via Edge neural voice (else SAPI)
+    bool     bookUseEdge     = false;  // v2.48 — narrate this book via Edge neural voice (else SAPI)
 };
 
 static DaisyState g_d;
@@ -95,7 +95,7 @@ static DaisyState g_d;
 // the rest of the navigation helpers but used by StartClipPaused /
 // StartTtsSegment for the now-playing item refresh.
 static std::wstring BuildLocationLabel();
-// v2.45 — used by DaisyAdvanceAfterSegment (defined above its definition site).
+// v2.48 — used by DaisyAdvanceAfterSegment (defined above its definition site).
 static void SaveTtsPosition();
 
 static double ClipDuration(const DaisyClip& c) {
@@ -183,7 +183,7 @@ static bool StartClipPaused(int clipIdx) {
 // TTS path — used for text-only DAISY books and EPUB without Media Overlays
 // -----------------------------------------------------------------------------
 
-// v2.45 — first readable paragraph strictly after `after` (skipping the
+// v2.48 — first readable paragraph strictly after `after` (skipping the
 // categories the user opted out of). Returns textSegments.size() if none remain
 // (i.e. end of book). Shared by auto-advance and the Edge one-ahead prefetch.
 static int NextReadableSegment(int after) {
@@ -195,7 +195,7 @@ static int NextReadableSegment(int after) {
     return next;
 }
 
-// v2.45 — book narration engine dispatch. text-only books read via SAPI
+// v2.48 — book narration engine dispatch. text-only books read via SAPI
 // (tts_player) or an Edge neural voice (book_tts_edge), chosen per book at load.
 static void BookEnginePause()       { if (g_d.bookUseEdge) BookEdgePause();  else TtsPause();  }
 static void BookEngineResume()      { if (g_d.bookUseEdge) BookEdgeResume(); else TtsResume(); }
@@ -229,7 +229,7 @@ static bool StartTtsSegment(int segIdx) {
     return true;
 }
 
-// v2.45 — shared auto-advance body for text-only books: move to the next
+// v2.48 — shared auto-advance body for text-only books: move to the next
 // readable paragraph, or end the book. Called by BOTH the SAPI end-of-stream
 // handler and the Edge clip-end handler (each applies its own gating first).
 static void DaisyAdvanceAfterSegment() {
@@ -243,7 +243,7 @@ static void DaisyAdvanceAfterSegment() {
     StartTtsSegment(next);
 }
 
-// v2.45 — Edge synthesis failed for good on the current paragraph: fall back to
+// v2.48 — Edge synthesis failed for good on the current paragraph: fall back to
 // the SAPI voice for the rest of this book and keep reading, announcing once.
 // Runs on the UI thread (from the WM_BOOKEDGE_READY handler).
 static void BookEdgeFallbackToSapi(int segIdx) {
@@ -280,7 +280,7 @@ static void SaveCurrentPosition() {
 // so volume changes feel identical between regular audio and book playback.
 void DaisyApplyVolume() {
     float v = g_muted ? 0.0f : (::g_volume * ::g_volume);
-    // v2.45 — an Edge-narrated book plays through its own BASS stream, not
+    // v2.48 — an Edge-narrated book plays through its own BASS stream, not
     // g_d.stream; keep it in sync with the global volume / mute too.
     if (g_d.textOnlyMode && g_d.bookUseEdge) { BookEdgeApplyVolume(v); return; }
     if (!g_d.stream) return;
@@ -332,7 +332,7 @@ static void RemoveDirectoryRecursive(const std::wstring& dir) {
 void DaisyClose() {
     if (g_d.textOnlyMode) {
         SaveTtsPosition();
-        BookEngineStop();        // v2.45 — stop SAPI or Edge, whichever is active
+        BookEngineStop();        // v2.48 — stop SAPI or Edge, whichever is active
     } else {
         SaveCurrentPosition();
         FreeStream();
@@ -351,7 +351,7 @@ void DaisyClose() {
     g_d.currentSegment = 0;
     g_d.ttsPaused = false;
     g_d.ttsReading = false;   // v2.35
-    g_d.bookUseEdge = false;  // v2.45
+    g_d.bookUseEdge = false;  // v2.48
     // v1.78 — Only clear the now-playing state if we were actually
     // showing a book. The comment below assumed every caller would
     // call SetNowPlaying right after (and many do), but YouTube cache
@@ -392,13 +392,21 @@ bool DaisyLoadAndPlay(std::unique_ptr<DaisyBook> book, int bookId) {
         // Edge mode so we can fall back to it if the online voice fails.
         TtsInit();
 
-        // v2.45 — choose the narration engine for this book. Snapshot the option
+        // v2.48 — choose the narration engine for this book. Snapshot the option
         // at load so toggling it mid-book doesn't half-switch engines.
         g_d.bookUseEdge = g_bookUseEdgeVoice;
         if (g_d.bookUseEdge) {
+            // v2.48 — drop any cached audio from a PREVIOUS book: the Edge cache
+            // is keyed by paragraph index only, so without this a new book would
+            // replay the prior book's audio for the same index (silent for a
+            // screen-reader user). Reset regardless of voice/rate equality.
+            BookEdgeReset();
             BookEdgeSetFallbackCallback(BookEdgeFallbackToSapi);
+            // Default voice follows the UI language when the user hasn't picked one.
             std::string voice = g_bookEdgeVoice.empty()
-                ? std::string("fr-FR-DeniseNeural")
+                ? (std::string(GetCurrentLanguage()) == "fr"
+                       ? std::string("fr-FR-DeniseNeural")
+                       : std::string("en-US-AriaNeural"))
                 : WideToUtf8(g_bookEdgeVoice);
             BookEdgeSetVoice(voice);
             BookEdgeSetRate(g_bookEdgeRate);
@@ -1170,7 +1178,7 @@ extern "C" void DaisyOnTtsEndOfStream(unsigned long endedStream) {
     using namespace mediaaccess;
     if (!g_d.book) return;
     if (!g_d.textOnlyMode) return;
-    if (g_d.bookUseEdge) return;   // v2.45 — Edge advances via WM_BOOKEDGE_END, not SAPI
+    if (g_d.bookUseEdge) return;   // v2.48 — Edge advances via WM_BOOKEDGE_END, not SAPI
     // v2.35 — auto-advance ONLY on the natural end of the CURRENT utterance while
     // continuous reading is intended. This rejects the three look-alike cases:
     //  (b) Stop purge -> ttsReading is false;
@@ -1184,7 +1192,7 @@ extern "C" void DaisyOnTtsEndOfStream(unsigned long endedStream) {
     DaisyAdvanceAfterSegment();
 }
 
-// v2.45 — Called from main.cpp WndProc when the Edge engine signals a paragraph
+// v2.48 — Called from main.cpp WndProc when the Edge engine signals a paragraph
 // clip finished (WM_BOOKEDGE_END). The BASS analogue of SAPI's end-of-stream.
 // `segIdx` is the paragraph whose clip ended; `gen` is informational. Freeing a
 // clip on stop/seek removes its end-sync, so a stale END can't arrive from a

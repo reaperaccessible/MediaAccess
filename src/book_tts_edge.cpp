@@ -52,11 +52,18 @@ std::string                                   g_voice;
 std::string                                   g_rate = "+0%";
 int                                           g_curSeg = -1;
 std::atomic<int>                              g_gen{0};
+// Audio-config epoch: bumped whenever the voice/rate changes or a book is reset,
+// i.e. whenever the AUDIO for a given segment index becomes invalid. The worker
+// captures it at synth start and discards a result whose epoch is stale, so a
+// synth started under the old voice/rate can't pollute the (segment-keyed,
+// generation-independent) cache. Distinct from g_gen, which tracks navigation.
+std::atomic<int>                              g_epoch{0};
 
-// ---- Playback state (UI thread only) --------------------------------------
+// ---- Playback state (UI thread only, except the two atomics read by the
+// BASS mixtime sync thread in ClipEndProc) ----------------------------------
 HSTREAM             g_clip        = 0;
-int                 g_clipSeg     = -1;     // segment of the playing/created clip
-int                 g_clipGen     = 0;      // generation captured when the clip was created
+std::atomic<int>    g_clipSeg{-1};          // segment of the playing/created clip
+std::atomic<int>    g_clipGen{0};           // generation captured when the clip was created
 bool                g_paused      = false;
 bool                g_pendingPlay = false;  // synth in flight for the current paragraph
 float               g_vol         = 1.0f;   // last applied perceptual volume
@@ -70,21 +77,23 @@ std::string RatePctToSsml(int pct) {
     return buf;
 }
 
-// Drop cached/queued paragraphs far from the current one (UI or worker, holds g_mtx).
-void EvictFar(int around) {
+// Drop cached/queued paragraphs far from the current one, but ALWAYS preserve
+// `keep` (the active one-ahead prefetch, which under content-skipping can be
+// more than kCacheRadius away from `around`). Holds g_mtx.
+void EvictFar(int around, int keep) {
     for (auto it = g_cache.begin(); it != g_cache.end(); ) {
-        if (std::abs(it->first - around) > kCacheRadius) it = g_cache.erase(it);
+        if (it->first != keep && std::abs(it->first - around) > kCacheRadius) it = g_cache.erase(it);
         else ++it;
     }
     for (auto it = g_text.begin(); it != g_text.end(); ) {
-        if (std::abs(it->first - around) > kCacheRadius) it = g_text.erase(it);
+        if (it->first != keep && std::abs(it->first - around) > kCacheRadius) it = g_text.erase(it);
         else ++it;
     }
 }
 
 void WorkerLoop() {
     for (;;) {
-        int idx; std::string voice, rate; std::wstring text;
+        int idx; std::string voice, rate; std::wstring text; int myEpoch = 0;
         bool haveText = false;
         {
             std::unique_lock<std::mutex> lk(g_mtx);
@@ -102,7 +111,9 @@ void WorkerLoop() {
             }
             auto t = g_text.find(idx);
             if (t == g_text.end()) continue;   // text evicted — skip
-            text = t->second; voice = g_voice; rate = g_rate; haveText = true;
+            text = t->second; voice = g_voice; rate = g_rate;
+            myEpoch = g_epoch.load();          // audio config this synth is for
+            haveText = true;
         }
         if (!haveText) continue;
 
@@ -113,6 +124,10 @@ void WorkerLoop() {
         {
             std::lock_guard<std::mutex> lk(g_mtx);
             if (!g_running) return;
+            // The voice/rate changed (or the book was reset) while this synth was
+            // in flight: its audio is for a stale config — discard it so it can't
+            // pollute the segment-keyed cache and be played by the generation guard.
+            if (myEpoch != g_epoch.load()) continue;
             if (ok) {
                 g_cache[idx] = std::move(mp3);
                 g_fails.erase(idx);
@@ -155,7 +170,8 @@ void StopClipInternal() {
 // playing clip (freeing removes the sync), so the module statics still hold
 // that clip's gen/seg. Post to the UI thread to advance — never call BASS here.
 void CALLBACK ClipEndProc(HSYNC, DWORD, DWORD, void*) {
-    if (g_hwnd) PostMessageW(g_hwnd, WM_BOOKEDGE_END, (WPARAM)g_clipGen, (LPARAM)g_clipSeg);
+    if (g_hwnd) PostMessageW(g_hwnd, WM_BOOKEDGE_END,
+                             (WPARAM)g_clipGen.load(), (LPARAM)g_clipSeg.load());
 }
 
 } // namespace
@@ -163,12 +179,16 @@ void CALLBACK ClipEndProc(HSYNC, DWORD, DWORD, void*) {
 void BookEdgeSetFallbackCallback(BookEdgeFallbackFn fn) { g_fallbackFn = fn; }
 
 // Synthesized MP3 is specific to the voice AND the rate, so changing either
-// invalidates the whole cache (and any queued/pending text) — the next
-// BookEdgePlay re-synthesizes with the new settings.
+// invalidates the whole cache (and any queued/pending text). We also bump the
+// audio epoch and arm the cancel token so a synth already in flight for the old
+// voice/rate is discarded on completion (it captured the old epoch) instead of
+// being cached and replayed — the next BookEdgePlay re-synthesizes afresh.
 void BookEdgeSetVoice(const std::string& voiceShortName) {
     std::lock_guard<std::mutex> lk(g_mtx);
     if (g_voice == voiceShortName) return;
     g_voice = voiceShortName;
+    g_cancel.store(true);
+    g_epoch.fetch_add(1);
     g_cache.clear(); g_text.clear(); g_queue.clear();
     g_fails.clear(); g_failed.clear();
 }
@@ -178,6 +198,23 @@ void BookEdgeSetRate(int ratePct) {
     std::string r = RatePctToSsml(ratePct);
     if (g_rate == r) return;
     g_rate = r;
+    g_cancel.store(true);
+    g_epoch.fetch_add(1);
+    g_cache.clear(); g_text.clear(); g_queue.clear();
+    g_fails.clear(); g_failed.clear();
+}
+
+// Drop everything for a book change. See header. UI thread; the clip was already
+// freed by the preceding BookEdgeStop, but we stop defensively and re-arm.
+void BookEdgeReset() {
+    ++g_gen;
+    g_cancel.store(true);
+    StopClipInternal();
+    g_pendingPlay = false;
+    g_paused = false;
+    std::lock_guard<std::mutex> lk(g_mtx);
+    g_epoch.fetch_add(1);   // invalidate any in-flight synth from the previous book
+    g_curSeg = -1;
     g_cache.clear(); g_text.clear(); g_queue.clear();
     g_fails.clear(); g_failed.clear();
 }
@@ -204,7 +241,7 @@ void BookEdgePlay(const std::wstring& curText, int curSeg,
             g_text[nextSeg] = nextText;
             g_queue.push_back(nextSeg);   // prefetch one ahead
         }
-        EvictFar(curSeg);
+        EvictFar(curSeg, nextSeg);   // preserve the active prefetch even if far (content-skipping)
         g_pendingPlay = !playNow;
     }
     if (!playNow) { EnsureWorker(); g_cv.notify_all(); }

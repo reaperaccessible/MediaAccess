@@ -365,13 +365,13 @@ BEGIN
     // Phase 2: TTS voice + text window theme + hide checkbox
     LTEXT           "&Text-to-speech voice (for text-only books):", IDC_LABEL_BOOK_TTS_VOICE, 17, 150, 290, 10
     COMBOBOX        IDC_BOOK_TTS_VOICE, 17, 162, 305, 100, CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
-    // v2.45 — Edge online neural voice for book reading (option; SAPI above stays the default)
+    // v2.48 — Edge online neural voice for book reading (option; SAPI above stays the default)
     AUTOCHECKBOX    "Read books with a neural voice (Ed&ge, online)", IDC_BOOK_EDGE, 17, 180, 305, 10
     LTEXT           "&Language:", IDC_LABEL_BOOK_EDGE_LANG, 27, 196, 55, 10
     COMBOBOX        IDC_BOOK_EDGE_LANG, 85, 194, 95, 200, CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
     LTEXT           "Book voi&ce:", IDC_LABEL_BOOK_EDGE_VOICE, 27, 214, 55, 10
     COMBOBOX        IDC_BOOK_EDGE_VOICE, 85, 212, 140, 200, CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
-    PUSHBUTTON      "Previe&w", IDC_BOOK_EDGE_PREVIEW, 230, 212, 45, 12
+    PUSHBUTTON      "Preview &voice", IDC_BOOK_EDGE_PREVIEW, 226, 212, 60, 12
     LTEXT           "Speech &rate:", IDC_LABEL_BOOK_EDGE_RATE, 27, 232, 55, 10
     COMBOBOX        IDC_BOOK_EDGE_RATE, 85, 230, 95, 200, CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
     LTEXT           "Text &window theme:", IDC_LABEL_BOOK_TEXT_THEME, 17, 252, 95, 10

@@ -113,7 +113,7 @@ static void SubEdgeFillLangAndVoices(HWND hwnd, const std::wstring& selectShortN
     SubEdgePopulateVoices(hwnd, langSel == 0 ? L"" : curLoc, selectShortName);
 }
 
-// v2.45 — book Edge voice picker (Options > Books). Reuses the same Edge voice
+// v2.48 — book Edge voice picker (Options > Books). Reuses the same Edge voice
 // catalog (s_subEdgeVoices) as the subtitle picker; s_bookEdgeShown maps the
 // language-filtered combo rows back to catalog indices. Mirrors the subtitle
 // helpers above but targets the IDC_BOOK_EDGE_* controls.
@@ -150,6 +150,15 @@ static void BookEdgeFillLangAndVoices(HWND hwnd, const std::wstring& selectShort
     }
     SendMessageW(lang, CB_SETCURSEL, langSel, 0);
     BookEdgePopulateVoices(hwnd, langSel == 0 ? L"" : curLoc, selectShortName);
+}
+
+// v2.48 — grey out the book Edge voice controls when the "neural voice" box is
+// off, so a screen-reader user isn't offered controls that do nothing.
+static void BookEdgeEnableControls(HWND hwnd, bool enable) {
+    const int ids[] = { IDC_BOOK_EDGE_LANG, IDC_LABEL_BOOK_EDGE_LANG,
+                        IDC_BOOK_EDGE_VOICE, IDC_LABEL_BOOK_EDGE_VOICE,
+                        IDC_BOOK_EDGE_PREVIEW, IDC_BOOK_EDGE_RATE, IDC_LABEL_BOOK_EDGE_RATE };
+    for (int id : ids) EnableWindow(GetDlgItem(hwnd, id), enable);
 }
 
 // Update the small hint under the SoundFont path field that tells the user
@@ -485,7 +494,7 @@ INT_PTR CALLBACK OptionsDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
                 SendMessageW(hVoice, CB_SETCURSEL, activeIdx, 0);
             }
 
-            // v2.45 — book Edge online neural voice picker. Shares the Edge
+            // v2.48 — book Edge online neural voice picker. Shares the Edge
             // catalog with the subtitle picker (s_subEdgeVoices); that's filled
             // from the cached/offline list in the Speech-tab init below and
             // refreshed via WM_SUB_VOICES_READY, but this Books init runs first,
@@ -504,6 +513,7 @@ INT_PTR CALLBACK OptionsDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
                     if (d < bestR) { bestR = d; rateSel = i; }
                 }
                 SendMessageW(brate, CB_SETCURSEL, rateSel, 0);
+                BookEdgeEnableControls(hwnd, g_bookUseEdgeVoice);   // grey out if unchecked
             }
 
             // Populate text-window theme combo
@@ -1001,7 +1011,7 @@ INT_PTR CALLBACK OptionsDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
             if (vi >= 0 && vi < (int)s_subEdgeShown.size() &&
                 s_subEdgeShown[vi] < (int)s_subEdgeVoices.size())
                 sel = Utf8ToWide(s_subEdgeVoices[s_subEdgeShown[vi]].shortName);
-            // v2.45 — also preserve the book voice picker's current selection.
+            // v2.48 — also preserve the book voice picker's current selection.
             std::wstring bsel = g_bookEdgeVoice;
             int bvi = (int)SendMessageW(GetDlgItem(hwnd, IDC_BOOK_EDGE_VOICE), CB_GETCURSEL, 0, 0);
             if (bvi >= 0 && bvi < (int)s_bookEdgeShown.size() &&
@@ -1009,7 +1019,7 @@ INT_PTR CALLBACK OptionsDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
                 bsel = Utf8ToWide(s_subEdgeVoices[s_bookEdgeShown[bvi]].shortName);
             s_subEdgeVoices = mediaaccess::EdgeListVoicesCached();
             SubEdgeFillLangAndVoices(hwnd, sel);
-            BookEdgeFillLangAndVoices(hwnd, bsel);   // v2.45 — refresh book combos too
+            BookEdgeFillLangAndVoices(hwnd, bsel);   // v2.48 — refresh book combos too
             return TRUE;
         }
 
@@ -1420,7 +1430,7 @@ INT_PTR CALLBACK OptionsDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
                     if (IsDlgButtonChecked(hwnd, IDC_BOOK_SKIP_FOOTNOTES)  == BST_CHECKED) g_bookSkipMask |= (1u << 4);
                     if (IsDlgButtonChecked(hwnd, IDC_BOOK_SKIP_REFERENCES) == BST_CHECKED) g_bookSkipMask |= (1u << 5);
 
-                    // v2.45 — book Edge neural voice settings. Applied to the
+                    // v2.48 — book Edge neural voice settings. Applied to the
                     // NEXT book opened (the engine is snapshotted at load time).
                     g_bookUseEdgeVoice = (IsDlgButtonChecked(hwnd, IDC_BOOK_EDGE) == BST_CHECKED);
                     {
@@ -1637,7 +1647,14 @@ INT_PTR CALLBACK OptionsDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
                     return TRUE;
                 }
 
-                case IDC_BOOK_EDGE_LANG: {   // v2.45
+                case IDC_BOOK_EDGE: {   // v2.48 — toggle: enable/disable the dependent controls
+                    if (HIWORD(wParam) != BN_CLICKED) break;
+                    BookEdgeEnableControls(hwnd,
+                        IsDlgButtonChecked(hwnd, IDC_BOOK_EDGE) == BST_CHECKED);
+                    return TRUE;
+                }
+
+                case IDC_BOOK_EDGE_LANG: {   // v2.48
                     if (HIWORD(wParam) != CBN_SELCHANGE) break;
                     int li = (int)SendDlgItemMessageW(hwnd, IDC_BOOK_EDGE_LANG, CB_GETCURSEL, 0, 0);
                     std::wstring filter;
@@ -1649,7 +1666,7 @@ INT_PTR CALLBACK OptionsDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
                     return TRUE;
                 }
 
-                case IDC_BOOK_EDGE_PREVIEW: {   // v2.45
+                case IDC_BOOK_EDGE_PREVIEW: {   // v2.48
                     int vi = (int)SendDlgItemMessageW(hwnd, IDC_BOOK_EDGE_VOICE, CB_GETCURSEL, 0, 0);
                     if (vi < 0 || vi >= (int)s_bookEdgeShown.size()) return TRUE;
                     std::string voice = s_subEdgeVoices[s_bookEdgeShown[vi]].shortName;  // copy for the worker

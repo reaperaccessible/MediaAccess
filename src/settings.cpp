@@ -315,7 +315,7 @@ void LoadSettings() {
     g_autoFollowDevice = GetPrivateProfileIntW(L"Playback", L"AutoFollowDevice", 1, g_configPath.c_str()) != 0;  // v2.32
     g_allowMultipleInstances = GetPrivateProfileIntW(L"Playback", L"AllowMultipleInstances", 0, g_configPath.c_str()) != 0;
     g_bookSkipMask = (uint32_t)GetPrivateProfileIntW(L"Books", L"SkipMask", 0, g_configPath.c_str());
-    // v2.45 — book reading via Edge neural voice (independent of subtitle Edge).
+    // v2.48 — book reading via Edge neural voice (independent of subtitle Edge).
     g_bookUseEdgeVoice = GetPrivateProfileIntW(L"Books", L"BookEdge", 0, g_configPath.c_str()) != 0;
     {
         wchar_t buf[128] = {0};
@@ -687,7 +687,7 @@ void SaveSettings() {
         swprintf(skipBuf, 16, L"%u", g_bookSkipMask);
         WritePrivateProfileStringW(L"Books", L"SkipMask", skipBuf, g_configPath.c_str());
     }
-    // v2.45 — book Edge neural voice settings.
+    // v2.48 — book Edge neural voice settings.
     WritePrivateProfileStringW(L"Books", L"BookEdge", g_bookUseEdgeVoice ? L"1" : L"0", g_configPath.c_str());
     WritePrivateProfileStringW(L"Books", L"BookEdgeVoice",
                                g_bookEdgeVoice.empty() ? nullptr : g_bookEdgeVoice.c_str(), g_configPath.c_str());
