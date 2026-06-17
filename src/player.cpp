@@ -966,7 +966,7 @@ static bool LoadVideoFile(const wchar_t* path) {
         g_isLoading = false;
         return false;
     }
-    MPVSetVolume(g_volume);
+    ApplyVideoVolume();   // v2.44 — single-owner video volume (keeps subtitle duck)
     MPVSetMute(g_muted);
     g_activeEngine = PlaybackEngine::MPV;
     g_isVideoPlaying = true;
@@ -986,7 +986,7 @@ static bool LoadVideoURL(const wchar_t* url) {
         g_isLoading = false;
         return false;
     }
-    MPVSetVolume(g_volume);
+    ApplyVideoVolume();   // v2.44 — single-owner video volume (keeps subtitle duck)
     MPVSetMute(g_muted);
     g_activeEngine = PlaybackEngine::MPV;
     g_isVideoPlaying = true;
@@ -1978,9 +1978,10 @@ void SetVolume(float vol) {
     if (vol > maxVol) vol = maxVol;
     g_volume = vol;
 
-    // Propagate to MPV if active
+    // Propagate to MPV if active. v2.44 — via ApplyVideoVolume so a volume change
+    // during a spoken subtitle preserves the duck instead of jumping to full.
     if (g_activeEngine == PlaybackEngine::MPV) {
-        MPVSetVolume(g_volume);
+        ApplyVideoVolume();
     }
 
     // Propagate to DAISY book stream if a book is loaded

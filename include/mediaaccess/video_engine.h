@@ -43,6 +43,18 @@ double MPVGetLength();
 void MPVSetVolume(float vol);
 void MPVSetMute(bool mute);
 
+// Single owner of the mpv video volume (v2.44). Every write to the mpv volume
+// must go through ApplyVideoVolume() — it pushes g_volume scaled by the current
+// subtitle-duck multiplier, so a user volume change during a spoken subtitle
+// keeps the duck, and a duck change keeps the user's volume. Never call
+// MPVSetVolume(g_volume) directly from outside this owner.
+void ApplyVideoVolume();
+
+// Set the subtitle-duck multiplier [0..1] applied on top of g_volume and re-apply
+// immediately. 1.0 = no ducking (full volume). Driven by the subtitle reader's
+// fade ramp.
+void MPVSetDuck(float mul);
+
 // ===== State =====
 bool MPVIsPlaying();
 bool MPVIsPaused();
@@ -58,6 +70,14 @@ std::wstring MPVGetSubtitleTrackName(int index);
 void MPVSetSubtitleTrack(int index);
 void MPVCycleSubtitles();
 bool MPVLoadExternalSubtitle(const wchar_t* path);
+// ffmpeg stream index (container-wide, 0-based) of the active subtitle track,
+// or -1 if none is selected. Used to extract exactly the track being watched.
+long MPVGetActiveSubtitleFfIndex();
+// Codec name of the active subtitle track (e.g. "subrip", "ass", "hdmv_pgs_subtitle"),
+// or "" if none. Used to detect image-based tracks that cannot be read aloud.
+std::wstring MPVGetActiveSubtitleCodec();
+// Current playback speed (1.0 = normal). Used to widen the subtitle lookahead.
+double MPVGetSpeed();
 
 // ===== Audio Tracks =====
 int MPVGetAudioTrackCount();

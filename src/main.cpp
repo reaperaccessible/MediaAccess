@@ -63,7 +63,117 @@
 #include "mediaaccess/wasapi_loopback.h" // v1.94 — system-audio capture state
 #include "mediaaccess/audio_device_watcher.h" // v2.32 — auto-follow default output device
 #include "mediaaccess/cue_sheet.h"      // v2.34 — .cue sheet support
+#include "mediaaccess/subtitle_scheduler.h" // read subtitles aloud (prefetched Edge voice)
+#include "mediaaccess/edge_tts_client.h"    // EdgeListVoices (startup prewarm)
+#include "utils.h"                           // WideToUtf8
 #include <utility>  // for std::pair
+#include <thread>   // background subtitle-cue extraction + voice prewarm
+#include <atomic>
+
+// Ducking hook for the subtitle scheduler: smoothly fade the mpv video volume
+// down while a subtitle line is spoken (level<1) and back up after (level==1),
+// instead of a hard jump. Uses the app's current g_volume so a user volume
+// change is respected. The ramp runs on IDT_SUBTITLE_FADE (see WM_TIMER).
+static double s_duckCurrent = 1.0;   // multiplier currently applied to g_volume
+static double s_duckTarget  = 1.0;   // multiplier we are fading toward
+
+static void SubtitleDuck(double level) {
+    s_duckTarget = level;
+    if (g_hwnd) SetTimer(g_hwnd, IDT_SUBTITLE_FADE, 20, nullptr);  // ~20 ms ramp ticks
+}
+
+// Cancel any fade and restore full video volume immediately (used when the
+// reader stops, so nothing lingers ducked).
+static void SubtitleVolumeRestoreNow() {
+    s_duckCurrent = s_duckTarget = 1.0;
+    if (g_hwnd) KillTimer(g_hwnd, IDT_SUBTITLE_FADE);
+    MPVSetDuck(1.0f);   // v2.44 — clear the duck multiplier and re-apply full volume
+}
+
+// Current state of the Edge subtitle reader (the prefetch scheduler). Tracks
+// what it was started for so we can restart on track change / stop on media
+// change. App (UI) thread only.
+static bool         s_subEdgeActive = false;
+static std::wstring s_subEdgeMedia;
+static int          s_subEdgeFf = -2;
+static double       s_subLastPos = 0.0;     // for seek detection (position discontinuity)
+static bool         s_subLastPaused = false;
+// True when the Edge reader could not produce cues for the current media (no
+// text track / network down). While set, the live screen-reader subtitle path
+// is re-enabled so the user still hears text subtitles.
+static bool         s_subEdgeFailed = false;
+
+// Per-cue fallback: a single line whose Edge synthesis gave up is read by the
+// screen reader instead of being silent. Wired into the scheduler.
+static void SubtitleFallbackSpeak(const std::wstring& text) {
+    if (!text.empty()) SpeakW(text, true);
+}
+
+static std::wstring CurrentMediaPath() {
+    return (g_currentTrack >= 0 && g_currentTrack < (int)g_playlist.size())
+           ? g_playlist[g_currentTrack] : std::wstring();
+}
+
+// Result of a background cue-extraction, handed back to the UI thread via
+// WM_SUBTITLE_READY. `gen` lets the UI ignore a result that a newer request
+// (track change / option change / stop) has already superseded.
+struct SubPrepResult {
+    int                                gen;
+    std::wstring                       media;
+    int                                ff;
+    std::string                        voice;
+    std::string                        rate;
+    double                             duck;
+    std::vector<mediaaccess::SubCue>   cues;
+};
+static std::atomic<int> s_subPrepGen{0};
+
+// Reconcile the Edge subtitle reader with the current settings/playback. Starts,
+// stops, or restarts the prefetch scheduler as needed. Called from the master
+// "Speak subtitles" toggle, the method/voice options, the active subtitle track
+// change, and on video load (WM_SUBTITLE_AUTOSTART). Non-static so
+// ui_options.cpp can call it after applying options.
+//
+// The slow part (ffmpeg extraction + parse) runs on a WORKER thread so the UI
+// never freezes; the worker posts WM_SUBTITLE_READY back and the scheduler is
+// started on the UI thread there.
+void RefreshSubtitleEdge() {
+    bool want = g_speakSubtitles && g_subtitleUseEdgeVoice &&
+                g_activeEngine == PlaybackEngine::MPV && IsMPVInitialized();
+    std::wstring media = CurrentMediaPath();
+    long ff = want ? MPVGetActiveSubtitleFfIndex() : -1;
+
+    if (want && !media.empty() &&
+        (!s_subEdgeActive || media != s_subEdgeMedia || (int)ff != s_subEdgeFf)) {
+        mediaaccess::SubStop();
+        s_subEdgeActive = false; s_subEdgeMedia.clear(); s_subEdgeFf = -2;
+        s_subEdgeFailed = false;
+        SubtitleVolumeRestoreNow();
+        int gen = ++s_subPrepGen;                 // invalidate any older in-flight prep
+        std::string voice = g_subtitleEdgeVoice.empty()
+            ? std::string("fr-FR-DeniseNeural")
+            : WideToUtf8(g_subtitleEdgeVoice);
+        char rateBuf[16]; sprintf_s(rateBuf, "%+d%%", g_subtitleEdgeRate);
+        std::string rate = rateBuf;
+        double duck = g_subtitleDuckLevel;
+        int ffi = (int)ff;
+        std::thread([gen, media, ffi, voice, rate, duck]() {
+            auto cues = mediaaccess::SubExtractCues(media, ffi);
+            auto* r = new SubPrepResult{ gen, media, ffi, voice, rate, duck, std::move(cues) };
+            // v2.44 — gate on the real shutdown flag, not g_hwnd (which is never
+            // cleared): posting to a live window after shutdown began would leak
+            // `r` since WM_SUBTITLE_READY is no longer pumped/handled.
+            if (!g_isShuttingDown && g_hwnd) PostMessageW(g_hwnd, WM_SUBTITLE_READY, 0, (LPARAM)r);
+            else delete r;
+        }).detach();
+    } else if (!want && (s_subEdgeActive || s_subEdgeFailed)) {
+        ++s_subPrepGen;                           // discard any in-flight prep
+        mediaaccess::SubStop();
+        SubtitleVolumeRestoreNow();
+        s_subEdgeActive = false; s_subEdgeMedia.clear(); s_subEdgeFf = -2;
+        s_subEdgeFailed = false;
+    }
+}
 
 // Custom message posted from daisy_player.cpp BASS sync (worker thread).
 #define WM_DAISY_NEXT_CLIP_LOCAL (WM_USER + 50)
@@ -505,6 +615,10 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
 
             SetTimer(hwnd, IDT_UPDATE_TITLE, UPDATE_INTERVAL, nullptr);
             SetTimer(hwnd, IDT_SCHEDULER, 60000, nullptr);  // Check schedules every minute
+            // Pre-warm the Edge voice catalog on a background thread so opening
+            // Options (which fills the subtitle-voice combo) never blocks the UI
+            // on the network. EdgeListVoices caches the result for the session.
+            std::thread([]() { mediaaccess::EdgeListVoices(); }).detach();
             g_startupTime = GetTickCount();
             // v1.85 — explicit flag for the batch-open coalescing window.
             // Sèb reported that opening a .ts video from Explorer did nothing
@@ -711,6 +825,34 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
                     Speak(Ts("Recording stopped, device lost"));
                 }
                 UpdateStatusBar();
+                // Drive the subtitle prefetch scheduler on the UI thread (BASS
+                // playback must stay on one thread). 250 ms granularity is fine
+                // given the lookahead absorbs synthesis latency. Bail out if the
+                // media changed under us (stale cues would play over a new file).
+                if (s_subEdgeActive) {
+                    if (CurrentMediaPath() != s_subEdgeMedia) {
+                        mediaaccess::SubStop(); SubtitleVolumeRestoreNow();
+                        s_subEdgeActive = false; s_subEdgeMedia.clear(); s_subEdgeFf = -2;
+                    } else {
+                        double pos = MPVGetPosition();
+                        bool paused = MPVIsPaused();
+                        if (paused != s_subLastPaused) {
+                            mediaaccess::SubOnPause(paused);
+                            s_subLastPaused = paused;
+                        }
+                        // A position jump that isn't normal forward playback means
+                        // a seek. The forward threshold scales with playback speed
+                        // so fast playback isn't mistaken for a seek.
+                        double speed = MPVGetSpeed();
+                        double dt = pos - s_subLastPos;
+                        if (dt < -0.4 || dt > 0.5 + 0.3 * speed) mediaaccess::SubOnSeek(pos);
+                        s_subLastPos = pos;
+                        if (!paused) {
+                            mediaaccess::SubSetSpeed(speed);   // widen lookahead at fast speeds
+                            mediaaccess::SubOnTimePos(pos);
+                        }
+                    }
+                }
             } else if (wParam == IDT_BATCH_FILES) {
                 KillTimer(hwnd, IDT_BATCH_FILES);
                 if (!g_pendingFiles.empty()) {
@@ -760,6 +902,17 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
                 KillTimer(hwnd, IDT_DEVICE_REROUTE);
                 HandleAudioDeviceChange();
                 return 0;
+            } else if (wParam == IDT_SUBTITLE_FADE) {
+                // Smoothly ramp the mpv video volume toward the duck target
+                // (~0.10 per 20 ms tick => a 0.7 swing fades in ~140 ms).
+                const double step = 0.10;
+                if (s_duckCurrent < s_duckTarget)
+                    s_duckCurrent = (s_duckCurrent + step > s_duckTarget) ? s_duckTarget : s_duckCurrent + step;
+                else
+                    s_duckCurrent = (s_duckCurrent - step < s_duckTarget) ? s_duckTarget : s_duckCurrent - step;
+                MPVSetDuck((float)s_duckCurrent);   // v2.44 — single-owner video volume
+                if (s_duckCurrent == s_duckTarget) KillTimer(hwnd, IDT_SUBTITLE_FADE);
+                return 0;
             }
             return 0;
 
@@ -775,8 +928,54 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
             // would lag behind the picture). Gated by g_speakSubtitles.
             wchar_t* text = reinterpret_cast<wchar_t*>(lParam);
             if (text) {
-                if (g_speakSubtitles) SpeakW(text, true);
+                // Live screen-reader path: when speaking subtitles AND either the
+                // method is the screen reader, OR the Edge reader failed for this
+                // media (no text cues / network down) so we fall back to live.
+                if (g_speakSubtitles && (!g_subtitleUseEdgeVoice || s_subEdgeFailed))
+                    SpeakW(text, true);
                 free(text);
+            }
+            return 0;
+        }
+
+        case WM_SUBTITLE_AUTOSTART:
+            // mpv finished loading a file (tracks known) — (re)start the Edge
+            // subtitle reader for it if that method is enabled. The heavy work
+            // is dispatched to a worker inside RefreshSubtitleEdge, so this
+            // does not block the UI.
+            RefreshSubtitleEdge();
+            return 0;
+
+        case WM_SUBTITLE_READY: {
+            // A background cue extraction finished; start the scheduler on the
+            // UI thread if this result is still the current request and wanted.
+            SubPrepResult* r = reinterpret_cast<SubPrepResult*>(lParam);
+            if (r) {
+                bool current = (r->gen == s_subPrepGen.load()) &&
+                               g_speakSubtitles && g_subtitleUseEdgeVoice &&
+                               r->media == CurrentMediaPath();
+                if (current && !r->cues.empty()) {
+                    mediaaccess::SubSetDuckCallback(SubtitleDuck);
+                    mediaaccess::SubSetFallbackCallback(SubtitleFallbackSpeak);
+                    mediaaccess::SubStart(r->cues, r->voice, 2.5, r->duck, r->rate);
+                    s_subEdgeActive = true; s_subEdgeFailed = false;
+                    s_subEdgeMedia = r->media; s_subEdgeFf = r->ff;
+                    s_subLastPos = MPVGetPosition(); s_subLastPaused = MPVIsPaused();
+                } else if (r->gen == s_subPrepGen.load()) {
+                    // No usable text cues for this media. Mark failed so the live
+                    // screen-reader path takes over for text tracks; for image
+                    // tracks (no text anywhere) tell the user once why it's silent.
+                    SubtitleVolumeRestoreNow();
+                    s_subEdgeActive = false; s_subEdgeFailed = true;
+                    s_subEdgeMedia = r->media;
+                    std::wstring codec = MPVGetActiveSubtitleCodec();
+                    bool image = codec.find(L"pgs") != std::wstring::npos ||
+                                 codec.find(L"dvb") != std::wstring::npos ||
+                                 codec.find(L"dvd") != std::wstring::npos ||
+                                 codec.find(L"vob") != std::wstring::npos;
+                    if (image) Speak(Ts("Image-based subtitles cannot be read aloud"));  // v2.44 — localized
+                }
+                delete r;
             }
             return 0;
         }
@@ -1327,6 +1526,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
                     g_speakSubtitles = !g_speakSubtitles;
                     Speak(g_speakSubtitles ? Ts("Subtitle speech on")
                                            : Ts("Subtitle speech off"));
+                    RefreshSubtitleEdge();  // start/stop the Edge reader if that's the method
                     SaveSettings();
                     break;
                 case IDM_PLAY_REPEAT_TOGGLE:
@@ -1659,12 +1859,15 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
                     break;
                 case IDM_VIDEO_SUB_CYCLE:
                     if (g_activeEngine == PlaybackEngine::MPV) MPVCycleSubtitles();
+                    RefreshSubtitleEdge();  // follow the newly-active track
                     break;
                 case IDM_VIDEO_SUB_LOAD:
                     OpenSubtitleFile(hwnd);
+                    RefreshSubtitleEdge();
                     break;
                 case IDM_VIDEO_SUB_OFF:
                     if (g_activeEngine == PlaybackEngine::MPV) MPVSetSubtitleTrack(0);
+                    RefreshSubtitleEdge();
                     break;
                 case IDM_VIDEO_AUDIO_CYCLE:
                     if (g_activeEngine == PlaybackEngine::MPV) MPVCycleAudioTracks();
@@ -1687,6 +1890,8 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
             // v1.63 — mark shutdown so WM_COPYDATA dwData=4 (CLI deliveries)
             // arriving after this point are dropped before they touch BASS.
             g_isShuttingDown = true;
+            mediaaccess::SubShutdownExtraction();  // v2.44 — kill any orphan ffmpeg extraction
+            mediaaccess::SubStop();  // stop subtitle prefetch worker + clip before BASS teardown
             // -----------------------------------------------------------
             // Kill audio IMMEDIATELY before doing anything else.
             // Otherwise the BASS device keeps producing sound for the
@@ -1710,6 +1915,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
             KillTimer(hwnd, IDT_SCHEDULER);
             KillTimer(hwnd, IDT_SCHED_DURATION);
             KillTimer(hwnd, IDT_DEVICE_REROUTE);  // v2.32 — cancel pending reroute
+            KillTimer(hwnd, IDT_SUBTITLE_FADE);   // cancel any subtitle duck fade
             // v2.32 — stop the device watcher BEFORE FreeBass so no late
             // PostMessage can hit a dead window / torn-down BASS state.
             StopAudioDeviceWatch();

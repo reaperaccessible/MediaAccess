@@ -401,6 +401,14 @@ static DWORD WINAPI MPVEventThread(LPVOID /*param*/)
             break;
         }
 
+        case MPV_EVENT_FILE_LOADED:
+            // A new video finished loading and its track list is now known.
+            // Let the UI thread (re)start the Edge subtitle reader for this
+            // file if that method is enabled — the subtitle ff-index is valid
+            // at this point. Posted so the work happens off the mpv thread.
+            if (g_hwnd) PostMessageW(g_hwnd, WM_SUBTITLE_AUTOSTART, 0, 0);
+            break;
+
         case MPV_EVENT_SHUTDOWN:
             g_mpvThreadRunning.store(false);
             break;
@@ -720,6 +728,24 @@ void MPVSetVolume(float vol)
     fn_mpv_set_property(g_mpv, "volume", MPV_FORMAT_DOUBLE, &v);
 }
 
+/* v2.44 — single-owner video volume. The subtitle reader ducks the video by
+ * setting s_videoDuck < 1.0; all volume writes go through ApplyVideoVolume so
+ * the duck and the user's g_volume never fight (see video_engine.h). */
+static float s_videoDuck = 1.0f;
+
+void ApplyVideoVolume()
+{
+    MPVSetVolume(g_volume * s_videoDuck);
+}
+
+void MPVSetDuck(float mul)
+{
+    if (mul < 0.0f) mul = 0.0f;
+    if (mul > 1.0f) mul = 1.0f;
+    s_videoDuck = mul;
+    ApplyVideoVolume();
+}
+
 void MPVSetMute(bool mute)
 {
     if (!g_mpv) return;
@@ -815,6 +841,34 @@ int MPVGetSubtitleTrackCount()
 std::wstring MPVGetSubtitleTrackName(int index)
 {
     return GetTrackNameByType("sub", index);
+}
+
+long MPVGetActiveSubtitleFfIndex()
+{
+    if (!g_mpv) return -1;
+    __int64 idx = -1;
+    if (fn_mpv_get_property(g_mpv, "current-tracks/sub/ff-index",
+                            MPV_FORMAT_INT64, &idx) < 0)
+        return -1;
+    return (long)idx;
+}
+
+std::wstring MPVGetActiveSubtitleCodec()
+{
+    if (!g_mpv) return L"";
+    char* codec = fn_mpv_get_property_string(g_mpv, "current-tracks/sub/codec");
+    if (!codec) return L"";
+    std::wstring w = Utf8ToWide(codec);
+    fn_mpv_free(codec);
+    return w;
+}
+
+double MPVGetSpeed()
+{
+    if (!g_mpv) return 1.0;
+    double s = 1.0;
+    if (fn_mpv_get_property(g_mpv, "speed", MPV_FORMAT_DOUBLE, &s) < 0) return 1.0;
+    return s;
 }
 
 void MPVSetSubtitleTrack(int index)

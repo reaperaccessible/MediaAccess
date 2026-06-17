@@ -103,6 +103,7 @@
 #define IDT_STARTUP_OVER    405   // v1.85 — one-shot: ends startup batch-open coalescing window
 #define IDT_DEFERRED_SPEAK  406   // v2.06 — one-shot: fallback for AnnounceStatus when UIA unavailable
 #define IDT_DEVICE_REROUTE  407   // v2.32 — one-shot: coalesce audio-device-change burst before reroute
+#define IDT_SUBTITLE_FADE   408   // smooth duck fade of the mpv video volume while a subtitle is spoken
 
 // Custom messages
 #define WM_SPEAK            (WM_USER + 1)
@@ -119,6 +120,8 @@
 #define WM_YT_BATCH_PROGRESS (WM_USER + 13) // v2.12 — "Download all" per-item progress (wParam=done, lParam=total)
 #define WM_YT_BATCH_DONE     (WM_USER + 14) // v2.12 — "Download all" finished (lParam = YtBatchResult* heap)
 #define WM_YT_DESC_READY     (WM_USER + 15) // v2.27 — background description fetch finished (lParam = YtDescResult* heap). (WM_USER+10 is WM_TRAYICON.)
+#define WM_SUBTITLE_AUTOSTART (WM_USER + 16) // mpv FILE_LOADED -> (re)start the Edge subtitle reader on the UI thread
+#define WM_SUBTITLE_READY     (WM_USER + 17) // background cue extraction done (lParam = SubPrepResult* heap)
 
 // Playback tab controls
 #define IDC_BRING_TO_FRONT  531
@@ -345,6 +348,16 @@
 #define IDC_SPEECH_YT_HYBRID    843
 #define IDC_SPEECH_SEEK_POSITION 844  // v1.65 — announce position after seek
 #define IDC_SPEAK_SUBTITLES      845  // v1.81 — speak video subtitle lines aloud
+#define IDC_SUBTITLE_EDGE        846  // use a prefetched Edge neural voice instead of the screen reader
+#define IDC_SUBTITLE_EDGE_VOICE  847  // Edge voice picker (combo)
+#define IDC_LABEL_SUBTITLE_EDGE_VOICE 848
+#define IDC_SUBTITLE_EDGE_LANG   893  // language filter for the voice list (combo)
+#define IDC_LABEL_SUBTITLE_EDGE_LANG 894
+#define IDC_SUBTITLE_EDGE_PREVIEW 895 // play a sample of the selected voice (button)
+#define IDC_SUBTITLE_DUCK        896  // how far to lower video volume while speaking (combo)
+#define IDC_LABEL_SUBTITLE_DUCK  897
+#define IDC_SUBTITLE_RATE        898  // Edge speech rate (combo)
+#define IDC_LABEL_SUBTITLE_RATE  899
 
 // Radio dialog
 #define IDM_FILE_RADIO      107

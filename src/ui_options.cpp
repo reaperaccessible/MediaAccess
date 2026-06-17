@@ -7,6 +7,111 @@
 #include "mediaaccess/tts_player.h"        // SAPI voice list / set active
 #include "mediaaccess/book_text_window.h"  // theme + always-hide
 #include "mediaaccess/wasapi_loopback.h"   // v1.94 — system loopback device list
+#include "mediaaccess/edge_tts_client.h"   // Edge voice list + preview synthesis
+#include "bass.h"                          // preview playback
+#include <set>
+#include <cmath>
+#include <thread>                          // off-UI-thread voice preview synthesis
+
+// Dialog-private message: a background voice-preview synthesis finished.
+// lParam = std::vector<unsigned char>* MP3 (heap, owned here) or nullptr on failure.
+#define WM_SUB_PREVIEW_READY (WM_APP + 41)
+
+// Dialog-private message (v2.44): the background Edge voice-catalog fetch
+// finished, so the voice/language combos (filled from the offline fallback at
+// init to avoid blocking the UI thread) can be refreshed from the cache.
+#define WM_SUB_VOICES_READY (WM_APP + 42)
+
+// Edge subtitle-voice picker state (Options > Speech). s_subEdgeVoices is the
+// full catalog; s_subEdgeShown maps the currently-shown (language-filtered)
+// combo rows back to indices in it. Populated in WM_INITDIALOG.
+static std::vector<mediaaccess::EdgeVoice> s_subEdgeVoices;
+static std::vector<int>                    s_subEdgeShown;
+static HSTREAM                             s_subPreviewStream = 0;
+
+// Ducking choices for the "Video volume while speaking" combo.
+struct SubDuckOpt { const wchar_t* label; double value; };
+static const SubDuckOpt s_subDuckOpts[] = {
+    {L"100% (off)", 1.00}, {L"75%", 0.75}, {L"50%", 0.50},
+    {L"30%", 0.30}, {L"15%", 0.15}, {L"0% (mute)", 0.00},
+};
+
+// Speech-rate choices (percent offset) for the "Speech rate" combo.
+struct SubRateOpt { const wchar_t* label; int value; };
+static const SubRateOpt s_subRateOpts[] = {
+    {L"-50%", -50}, {L"-25%", -25}, {L"-10%", -10}, {L"Normal", 0},
+    {L"+10%", 10}, {L"+25%", 25}, {L"+50%", 50}, {L"+75%", 75}, {L"+100%", 100},
+};
+static int SubRatePercentFromCombo(HWND hwnd) {
+    int i = (int)SendMessageW(GetDlgItem(hwnd, IDC_SUBTITLE_RATE), CB_GETCURSEL, 0, 0);
+    if (i >= 0 && i < (int)(sizeof(s_subRateOpts)/sizeof(s_subRateOpts[0]))) return s_subRateOpts[i].value;
+    return 0;
+}
+
+// v2.44 — localized combo labels. The numeric part is language-neutral; only
+// the textual hint goes through T() ("(off)"/"(mute)" for ducking, "Normal" for
+// the rate) so a French user no longer sees English words in those combos.
+static std::wstring SubDuckLabel(int i) {
+    double v = s_subDuckOpts[i].value;
+    wchar_t pct[16]; swprintf(pct, 16, L"%d%%", (int)(v * 100.0 + 0.5));
+    std::wstring s = pct;
+    if (v >= 1.0)      s += std::wstring(L" ") + T("(off)");
+    else if (v <= 0.0) s += std::wstring(L" ") + T("(mute)");
+    return s;
+}
+static std::wstring SubRateLabel(int i) {
+    int v = s_subRateOpts[i].value;
+    if (v == 0) return T("Normal");
+    wchar_t b[16]; swprintf(b, 16, L"%+d%%", v);
+    return b;
+}
+
+// Distinct, sorted voice locales (e.g. "fr-FR", "en-US").
+static std::vector<std::wstring> SubEdgeLocales() {
+    std::set<std::wstring> s;
+    for (auto& v : s_subEdgeVoices) if (!v.locale.empty()) s.insert(Utf8ToWide(v.locale));
+    return std::vector<std::wstring>(s.begin(), s.end());
+}
+
+// Fill the voice combo with voices matching langFilter ("" = all); select the
+// row whose short name equals selectShortName (else the first). Updates
+// s_subEdgeShown so apply/preview can resolve the chosen row.
+static void SubEdgePopulateVoices(HWND hwnd, const std::wstring& langFilter,
+                                  const std::wstring& selectShortName) {
+    HWND combo = GetDlgItem(hwnd, IDC_SUBTITLE_EDGE_VOICE);
+    SendMessageW(combo, CB_RESETCONTENT, 0, 0);
+    s_subEdgeShown.clear();
+    int sel = -1;
+    for (size_t i = 0; i < s_subEdgeVoices.size(); i++) {
+        if (!langFilter.empty() && Utf8ToWide(s_subEdgeVoices[i].locale) != langFilter) continue;
+        SendMessageW(combo, CB_ADDSTRING, 0, (LPARAM)s_subEdgeVoices[i].displayName.c_str());
+        if (Utf8ToWide(s_subEdgeVoices[i].shortName) == selectShortName) sel = (int)s_subEdgeShown.size();
+        s_subEdgeShown.push_back((int)i);
+    }
+    if (sel < 0 && !s_subEdgeShown.empty()) sel = 0;
+    SendMessageW(combo, CB_SETCURSEL, sel, 0);
+}
+
+// Fill the language-filter combo ("All languages" + each locale) from the
+// current s_subEdgeVoices, preselecting the locale of `selectShortName`, then
+// populate the voice combo. Factored out so both WM_INITDIALOG and the async
+// WM_SUB_VOICES_READY refresh share one path. v2.44.
+static void SubEdgeFillLangAndVoices(HWND hwnd, const std::wstring& selectShortName) {
+    std::wstring curLoc;
+    for (auto& v : s_subEdgeVoices)
+        if (Utf8ToWide(v.shortName) == selectShortName) { curLoc = Utf8ToWide(v.locale); break; }
+    HWND lang = GetDlgItem(hwnd, IDC_SUBTITLE_EDGE_LANG);
+    SendMessageW(lang, CB_RESETCONTENT, 0, 0);
+    SendMessageW(lang, CB_ADDSTRING, 0, (LPARAM)T("All languages"));
+    auto locs = SubEdgeLocales();
+    int langSel = 0;
+    for (size_t i = 0; i < locs.size(); i++) {
+        SendMessageW(lang, CB_ADDSTRING, 0, (LPARAM)locs[i].c_str());
+        if (locs[i] == curLoc) langSel = (int)i + 1;
+    }
+    SendMessageW(lang, CB_SETCURSEL, langSel, 0);
+    SubEdgePopulateVoices(hwnd, langSel == 0 ? L"" : curLoc, selectShortName);
+}
 
 // Update the small hint under the SoundFont path field that tells the user
 // what will actually be used when the field is empty. Three cases:
@@ -75,6 +180,10 @@ void ShowTabControls(HWND hwnd, int tab) {
     // Speech tab controls (tab 3)
     int speechCtrls[] = {IDC_SPEECH_TRACKCHANGE, IDC_SPEECH_VOLUME, IDC_SPEECH_EFFECT, IDC_SPEECH_YT_HYBRID,
                          IDC_SPEECH_SEEK_POSITION, IDC_SPEAK_SUBTITLES,
+                         IDC_SUBTITLE_EDGE, IDC_SUBTITLE_EDGE_VOICE, IDC_LABEL_SUBTITLE_EDGE_VOICE,
+                         IDC_SUBTITLE_EDGE_LANG, IDC_LABEL_SUBTITLE_EDGE_LANG, IDC_SUBTITLE_EDGE_PREVIEW,
+                         IDC_SUBTITLE_DUCK, IDC_LABEL_SUBTITLE_DUCK,
+                         IDC_SUBTITLE_RATE, IDC_LABEL_SUBTITLE_RATE,
                          IDC_LABEL_SPEECH_DESCRIPTION};
     // Movement tab controls (tab 4)
     int movementCtrls[] = {IDC_SEEK_1S, IDC_SEEK_5S, IDC_SEEK_10S, IDC_SEEK_30S, IDC_SEEK_1M, IDC_SEEK_5M, IDC_SEEK_10M,
@@ -665,6 +774,44 @@ INT_PTR CALLBACK OptionsDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
             CheckDlgButton(hwnd, IDC_SPEECH_YT_HYBRID, g_speechYTHybrid ? BST_CHECKED : BST_UNCHECKED);
             CheckDlgButton(hwnd, IDC_SPEECH_SEEK_POSITION, g_speechSeekPosition ? BST_CHECKED : BST_UNCHECKED);
             CheckDlgButton(hwnd, IDC_SPEAK_SUBTITLES, g_speakSubtitles ? BST_CHECKED : BST_UNCHECKED);  // v1.81
+            CheckDlgButton(hwnd, IDC_SUBTITLE_EDGE, g_subtitleUseEdgeVoice ? BST_CHECKED : BST_UNCHECKED);
+            {
+                // v2.44 — fill from the NON-BLOCKING cached list so opening
+                // Options never blocks the UI thread on the network (critical
+                // for a screen reader). If the startup prewarm hasn't finished,
+                // we get the offline fallback now and refresh asynchronously
+                // below via WM_SUB_VOICES_READY.
+                s_subEdgeVoices = mediaaccess::EdgeListVoicesCached();
+                SubEdgeFillLangAndVoices(hwnd, g_subtitleEdgeVoice);
+                if (!mediaaccess::EdgeVoicesReady()) {
+                    HWND dlg = hwnd;
+                    std::thread([dlg]() {
+                        mediaaccess::EdgeListVoices();   // blocking fetch, off the UI thread
+                        PostMessageW(dlg, WM_SUB_VOICES_READY, 0, 0);  // dropped if dialog gone
+                    }).detach();
+                }
+                // Ducking combo. The numeric part is fixed; only the parenthetical
+                // hint ("(off)"/"(mute)") is localized (v2.44).
+                HWND duck = GetDlgItem(hwnd, IDC_SUBTITLE_DUCK);
+                SendMessageW(duck, CB_RESETCONTENT, 0, 0);
+                int duckSel = 0; double best = 1e9;
+                for (int i = 0; i < (int)(sizeof(s_subDuckOpts)/sizeof(s_subDuckOpts[0])); i++) {
+                    SendMessageW(duck, CB_ADDSTRING, 0, (LPARAM)SubDuckLabel(i).c_str());
+                    double d = fabs(s_subDuckOpts[i].value - g_subtitleDuckLevel);
+                    if (d < best) { best = d; duckSel = i; }
+                }
+                SendMessageW(duck, CB_SETCURSEL, duckSel, 0);
+                // Speech-rate combo ("Normal" is localized; v2.44).
+                HWND rate = GetDlgItem(hwnd, IDC_SUBTITLE_RATE);
+                SendMessageW(rate, CB_RESETCONTENT, 0, 0);
+                int rateSel = 0, bestR = 1000;
+                for (int i = 0; i < (int)(sizeof(s_subRateOpts)/sizeof(s_subRateOpts[0])); i++) {
+                    SendMessageW(rate, CB_ADDSTRING, 0, (LPARAM)SubRateLabel(i).c_str());
+                    int d = abs(s_subRateOpts[i].value - g_subtitleEdgeRate);
+                    if (d < bestR) { bestR = d; rateSel = i; }
+                }
+                SendMessageW(rate, CB_SETCURSEL, rateSel, 0);
+            }
 
             // Initialize SoundTouch tab
             {
@@ -767,8 +914,46 @@ INT_PTR CALLBACK OptionsDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
                 UnhookWindowsHookEx(s_optionsMsgHook);
                 s_optionsMsgHook = nullptr;
             }
+            // v2.44 — free a still-playing preview stream on any close path (not
+            // just IDOK/IDCANCEL) so an Alt+F4 / Esc that bypasses them can't
+            // leak the BASS stream.
+            if (s_subPreviewStream) {
+                BASS_ChannelStop(s_subPreviewStream);
+                BASS_StreamFree(s_subPreviewStream);
+                s_subPreviewStream = 0;
+            }
             s_optionsDlg = nullptr;
             break;
+        }
+
+        case WM_SUB_VOICES_READY: {
+            // v2.44 — the background voice-catalog fetch finished; the dialog
+            // was populated from the offline fallback at init, so refresh the
+            // language + voice combos from the now-ready cache, preserving the
+            // current selection. lParam unused (we re-read the shared cache).
+            std::wstring sel = g_subtitleEdgeVoice;   // captured from the OLD state
+            int vi = (int)SendMessageW(GetDlgItem(hwnd, IDC_SUBTITLE_EDGE_VOICE), CB_GETCURSEL, 0, 0);
+            if (vi >= 0 && vi < (int)s_subEdgeShown.size() &&
+                s_subEdgeShown[vi] < (int)s_subEdgeVoices.size())
+                sel = Utf8ToWide(s_subEdgeVoices[s_subEdgeShown[vi]].shortName);
+            s_subEdgeVoices = mediaaccess::EdgeListVoicesCached();
+            SubEdgeFillLangAndVoices(hwnd, sel);
+            return TRUE;
+        }
+
+        case WM_SUB_PREVIEW_READY: {
+            // Background voice preview finished; play it on the UI thread.
+            auto* mp3 = reinterpret_cast<std::vector<unsigned char>*>(lParam);
+            if (mp3) {
+                if (s_subPreviewStream) { BASS_ChannelStop(s_subPreviewStream); BASS_StreamFree(s_subPreviewStream); }
+                s_subPreviewStream = BASS_StreamCreateFile(BASS_FILE_MEMCOPY, mp3->data(), 0,
+                                                           mp3->size(), BASS_SAMPLE_FLOAT);
+                if (s_subPreviewStream) BASS_ChannelPlay(s_subPreviewStream, FALSE);
+                delete mp3;
+            } else {
+                Speak(Ts("Preview failed"));
+            }
+            return TRUE;
         }
 
         case WM_NOTIFY: {
@@ -1066,6 +1251,18 @@ INT_PTR CALLBACK OptionsDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
                     g_speechYTHybrid = (IsDlgButtonChecked(hwnd, IDC_SPEECH_YT_HYBRID) == BST_CHECKED);
                     g_speechSeekPosition = (IsDlgButtonChecked(hwnd, IDC_SPEECH_SEEK_POSITION) == BST_CHECKED);
                     g_speakSubtitles = (IsDlgButtonChecked(hwnd, IDC_SPEAK_SUBTITLES) == BST_CHECKED);  // v1.81
+                    g_subtitleUseEdgeVoice = (IsDlgButtonChecked(hwnd, IDC_SUBTITLE_EDGE) == BST_CHECKED);
+                    {
+                        int idx = (int)SendMessageW(GetDlgItem(hwnd, IDC_SUBTITLE_EDGE_VOICE), CB_GETCURSEL, 0, 0);
+                        if (idx >= 0 && idx < (int)s_subEdgeShown.size())
+                            g_subtitleEdgeVoice = Utf8ToWide(s_subEdgeVoices[s_subEdgeShown[idx]].shortName);
+                        int di = (int)SendMessageW(GetDlgItem(hwnd, IDC_SUBTITLE_DUCK), CB_GETCURSEL, 0, 0);
+                        if (di >= 0 && di < (int)(sizeof(s_subDuckOpts)/sizeof(s_subDuckOpts[0])))
+                            g_subtitleDuckLevel = s_subDuckOpts[di].value;
+                        g_subtitleEdgeRate = SubRatePercentFromCombo(hwnd);
+                    }
+                    extern void RefreshSubtitleEdge();
+                    RefreshSubtitleEdge();   // apply method/voice/ducking change immediately
 
                     // Get SoundTouch settings
                     {
@@ -1154,11 +1351,13 @@ INT_PTR CALLBACK OptionsDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
                     // Save settings
                     SaveSettings();
 
+                    if (s_subPreviewStream) { BASS_ChannelStop(s_subPreviewStream); BASS_StreamFree(s_subPreviewStream); s_subPreviewStream = 0; }
                     EndDialog(hwnd, IDOK);
                     return TRUE;
                 }
 
                 case IDCANCEL:
+                    if (s_subPreviewStream) { BASS_ChannelStop(s_subPreviewStream); BASS_StreamFree(s_subPreviewStream); s_subPreviewStream = 0; }
                     EndDialog(hwnd, IDCANCEL);
                     return TRUE;
 
@@ -1307,6 +1506,49 @@ INT_PTR CALLBACK OptionsDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
                             mediaaccess::TtsSetActiveVoiceId(voices[voiceIdx].id);
                         }
                     }
+                    return TRUE;
+                }
+
+                case IDC_SUBTITLE_EDGE_LANG: {
+                    if (HIWORD(wParam) != CBN_SELCHANGE) break;
+                    int li = (int)SendDlgItemMessageW(hwnd, IDC_SUBTITLE_EDGE_LANG, CB_GETCURSEL, 0, 0);
+                    std::wstring filter;
+                    if (li > 0) {
+                        auto locs = SubEdgeLocales();
+                        if (li - 1 < (int)locs.size()) filter = locs[li - 1];
+                    }
+                    SubEdgePopulateVoices(hwnd, filter, g_subtitleEdgeVoice);
+                    return TRUE;
+                }
+
+                case IDC_SUBTITLE_EDGE_PREVIEW: {
+                    int vi = (int)SendDlgItemMessageW(hwnd, IDC_SUBTITLE_EDGE_VOICE, CB_GETCURSEL, 0, 0);
+                    if (vi < 0 || vi >= (int)s_subEdgeShown.size()) return TRUE;
+                    std::string voice = s_subEdgeVoices[s_subEdgeShown[vi]].shortName;  // copy for the worker
+                    std::wstring sample = (voice.rfind("fr", 0) == 0)
+                        ? L"Bonjour, ceci est un aperçu de la voix des sous-titres."
+                        : L"Hello, this is a preview of the subtitle voice.";
+                    char rb[16]; sprintf_s(rb, "%+d%%", SubRatePercentFromCombo(hwnd));
+                    std::string rate = rb;
+                    HWND dlg = hwnd;
+                    // Synthesize off the UI thread (network round trip) and post the
+                    // MP3 back to the dialog to play — keeps Options responsive.
+                    std::thread([dlg, voice, sample, rate]() {
+                        // No cancel token: the preview is never explicitly
+                        // cancelled (it owns no token, and SubStop's cancel is
+                        // private to the scheduler), so it's bounded only by the
+                        // WinHTTP timeouts — which is fine for a short sample. v2.44
+                        auto* mp3 = new std::vector<unsigned char>();
+                        std::string err;
+                        bool ok = mediaaccess::EdgeSynthesize(voice, sample, *mp3, rate, "+0Hz", &err)
+                                  && !mp3->empty();
+                        if (!ok) { delete mp3; mp3 = nullptr; }
+                        // v2.44 — if the dialog is already gone the post fails;
+                        // free the payload here so it can't leak (the handler's
+                        // delete would never run).
+                        if (!PostMessageW(dlg, WM_SUB_PREVIEW_READY, 0, (LPARAM)mp3) && mp3)
+                            delete mp3;
+                    }).detach();
                     return TRUE;
                 }
 
