@@ -1,3 +1,6 @@
+2.44
+Nouveau : lecture des sous-titres à voix haute avec une voix neuronale Microsoft Edge, sans aucune installation. Dans l'option « Énoncer les sous-titres » (onglet Parole), choisissez la méthode « voix neuronale » : MediaAccess lit les répliques avec une vraie voix de synthèse, en pré-synthétisant à l'avance pour rester synchronisé, et baisse légèrement le son de la vidéo pendant la voix. Source des sous-titres : fichier .srt/.vtt voisin, sinon la piste embarquée active (extraite automatiquement). Options : filtre de langue, aperçu de voix, niveau de baisse du volume, débit. Repli automatique sur le lecteur d'écran en cas de problème réseau, et message clair pour les sous-titres en image (non lisibles). Contribution de math65.
+
 2.43
 Nouveau : deux actions « Signet précédent » et « Signet suivant » (Outils → Actions, catégories Principale et Globale, sans raccourci par défaut) permettent de sauter directement au signet adjacent dans le fichier en cours de lecture, sans ouvrir le gestionnaire de signets. Assignez-leur le raccourci de votre choix. Demandé par Romain.
 

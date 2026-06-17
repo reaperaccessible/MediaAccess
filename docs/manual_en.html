@@ -427,6 +427,9 @@
 <p>MediaAccess can route each subtitle line directly to the screen reader as it appears on screen. This is useful for following a foreign-language film without having to read visually, or simply when you prefer to hear text rather than read it.</p>
 <p>To enable: <strong>Tools → Options → Speech tab → "Speak subtitles"</strong> (off by default). Once the box is checked, play a video whose subtitle track is active and every line will be spoken. Announcement mode is <em>interrupt</em>: if a new line arrives before the previous one finishes, it takes over — necessary behaviour since subtitles flow quickly and queued playback would lag behind the picture.</p>
 <p>An assignable action, <strong>"Toggle speak subtitles"</strong> (Main category, with a Global mirror), lets you turn the feature on or off from a hotkey of your choice. No default shortcut is bound; assign one from <strong>Tools → Actions</strong>. Each toggle announces "Subtitle speech on" or "off".</p>
+
+<h4>Neural voice (no install)</h4>
+<p>Instead of the screen reader, MediaAccess can read subtitles with a <strong>Microsoft Edge neural voice</strong>, with no installation. In the <strong>Speech</strong> tab, choose the "neural voice" method: lines are pre-synthesized ahead of time (to stay in sync) then played exactly at each subtitle's time, and the video volume is gently ducked while the voice speaks. The source is the neighbouring <code>.srt</code>/<code>.vtt</code> file, otherwise the active embedded track (extracted automatically). Settings: language filter, voice preview, ducking level, and rate. On a network problem MediaAccess automatically falls back to the screen reader; image-based subtitles (non-text) cannot be read and are announced as such. Contributed by math65.</p>
 </section>
 
 <section id="effects" aria-labelledby="effects-h">
