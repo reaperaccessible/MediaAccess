@@ -1259,6 +1259,11 @@
 <p>The <strong>Rate</strong> effect (<kbd>Ctrl</kbd>+<kbd>4</kbd>, then <kbd>↑</kbd> / <kbd>↓</kbd>) drives the SAPI speaking rate when a text-only book is being read, exactly as it drives the audio engine when reading a recorded book — one mental model, two engines.</p>
 <p>When reading a text-only book via TTS, <kbd>Shift</kbd>+<kbd>→</kbd> and <kbd>Shift</kbd>+<kbd>←</kbd> jump to the next and previous paragraph.</p>
 
+<h4>Online neural voice (no installation)</h4>
+<p>Instead of Windows SAPI, MediaAccess can narrate text-only books with a <strong>Microsoft Edge neural voice</strong>, with no installation at all. In <strong>Tools → Options → Books tab</strong>, tick <strong>“Read books with a neural voice (Edge, online)”</strong> (off by default — the system voice stays the default for those who prefer their usual voices), then choose the <strong>language</strong>, <strong>voice</strong> and <strong>speech rate</strong>. The <strong>Preview</strong> button plays a short sample of the selected voice.</p>
+<p>The setting applies to the next book you open. MediaAccess then narrates paragraphs with a real synthetic voice and <strong>prefetches the next paragraph</strong> while the current one is playing, so reading flows on with no noticeable gap despite network latency. Every control — play, pause, stop, paragraph/chapter/page navigation, bookmarks and position resume — works exactly as with the system voice. The <strong>Rate</strong> effect (<kbd>Ctrl</kbd>+<kbd>4</kbd>) drives the neural voice too; because a neural voice bakes its rate at synthesis time, changing the speed re-synthesizes the current paragraph at the new rate.</p>
+<p>If the network is unavailable (the Edge voice needs an Internet connection), MediaAccess automatically and silently falls back to the SAPI system voice for that book and announces it once, so reading is never interrupted.</p>
+
 <h3>Synchronized text window</h3>
 <p>For any book that exposes text — recorded audio books with synchronized text and text-only books alike — MediaAccess opens a modeless window that displays the current paragraph as you listen. It opens automatically when the book is loaded; press <kbd>Ctrl</kbd>+<kbd>T</kbd> at any time to show or hide it.</p>
 <p>Three themes are available in <strong>Options → Books → Text window theme</strong>:</p>

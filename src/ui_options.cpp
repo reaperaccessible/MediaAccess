@@ -113,6 +113,54 @@ static void SubEdgeFillLangAndVoices(HWND hwnd, const std::wstring& selectShortN
     SubEdgePopulateVoices(hwnd, langSel == 0 ? L"" : curLoc, selectShortName);
 }
 
+// v2.48 — book Edge voice picker (Options > Books). Reuses the same Edge voice
+// catalog (s_subEdgeVoices) as the subtitle picker; s_bookEdgeShown maps the
+// language-filtered combo rows back to catalog indices. Mirrors the subtitle
+// helpers above but targets the IDC_BOOK_EDGE_* controls.
+static std::vector<int> s_bookEdgeShown;
+
+static void BookEdgePopulateVoices(HWND hwnd, const std::wstring& langFilter,
+                                   const std::wstring& selectShortName) {
+    HWND combo = GetDlgItem(hwnd, IDC_BOOK_EDGE_VOICE);
+    SendMessageW(combo, CB_RESETCONTENT, 0, 0);
+    s_bookEdgeShown.clear();
+    int sel = -1;
+    for (size_t i = 0; i < s_subEdgeVoices.size(); i++) {
+        if (!langFilter.empty() && Utf8ToWide(s_subEdgeVoices[i].locale) != langFilter) continue;
+        SendMessageW(combo, CB_ADDSTRING, 0, (LPARAM)s_subEdgeVoices[i].displayName.c_str());
+        if (Utf8ToWide(s_subEdgeVoices[i].shortName) == selectShortName) sel = (int)s_bookEdgeShown.size();
+        s_bookEdgeShown.push_back((int)i);
+    }
+    if (sel < 0 && !s_bookEdgeShown.empty()) sel = 0;
+    SendMessageW(combo, CB_SETCURSEL, sel, 0);
+}
+
+static void BookEdgeFillLangAndVoices(HWND hwnd, const std::wstring& selectShortName) {
+    std::wstring curLoc;
+    for (auto& v : s_subEdgeVoices)
+        if (Utf8ToWide(v.shortName) == selectShortName) { curLoc = Utf8ToWide(v.locale); break; }
+    HWND lang = GetDlgItem(hwnd, IDC_BOOK_EDGE_LANG);
+    SendMessageW(lang, CB_RESETCONTENT, 0, 0);
+    SendMessageW(lang, CB_ADDSTRING, 0, (LPARAM)T("All languages"));
+    auto locs = SubEdgeLocales();
+    int langSel = 0;
+    for (size_t i = 0; i < locs.size(); i++) {
+        SendMessageW(lang, CB_ADDSTRING, 0, (LPARAM)locs[i].c_str());
+        if (locs[i] == curLoc) langSel = (int)i + 1;
+    }
+    SendMessageW(lang, CB_SETCURSEL, langSel, 0);
+    BookEdgePopulateVoices(hwnd, langSel == 0 ? L"" : curLoc, selectShortName);
+}
+
+// v2.48 — grey out the book Edge voice controls when the "neural voice" box is
+// off, so a screen-reader user isn't offered controls that do nothing.
+static void BookEdgeEnableControls(HWND hwnd, bool enable) {
+    const int ids[] = { IDC_BOOK_EDGE_LANG, IDC_LABEL_BOOK_EDGE_LANG,
+                        IDC_BOOK_EDGE_VOICE, IDC_LABEL_BOOK_EDGE_VOICE,
+                        IDC_BOOK_EDGE_PREVIEW, IDC_BOOK_EDGE_RATE, IDC_LABEL_BOOK_EDGE_RATE };
+    for (int id : ids) EnableWindow(GetDlgItem(hwnd, id), enable);
+}
+
 // Update the small hint under the SoundFont path field that tells the user
 // what will actually be used when the field is empty. Three cases:
 //   - User typed a path: hide the hint (empty label)
@@ -222,6 +270,11 @@ void ShowTabControls(HWND hwnd, int tab) {
     int booksCtrls[] = {IDC_BOOK_FOLDERS_LIST, IDC_BOOK_FOLDER_ADD, IDC_BOOK_FOLDER_REMOVE,
                         IDC_BOOK_RESCAN, IDC_LABEL_BOOK_FOLDERS,
                         IDC_BOOK_TTS_VOICE, IDC_LABEL_BOOK_TTS_VOICE,
+                        IDC_BOOK_EDGE,
+                        IDC_BOOK_EDGE_LANG, IDC_LABEL_BOOK_EDGE_LANG,
+                        IDC_BOOK_EDGE_VOICE, IDC_LABEL_BOOK_EDGE_VOICE,
+                        IDC_BOOK_EDGE_PREVIEW,
+                        IDC_BOOK_EDGE_RATE, IDC_LABEL_BOOK_EDGE_RATE,
                         IDC_BOOK_TEXT_THEME, IDC_LABEL_BOOK_TEXT_THEME,
                         IDC_BOOK_HIDE_TEXT_WINDOW,
                         IDC_LABEL_BOOK_SKIP_GROUP,
@@ -439,6 +492,28 @@ INT_PTR CALLBACK OptionsDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
                     }
                 }
                 SendMessageW(hVoice, CB_SETCURSEL, activeIdx, 0);
+            }
+
+            // v2.48 — book Edge online neural voice picker. Shares the Edge
+            // catalog with the subtitle picker (s_subEdgeVoices); that's filled
+            // from the cached/offline list in the Speech-tab init below and
+            // refreshed via WM_SUB_VOICES_READY, but this Books init runs first,
+            // so prime it here if it's still empty.
+            {
+                CheckDlgButton(hwnd, IDC_BOOK_EDGE, g_bookUseEdgeVoice ? BST_CHECKED : BST_UNCHECKED);
+                if (s_subEdgeVoices.empty()) s_subEdgeVoices = mediaaccess::EdgeListVoicesCached();
+                BookEdgeFillLangAndVoices(hwnd, g_bookEdgeVoice);
+                // Speech-rate combo (shares the subtitle rate options + labels).
+                HWND brate = GetDlgItem(hwnd, IDC_BOOK_EDGE_RATE);
+                SendMessageW(brate, CB_RESETCONTENT, 0, 0);
+                int rateSel = 0, bestR = 1000;
+                for (int i = 0; i < (int)(sizeof(s_subRateOpts)/sizeof(s_subRateOpts[0])); i++) {
+                    SendMessageW(brate, CB_ADDSTRING, 0, (LPARAM)SubRateLabel(i).c_str());
+                    int d = abs(s_subRateOpts[i].value - g_bookEdgeRate);
+                    if (d < bestR) { bestR = d; rateSel = i; }
+                }
+                SendMessageW(brate, CB_SETCURSEL, rateSel, 0);
+                BookEdgeEnableControls(hwnd, g_bookUseEdgeVoice);   // grey out if unchecked
             }
 
             // Populate text-window theme combo
@@ -936,8 +1011,15 @@ INT_PTR CALLBACK OptionsDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
             if (vi >= 0 && vi < (int)s_subEdgeShown.size() &&
                 s_subEdgeShown[vi] < (int)s_subEdgeVoices.size())
                 sel = Utf8ToWide(s_subEdgeVoices[s_subEdgeShown[vi]].shortName);
+            // v2.48 — also preserve the book voice picker's current selection.
+            std::wstring bsel = g_bookEdgeVoice;
+            int bvi = (int)SendMessageW(GetDlgItem(hwnd, IDC_BOOK_EDGE_VOICE), CB_GETCURSEL, 0, 0);
+            if (bvi >= 0 && bvi < (int)s_bookEdgeShown.size() &&
+                s_bookEdgeShown[bvi] < (int)s_subEdgeVoices.size())
+                bsel = Utf8ToWide(s_subEdgeVoices[s_bookEdgeShown[bvi]].shortName);
             s_subEdgeVoices = mediaaccess::EdgeListVoicesCached();
             SubEdgeFillLangAndVoices(hwnd, sel);
+            BookEdgeFillLangAndVoices(hwnd, bsel);   // v2.48 — refresh book combos too
             return TRUE;
         }
 
@@ -1348,6 +1430,19 @@ INT_PTR CALLBACK OptionsDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
                     if (IsDlgButtonChecked(hwnd, IDC_BOOK_SKIP_FOOTNOTES)  == BST_CHECKED) g_bookSkipMask |= (1u << 4);
                     if (IsDlgButtonChecked(hwnd, IDC_BOOK_SKIP_REFERENCES) == BST_CHECKED) g_bookSkipMask |= (1u << 5);
 
+                    // v2.48 — book Edge neural voice settings. Applied to the
+                    // NEXT book opened (the engine is snapshotted at load time).
+                    g_bookUseEdgeVoice = (IsDlgButtonChecked(hwnd, IDC_BOOK_EDGE) == BST_CHECKED);
+                    {
+                        int idx = (int)SendMessageW(GetDlgItem(hwnd, IDC_BOOK_EDGE_VOICE), CB_GETCURSEL, 0, 0);
+                        if (idx >= 0 && idx < (int)s_bookEdgeShown.size() &&
+                            s_bookEdgeShown[idx] < (int)s_subEdgeVoices.size())
+                            g_bookEdgeVoice = Utf8ToWide(s_subEdgeVoices[s_bookEdgeShown[idx]].shortName);
+                        int ri = (int)SendMessageW(GetDlgItem(hwnd, IDC_BOOK_EDGE_RATE), CB_GETCURSEL, 0, 0);
+                        if (ri >= 0 && ri < (int)(sizeof(s_subRateOpts)/sizeof(s_subRateOpts[0])))
+                            g_bookEdgeRate = s_subRateOpts[ri].value;
+                    }
+
                     // Save settings
                     SaveSettings();
 
@@ -1546,6 +1641,52 @@ INT_PTR CALLBACK OptionsDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
                         // v2.44 — if the dialog is already gone the post fails;
                         // free the payload here so it can't leak (the handler's
                         // delete would never run).
+                        if (!PostMessageW(dlg, WM_SUB_PREVIEW_READY, 0, (LPARAM)mp3) && mp3)
+                            delete mp3;
+                    }).detach();
+                    return TRUE;
+                }
+
+                case IDC_BOOK_EDGE: {   // v2.48 — toggle: enable/disable the dependent controls
+                    if (HIWORD(wParam) != BN_CLICKED) break;
+                    BookEdgeEnableControls(hwnd,
+                        IsDlgButtonChecked(hwnd, IDC_BOOK_EDGE) == BST_CHECKED);
+                    return TRUE;
+                }
+
+                case IDC_BOOK_EDGE_LANG: {   // v2.48
+                    if (HIWORD(wParam) != CBN_SELCHANGE) break;
+                    int li = (int)SendDlgItemMessageW(hwnd, IDC_BOOK_EDGE_LANG, CB_GETCURSEL, 0, 0);
+                    std::wstring filter;
+                    if (li > 0) {
+                        auto locs = SubEdgeLocales();
+                        if (li - 1 < (int)locs.size()) filter = locs[li - 1];
+                    }
+                    BookEdgePopulateVoices(hwnd, filter, g_bookEdgeVoice);
+                    return TRUE;
+                }
+
+                case IDC_BOOK_EDGE_PREVIEW: {   // v2.48
+                    int vi = (int)SendDlgItemMessageW(hwnd, IDC_BOOK_EDGE_VOICE, CB_GETCURSEL, 0, 0);
+                    if (vi < 0 || vi >= (int)s_bookEdgeShown.size()) return TRUE;
+                    std::string voice = s_subEdgeVoices[s_bookEdgeShown[vi]].shortName;  // copy for the worker
+                    std::wstring sample = (voice.rfind("fr", 0) == 0)
+                        ? L"Bonjour, ceci est un aperçu de la voix de lecture des livres."
+                        : L"Hello, this is a preview of the book reading voice.";
+                    int rp = 0;
+                    int ri = (int)SendDlgItemMessageW(hwnd, IDC_BOOK_EDGE_RATE, CB_GETCURSEL, 0, 0);
+                    if (ri >= 0 && ri < (int)(sizeof(s_subRateOpts)/sizeof(s_subRateOpts[0]))) rp = s_subRateOpts[ri].value;
+                    char rb[16]; sprintf_s(rb, "%+d%%", rp);
+                    std::string rate = rb;
+                    HWND dlg = hwnd;
+                    // Synthesize off the UI thread (network round trip); reuse the
+                    // subtitle preview message/stream to play the result.
+                    std::thread([dlg, voice, sample, rate]() {
+                        auto* mp3 = new std::vector<unsigned char>();
+                        std::string err;
+                        bool ok = mediaaccess::EdgeSynthesize(voice, sample, *mp3, rate, "+0Hz", &err)
+                                  && !mp3->empty();
+                        if (!ok) { delete mp3; mp3 = nullptr; }
                         if (!PostMessageW(dlg, WM_SUB_PREVIEW_READY, 0, (LPARAM)mp3) && mp3)
                             delete mp3;
                     }).detach();

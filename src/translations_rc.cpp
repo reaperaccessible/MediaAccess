@@ -265,6 +265,17 @@ void RegisterRcTranslations() {
     AddTranslation("fr", "All languages", L"Toutes les langues");
     AddTranslation("en", "Preview failed", L"Preview failed");
     AddTranslation("fr", "Preview failed", L"Échec de l'aperçu");
+
+    // v2.48 — Books tab: read books with an Edge neural voice. Reuses the
+    // already-translated "&Language:", "Previe&w" and "Speech &rate:" labels.
+    AddTranslation("en", "Read books with a neural voice (Ed&ge, online)",
+                   L"Read books with a neural voice (Ed&ge, online)");
+    AddTranslation("fr", "Read books with a neural voice (Ed&ge, online)",
+                   L"Lire les livres avec une voix neuronale (Ed&ge, en ligne)");
+    AddTranslation("en", "Book voi&ce:", L"Book voi&ce:");
+    AddTranslation("fr", "Book voi&ce:", L"Voi&x des livres :");
+    AddTranslation("en", "Preview &voice", L"Preview &voice");
+    AddTranslation("fr", "Preview &voice", L"Aperçu de la &voix");
     // v2.44 — spoken when the active subtitle track is image-based (PGS/VobSub):
     // there is no text to synthesize, so explain the silence in the user's language.
     AddTranslation("en", "Image-based subtitles cannot be read aloud",

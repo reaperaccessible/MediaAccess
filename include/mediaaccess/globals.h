@@ -61,6 +61,13 @@ extern bool g_subtitleUseEdgeVoice;
 extern std::wstring g_subtitleEdgeVoice;
 extern double g_subtitleDuckLevel;   // video volume multiplier while a subtitle line is spoken (0..1)
 extern int g_subtitleEdgeRate;       // Edge speech rate as a percent offset (-50..+100; 0 = normal)
+// Book reading speech method (v2.48): when on, text-only books (EPUB / DAISY
+// text) are narrated with an Edge online neural voice instead of SAPI. These
+// are deliberately INDEPENDENT of the subtitle Edge settings above so a user
+// can pick a different voice/rate for long-form reading vs. subtitles.
+extern bool g_bookUseEdgeVoice;      // read books with an Edge neural voice
+extern std::wstring g_bookEdgeVoice; // chosen Edge voice short name; empty = default
+extern int g_bookEdgeRate;           // Edge speech rate as a percent offset (-50..+100; 0 = normal)
 extern bool g_legacyVolume;   // Use legacy volume (faster, but affects recordings)
 extern bool g_disableBatchDelay; // Skip batch delay when opening files from explorer
 extern bool g_startupBatchOpen;  // v1.85 — true during the early startup batch-open coalescing window

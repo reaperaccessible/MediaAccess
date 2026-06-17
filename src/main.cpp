@@ -64,6 +64,7 @@
 #include "mediaaccess/audio_device_watcher.h" // v2.32 — auto-follow default output device
 #include "mediaaccess/cue_sheet.h"      // v2.34 — .cue sheet support
 #include "mediaaccess/subtitle_scheduler.h" // read subtitles aloud (prefetched Edge voice)
+#include "mediaaccess/book_tts_edge.h"       // v2.48 — read books aloud (Edge neural voice)
 #include "mediaaccess/edge_tts_client.h"    // EdgeListVoices (startup prewarm)
 #include "utils.h"                           // WideToUtf8
 #include <utility>  // for std::pair
@@ -179,6 +180,7 @@ void RefreshSubtitleEdge() {
 #define WM_DAISY_NEXT_CLIP_LOCAL (WM_USER + 50)
 extern "C" void DaisyOnClipEnded(int endedClipIndex);
 extern "C" void DaisyOnTtsEndOfStream(unsigned long endedStream);
+extern "C" void DaisyOnBookEdgeEnd(int gen, int segIdx);  // v2.48
 
 #pragma comment(lib, "bass.lib")
 #pragma comment(lib, "user32.lib")
@@ -1111,6 +1113,17 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
             DaisyOnTtsEndOfStream((unsigned long)wParam);
             return 0;
 
+        case WM_BOOKEDGE_READY:
+            // v2.48 — Edge synth finished for the current book paragraph; create
+            // and play its BASS clip on the UI thread (wParam=gen, lParam=segIdx).
+            mediaaccess::BookEdgeOnReadyToPlay((int)wParam, (int)(intptr_t)lParam);
+            return 0;
+
+        case WM_BOOKEDGE_END:
+            // v2.48 — an Edge book paragraph clip finished; advance to the next.
+            DaisyOnBookEdgeEnd((int)wParam, (int)(intptr_t)lParam);
+            return 0;
+
         case WM_HOTKEY: {
             // System-wide hotkey fired (RegisterHotKey from hotkeys.cpp).
             // IDs 0x7F00..0x7F03 are reserved for the always-on media keys
@@ -1941,6 +1954,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
             g_isShuttingDown = true;
             mediaaccess::SubShutdownExtraction();  // v2.44 — kill any orphan ffmpeg extraction
             mediaaccess::SubStop();  // stop subtitle prefetch worker + clip before BASS teardown
+            mediaaccess::BookEdgeShutdown();  // v2.48 — stop book Edge worker + clip before BASS teardown
             // -----------------------------------------------------------
             // Kill audio IMMEDIATELY before doing anything else.
             // Otherwise the BASS device keeps producing sound for the
