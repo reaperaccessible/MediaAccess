@@ -103,8 +103,14 @@ void RegisterRcTranslations() {
     AddTranslation("en", "S&huffle\tH", L"S&huffle\tH");
     AddTranslation("fr", "S&huffle\tH", L"Lecture a&léatoire\tH");
 
-    AddTranslation("en", "R&epeat\tE", L"R&epeat\tE");
-    AddTranslation("fr", "R&epeat\tE", L"R&épéter\tE");
+    AddTranslation("en", "R&epeat", L"R&epeat");
+    AddTranslation("fr", "R&epeat", L"R&épéter");
+    AddTranslation("en", "Repeat &off",   L"Repeat &off");
+    AddTranslation("fr", "Repeat &off",   L"Répétition &désactivée");
+    AddTranslation("en", "Repeat &track", L"Repeat &track");
+    AddTranslation("fr", "Repeat &track", L"Répéter la &piste");
+    AddTranslation("en", "Repeat &all",   L"Repeat &all");
+    AddTranslation("fr", "Repeat &all",   L"&Tout répéter");
 
     AddTranslation("en", "Seek &Backward\tLeft", L"Seek &Backward\tLeft");
     AddTranslation("fr", "Seek &Backward\tLeft", L"&Reculer\tGauche");

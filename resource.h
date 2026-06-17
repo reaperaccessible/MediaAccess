@@ -59,6 +59,9 @@
 #define IDM_PLAY_REPEAT_TOGGLE 219
 #define IDM_PLAY_VOLUP_10DB    223   // +10 dB coarse volume step (Ctrl+Shift+Up)
 #define IDM_PLAY_VOLDOWN_10DB  224   // -10 dB coarse volume step (Ctrl+Shift+Down)
+#define IDM_PLAY_REPEAT_OFF    225   // menu-only radio: repeat off   (g_repeatMode 0)
+#define IDM_PLAY_REPEAT_ONE    226   // menu-only radio: repeat track (g_repeatMode 1)
+#define IDM_PLAY_REPEAT_ALL    227   // menu-only radio: repeat all   (g_repeatMode 2)
 #define IDM_PLAY_TOGGLE_SEEK_ANNOUNCE 1800
 
 // v1.79 — Granular seek actions (26 IDs, 1810-1835).

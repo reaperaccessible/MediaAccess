@@ -213,6 +213,17 @@ static bool IsWindowOpeningGlobalCommand(int cmd) {
     }
 }
 
+// v2.45 — keep the Playback > Repeat radio submenu in sync with g_repeatMode
+// (0=off, 1=track, 2=all). MF_BYCOMMAND walks the whole menu tree, so it finds
+// the items inside the Playback sub-popup. Called at startup, on every menu
+// open (so the E-cycle is reflected), and right after a direct selection.
+static void UpdateRepeatMenuRadio(HWND hwnd) {
+    HMENU hMenu = GetMenu(hwnd);
+    if (!hMenu) return;
+    CheckMenuRadioItem(hMenu, IDM_PLAY_REPEAT_OFF, IDM_PLAY_REPEAT_ALL,
+                       IDM_PLAY_REPEAT_OFF + g_repeatMode, MF_BYCOMMAND);
+}
+
 // Declarations from ui.cpp
 int ExpandFileToFolder(const std::wstring& filePath, std::vector<std::wstring>& outFiles);
 void AddFilesFromFolder(const std::wstring& folder, std::vector<std::wstring>& files);
@@ -608,6 +619,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
 
             // Set initial menu check states
             CheckMenuItem(GetMenu(hwnd), IDM_PLAY_SHUFFLE, g_shuffle ? MF_CHECKED : MF_UNCHECKED);
+            UpdateRepeatMenuRadio(hwnd);   // v2.45 — seed the Repeat radio
 
             // Localize main menu based on active language.
             LocalizeMenu(GetMenu(hwnd));
@@ -1236,6 +1248,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
                     reinterpret_cast<HMENU>(wParam) == GetSubMenu(hMenu, 0)) {
                     UpdateRecentFilesMenu(hMenu);
                 }
+                UpdateRepeatMenuRadio(hwnd);   // v2.45 — reflect g_repeatMode (e.g. after the E cycle)
             }
             break;
 
@@ -1529,6 +1542,17 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
                     RefreshSubtitleEdge();  // start/stop the Edge reader if that's the method
                     SaveSettings();
                     break;
+                case IDM_PLAY_REPEAT_OFF:
+                case IDM_PLAY_REPEAT_ONE:
+                case IDM_PLAY_REPEAT_ALL: {
+                    // v2.45 — direct mode selection from the Repeat radio submenu.
+                    g_repeatMode = LOWORD(wParam) - IDM_PLAY_REPEAT_OFF;   // 225/226/227 -> 0/1/2
+                    const char* names[] = { "Repeat off", "Repeat track", "Repeat all" };
+                    Speak(Ts(names[g_repeatMode]));
+                    UpdateRepeatMenuRadio(hwnd);
+                    SaveSettings();
+                    break;
+                }
                 case IDM_PLAY_REPEAT_TOGGLE:
                     ToggleRepeatMode();
                     break;

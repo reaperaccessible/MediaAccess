@@ -1,3 +1,6 @@
+2.45
+Amélioration (accessibilité) : le mode de répétition est désormais un sous-menu Lecture → Répéter avec trois choix en boutons radio — Répétition désactivée / Répéter la piste / Tout répéter — dont l'option active est annoncée par le lecteur d'écran. On peut ainsi vérifier le mode courant et choisir directement « Répétition désactivée », sans devoir faire défiler les modes. La touche E continue de faire défiler les trois modes. Signalé par un utilisateur.
+
 2.44
 Nouveau : lecture des sous-titres à voix haute avec une voix neuronale Microsoft Edge, sans aucune installation. Dans l'option « Énoncer les sous-titres » (onglet Parole), choisissez la méthode « voix neuronale » : MediaAccess lit les répliques avec une vraie voix de synthèse, en pré-synthétisant à l'avance pour rester synchronisé, et baisse légèrement le son de la vidéo pendant la voix. Source des sous-titres : fichier .srt/.vtt voisin, sinon la piste embarquée active (extraite automatiquement). Options : filtre de langue, aperçu de voix, niveau de baisse du volume, débit. Repli automatique sur le lecteur d'écran en cas de problème réseau, et message clair pour les sous-titres en image (non lisibles). Contribution de math65.
 
