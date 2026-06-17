@@ -4,6 +4,7 @@
 #include "resource.h"
 #include "mediaaccess/translations.h"
 #include "mediaaccess/tts_player.h"  // Drive SAPI rate from Rate effect
+#include "mediaaccess/daisy_player.h" // v2.45 — drive Edge book rate from Rate effect
 #include "mediaaccess/video_engine.h" // v2.15 — apply Volume/Rate to MPV video
 #include "bass_fx.h"
 #include "tempo_processor.h"
@@ -904,6 +905,9 @@ void SetParamValue(ParamId id, float value) {
             // Also drive the SAPI rate so the same control speeds up the
             // voice when reading a text-only DAISY book.
             mediaaccess::TtsSetSpeedMultiplier(g_rate);
+            // v2.45 — and the Edge neural voice when a book is read that way
+            // (re-synthesizes the current paragraph at the new rate).
+            mediaaccess::DaisyOnSpeedChanged(static_cast<double>(g_rate));
             break;
         // Freeverb parameters
         case ParamId::ReverbMix:

@@ -58,6 +58,12 @@ bool DaisyIsPaused();
 // Also called internally on every clip transition so new streams inherit it.
 void DaisyApplyVolume();
 
+// v2.45 — the Rate effect changed (Options/keys). For an Edge-narrated book the
+// neural voice bakes speed at synthesis time, so this re-synthesizes the current
+// paragraph at the new rate. `multiplier` is MediaAccess's speed convention
+// (1.0 = normal). No-op unless an Edge book is currently being read.
+void DaisyOnSpeedChanged(double multiplier);
+
 // =============================================================================
 // Structural navigation
 // =============================================================================

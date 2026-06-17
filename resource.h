@@ -122,6 +122,8 @@
 #define WM_YT_DESC_READY     (WM_USER + 15) // v2.27 — background description fetch finished (lParam = YtDescResult* heap). (WM_USER+10 is WM_TRAYICON.)
 #define WM_SUBTITLE_AUTOSTART (WM_USER + 16) // mpv FILE_LOADED -> (re)start the Edge subtitle reader on the UI thread
 #define WM_SUBTITLE_READY     (WM_USER + 17) // background cue extraction done (lParam = SubPrepResult* heap)
+#define WM_BOOKEDGE_READY     (WM_USER + 18) // v2.45 — Edge synth ready for the current book paragraph (wParam=gen, lParam=segIdx)
+#define WM_BOOKEDGE_END       (WM_USER + 19) // v2.45 — Edge book paragraph clip finished (wParam=gen, lParam=segIdx) -> advance
 
 // Playback tab controls
 #define IDC_BRING_TO_FRONT  531
@@ -413,6 +415,16 @@
 #define IDC_BOOK_SKIP_FOOTNOTES         1604
 #define IDC_BOOK_SKIP_REFERENCES        1605
 #define IDC_LABEL_BOOK_SKIP_GROUP       1606
+
+// Books preferences — Edge online neural voice for book reading (v2.45)
+#define IDC_BOOK_EDGE                   1610   // checkbox: read books with an online neural voice
+#define IDC_BOOK_EDGE_LANG             1611   // combo: language filter
+#define IDC_LABEL_BOOK_EDGE_LANG       1612
+#define IDC_BOOK_EDGE_VOICE            1613   // combo: voice picker
+#define IDC_LABEL_BOOK_EDGE_VOICE      1614
+#define IDC_BOOK_EDGE_PREVIEW          1615   // button: play a sample of the selected voice
+#define IDC_BOOK_EDGE_RATE             1616   // combo: speech rate offset
+#define IDC_LABEL_BOOK_EDGE_RATE       1617
 
 // Books library dialog
 #define IDD_BOOK_LIBRARY                1520
