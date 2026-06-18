@@ -75,6 +75,13 @@ void DoSpeak() {
             speechStop();
         }
         speechSay(combined.c_str(), interrupt ? 1 : 0);
+        // Mirror the announcement to the braille display (NVDA/JAWS/etc.), the
+        // way OSARA does. speechSay() only drives speech, so without this our
+        // own announcements (seek time, effect toggle/value, F12 keyboard help,
+        // etc.) were spoken but never shown in braille — native dialogs/menus
+        // braille fine because the screen reader reads them itself. Reported by
+        // Theo (Eurobraille Esytime).
+        brailleDisplay(combined.c_str());
     }
 }
 
