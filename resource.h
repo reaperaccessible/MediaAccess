@@ -99,6 +99,8 @@
 #define IDM_SET_LOOP_END     1837
 #define IDM_TOGGLE_LOOP      1838
 #define IDM_CLEAR_LOOP       1839
+#define IDM_GOTO_LOOP_START  1840
+#define IDM_GOTO_LOOP_END    1841
 #define IDM_EFFECT_PRESETS  238
 
 // Accelerator table

@@ -191,6 +191,7 @@
     <li><a href="#demarrage">Premiers pas</a></li>
     <li><a href="#curseurs">Les deux curseurs virtuels</a></li>
     <li><a href="#audio">Lecture audio</a></li>
+    <li><a href="#boucle">Boucle A-B</a></li>
     <li><a href="#video">Lecture vidéo</a></li>
     <li><a href="#effets">Effets et DSP</a></li>
     <li><a href="#presets">Préréglages d'effets</a></li>
@@ -397,19 +398,24 @@
 <p><strong>Note technique :</strong> par défaut, le volume est appliqué après la chaîne d'effets, ce qui signifie que vos enregistrements (touche <kbd>R</kbd>) capturent l'audio à pleine amplitude indépendamment du volume d'écoute. Pour changer ce comportement, activez « Volume hérité » dans <strong>Options → Avancé</strong>.</p>
 </div>
 
-<h3>Boucle A-B</h3>
+</section>
+
+<section id="boucle" aria-labelledby="boucle-h">
+<h2 id="boucle-h">5. Boucle A-B</h2>
 <p>La boucle A-B répète en continu un passage de votre choix — pratique pour réécouter un extrait ou pour travailler un passage en modifiant la vitesse ou la hauteur.</p>
 <ul>
 <li><kbd>Maj</kbd>+<kbd>[</kbd> : place le <strong>début de boucle</strong> à la position de lecture courante.</li>
 <li><kbd>Maj</kbd>+<kbd>]</kbd> : place la <strong>fin de boucle</strong>.</li>
 <li><kbd>L</kbd> : <strong>active ou désactive</strong> la boucle.</li>
 <li>La touche située <strong>sous Échap</strong> : <strong>efface</strong> la boucle. (Sans raccourci ? Vous pouvez l'assigner dans <strong>Outils → Actions</strong>, action « Effacer la boucle A-B ».)</li>
+<li><kbd>Page préc.</kbd> (Page Up) : déplace la lecture au <strong>début de la boucle</strong>.</li>
+<li><kbd>Page suiv.</kbd> (Page Down) : déplace la lecture à la <strong>fin de la boucle</strong>.</li>
 </ul>
-<p>Les deux touches de repère sont celles situées immédiatement à droite du <kbd>P</kbd>, quelle que soit la disposition du clavier (comme les touches de réglage des effets). Une fois les deux repères posés et la boucle active, la lecture revient automatiquement au début dès qu'elle atteint la fin. Le rebouclage est sans coupure et reste précis même si vous changez la vitesse ou la hauteur, quel que soit l'algorithme de tempo (SoundTouch, Speedy ou Signalsmith). La boucle concerne l'audio uniquement : elle n'est pas disponible pour la vidéo ni pour les flux en direct. Les repères ne sont pas mémorisés : ils sont effacés à chaque changement de piste et à l'arrêt.</p>
+<p>Les deux touches de repère sont celles situées immédiatement à droite du <kbd>P</kbd>, quelle que soit la disposition du clavier (comme les touches de réglage des effets). Une fois les deux repères posés et la boucle active, la lecture revient automatiquement au début dès qu'elle atteint la fin. Le rebouclage est sans coupure et reste précis même si vous changez la vitesse ou la hauteur, quel que soit l'algorithme de tempo (SoundTouch, Speedy ou Signalsmith). La boucle concerne l'audio uniquement : elle n'est pas disponible pour la vidéo ni pour les flux en direct. Si vous utilisez Page précédente ou Page suivante sans boucle définie, MediaAccess annonce « Aucune boucle ». Les repères ne sont pas mémorisés : ils sont effacés à chaque changement de piste et à l'arrêt.</p>
 </section>
 
 <section id="video" aria-labelledby="video-h">
-<h2 id="video-h">5. Lecture vidéo</h2>
+<h2 id="video-h">6. Lecture vidéo</h2>
 
 <h3>Formats vidéo</h3>
 <p>La lecture vidéo utilise libmpv (intégré). Formats reconnus :</p>
@@ -443,7 +449,7 @@
 </section>
 
 <section id="effets" aria-labelledby="effets-h">
-<h2 id="effets-h">6. Effets et DSP</h2>
+<h2 id="effets-h">7. Effets et DSP</h2>
 
 <h3>Effets de flux</h3>
 <table>
@@ -538,7 +544,7 @@
 </section>
 
 <section id="presets" aria-labelledby="presets-h">
-<h2 id="presets-h">7. Préréglages d'effets</h2>
+<h2 id="presets-h">8. Préréglages d'effets</h2>
 <p>Vous pouvez sauvegarder vos combinaisons d'effets et les rappeler instantanément.</p>
 <ul>
   <li><kbd>P</kbd> ouvre le menu des préréglages.</li>
@@ -550,7 +556,7 @@
 </section>
 
 <section id="playlists" aria-labelledby="playlists-h">
-<h2 id="playlists-h">8. Listes de lecture</h2>
+<h2 id="playlists-h">9. Listes de lecture</h2>
 <p><kbd>Ctrl</kbd>+<kbd>P</kbd> ouvre le gestionnaire de listes de lecture.</p>
 <table>
 <caption>Touches dans le gestionnaire</caption>
@@ -568,7 +574,7 @@
 </section>
 
 <section id="signets" aria-labelledby="signets-h">
-<h2 id="signets-h">9. Signets et historique</h2>
+<h2 id="signets-h">10. Signets et historique</h2>
 
 <h3>Signets</h3>
 <table>
@@ -591,7 +597,7 @@
 </section>
 
 <section id="youtube" aria-labelledby="youtube-h">
-<h2 id="youtube-h">10. YouTube</h2>
+<h2 id="youtube-h">11. YouTube</h2>
 <p>MediaAccess dispose d'un support YouTube complet intégré — recherche, lecture et téléchargement — sans aucune configuration externe requise.</p>
 
 <h3>Recherche et lecture</h3>
@@ -675,7 +681,7 @@
 </section>
 
 <section id="radio" aria-labelledby="radio-h">
-<h2 id="radio-h">11. Radio internet</h2>
+<h2 id="radio-h">12. Radio internet</h2>
 <p><kbd>Ctrl</kbd>+<kbd>R</kbd> ou <strong>Fichier → Radio</strong> ouvre le navigateur de radio.</p>
 
 <h3>Deux onglets</h3>
@@ -733,7 +739,7 @@
 </section>
 
 <section id="podcasts" aria-labelledby="podcasts-h">
-<h2 id="podcasts-h">12. Podcasts</h2>
+<h2 id="podcasts-h">13. Podcasts</h2>
 <p><kbd>Ctrl</kbd>+<kbd>Maj</kbd>+<kbd>P</kbd> ou <strong>Fichier → Podcasts</strong> ouvre le gestionnaire.</p>
 
 <h3>Deux onglets</h3>
@@ -781,7 +787,7 @@
 </section>
 
 <section id="enregistrement" aria-labelledby="enregistrement-h">
-<h2 id="enregistrement-h">13. Enregistrement</h2>
+<h2 id="enregistrement-h">14. Enregistrement</h2>
 <p><kbd>R</kbd> démarre/arrête l'enregistrement de la sortie audio.</p>
 <p><kbd>Maj</kbd>+<kbd>R</kbd> met l'enregistrement en pause, puis le reprend (enregistrement « par morceaux »). Le fichier final ne contient que les passages enregistrés, collés bout à bout : par exemple, lancez l'enregistrement, mettez en pause pendant un passage qui ne vous intéresse pas, reprenez, et à l'arrêt vous obtenez un seul fichier sans le passage sauté. Fonctionne aussi pour l'enregistrement de l'audio système. La barre d'état affiche « (pause) » pendant la pause.</p>
 
@@ -818,7 +824,7 @@
 </section>
 
 <section id="midi" aria-labelledby="midi-h">
-<h2 id="midi-h">14. MIDI</h2>
+<h2 id="midi-h">15. MIDI</h2>
 <p>Les fichiers <code>.mid</code>, <code>.midi</code>, <code>.rmi</code> et <code>.kar</code> sont lus via BASSMIDI.</p>
 
 <h3>SoundFont</h3>
@@ -833,7 +839,7 @@
 </section>
 
 <section id="planificateur" aria-labelledby="planificateur-h">
-<h2 id="planificateur-h">15. Planificateur</h2>
+<h2 id="planificateur-h">16. Planificateur</h2>
 <p><kbd>Ctrl</kbd>+<kbd>S</kbd> ou <strong>Fichier → Planificateur</strong> ouvre la gestion des événements planifiés.</p>
 
 <h3>Créer un événement</h3>
@@ -863,7 +869,7 @@
 </section>
 
 <section id="tray" aria-labelledby="tray-h">
-<h2 id="tray-h">16. Zone de notification</h2>
+<h2 id="tray-h">17. Zone de notification</h2>
 <p><kbd>Ctrl</kbd>+<kbd>H</kbd> ou <strong>Fichier → Réduire dans la zone de notification</strong> cache MediaAccess et place une icône dans la zone de notification.</p>
 
 <h3>Menu contextuel de l'icône</h3>
@@ -881,7 +887,7 @@
 </section>
 
 <section id="hotkeys" aria-labelledby="hotkeys-h">
-<h2 id="hotkeys-h">17. Actions et raccourcis</h2>
+<h2 id="hotkeys-h">18. Actions et raccourcis</h2>
 <p>MediaAccess permet de réassigner librement tous les raccourcis clavier via une fenêtre <strong>Actions</strong> de style REAPER, accessible par <kbd>F4</kbd> ou via <strong>Outils → Actions</strong>.</p>
 
 <h3>Parcourir et filtrer</h3>
@@ -911,7 +917,7 @@
 </section>
 
 <section id="cli" aria-labelledby="cli-h">
-<h2 id="cli-h">18. Ligne de commande</h2>
+<h2 id="cli-h">19. Ligne de commande</h2>
 <p>MediaAccess accepte un ensemble d'options sur sa ligne de commande, à la manière de l'outil <em>Foorun</em> de foobar2000. Quand vous lancez <code>MediaAccess.exe</code> avec une ou plusieurs options&nbsp;:</p>
 <ul>
   <li>si une instance de MediaAccess tourne déjà, l'option est transmise instantanément à cette instance (via <code>WM_COPYDATA</code>) et le second processus se termine sans afficher de fenêtre&nbsp;;</li>
@@ -956,7 +962,7 @@
 </section>
 
 <section id="slots" aria-labelledby="slots-h">
-<h2 id="slots-h">19. Slots audio</h2>
+<h2 id="slots-h">20. Slots audio</h2>
 <p>Les <strong>slots audio</strong> permettent d'enregistrer jusqu'à dix périphériques de sortie favoris et de basculer entre eux d'une simple frappe, sans passer par les Options. Idéal pour alterner instantanément entre votre casque, vos enceintes, votre carte de capture, votre interface USB ou un périphérique de loopback virtuel.</p>
 <p><strong>Changement automatique de périphérique :</strong> MediaAccess suit automatiquement le périphérique de sortie. Si le périphérique en cours disparaît (par exemple vous débranchez votre casque), ou si vous changez le périphérique par défaut de Windows pendant la lecture, le son bascule tout seul sur le bon périphérique au lieu de se figer — la position et l'état (lecture/pause) sont conservés, et MediaAccess annonce brièvement « Périphérique audio modifié ». Si vous aviez choisi un périphérique précis qui disparaît, MediaAccess bascule temporairement sur le périphérique par défaut puis revient au vôtre dès qu'il réapparaît ; si aucun périphérique n'est disponible, la lecture se met en pause avec une annonce. Ce comportement se règle via la case « Suivre automatiquement le périphérique audio par défaut » dans <strong>Options → Carte son</strong> (activée par défaut). La vidéo (MPV) suit le périphérique par défaut d'elle-même, et le basculement est différé pendant un enregistrement.</p>
 <p>Chaque slot mémorise un périphérique <strong>par son nom</strong>, et non par son index BASS. Vous pouvez donc débrancher puis rebrancher vos périphériques USB dans un autre ordre&nbsp;: les associations restent valides tant que le nom est reconnu.</p>
@@ -990,7 +996,7 @@
 </section>
 
 <section id="options" aria-labelledby="options-h">
-<h2 id="options-h">20. Options détaillées</h2>
+<h2 id="options-h">21. Options détaillées</h2>
 <p><kbd>Ctrl</kbd>+<kbd>,</kbd> ou <strong>Outils → Options</strong> ouvre les préférences. Douze onglets. (Les raccourcis clavier ne sont plus configurés ici : utilisez <kbd>F4</kbd> ou <strong>Outils → Actions</strong>, voir <a href="#hotkeys">section 17</a>.)</p>
 <p>Pour passer d'un onglet à l'autre au clavier, utilisez <kbd>Ctrl</kbd>+<kbd>Tab</kbd> (onglet suivant) et <kbd>Ctrl</kbd>+<kbd>Maj</kbd>+<kbd>Tab</kbd> (onglet précédent) ; la navigation boucle du dernier onglet au premier et inversement, et le lecteur d'écran annonce le nom du nouvel onglet.</p>
 
@@ -1084,7 +1090,7 @@
 </section>
 
 <section id="accessibilite" aria-labelledby="accessibilite-h">
-<h2 id="accessibilite-h">21. Accessibilité</h2>
+<h2 id="accessibilite-h">22. Accessibilité</h2>
 
 <h3>Lecteurs d'écran pris en charge</h3>
 <p>MediaAccess détecte automatiquement le lecteur d'écran actif :</p>
@@ -1134,7 +1140,7 @@
 </section>
 
 <section id="mises-a-jour" aria-labelledby="maj-h">
-<h2 id="maj-h">22. Mises à jour</h2>
+<h2 id="maj-h">23. Mises à jour</h2>
 
 <h3>Vérification automatique</h3>
 <p>Au démarrage, MediaAccess vérifie en arrière-plan s'il existe une nouvelle version sur GitHub (option <strong>Options → Lecture → Rechercher des mises à jour au démarrage</strong>, activée par défaut).</p>
@@ -1148,7 +1154,7 @@
 </section>
 
 <section id="depannage" aria-labelledby="depannage-h">
-<h2 id="depannage-h">23. Dépannage</h2>
+<h2 id="depannage-h">24. Dépannage</h2>
 
 <h3>Journal</h3>
 <p>MediaAccess écrit un journal dans :</p>
@@ -1184,7 +1190,7 @@
 </section>
 
 <section id="livres" aria-labelledby="livres-h">
-<h2 id="livres-h">24. Lecture de livres DAISY</h2>
+<h2 id="livres-h">25. Lecture de livres DAISY</h2>
 
 <p>MediaAccess intègre un lecteur de livres audio accessibles au format DAISY, comparable à des applications dédiées comme Victor Reader ou VoiceDream. Les livres peuvent être ouverts un à un ou organisés dans une bibliothèque, et tous les raccourcis habituels de transport, tempo, hauteur, égaliseur et annonces vocales s'appliquent pendant la lecture.</p>
 
@@ -1300,7 +1306,7 @@
 </section>
 
 <section id="minuterie" aria-labelledby="minuterie-h">
-<h2 id="minuterie-h">25. Minuterie de sommeil</h2>
+<h2 id="minuterie-h">26. Minuterie de sommeil</h2>
 
 <p>La minuterie de sommeil arrête automatiquement la lecture après une durée que vous choisissez — utile pour s'endormir sur un livre audio, un podcast, une radio ou un film sans avoir à se relever pour couper le son. Elle fonctionne avec n'importe quel moteur de lecture actif&nbsp;: BASS (audio), libmpv (vidéo), le lecteur de livres DAISY/EPUB et la synthèse vocale SAPI pour les livres en texte seul.</p>
 
@@ -1321,7 +1327,7 @@
 </section>
 
 <section id="raccourcis" aria-labelledby="raccourcis-h">
-<h2 id="raccourcis-h">26. Référence des raccourcis</h2>
+<h2 id="raccourcis-h">27. Référence des raccourcis</h2>
 
 <h3>Fichier</h3>
 <table>

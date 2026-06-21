@@ -311,6 +311,12 @@ static const Action g_actions[] = {
     { "CLEAR_LOOP",               IDM_CLEAR_LOOP,             ActionCategory::Main,
       "Clear A-B loop",               "Effacer la boucle A-B",
       { VK_OEM_3, false, false, false } }, // physical key below Esc (USA OEMTilde)
+    { "GOTO_LOOP_START",          IDM_GOTO_LOOP_START,        ActionCategory::Main,
+      "Go to loop start",             "Aller au début de la boucle",
+      { VK_PRIOR, false, false, false } }, // Page Up
+    { "GOTO_LOOP_END",            IDM_GOTO_LOOP_END,          ActionCategory::Main,
+      "Go to loop end",               "Aller à la fin de la boucle",
+      { VK_NEXT,  false, false, false } }, // Page Down
 
     // ========================================================================
     // CATEGORY: Main — effect toggles

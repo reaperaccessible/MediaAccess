@@ -1837,6 +1837,14 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
                     ArmLoopSync();
                     SpeakW(T("Loop cleared"));
                     break;
+                case IDM_GOTO_LOOP_START:
+                    if (g_loopStart < 0) { SpeakW(T("No loop")); break; }
+                    SeekToPosition(g_loopStart);
+                    break;
+                case IDM_GOTO_LOOP_END:
+                    if (g_loopEnd < 0) { SpeakW(T("No loop")); break; }
+                    SeekToPosition(g_loopEnd);
+                    break;
                 // Effect toggles
                 case IDM_TOGGLE_VOLUME:
                     ToggleStreamEffect(0);

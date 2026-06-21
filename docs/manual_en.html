@@ -191,6 +191,7 @@
     <li><a href="#getting-started">Getting started</a></li>
     <li><a href="#sliders">The two virtual sliders</a></li>
     <li><a href="#audio">Audio playback</a></li>
+    <li><a href="#loop">A-B loop</a></li>
     <li><a href="#video">Video playback</a></li>
     <li><a href="#effects">Effects and DSP</a></li>
     <li><a href="#presets">Effect presets</a></li>
@@ -397,19 +398,24 @@
 <p><strong>Technical note:</strong> by default, volume is applied after the effects chain, meaning your recordings (<kbd>R</kbd> key) capture audio at full amplitude regardless of listening volume. To change this, enable "Legacy volume" in <strong>Options → Advanced</strong>.</p>
 </div>
 
-<h3>A-B loop</h3>
+</section>
+
+<section id="loop" aria-labelledby="loop-h">
+<h2 id="loop-h">5. A-B loop</h2>
 <p>The A-B loop repeats a passage of your choice continuously — handy for re-listening to an excerpt or practising a passage while changing the speed or pitch.</p>
 <ul>
 <li><kbd>Shift</kbd>+<kbd>[</kbd>: set the <strong>loop start</strong> at the current playback position.</li>
 <li><kbd>Shift</kbd>+<kbd>]</kbd>: set the <strong>loop end</strong>.</li>
 <li><kbd>L</kbd>: <strong>toggle</strong> the loop on or off.</li>
 <li>The key <strong>below Escape</strong>: <strong>clear</strong> the loop. (No shortcut? You can assign one in <strong>Tools → Actions</strong>, the "Clear A-B loop" action.)</li>
+<li><kbd>Page Up</kbd>: jump playback to the <strong>loop start</strong>.</li>
+<li><kbd>Page Down</kbd>: jump playback to the <strong>loop end</strong>.</li>
 </ul>
-<p>The two marker keys are the ones immediately to the right of <kbd>P</kbd>, regardless of keyboard layout (just like the effect-parameter keys). Once both markers are set and the loop is enabled, playback returns to the start automatically when it reaches the end. The wrap is seamless and stays accurate even while you change speed or pitch, regardless of the tempo algorithm (SoundTouch, Speedy or Signalsmith). Looping applies to audio only: it is not available for video or live streams. Markers are not remembered: they are cleared on every track change and on stop.</p>
+<p>The two marker keys are the ones immediately to the right of <kbd>P</kbd>, regardless of keyboard layout (just like the effect-parameter keys). Once both markers are set and the loop is enabled, playback returns to the start automatically when it reaches the end. The wrap is seamless and stays accurate even while you change speed or pitch, regardless of the tempo algorithm (SoundTouch, Speedy or Signalsmith). Looping applies to audio only: it is not available for video or live streams. If you use Page Up or Page Down with no loop set, MediaAccess announces "No loop". Markers are not remembered: they are cleared on every track change and on stop.</p>
 </section>
 
 <section id="video" aria-labelledby="video-h">
-<h2 id="video-h">5. Video playback</h2>
+<h2 id="video-h">6. Video playback</h2>
 
 <h3>Video formats</h3>
 <p>Video playback uses libmpv (bundled). Recognized formats:</p>
@@ -443,7 +449,7 @@
 </section>
 
 <section id="effects" aria-labelledby="effects-h">
-<h2 id="effects-h">6. Effects and DSP</h2>
+<h2 id="effects-h">7. Effects and DSP</h2>
 
 <h3>Stream effects</h3>
 <table>
@@ -538,7 +544,7 @@
 </section>
 
 <section id="presets" aria-labelledby="presets-h">
-<h2 id="presets-h">7. Effect presets</h2>
+<h2 id="presets-h">8. Effect presets</h2>
 <p>You can save your effect combinations and recall them instantly.</p>
 <ul>
   <li><kbd>P</kbd> opens the presets menu.</li>
@@ -550,7 +556,7 @@
 </section>
 
 <section id="playlists" aria-labelledby="playlists-h">
-<h2 id="playlists-h">8. Playlists</h2>
+<h2 id="playlists-h">9. Playlists</h2>
 <p><kbd>Ctrl</kbd>+<kbd>P</kbd> opens the playlist manager.</p>
 <table>
 <caption>Keys in the playlist manager</caption>
@@ -568,7 +574,7 @@
 </section>
 
 <section id="bookmarks" aria-labelledby="bookmarks-h">
-<h2 id="bookmarks-h">9. Bookmarks and history</h2>
+<h2 id="bookmarks-h">10. Bookmarks and history</h2>
 
 <h3>Bookmarks</h3>
 <table>
@@ -591,7 +597,7 @@
 </section>
 
 <section id="youtube" aria-labelledby="youtube-h">
-<h2 id="youtube-h">10. YouTube</h2>
+<h2 id="youtube-h">11. YouTube</h2>
 <p>MediaAccess has full built-in YouTube support — search, playback, and download — with no external setup required.</p>
 
 <h3>Search and playback</h3>
@@ -675,7 +681,7 @@
 </section>
 
 <section id="radio" aria-labelledby="radio-h">
-<h2 id="radio-h">11. Internet radio</h2>
+<h2 id="radio-h">12. Internet radio</h2>
 <p><kbd>Ctrl</kbd>+<kbd>R</kbd> or <strong>File → Radio</strong> opens the radio browser.</p>
 
 <h3>Two tabs</h3>
@@ -733,7 +739,7 @@
 </section>
 
 <section id="podcasts" aria-labelledby="podcasts-h">
-<h2 id="podcasts-h">12. Podcasts</h2>
+<h2 id="podcasts-h">13. Podcasts</h2>
 <p><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>P</kbd> or <strong>File → Podcasts</strong> opens the manager.</p>
 
 <h3>Two tabs</h3>
@@ -781,7 +787,7 @@
 </section>
 
 <section id="recording" aria-labelledby="recording-h">
-<h2 id="recording-h">13. Recording</h2>
+<h2 id="recording-h">14. Recording</h2>
 <p><kbd>R</kbd> starts/stops recording the audio output.</p>
 <p><kbd>Shift</kbd>+<kbd>R</kbd> pauses the recording, then resumes it (punch-in/out recording). The final file contains only the recorded spans, concatenated: e.g. start recording, pause during a part you don't want, resume, and on stop you get a single file with the skipped part removed. Also works for system-audio recording. The status bar shows "(paused)" while paused.</p>
 
@@ -818,7 +824,7 @@
 </section>
 
 <section id="midi" aria-labelledby="midi-h">
-<h2 id="midi-h">14. MIDI</h2>
+<h2 id="midi-h">15. MIDI</h2>
 <p>Files <code>.mid</code>, <code>.midi</code>, <code>.rmi</code>, and <code>.kar</code> play via BASSMIDI.</p>
 
 <h3>SoundFont</h3>
@@ -833,7 +839,7 @@
 </section>
 
 <section id="scheduler" aria-labelledby="scheduler-h">
-<h2 id="scheduler-h">15. Scheduler</h2>
+<h2 id="scheduler-h">16. Scheduler</h2>
 <p><kbd>Ctrl</kbd>+<kbd>S</kbd> or <strong>File → Schedule</strong> opens scheduled event management.</p>
 
 <h3>Create an event</h3>
@@ -863,7 +869,7 @@
 </section>
 
 <section id="tray" aria-labelledby="tray-h">
-<h2 id="tray-h">16. System tray</h2>
+<h2 id="tray-h">17. System tray</h2>
 <p><kbd>Ctrl</kbd>+<kbd>H</kbd> or <strong>File → Hide to Tray</strong> hides MediaAccess and places an icon in the system tray.</p>
 
 <h3>Tray icon context menu</h3>
@@ -881,7 +887,7 @@
 </section>
 
 <section id="hotkeys" aria-labelledby="hotkeys-h">
-<h2 id="hotkeys-h">17. Actions and keyboard shortcuts</h2>
+<h2 id="hotkeys-h">18. Actions and keyboard shortcuts</h2>
 <p>Every keyboard shortcut in MediaAccess can be remapped through a REAPER-style <strong>Actions</strong> window, opened with <kbd>F4</kbd> or via <strong>Tools → Actions</strong>.</p>
 
 <h3>Browsing and filtering</h3>
@@ -911,7 +917,7 @@
 </section>
 
 <section id="cli" aria-labelledby="cli-h">
-<h2 id="cli-h">18. Command line</h2>
+<h2 id="cli-h">19. Command line</h2>
 <p>MediaAccess accepts a set of switches on its command line, in the style of foobar2000's <em>Foorun</em> tool. When you launch <code>MediaAccess.exe</code> with one or more switches:</p>
 <ul>
   <li>if a MediaAccess instance is already running, the switch is relayed instantly to that instance (via <code>WM_COPYDATA</code>) and the second process exits silently without opening a window;</li>
@@ -956,7 +962,7 @@
 </section>
 
 <section id="slots" aria-labelledby="slots-h">
-<h2 id="slots-h">19. Audio slots</h2>
+<h2 id="slots-h">20. Audio slots</h2>
 <p><strong>Audio slots</strong> let you bookmark up to ten favorite output devices and switch between them with a single keystroke, without opening Options. Ideal for instant switching between your headphones, your speakers, your capture card, your USB interface, or a virtual loopback device.</p>
 <p>Each slot remembers a device <strong>by name</strong>, not by BASS index. You can unplug and replug your USB devices in a different order: the bindings remain valid as long as the name is recognized.</p>
 
@@ -994,7 +1000,7 @@
 </section>
 
 <section id="options" aria-labelledby="options-h">
-<h2 id="options-h">20. Options reference</h2>
+<h2 id="options-h">21. Options reference</h2>
 <p><kbd>Ctrl</kbd>+<kbd>,</kbd> or <strong>Tools → Options</strong> opens preferences. Twelve tabs. (Keyboard shortcuts are no longer configured here: use <kbd>F4</kbd> or <strong>Tools → Actions</strong>, see <a href="#hotkeys">section 17</a>.)</p>
 <p>To move between tabs from the keyboard, use <kbd>Ctrl</kbd>+<kbd>Tab</kbd> (next tab) and <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Tab</kbd> (previous tab); navigation wraps from the last tab to the first and back, and the screen reader announces the new tab name.</p>
 
@@ -1088,7 +1094,7 @@
 </section>
 
 <section id="accessibility" aria-labelledby="accessibility-h">
-<h2 id="accessibility-h">21. Accessibility</h2>
+<h2 id="accessibility-h">22. Accessibility</h2>
 
 <h3>Supported screen readers</h3>
 <p>MediaAccess auto-detects the active screen reader:</p>
@@ -1138,7 +1144,7 @@
 </section>
 
 <section id="updates" aria-labelledby="updates-h">
-<h2 id="updates-h">22. Updates</h2>
+<h2 id="updates-h">23. Updates</h2>
 
 <h3>Automatic check</h3>
 <p>On startup, MediaAccess checks in the background for a new version on GitHub (option <strong>Options → Playback → Check for updates on startup</strong>, on by default).</p>
@@ -1152,7 +1158,7 @@
 </section>
 
 <section id="troubleshooting" aria-labelledby="troubleshooting-h">
-<h2 id="troubleshooting-h">23. Troubleshooting</h2>
+<h2 id="troubleshooting-h">24. Troubleshooting</h2>
 
 <h3>Log file</h3>
 <p>MediaAccess writes a log to:</p>
@@ -1188,7 +1194,7 @@
 </section>
 
 <section id="books" aria-labelledby="books-h">
-<h2 id="books-h">24. DAISY book playback</h2>
+<h2 id="books-h">25. DAISY book playback</h2>
 
 <p>MediaAccess includes a built-in reader for DAISY accessible audiobooks, comparable to dedicated apps such as Victor Reader or VoiceDream. Books can be opened individually or organized in a library, and all the usual MediaAccess transport, tempo, pitch, EQ, and announcement shortcuts apply during reading.</p>
 
@@ -1304,7 +1310,7 @@
 </section>
 
 <section id="sleep-timer" aria-labelledby="sleep-timer-h">
-<h2 id="sleep-timer-h">25. Sleep timer</h2>
+<h2 id="sleep-timer-h">26. Sleep timer</h2>
 
 <p>The sleep timer automatically stops playback after a duration you choose — useful for falling asleep to an audiobook, a podcast, a radio stream, or a movie without having to get back up to turn the sound off. It works with any active playback engine: BASS (audio), libmpv (video), the DAISY/EPUB book player, and the SAPI text-to-speech engine for text-only books.</p>
 
@@ -1325,7 +1331,7 @@
 </section>
 
 <section id="shortcuts" aria-labelledby="shortcuts-h">
-<h2 id="shortcuts-h">26. Keyboard shortcuts reference</h2>
+<h2 id="shortcuts-h">27. Keyboard shortcuts reference</h2>
 
 <h3>File</h3>
 <table>

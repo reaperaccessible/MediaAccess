@@ -42,6 +42,8 @@ void RegisterPlayerTranslations() {
     AddTranslation("fr", "A-B loop is not available for video", L"La boucle A-B n'est pas disponible pour la vidéo");
     AddTranslation("en", "A-B loop is not available for live streams", L"A-B loop is not available for live streams");
     AddTranslation("fr", "A-B loop is not available for live streams", L"La boucle A-B n'est pas disponible pour les flux en direct");
+    AddTranslation("en", "No loop", L"No loop");
+    AddTranslation("fr", "No loop", L"Aucune boucle");
 
     // v2.32 — automatic output-device re-routing announcements (GitHub issue #7)
     AddTranslation("en", "Audio device changed", L"Audio device changed");
