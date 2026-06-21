@@ -11,6 +11,13 @@
 bool IsPlaylistFile(const std::wstring& path);
 std::vector<std::wstring> ParsePlaylist(const std::wstring& playlistPath);
 
+// v2.51 — true if MediaAccess can open this file by extension (the full
+// audio + video set the file dialog advertises). Used to filter multi-file
+// selections (Ctrl+O, Explorer Ctrl+A+Enter, Open with...) so unsupported
+// files (e.g. .jpg) are silently skipped instead of aborting the whole open.
+// Playlists and .cue are handled on their own paths before this is consulted.
+bool IsOpenableMediaPath(const std::wstring& path);
+
 // Status bar
 void CreateStatusBar(HWND hwnd, HINSTANCE hInstance);
 void UpdateStatusBar();

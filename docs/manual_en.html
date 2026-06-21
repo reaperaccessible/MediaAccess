@@ -252,8 +252,12 @@
   <li><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>O</kbd> or <strong>File → Add Folder</strong> to recursively load every audio file in a folder;</li>
   <li><kbd>Ctrl</kbd>+<kbd>U</kbd> to open an <code>http://</code> or <code>https://</code> URL;</li>
   <li>Drag and drop a file on the window, or use "Open with" from Explorer if MediaAccess is registered for the file type (checkbox in <strong>Options → Playback</strong>).</li>
-  <li><strong>Right-click</strong> a media file in Explorer and choose <strong>"Play with MediaAccess"</strong>. On Windows&nbsp;11 the entry is under <strong>"Show more options"</strong> (or press <kbd>Shift</kbd>+<kbd>F10</kbd>). The file opens in MediaAccess, in the already-running instance if there is one; this entry does not change your default player.</li>
+  <li><strong>Right-click</strong> one or more files in Explorer and choose <strong>"Play with MediaAccess"</strong>. This command is available on <strong>any file type</strong>, so it stays present even when the selection contains an unsupported file (for example a <code>.jpg</code> image). MediaAccess loads the supported files and <strong>silently skips the rest</strong>. On Windows&nbsp;11 the entry is under <strong>"Show more options"</strong>; the <kbd>Shift</kbd>+<kbd>Menu</kbd> (Application) key — or <kbd>Shift</kbd>+<kbd>F10</kbd> — opens exactly that menu directly. To play a whole folder at once: <kbd>Ctrl</kbd>+<kbd>A</kbd> to select all, then <kbd>Shift</kbd>+<kbd>Menu</kbd> and <strong>"Play with MediaAccess"</strong>. The already-running instance is reused; this entry does not change your default player.</li>
 </ul>
+
+<div class="note">
+<p><strong>Note:</strong> selecting several files of different types (for example audio tracks <em>and</em> an image) and pressing <kbd>Enter</kbd> opens nothing at all. This is a limitation of Windows itself: on a "mixed" selection it cannot decide which application to use, so it launches none. No application can override this. Use <strong>"Play with MediaAccess"</strong> (right-click, described above) instead — it works whatever the selection.</p>
+</div>
 
 <h3>.cue files (albums) and the track list</h3>
 <p>MediaAccess supports <code>.cue</code> files (albums ripped to a single audio file, or recordings split into tracks). Open the <code>.cue</code> like any other file (<kbd>Ctrl</kbd>+<kbd>O</kbd>, drag and drop, "Play with MediaAccess", or <kbd>Ctrl</kbd>+<kbd>V</kbd> to paste a copied <code>.cue</code>). MediaAccess loads the audio and exposes the tracks:</p>

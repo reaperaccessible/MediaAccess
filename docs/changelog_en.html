@@ -8,6 +8,10 @@
 </head>
 <body>
 <h1>MediaAccess - Changelog</h1>
+<h2>Version 2.51</h2>
+<p>Fix: on a custom keymap (created from the French France or Canadian layout), the A-B loop default shortcuts fell back to the US ones, so the loop markers did not land on the right AZERTY keys. Defaults now follow the keymap&#x27;s region (not its name), so a custom keymap inherits the correct shortcuts; already-affected keymaps are corrected automatically on startup. Reported by a French user.</p>
+<p>Fix: when opening several files at once (Ctrl+O, or "select all" in Explorer then Enter), a single unsupported file (for example a .jpg image) prevented MediaAccess from opening. Supported files are now loaded and the rest are simply skipped.</p>
+<p>Improvement: the right-click "Play with MediaAccess" command is now available on <strong>all</strong> file types (no longer only media files), so it stays present even when the selection includes an unsupported file. To play a whole folder at once: Ctrl+A, then Shift+Menu ("Show more options") and "Play with MediaAccess"; unsupported files are skipped. Note: on a selection of mixed file types the Enter key opens nothing — that is a Windows limitation, use the right-click command instead. (Reinstall required to update the context menu.)</p>
 <h2>Version 2.50</h2>
 <p>New: A-B loop (audio). Set the loop start with Shift+[ and the end with Shift+], at the current playback position (the two keys right of P, regardless of keyboard layout). The L key toggles repeat on or off, and the key below Escape clears the loop. Page Up and Page Down jump playback to the loop start and end. Once both markers are set and the loop is enabled, playback returns to the start automatically when it reaches the end. The looped section repeats seamlessly and stays accurate even while you change speed or pitch during playback, regardless of the active tempo algorithm (SoundTouch, Speedy or Signalsmith). Looping is not available for video or live streams. Markers reset on every track change. Requested by Romain.</p>
 <h2>Version 2.49</h2>

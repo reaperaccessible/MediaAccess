@@ -703,10 +703,18 @@ static bool MergeMissingDefaults(KeyMap& km)
     // ² on FR-FR), and AZERTY loop markers bind to the wrong keys. The
     // BuildDefault*KeyMap functions already encode the per-layout remaps, so
     // we source missing-action shortcuts from the matching regional default.
+    //
+    // v2.50.1 — key the choice on the REGION tag, not the name. A custom
+    // ("perso") keymap cloned from FR-FR keeps region="fr-FR" but has a custom
+    // name, so a name-only test fell through to the USA default and AZERTY
+    // users got QWERTY loop markers. Name is kept as a fallback for files that
+    // somehow lack a REGION line. Reported by a FR-FR user with a perso keymap.
+    const bool isFrCa = (km.region == "fr-CA" || km.name == "FR-CA");
+    const bool isFrFr = (km.region == "fr-FR" || km.name == "FR-FR");
     KeyMap regionDefault =
-        (km.name == "FR-CA") ? BuildDefaultFrCaKeyMap() :
-        (km.name == "FR-FR") ? BuildDefaultFrFrKeyMap() :
-                               BuildDefaultUsaKeyMap();
+        isFrCa ? BuildDefaultFrCaKeyMap() :
+        isFrFr ? BuildDefaultFrFrKeyMap() :
+                 BuildDefaultUsaKeyMap();
     auto regionShortcut = [&](const char* id, const Shortcut& fallback) -> Shortcut {
         auto rit = regionDefault.bindings.find(id);
         if (rit != regionDefault.bindings.end() && !rit->second.empty())
@@ -746,7 +754,7 @@ static bool MergeMissingDefaults(KeyMap& km)
     // loop action currently holds EXACTLY the USA default while the regional
     // default differs, fix it. Safe: these actions are new in 2.50, so a
     // USA-default value is the merge bug, not a deliberate user choice.
-    if (km.name == "FR-CA" || km.name == "FR-FR") {
+    if (isFrCa || isFrFr) {
         static const char* const kLoopIds[] = {
             "SET_LOOP_START", "SET_LOOP_END", "TOGGLE_LOOP", "CLEAR_LOOP"
         };

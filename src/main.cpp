@@ -593,9 +593,12 @@ void ParseCommandLine() {
                     // Parse playlist and add its contents
                     auto entries = ParsePlaylist(path);
                     g_playlist.insert(g_playlist.end(), entries.begin(), entries.end());
-                } else {
+                } else if (IsOpenableMediaPath(path)) {
                     g_playlist.push_back(path);
                 }
+                // v2.51 — silently skip unsupported files (e.g. .jpg) so one
+                // unsupported file in an Explorer multi-selection no longer
+                // leaves MediaAccess with a dead first track (or not opening).
             }
         }
         LocalFree(argv);
@@ -1253,7 +1256,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
                         } else if (IsPlaylistFile(path)) {
                             auto entries = ParsePlaylist(path);
                             g_playlist.insert(g_playlist.end(), entries.begin(), entries.end());
-                        } else {
+                        } else if (IsOpenableMediaPath(path)) {  // v2.51 — skip unsupported (e.g. .jpg)
                             g_playlist.push_back(path);
                         }
                     } else {
@@ -1262,7 +1265,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
                         } else if (IsPlaylistFile(path)) {
                             auto entries = ParsePlaylist(path);
                             g_pendingFiles.insert(g_pendingFiles.end(), entries.begin(), entries.end());
-                        } else {
+                        } else if (IsOpenableMediaPath(path)) {  // v2.51 — skip unsupported (e.g. .jpg)
                             g_pendingFiles.push_back(path);
                         }
                         SetTimer(hwnd, IDT_BATCH_FILES, g_disableBatchDelay ? 0 : BATCH_DELAY, nullptr);

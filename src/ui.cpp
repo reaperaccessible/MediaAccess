@@ -285,6 +285,34 @@ bool IsSupportedMediaExt(const std::wstring& ext) {
     return false;
 }
 
+// v2.51 — full set MediaAccess can open by extension (audio superset + video),
+// matching the "All Supported" filter of the Open dialog. Used to drop
+// unsupported files from multi-selections so one .jpg doesn't abort the open.
+// NOTE: deliberately broader than IsSupportedAudioExt (which stays audio-only
+// for folder scans / "load whole album"): this one must also accept tracker /
+// DSD / CD audio and every video format the dialog advertises.
+bool IsOpenableMediaPath(const std::wstring& path) {
+    size_t dot = path.find_last_of(L'.');
+    if (dot == std::wstring::npos) return false;
+    std::wstring ext = path.substr(dot);
+    for (auto& c : ext) c = towlower(c);
+    static const wchar_t* exts[] = {
+        // Audio (mirrors the Open dialog "All Supported" / "Audio Files" lists)
+        L".mp3", L".mp2", L".mp1", L".wav", L".ogg", L".oga", L".flac", L".m4a",
+        L".m4b", L".m4r", L".wma", L".aac", L".opus", L".aiff", L".aif", L".ape",
+        L".wv", L".alac", L".mid", L".midi", L".rmi", L".kar", L".dff", L".dsf",
+        L".cda", L".mod", L".s3m", L".xm", L".it", L".mtm", L".umx",
+        // Video
+        L".mp4", L".wmv", L".mkv", L".avi", L".mov", L".webm", L".flv", L".ts",
+        L".m2ts", L".vob", L".ogv", L".3gp", L".mpg", L".mpeg", L".m4v", L".divx",
+        L".rmvb"
+    };
+    for (const auto& e : exts) {
+        if (ext == e) return true;
+    }
+    return false;
+}
+
 // Expand a single file to all audio files in its folder
 // Returns the index of the original file in the expanded list
 int ExpandFileToFolder(const std::wstring& filePath, std::vector<std::wstring>& outFiles) {
@@ -487,9 +515,11 @@ void ShowOpenDialog() {
                 if (IsPlaylistFile(fullPath)) {
                     auto entries = ParsePlaylist(fullPath);
                     g_playlist.insert(g_playlist.end(), entries.begin(), entries.end());
-                } else {
+                } else if (IsOpenableMediaPath(fullPath)) {
                     g_playlist.push_back(fullPath);
                 }
+                // v2.51 — silently skip unsupported files (e.g. .jpg) so one
+                // bad file in the selection no longer aborts the whole open.
                 p += wcslen(p) + 1;
             }
         }
