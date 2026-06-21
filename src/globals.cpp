@@ -70,6 +70,11 @@ float g_originalFreq = 44100.0f;  // Default, updated when loading files
 bool g_isLiveStream = false;      // True if current stream is non-seekable
 int g_currentBitrate = 0;         // Cached bitrate of current file (kbps)
 
+// A-B loop (v2.50, Feature #10). Markers in SOURCE seconds, -1 = unset.
+double g_loopStart = -1.0;
+double g_loopEnd   = -1.0;
+bool   g_loopEnabled = false;
+
 // Playlist
 std::vector<std::wstring> g_playlist;
 int g_currentTrack = -1;

@@ -80,6 +80,12 @@ extern float g_originalFreq;  // Original sample rate for rate control
 extern bool g_isLiveStream;   // True if current stream is non-seekable (live stream)
 extern int g_currentBitrate;  // Cached bitrate of current file (kbps)
 
+// A-B loop (v2.50, Feature #10). Markers in SOURCE seconds, -1 = unset.
+// Session-only: reset on track change / stop, never persisted.
+extern double g_loopStart;
+extern double g_loopEnd;
+extern bool   g_loopEnabled;
+
 // Playlist
 extern std::vector<std::wstring> g_playlist;
 extern int g_currentTrack;

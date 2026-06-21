@@ -39,7 +39,8 @@ void VolumeDown();
 void SetVolume(float vol);
 void ToggleMute();
 void Seek(double seconds);
-void SeekToPosition(double position);
+// SeekToPosition is declared in player.h (included above) — its v2.50 second
+// parameter (announce) made a local redeclaration here ambiguous.
 extern HWND g_hwnd;
 extern bool g_allowAmplify;
 

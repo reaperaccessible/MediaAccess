@@ -22,6 +22,27 @@ void RegisterPlayerTranslations() {
     AddTranslation("en", "Failed to switch audio device", L"Failed to switch audio device");
     AddTranslation("fr", "Failed to switch audio device", L"Impossible de changer de périphérique audio");
 
+    // v2.50 — A-B loop (Feature #10). Trailing spaces on "Loop start at "/
+    // "Loop end at " are intentional: they precede the concatenated FormatTime.
+    AddTranslation("en", "Loop start at ", L"Loop start at ");
+    AddTranslation("fr", "Loop start at ", L"Début de boucle à ");
+    AddTranslation("en", "Loop end at ",   L"Loop end at ");
+    AddTranslation("fr", "Loop end at ",   L"Fin de boucle à ");
+    AddTranslation("en", "Loop on",  L"Loop on");
+    AddTranslation("fr", "Loop on",  L"Boucle activée");
+    AddTranslation("en", "Loop off", L"Loop off");
+    AddTranslation("fr", "Loop off", L"Boucle désactivée");
+    AddTranslation("en", "Loop cleared", L"Loop cleared");
+    AddTranslation("fr", "Loop cleared", L"Boucle effacée");
+    AddTranslation("en", "Loop end must be after loop start", L"Loop end must be after loop start");
+    AddTranslation("fr", "Loop end must be after loop start", L"La fin de boucle doit être après le début");
+    AddTranslation("en", "Loop too short", L"Loop too short");
+    AddTranslation("fr", "Loop too short", L"Boucle trop courte");
+    AddTranslation("en", "A-B loop is not available for video", L"A-B loop is not available for video");
+    AddTranslation("fr", "A-B loop is not available for video", L"La boucle A-B n'est pas disponible pour la vidéo");
+    AddTranslation("en", "A-B loop is not available for live streams", L"A-B loop is not available for live streams");
+    AddTranslation("fr", "A-B loop is not available for live streams", L"La boucle A-B n'est pas disponible pour les flux en direct");
+
     // v2.32 — automatic output-device re-routing announcements (GitHub issue #7)
     AddTranslation("en", "Audio device changed", L"Audio device changed");
     AddTranslation("fr", "Audio device changed", L"Périphérique audio modifié");

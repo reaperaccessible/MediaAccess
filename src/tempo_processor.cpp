@@ -70,6 +70,22 @@ private:
     float m_pitch = 0.0f;   // semitones
     float m_rate = 1.0f;    // multiplier
 
+    // v2.50 — A-B loop. A mixtime BASS_SYNC on the SOURCE stream (the channel
+    // BASS_FX pulls from) seeks back to the loop start. Source-timebase, so it
+    // stays sample-accurate regardless of tempo/pitch/freq on the fx stream.
+    HSYNC  m_loopSync = 0;
+    double m_loopStartSec = -1.0;
+
+    static void CALLBACK LoopSyncProc(HSYNC, DWORD, DWORD, void* user) {
+        auto* self = static_cast<SoundTouchProcessor*>(user);
+        if (!self || !self->m_sourceStream) return;
+        QWORD startB = BASS_ChannelSeconds2Bytes(self->m_sourceStream, self->m_loopStartSec);
+        // Plain seek of the source the tempo engine pulls from; NO BASS_POS_FLUSH
+        // (BASS_FX PREVENT_CLICK handles the seam; flushing the source mid-pull
+        // can pop).
+        BASS_ChannelSetPosition(self->m_sourceStream, startB, BASS_POS_BYTE);
+    }
+
 public:
     ~SoundTouchProcessor() override {
         Shutdown();
@@ -164,6 +180,18 @@ public:
     HSTREAM GetSourceStream() const override {
         return m_sourceStream;
     }
+
+    void SetLoopRegion(double startSec, double endSec, bool enabled) override {
+        if (m_loopSync) {
+            BASS_ChannelRemoveSync(m_sourceStream, m_loopSync);
+            m_loopSync = 0;
+        }
+        if (!enabled || startSec < 0 || endSec < 0 || !m_sourceStream) return;
+        m_loopStartSec = startSec;
+        QWORD endB = BASS_ChannelSeconds2Bytes(m_sourceStream, endSec);
+        m_loopSync = BASS_ChannelSetSync(m_sourceStream,
+            BASS_SYNC_POS | BASS_SYNC_MIXTIME, endB, LoopSyncProc, this);
+    }
 };
 
 // ============================================================================
@@ -199,6 +227,11 @@ private:
     bool m_sourceEnded = false;
     bool m_nonlinearEnabled = true;  // Use Speedy's nonlinear speedup
 
+    // v2.50 — A-B loop region in SOURCE seconds (guarded by m_mutex).
+    bool   m_loopEnabled = false;
+    double m_loopStartSec = -1.0;
+    double m_loopEndSec   = -1.0;
+
     mutable std::mutex m_mutex;
 
     // Buffers
@@ -226,7 +259,39 @@ private:
 
         // Decode a block from source
         DWORD bytesNeeded = DECODE_BLOCK_SIZE * m_channels * sizeof(float);
-        m_decodeBuffer.resize(DECODE_BLOCK_SIZE * m_channels);
+
+        // v2.50 — A-B loop wrap at the SOURCE timebase. Runs under m_mutex
+        // (StreamProc holds the lock). When the source reaches loopEnd, flush
+        // Sonic's internal frames AND our output queue so no post-loopEnd audio
+        // leaks, then seek the source back to loopStart. Clamp the read so a
+        // block never overshoots loopEnd (sample-exact wrap point).
+        const size_t frameBytes = m_channels * sizeof(float);
+        if (m_loopEnabled && m_loopEndSec > 0.0) {
+            QWORD curB = BASS_ChannelGetPosition(m_sourceStream, BASS_POS_BYTE);
+            QWORD endB = BASS_ChannelSeconds2Bytes(m_sourceStream, m_loopEndSec);
+            if (curB != (QWORD)-1 && curB >= endB) {
+                sonicDestroyStream(m_sonicStream);
+                m_sonicStream = sonicCreateStream(static_cast<int>(m_sampleRate), m_channels);
+                if (m_sonicStream && m_nonlinearEnabled) {
+                    sonicEnableNonlinearSpeedup(m_sonicStream, 1.0f);
+                }
+                UpdateSonicParams();
+                m_outputQueue.clear();
+                QWORD startB = BASS_ChannelSeconds2Bytes(m_sourceStream, m_loopStartSec);
+                BASS_ChannelSetPosition(m_sourceStream, startB, BASS_POS_BYTE | BASS_POS_FLUSH);
+                curB = startB;
+                endB = BASS_ChannelSeconds2Bytes(m_sourceStream, m_loopEndSec);
+            }
+            if (curB != (QWORD)-1 && endB > curB) {
+                QWORD bytesUntilEnd = endB - curB;
+                if (bytesUntilEnd < bytesNeeded) {
+                    // Round down to a whole frame so we never split a stereo sample.
+                    bytesNeeded = (DWORD)(bytesUntilEnd - (bytesUntilEnd % frameBytes));
+                }
+                if (bytesNeeded == 0) return true;  // wrap handled next call
+            }
+        }
+        m_decodeBuffer.resize(bytesNeeded / sizeof(float));
 
         DWORD bytesRead = BASS_ChannelGetData(m_sourceStream, m_decodeBuffer.data(),
             bytesNeeded | BASS_DATA_FLOAT);
@@ -452,6 +517,13 @@ public:
         return m_sourceStream;
     }
 
+    void SetLoopRegion(double startSec, double endSec, bool enabled) override {
+        std::lock_guard<std::mutex> lock(m_mutex);
+        m_loopStartSec = startSec;
+        m_loopEndSec   = endSec;
+        m_loopEnabled  = enabled;
+    }
+
 private:
     void UpdateSonicParams() {
         if (!m_sonicStream) return;
@@ -496,6 +568,11 @@ private:
     float m_rate = 1.0f;    // multiplier
     bool m_sourceEnded = false;
 
+    // v2.50 — A-B loop region in SOURCE seconds (guarded by m_mutex).
+    bool   m_loopEnabled = false;
+    double m_loopStartSec = -1.0;
+    double m_loopEndSec   = -1.0;
+
     mutable std::mutex m_mutex;
 
     // Buffers
@@ -516,7 +593,34 @@ private:
         if (m_sourceEnded || m_channels == 0) return false;
 
         DWORD bytesNeeded = DECODE_BLOCK_SIZE * m_channels * sizeof(float);
-        m_decodeBuffer.resize(DECODE_BLOCK_SIZE * m_channels);
+
+        // v2.50 — A-B loop wrap at the SOURCE timebase (runs under m_mutex via
+        // StreamProc). When the source reaches loopEnd, reset the stretcher to
+        // flush its FFT-window tail and clear the output queue so no post-end
+        // audio leaks, then seek the source back to loopStart. Clamp the read
+        // so a block never overshoots loopEnd (sample-exact wrap point).
+        const size_t frameBytes = m_channels * sizeof(float);
+        if (m_loopEnabled && m_loopEndSec > 0.0) {
+            QWORD curB = BASS_ChannelGetPosition(m_sourceStream, BASS_POS_BYTE);
+            QWORD endB = BASS_ChannelSeconds2Bytes(m_sourceStream, m_loopEndSec);
+            if (curB != (QWORD)-1 && curB >= endB) {
+                m_stretcher.reset();
+                m_stretcher.setTransposeSemitones(m_pitch);
+                m_outputQueue.clear();
+                QWORD startB = BASS_ChannelSeconds2Bytes(m_sourceStream, m_loopStartSec);
+                BASS_ChannelSetPosition(m_sourceStream, startB, BASS_POS_BYTE);
+                curB = startB;
+                endB = BASS_ChannelSeconds2Bytes(m_sourceStream, m_loopEndSec);
+            }
+            if (curB != (QWORD)-1 && endB > curB) {
+                QWORD bytesUntilEnd = endB - curB;
+                if (bytesUntilEnd < bytesNeeded) {
+                    bytesNeeded = (DWORD)(bytesUntilEnd - (bytesUntilEnd % frameBytes));
+                }
+                if (bytesNeeded == 0) return true;  // wrap handled next call
+            }
+        }
+        m_decodeBuffer.resize(bytesNeeded / sizeof(float));
 
         DWORD bytesRead = BASS_ChannelGetData(m_sourceStream, m_decodeBuffer.data(),
             bytesNeeded | BASS_DATA_FLOAT);
@@ -785,6 +889,13 @@ public:
     HSTREAM GetSourceStream() const override {
         std::lock_guard<std::mutex> lock(m_mutex);
         return m_sourceStream;
+    }
+
+    void SetLoopRegion(double startSec, double endSec, bool enabled) override {
+        std::lock_guard<std::mutex> lock(m_mutex);
+        m_loopStartSec = startSec;
+        m_loopEndSec   = endSec;
+        m_loopEnabled  = enabled;
     }
 };
 

@@ -1394,6 +1394,13 @@ bool LoadFile(const wchar_t* path) {
     // Engine state: BASS active, hide video window if it was visible
     g_activeEngine = PlaybackEngine::BASS;
     g_isVideoPlaying = false;
+
+    // v2.50 — A-B loop is session-only: a new track starts with no loop.
+    // (Auto-advance from OnTrackEnd re-enters here on the UI thread, so this
+    // covers track changes too.) ArmLoopSync clears the fresh processor.
+    g_loopStart = g_loopEnd = -1.0;
+    g_loopEnabled = false;
+    ArmLoopSync();
     if (g_videoHwnd && IsWindowVisible(g_videoHwnd)) {
         ShowWindow(g_videoHwnd, SW_HIDE);
         SetWindowPos(g_hwnd, nullptr, 0, 0, 500, 150, SWP_NOMOVE | SWP_NOZORDER);
@@ -1629,6 +1636,12 @@ void Pause() {
 // subsequent Stop/Play acts like Pause/Resume, replaying buffered content
 // instead of reconnecting to the live feed.
 void Stop() {
+    // v2.50 — clear the A-B loop on Stop (covers both the MPV and BASS
+    // branches). ArmLoopSync is null-safe if no processor is active.
+    g_loopStart = g_loopEnd = -1.0;
+    g_loopEnabled = false;
+    ArmLoopSync();
+
     if (g_activeEngine == PlaybackEngine::MPV) {
         MPVStop();
         if (g_videoHwnd) ShowWindow(g_videoHwnd, SW_HIDE);
@@ -1792,8 +1805,17 @@ void PerformGranularSeek(int unitIdx, int direction) {
     Seek(dir * secs);
 }
 
-// Seek to absolute position in seconds
-void SeekToPosition(double seconds) {
+// v2.50 — push the current A-B loop region into the active tempo processor,
+// which owns the per-algorithm seamless wrap. Null-safe: if no processor is
+// active (e.g. MPV/video or stopped), SetLoopRegion is simply not called.
+void ArmLoopSync() {
+    TempoProcessor* p = GetTempoProcessor();
+    if (p) p->SetLoopRegion(g_loopStart, g_loopEnd, g_loopEnabled);
+}
+
+// Seek to absolute position in seconds. announce=false suppresses the spoken
+// position (used by the A-B loop wrap so it never talks over the loop message).
+void SeekToPosition(double seconds, bool announce) {
     if (g_activeEngine == PlaybackEngine::MPV) {
         double len = MPVGetLength();
         double target = seconds;
@@ -1801,7 +1823,7 @@ void SeekToPosition(double seconds) {
         if (len > 0 && target > len) target = len;
         MPVSeekToPosition(seconds);
         UpdateStatusBar();
-        if (g_speechSeekPosition) SpeakW(FormatTime(target));  // v1.64/65
+        if (announce && g_speechSeekPosition) SpeakW(FormatTime(target));  // v1.64/65
         return;
     }
     if (!g_fxStream) return;
@@ -1814,7 +1836,7 @@ void SeekToPosition(double seconds) {
 
     processor->SetPosition(seconds);
     UpdateStatusBar();
-    if (g_speechSeekPosition) SpeakW(FormatTime(seconds));  // v1.64/65
+    if (announce && g_speechSeekPosition) SpeakW(FormatTime(seconds));  // v1.64/65
 }
 
 // Get current playback position in seconds

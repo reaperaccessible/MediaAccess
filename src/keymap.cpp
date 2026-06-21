@@ -304,6 +304,19 @@ KeyMap BuildDefaultFrCaKeyMap()
     KeyMap km = BuildDefaultUsaKeyMap();
     km.name   = "FR-CA";
     km.region = "fr-CA";
+
+    // v2.50 — the physical key below Esc (scancode 0x29) sends VK_OEM_7 on the
+    // Canadian layouts (Multilingual Standard 00011009 and Canadian French
+    // 00000C0C: '#'), not VK_OEM_3 ('`') as on US QWERTY. Remap CLEAR_LOOP so
+    // the same physical key clears the loop. (The Shift+[ / Shift+] markers
+    // keep the USA VK positions — brackets are unchanged on Canadian layouts.)
+    auto remap = [&](const char* actId, UINT oldVk, UINT newVk) {
+        Shortcut from{ oldVk, false, false, false };
+        Shortcut to  { newVk, false, false, false };
+        km.RemoveShortcut(actId, from);
+        km.AddShortcut(actId, to);
+    };
+    remap("CLEAR_LOOP", VK_OEM_3, VK_OEM_7);
     return km;
 }
 
@@ -357,6 +370,25 @@ KeyMap BuildDefaultFrFrKeyMap()
     // top-row ) key (which IS VK_OEM_4 on AZERTY) triggers EFFECT_PREV.
     remap("EFFECT_PREV", VK_OEM_4, VK_OEM_6);  // physical 0x1A: AZERTY ^
     remap("EFFECT_NEXT", VK_OEM_6, VK_OEM_1);  // physical 0x1B: AZERTY $
+
+    // v2.50 — A-B loop on AZERTY. The Shift+[ / Shift+] markers follow the same
+    // physical bracket positions as EFFECT_PREV/NEXT (0x1A/0x1B). The `remap`
+    // lambda above only swaps no-modifier bindings, so the Shift-qualified
+    // marker swaps are written explicitly here.
+    {
+        Shortcut from{ VK_OEM_4, false, true, false };  // Shift+[ (USA)
+        Shortcut to  { VK_OEM_6, false, true, false };  // physical 0x1A on AZERTY
+        km.RemoveShortcut("SET_LOOP_START", from);
+        km.AddShortcut("SET_LOOP_START", to);
+    }
+    {
+        Shortcut from{ VK_OEM_6, false, true, false };  // Shift+] (USA)
+        Shortcut to  { VK_OEM_1, false, true, false };  // physical 0x1B on AZERTY
+        km.RemoveShortcut("SET_LOOP_END", from);
+        km.AddShortcut("SET_LOOP_END", to);
+    }
+    // Physical key below Esc (scancode 0x29) is VK_OEM_7 ('²') on AZERTY.
+    remap("CLEAR_LOOP", VK_OEM_3, VK_OEM_7);
 
     // Note: Numbers on AZERTY require Shift on the top row, so Ctrl+1 etc.
     // will physically require Ctrl+Shift+&. Users typically use the NumPad
@@ -664,6 +696,24 @@ static bool ResolveSameCategoryDuplicates(KeyMap& km)
 // because they own the file at that point.
 static bool MergeMissingDefaults(KeyMap& km)
 {
+    // v2.50 — region-aware merge. A new action added after this keymap file
+    // was created must adopt the binding for THIS region, not the raw USA
+    // default. Otherwise an OEM-position key (e.g. FR-CA CLEAR_LOOP) lands on
+    // the USA key (accent grave) instead of the regional one (# on FR-CA,
+    // ² on FR-FR), and AZERTY loop markers bind to the wrong keys. The
+    // BuildDefault*KeyMap functions already encode the per-layout remaps, so
+    // we source missing-action shortcuts from the matching regional default.
+    KeyMap regionDefault =
+        (km.name == "FR-CA") ? BuildDefaultFrCaKeyMap() :
+        (km.name == "FR-FR") ? BuildDefaultFrFrKeyMap() :
+                               BuildDefaultUsaKeyMap();
+    auto regionShortcut = [&](const char* id, const Shortcut& fallback) -> Shortcut {
+        auto rit = regionDefault.bindings.find(id);
+        if (rit != regionDefault.bindings.end() && !rit->second.empty())
+            return rit->second[0];
+        return fallback;
+    };
+
     int total = ActionCount();
     bool changed = false;
     for (int i = 0; i < total; ++i) {
@@ -683,10 +733,40 @@ static bool MergeMissingDefaults(KeyMap& km)
         // manual Reset.
         auto it = km.bindings.find(a->stringId);
         if (it != km.bindings.end() && !it->second.empty()) continue;
-        if (!km.FindActionFor(a->defaultUsa, a->category).empty()) continue;
-        km.AddShortcut(a->stringId, a->defaultUsa);
+        Shortcut def = regionShortcut(a->stringId, a->defaultUsa);
+        if (!km.FindActionFor(def, a->category).empty()) continue;
+        km.AddShortcut(a->stringId, def);
         changed = true;
     }
+
+    // v2.50 — one-time correction for the A-B loop actions. An early 2.50
+    // build ran this merge before it was region-aware, so on FR-CA/FR-FR
+    // keymaps the new loop actions were saved with the USA defaults (CLEAR_LOOP
+    // on accent grave instead of #/², AZERTY markers on the wrong keys). If a
+    // loop action currently holds EXACTLY the USA default while the regional
+    // default differs, fix it. Safe: these actions are new in 2.50, so a
+    // USA-default value is the merge bug, not a deliberate user choice.
+    if (km.name == "FR-CA" || km.name == "FR-FR") {
+        static const char* const kLoopIds[] = {
+            "SET_LOOP_START", "SET_LOOP_END", "TOGGLE_LOOP", "CLEAR_LOOP"
+        };
+        for (const char* id : kLoopIds) {
+            const Action* a = ActionByStringId(id);
+            if (!a || !a->defaultUsa.valid()) continue;
+            Shortcut usaDef = a->defaultUsa;
+            Shortcut regDef = regionShortcut(id, usaDef);
+            if (regDef == usaDef) continue;            // nothing regional to fix
+            auto it = km.bindings.find(id);
+            if (it == km.bindings.end()) continue;     // missing → handled above
+            if (it->second.size() == 1 && it->second[0] == usaDef &&
+                km.FindActionFor(regDef, a->category).empty()) {
+                km.RemoveShortcut(id, usaDef);
+                km.AddShortcut(id, regDef);
+                changed = true;
+            }
+        }
+    }
+
     return changed;
 }
 

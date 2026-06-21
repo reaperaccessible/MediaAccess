@@ -295,6 +295,24 @@ static const Action g_actions[] = {
       { 'P', false, false, false } },
 
     // ========================================================================
+    // CATEGORY: Main — A-B loop (v2.50, Feature #10). Markers on the two
+    // physical keys right of P (Shift+[ / Shift+]); L toggles; the physical
+    // key below Esc clears. Layout independence via per-keymap remaps.
+    // ========================================================================
+    { "SET_LOOP_START",           IDM_SET_LOOP_START,         ActionCategory::Main,
+      "Set loop start",               "Début de boucle",
+      { VK_OEM_4, false, true, false } },  // Shift+[ (USA OEMOpenBracket)
+    { "SET_LOOP_END",             IDM_SET_LOOP_END,           ActionCategory::Main,
+      "Set loop end",                 "Fin de boucle",
+      { VK_OEM_6, false, true, false } },  // Shift+] (USA OEMCloseBracket)
+    { "TOGGLE_LOOP",              IDM_TOGGLE_LOOP,            ActionCategory::Main,
+      "Toggle A-B loop",              "Activer/désactiver la boucle A-B",
+      { 'L', false, false, false } },
+    { "CLEAR_LOOP",               IDM_CLEAR_LOOP,             ActionCategory::Main,
+      "Clear A-B loop",               "Effacer la boucle A-B",
+      { VK_OEM_3, false, false, false } }, // physical key below Esc (USA OEMTilde)
+
+    // ========================================================================
     // CATEGORY: Main — effect toggles
     // ========================================================================
     { "TOGGLE_VOLUME",            IDM_TOGGLE_VOLUME,          ActionCategory::Main,

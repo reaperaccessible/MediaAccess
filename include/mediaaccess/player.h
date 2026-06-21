@@ -31,7 +31,13 @@ void FreeCurrentStream();
 // Seeking
 void Seek(double seconds);
 void SeekTracks(int tracks);
-void SeekToPosition(double seconds);
+// announce=false performs a silent seek (no spoken position). Used by the
+// A-B loop wrap so looping never speaks the time over the loop announcement.
+void SeekToPosition(double seconds, bool announce = true);
+
+// v2.50 — push the current A-B loop region (g_loopStart/g_loopEnd/g_loopEnabled)
+// into the active tempo processor. Call after changing any of those globals.
+void ArmLoopSync();
 
 // v1.79 — Granular seek. unitIdx in [0..12]: 0..8 map 1:1 to the time entries
 // of g_seekAmounts (1 s, 5 s, 10 s, 30 s, 1 m, 5 m, 10 m, 30 m, 1 h); 9..11

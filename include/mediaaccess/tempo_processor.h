@@ -56,6 +56,14 @@ public:
 
     // Get the source stream
     virtual HSTREAM GetSourceStream() const = 0;
+
+    // v2.50 — A-B loop region in SOURCE seconds. Default no-op so subclasses
+    // opt in. enabled=false (or start/end < 0) disarms the loop. The wrap is
+    // implemented at the source timebase inside each algorithm so it stays
+    // sample-accurate while tempo/pitch change.
+    virtual void SetLoopRegion(double startSec, double endSec, bool enabled) {
+        (void)startSec; (void)endSec; (void)enabled;
+    }
 };
 
 // Factory function to create a tempo processor

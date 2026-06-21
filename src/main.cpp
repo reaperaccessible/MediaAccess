@@ -860,6 +860,15 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
                     g_recordPaused = false;  // v2.24 — clear paused state if a paused capture was lost
                     Speak(Ts("Recording stopped, device lost"));
                 }
+                // v2.50 — A-B loop last-ditch safety net. The seamless wrap lives
+                // in the tempo processor (source timebase); this 250 ms poll only
+                // catches an edge where the in-pipeline wrap didn't fire. Not the
+                // primary mechanism for any algorithm.
+                if (g_loopEnabled && g_loopStart >= 0 && g_loopEnd > g_loopStart &&
+                    g_activeEngine == PlaybackEngine::BASS &&
+                    GetCurrentPosition() >= g_loopEnd) {
+                    SeekToPosition(g_loopStart, false);  // silent: never talk over the loop
+                }
                 UpdateStatusBar();
                 // Drive the subtitle prefetch scheduler on the UI thread (BASS
                 // playback must stay on one thread). 250 ms granularity is fine
@@ -1788,6 +1797,45 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
                     break;
                 case IDM_EFFECT_MAX:
                     SetCurrentParamToMax();
+                    break;
+                // A-B loop (v2.50, Feature #10). Audio only; live streams and
+                // video are guarded with a spoken notice. Markers in source
+                // seconds; ArmLoopSync pushes them into the tempo processor.
+                case IDM_SET_LOOP_START:
+                    if (g_isLiveStream) { SpeakW(T("A-B loop is not available for live streams")); break; }
+                    if (g_activeEngine == PlaybackEngine::MPV) { SpeakW(T("A-B loop is not available for video")); break; }
+                    g_loopStart = GetCurrentPosition();
+                    if (g_loopEnd >= 0 && g_loopEnd <= g_loopStart) g_loopEnd = -1.0;  // stale end
+                    ArmLoopSync();
+                    SpeakW(std::wstring(T("Loop start at ")) + FormatTime(g_loopStart));
+                    break;
+                case IDM_SET_LOOP_END: {
+                    if (g_isLiveStream) { SpeakW(T("A-B loop is not available for live streams")); break; }
+                    if (g_activeEngine == PlaybackEngine::MPV) { SpeakW(T("A-B loop is not available for video")); break; }
+                    double end = GetCurrentPosition();
+                    double maxEnd = GetTrackLength() - 0.05;
+                    if (maxEnd > 0 && end > maxEnd) end = maxEnd;  // keep clear of BASS_SYNC_END
+                    if (g_loopStart < 0 || end <= g_loopStart) { SpeakW(T("Loop end must be after loop start")); break; }
+                    if (end - g_loopStart < 0.25) { SpeakW(T("Loop too short")); break; }
+                    g_loopEnd = end;
+                    g_loopEnabled = true;
+                    ArmLoopSync();
+                    SpeakW(std::wstring(T("Loop end at ")) + FormatTime(g_loopEnd));
+                    break;
+                }
+                case IDM_TOGGLE_LOOP:
+                    if (g_isLiveStream) { SpeakW(T("A-B loop is not available for live streams")); break; }
+                    if (g_activeEngine == PlaybackEngine::MPV) { SpeakW(T("A-B loop is not available for video")); break; }
+                    if (g_loopStart < 0 || g_loopEnd < 0) { SpeakW(T("Loop cleared")); break; }  // nothing set
+                    g_loopEnabled = !g_loopEnabled;
+                    ArmLoopSync();
+                    SpeakW(T(g_loopEnabled ? "Loop on" : "Loop off"));
+                    break;
+                case IDM_CLEAR_LOOP:
+                    g_loopStart = g_loopEnd = -1.0;
+                    g_loopEnabled = false;
+                    ArmLoopSync();
+                    SpeakW(T("Loop cleared"));
                     break;
                 // Effect toggles
                 case IDM_TOGGLE_VOLUME:

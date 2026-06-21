@@ -94,6 +94,11 @@
 #define IDM_SEEK_FWD_5T          1833
 #define IDM_SEEK_FWD_10T         1834
 #define IDM_SEEK_FWD_CHAPTER     1835
+// v2.50 — A-B loop commands (Feature #10)
+#define IDM_SET_LOOP_START   1836
+#define IDM_SET_LOOP_END     1837
+#define IDM_TOGGLE_LOOP      1838
+#define IDM_CLEAR_LOOP       1839
 #define IDM_EFFECT_PRESETS  238
 
 // Accelerator table

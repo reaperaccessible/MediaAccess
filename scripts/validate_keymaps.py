@@ -45,6 +45,17 @@ FRFR_EXPECTED_REMAPS = {
     "PLAYER_PREV": "W",
     "EFFECT_PREV": "OEMCloseBracket",
     "EFFECT_NEXT": "OEMSemicolon",
+    # v2.50 — A-B loop: markers follow the physical bracket positions, clear
+    # is the key below Esc (VK_OEM_7 / '²' on AZERTY).
+    "SET_LOOP_START": "OEMCloseBracket",
+    "SET_LOOP_END": "OEMSemicolon",
+    "CLEAR_LOOP": "OEMQuotes",
+}
+
+# FR-CA diverges from USA only for the key below Esc (scancode 0x29 = VK_OEM_7
+# on the Canadian layouts, '#'). v2.50 — first FR-CA remap.
+FRCA_EXPECTED_REMAPS = {
+    "CLEAR_LOOP": "OEMQuotes",
 }
 
 # =============================================================================
@@ -264,6 +275,15 @@ def main():
                 if got_key != expected_vk:
                     issues.append(
                         f"[FAIL] {a['stringId']}: FR-FR expected key '{expected_vk}', got '{got_key}' in '{shortcuts[0]}'"
+                    )
+                continue
+            # FR-CA remaps (v2.50): same first-shortcut substitution scheme.
+            if km_name == "FR-CA" and a["stringId"] in FRCA_EXPECTED_REMAPS:
+                expected_vk = FRCA_EXPECTED_REMAPS[a["stringId"]]
+                got_key = shortcuts[0].split("+")[-1]
+                if got_key != expected_vk:
+                    issues.append(
+                        f"[FAIL] {a['stringId']}: FR-CA expected key '{expected_vk}', got '{got_key}' in '{shortcuts[0]}'"
                     )
                 continue
             # All other cases: first shortcut must match the default exactly.
