@@ -79,7 +79,9 @@ extern std::wstring GetFileNameNoExt(const std::wstring& path);
 extern std::wstring FormatTime(double seconds);
 extern void SaveSettings();
 extern bool ReinitBass(int device);
-extern void SetVolume(float vol);
+// Default for 'announce' lives in player.h (the canonical declaration) to avoid
+// a duplicate default-argument error when both headers are visible.
+extern void SetVolume(float vol, bool announce);
 extern void RegisterGlobalHotkeys();
 extern void UnregisterGlobalHotkeys();
 // PlayTrack is already declared in player.h (included above)

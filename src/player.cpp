@@ -396,6 +396,7 @@ void FreeBass() {
     }
     g_sourceStream = 0;
     g_currentBitrate = 0;
+    g_currentSourcePath.clear();  // issue #15 — no source after a full teardown
     BASS_Free();
 }
 
@@ -644,6 +645,10 @@ bool LoadURL(const wchar_t* url, bool silentOnFail) {
     BASS_ChannelPlay(g_fxStream, FALSE);
 
     g_isLoading = false;
+    // Remember the actual BASS source so a device-change reinit reloads THIS
+    // stream, not a stale playlist index (issue #15 — YouTube/radio URLs are
+    // never in g_playlist).
+    g_currentSourcePath = url;
     UpdateWindowTitle();
     UpdateStatusBar();
     return true;
@@ -1417,6 +1422,10 @@ bool LoadFile(const wchar_t* path) {
     }
 
     g_isLoading = false;
+    // Remember the actual BASS source so a device-change reinit reloads THIS
+    // file, not a stale playlist index (issue #15 — a YouTube cache file is
+    // loaded directly here without updating g_currentTrack).
+    g_currentSourcePath = path;
     UpdateWindowTitle();
     UpdateStatusBar();
     return true;
@@ -1571,6 +1580,9 @@ void FreeCurrentStream() {
     g_sourceStream = 0;
     g_isLiveStream = false;
     g_currentBitrate = 0;
+    // Nothing is loaded anymore: drop the remembered source so a later
+    // device-change reinit doesn't resurrect a stopped stream (issue #15).
+    g_currentSourcePath.clear();
     FreeTempoProcessor();
 }
 
@@ -2004,7 +2016,7 @@ void SeekToPrevBookmark() {
 // Set volume (0.0 - 1.0)
 // Volume is applied via DSP (not BASS_ATTRIB_VOL) so recording captures full volume
 // Unless legacy mode is enabled, which uses BASS_ATTRIB_VOL (faster but affects recordings)
-void SetVolume(float vol) {
+void SetVolume(float vol, bool announce) {
     float maxVol = g_allowAmplify ? MAX_VOLUME_AMPLIFY : MAX_VOLUME_NORMAL;
     if (vol < 0.0f) vol = 0.0f;
     if (vol > maxVol) vol = maxVol;
@@ -2030,8 +2042,11 @@ void SetVolume(float vol) {
         BASS_ChannelSetAttribute(g_fxStream, BASS_ATTRIB_VOL, curvedVolume);
     }
 
-    // Announce volume if setting enabled
-    if (g_speechVolume) {
+    // Announce volume if setting enabled. Callers that change the volume
+    // internally (sleep-timer fade and restore) pass announce=false so the
+    // user isn't told the volume on every fade tick or when a timer is
+    // cleared (issue #14).
+    if (announce && g_speechVolume) {
         char buf[64];
         snprintf(buf, sizeof(buf), Ts("Volume %d%%").c_str(), static_cast<int>(g_volume * 100 + 0.5f));
         Speak(buf);
@@ -2392,7 +2407,12 @@ bool ReinitBass(int device) {
         if (processor && processor->IsActive()) {
             position = processor->GetPosition();
         }
-        if (g_currentTrack >= 0 && g_currentTrack < static_cast<int>(g_playlist.size())) {
+        // Reload the actual source that is playing. For YouTube (and radio /
+        // podcast URLs) this is NOT in g_playlist, so prefer the real loaded
+        // path/URL and only fall back to the playlist index (issue #15).
+        if (!g_currentSourcePath.empty()) {
+            currentFile = g_currentSourcePath;
+        } else if (g_currentTrack >= 0 && g_currentTrack < static_cast<int>(g_playlist.size())) {
             currentFile = g_playlist[g_currentTrack];
         }
         // Remove DSP effects before freeing stream (resets handles to 0)

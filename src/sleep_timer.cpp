@@ -88,7 +88,7 @@ static void SaveVolumeIfNeeded() {
 static void RestoreVolume() {
     if (g_s.volumeSaved) {
         g_volume = g_s.savedVolume;
-        SetVolume(g_volume);
+        SetVolume(g_volume, /*announce=*/false);  // restore silently (issue #14)
         g_s.volumeSaved = false;
     }
     g_s.fadeActive = false;
@@ -214,7 +214,7 @@ void SleepOnTick() {
         float factor = (float)remaining / (float)kFadeWindowSec;
         if (factor < 0.0f) factor = 0.0f;
         g_volume = g_s.savedVolume * factor;
-        SetVolume(g_volume);
+        SetVolume(g_volume, /*announce=*/false);  // fade silently (issue #14)
     }
 }
 

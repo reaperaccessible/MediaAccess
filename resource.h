@@ -339,6 +339,8 @@
 #define IDM_YT_CTX_COPY_DESC     778   // v2.27 — Copy selected video's full description (async yt-dlp fetch)
 #define IDM_YT_DL_PLAYING        779   // v2.28 — download the currently-playing YouTube video as audio M4A (Global, user-bindable)
 #define IDM_YT_DL_PLAYING_VIDEO  780   // v2.31 — download the currently-playing YouTube video as VIDEO (Global, user-bindable)
+#define IDM_YT_DL_PLAYING_MP3    781   // v2.54 — download the currently-playing YouTube video as audio MP3 (Global, user-bindable)
+#define IDM_YT_DL_PLAYING_OGG    782   // v2.54 — download the currently-playing YouTube video as audio OGG (Global, user-bindable)
 
 // Bookmarks
 #define IDM_BOOKMARK_ADD    800

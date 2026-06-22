@@ -36,7 +36,7 @@ void NextTrack();
 void PrevTrack();
 void VolumeUp();
 void VolumeDown();
-void SetVolume(float vol);
+// SetVolume is declared in player.h (included above).
 void ToggleMute();
 void Seek(double seconds);
 // SeekToPosition is declared in player.h (included above) — its v2.50 second

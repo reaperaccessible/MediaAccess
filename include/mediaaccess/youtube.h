@@ -219,6 +219,9 @@ void YouTubeDownloadSelectedFromAction(int idmCtxId);
 void YouTubeDownloadCurrentlyPlaying();
 // v2.31: download the currently-playing YouTube video as VIDEO (best quality).
 void YouTubeDownloadCurrentlyPlayingVideo();
+// v2.54: download the currently-playing YouTube video as audio MP3 / OGG.
+void YouTubeDownloadCurrentlyPlayingMp3();
+void YouTubeDownloadCurrentlyPlayingOgg();
 // Part 2 state lifecycle — called from ui.cpp when a non-YouTube source loads / on clear.
 void YouTubeClearCurrentVideo();
 

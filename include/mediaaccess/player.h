@@ -58,8 +58,9 @@ int GetCurrentChapterIndex();
 void SeekToNextBookmark();
 void SeekToPrevBookmark();
 
-// Volume
-void SetVolume(float vol);
+// Volume. announce=false suppresses the spoken volume readout (used by the
+// sleep-timer fade/restore so it doesn't talk on every tick — issue #14).
+void SetVolume(float vol, bool announce = true);
 void ToggleMute();
 
 // Track navigation

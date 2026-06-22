@@ -84,6 +84,7 @@ float g_subtitleVoiceVolume = 1.0f;
 // Playlist
 std::vector<std::wstring> g_playlist;
 int g_currentTrack = -1;
+std::wstring g_currentSourcePath;  // issue #15 — real BASS source for device-change reload
 
 // Loading guards
 bool g_isLoading = false;

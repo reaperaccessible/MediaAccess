@@ -4334,6 +4334,19 @@ void YouTubeDownloadCurrentlyPlayingVideo() {
     StartImmediateDownloadById(YtDlKind::VideoBest, L"", g_currentYtVideoId, g_currentYtTitle);
 }
 
+// v2.54 — same as YouTubeDownloadCurrentlyPlaying but transcodes the audio to
+// MP3 / OGG, mirroring the context-menu "Audio (MP3)" / "Audio (OGG)" items.
+// Requested on issue #12 (fisher729): the Global actions only offered M4A.
+void YouTubeDownloadCurrentlyPlayingMp3() {
+    if (g_currentYtVideoId.empty()) { Speak(Ts("No YouTube video playing")); return; }
+    StartImmediateDownloadById(YtDlKind::AudioTranscode, L"mp3", g_currentYtVideoId, g_currentYtTitle);
+}
+
+void YouTubeDownloadCurrentlyPlayingOgg() {
+    if (g_currentYtVideoId.empty()) { Speak(Ts("No YouTube video playing")); return; }
+    StartImmediateDownloadById(YtDlKind::AudioTranscode, L"vorbis", g_currentYtVideoId, g_currentYtTitle);
+}
+
 // v2.23 — context menu on a YouTube result (Application key / Shift+F10 / right
 // click). Holds a "Download" submenu: Audio M4A/MP3/OGG + Video (highest quality,
 // no prompt) and "Download with options...". v2.26 adds top-level "Copy link" /

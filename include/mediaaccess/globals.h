@@ -96,6 +96,11 @@ extern float g_subtitleVoiceVolume;     // v2.52 — Edge subtitle-voice clip vo
 // Playlist
 extern std::vector<std::wstring> g_playlist;
 extern int g_currentTrack;
+// Actual path/URL of the BASS source currently loaded (may be a YouTube cache
+// file or a radio/podcast URL that is NOT in g_playlist). Used by ReinitBass on
+// an audio-device change so it reloads the real source, not a stale playlist
+// index (issue #15). Empty when nothing is loaded via BASS.
+extern std::wstring g_currentSourcePath;
 
 // Loading guards
 extern bool g_isLoading;

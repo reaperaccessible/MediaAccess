@@ -1451,6 +1451,12 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
                 case IDM_YT_DL_PLAYING:
                     YouTubeDownloadCurrentlyPlaying();
                     break;
+                case IDM_YT_DL_PLAYING_MP3:
+                    YouTubeDownloadCurrentlyPlayingMp3();
+                    break;
+                case IDM_YT_DL_PLAYING_OGG:
+                    YouTubeDownloadCurrentlyPlayingOgg();
+                    break;
                 case IDM_YT_DL_PLAYING_VIDEO:
                     YouTubeDownloadCurrentlyPlayingVideo();
                     break;

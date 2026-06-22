@@ -8,6 +8,10 @@
 </head>
 <body>
 <h1>MediaAccess - Changelog</h1>
+<h2>Version 2.54</h2>
+<p>New: two global actions to download the currently playing YouTube video as <strong>MP3</strong> or <strong>OGG</strong> audio, in addition to the existing M4A and video ones. Assign them in Tools → Actions (F4), Global category. (Reported on GitHub.)</p>
+<p>Fix: clearing the sleep timer (or letting the fade-out run) needlessly announced the volume when "Speak volume when adjusted" was enabled. Volume restoration is now silent. (Reported on GitHub.)</p>
+<p>Fix: while a YouTube video was playing, an audio device change (for example unplugging earphones) made MediaAccess fall back to the last local file instead of keeping the YouTube video playing. Playback now correctly continues on the new device. (Reported on GitHub.)</p>
 <h2>Version 2.53</h2>
 <p>Fix: it was impossible to leave keyboard help mode if you had reassigned the "Keyboard help" action to a key other than F12. The exit key now follows the shortcut you chose, and F12 always works as a fallback so you can never get stuck. (Reported on GitHub.)</p>
 <p>New: an "Export..." button in the Actions window (F4) lets you save your keymap anywhere on your computer (for backup or sharing), without digging through system folders. The save dialog opens in your MediaAccess keymaps folder by default. (Reported on GitHub.)</p>
