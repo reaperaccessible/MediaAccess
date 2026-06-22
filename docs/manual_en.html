@@ -648,7 +648,7 @@
 <h3>Download with the keyboard (assignable shortcuts)</h3>
 <p>If you would rather not go through the context menu, you can download with the keyboard. The actions are available in <strong>Tools → Actions</strong> (<kbd>F4</kbd>); <strong>no shortcut is bound by default</strong> — assign the ones you want:</p>
 <ul>
-  <li><strong>YouTube</strong> category — <strong>Download the selected result</strong> as audio M4A, MP3, OGG, as video, or "with options": acts on the row selected in the results list. These fire only while the YouTube window has focus.</li>
+  <li><strong>YouTube</strong> category — <strong>Download the selected result</strong> as audio M4A, MP3, OGG, as video, or "with options": acts on the row selected in the results list. These fire only while the YouTube window has focus. Their shortcut must include a modifier key (<kbd>Ctrl</kbd>, <kbd>Shift</kbd>, <kbd>Alt</kbd> or <kbd>Windows</kbd>) — a key on its own would clash with letter-by-letter navigation in the results list and is refused when you try to assign it.</li>
   <li><strong>Global</strong> category — <strong>Download the currently playing YouTube video</strong>, in two variants: <strong>as audio M4A</strong> or <strong>as video</strong> (best quality, image + sound). Downloads the video you are listening to directly, from the player, without returning to the results list. If nothing (or a non-YouTube file) is playing, MediaAccess announces "No YouTube video playing".</li>
 </ul>
 
@@ -911,7 +911,7 @@
 
 <h3>Regional and custom keymaps</h3>
 <p>The installer ships three ready-to-use keymaps: <strong>USA</strong>, <strong>FR-CA</strong> (Canadian French), and <strong>FR-FR</strong> (France French). On first launch MediaAccess auto-detects your Windows keyboard layout and picks the matching keymap.</p>
-<p>At the top of the Actions window, a <strong>Keymap</strong> combo lists every available keymap (the union of the shipped ones and any you have created). The selected item is always the active keymap; changing the selection switches at runtime — the global hotkeys re-register immediately and the choice is persisted. Next to the combo, <strong>Import...</strong> copies an external <code>.MediaAccessKeyMap</code> file into your user folder, and <strong>Delete</strong> removes the user copy of the selected keymap (the shipped file is never touched). At the bottom of the window, <strong>New keymap...</strong> creates a fresh keymap by cloning the active one, and <strong>Reset to defaults</strong> restores the regional default for your keyboard layout. Files are plain-text <code>.MediaAccessKeyMap</code> files stored under <code>%APPDATA%\MediaAccess\KeyMaps\</code>, easy to share.</p>
+<p>At the top of the Actions window, a <strong>Keymap</strong> combo lists every available keymap (the union of the shipped ones and any you have created). The selected item is always the active keymap; changing the selection switches at runtime — the global hotkeys re-register immediately and the choice is persisted. Next to the combo, <strong>Import...</strong> copies an external <code>.MediaAccessKeyMap</code> file into your user folder, <strong>Export...</strong> saves the active keymap to a file of your choice (for backup or sharing; the dialog opens in your MediaAccess keymaps folder by default, but you can pick any location), and <strong>Delete</strong> removes the user copy of the selected keymap (the shipped file is never touched). At the bottom of the window, <strong>New keymap...</strong> creates a fresh keymap by cloning the active one, and <strong>Reset to defaults</strong> restores the regional default for your keyboard layout. Files are plain-text <code>.MediaAccessKeyMap</code> files stored under <code>%APPDATA%\MediaAccess\KeyMaps\</code>, easy to share.</p>
 <p>Shortcut hints shown in menus auto-update to match the active keymap.</p>
 
 <h3>Global section</h3>
@@ -1152,6 +1152,7 @@
   <li>If the key has no assigned action: "K: no action assigned".</li>
   <li>Press <kbd>F12</kbd> again to return to normal mode: "Keyboard help off".</li>
 </ul>
+<p>If you have reassigned the "Keyboard help" action to a key other than <kbd>F12</kbd> (in <strong>Tools → Actions</strong>), that key turns the mode on and off. <kbd>F12</kbd> always remains available as a fallback to leave the mode, so you can never get stuck.</p>
 <p>Keyboard help mode only operates in the main window. In dialogs (Options, YouTube search, etc.), keys retain their normal behavior so you can type text.</p>
 </section>
 
@@ -1318,7 +1319,7 @@
 <p>EPUB files that embed synchronized recorded audio (the EPUB 3 "Media Overlays" standard, equivalent to DAISY 3) are played like regular audio books. When such a book is opened, MediaAccess extracts the embedded audio files into a temporary folder and plays them through BASS; the folder is cleaned up automatically when the book is closed. EPUB files without recorded audio continue to be read by the text-to-speech engine described above.</p>
 
 <h3>Remapping the shortcuts</h3>
-<p>Every DAISY shortcut listed above is rebindable via <strong>Tools → Actions</strong> (<kbd>F4</kbd>), section <strong>Books</strong>.</p>
+<p>The DAISY navigation and reading shortcuts listed above are rebindable via <strong>Tools → Actions</strong> (<kbd>F4</kbd>), section <strong>Books</strong>. However, <strong>Open book</strong> (<kbd>Ctrl</kbd>+<kbd>B</kbd>) and <strong>Book library</strong> (<kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>B</kbd>) live in the <strong>Main</strong> section: they are entry actions you use before a book is even open, so they work at any time.</p>
 </section>
 
 <section id="sleep-timer" aria-labelledby="sleep-timer-h">

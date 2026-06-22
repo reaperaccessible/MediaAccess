@@ -798,6 +798,9 @@
 #define IDC_LABEL_ACTIONS_KEYMAP_COMBO      1447
 #define IDC_ACTIONS_KEYMAP_IMPORT           1448
 #define IDC_ACTIONS_KEYMAP_DELETE           1449
+// Export the active keymap to a user-chosen file (issue #13). Numbered out of
+// the 1440s block (1450+ already taken by the New-keymap sub-dialog).
+#define IDC_ACTIONS_KEYMAP_EXPORT           1765
 
 // v1.72 — "New keymap..." prompt sub-dialog
 #define IDD_NEW_KEYMAP_NAME                 1450

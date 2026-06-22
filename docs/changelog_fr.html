@@ -8,6 +8,11 @@
 </head>
 <body>
 <h1>MediaAccess - Journal des modifications</h1>
+<h2>Version 2.53</h2>
+<p>Correction : il était impossible de sortir du mode d'aide au clavier si vous aviez réassigné l'action « Aide clavier » à une autre touche que F12. La touche de sortie suit maintenant le raccourci que vous avez choisi, et F12 fonctionne toujours en secours pour ne jamais rester bloqué. (Signalé sur GitHub.)</p>
+<p>Nouveau : un bouton « Exporter... » dans la fenêtre Actions (F4) permet d'enregistrer votre keymap où vous voulez sur votre ordinateur (sauvegarde ou partage), sans avoir à fouiller dans les dossiers du système. La fenêtre d'enregistrement s'ouvre par défaut sur le dossier des keymaps de MediaAccess. (Signalé sur GitHub.)</p>
+<p>Correction : les actions « Ouvrir un livre » (Ctrl+B) et « Bibliothèque de livres » (Ctrl+Maj+B) sont désormais classées dans la section « Principal » de la fenêtre Actions. Elles fonctionnent maintenant en tout temps, même avant d'avoir ouvert un livre, et un avertissement s'affiche si leur raccourci entre en conflit avec une autre action. (Signalé sur GitHub.)</p>
+<p>Amélioration : les raccourcis de téléchargement YouTube (MP3, M4A, OGG, vidéo) doivent maintenant inclure une touche de modification (Ctrl, Maj, Alt ou Windows). Un raccourci à touche unique était accepté mais restait sans effet dans la liste des résultats ; il est désormais refusé avec un message clair. Les combinaisons avec Maj fonctionnent aussi. (Signalé sur GitHub.)</p>
 <h2>Version 2.52</h2>
 <p>Correction : la recherche de stations radio (par exemple « toutes les radios de France ») ne renvoyait parfois rien ou faisait se figer la fenêtre, car toutes les recherches passaient par un seul serveur Radio-Browser. MediaAccess utilise désormais le point d'entrée à répartition de charge, applique des délais d'attente pour qu'un serveur hors service échoue rapidement, et réessaie automatiquement sur un autre serveur.</p>
 <p>Nouveau : une option « Lire les vidéos YouTube en mode vidéo (active les sous-titres) » dans Options &rarr; YouTube. Par défaut YouTube est lu en audio seul (pour disposer de tous les effets de tempo et de hauteur) ; cochez cette case pour voir la vidéo et afficher les sous-titres. Prend effet à la prochaine lecture YouTube.</p>

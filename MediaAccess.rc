@@ -9,8 +9,8 @@ IDI_APPICON ICON "MediaAccess.ico"
 // ASCII only (rc.exe mojibake risk). FILEVERSION is hardcoded: bump it each
 // release to match include/mediaaccess/version.h (build_new.bat passes no /D to rc).
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION    2,52,0,0
- PRODUCTVERSION 2,52,0,0
+ FILEVERSION    2,53,0,0
+ PRODUCTVERSION 2,53,0,0
  FILEFLAGSMASK  0x3fL
  FILEFLAGS      0x0L
  FILEOS         VOS__WINDOWS32
@@ -23,12 +23,12 @@ BEGIN
     BEGIN
       VALUE "CompanyName",      "ReaperAccessible"
       VALUE "FileDescription",  "MediaAccess - accessible audio and video player"
-      VALUE "FileVersion",      "2.52"
+      VALUE "FileVersion",      "2.53"
       VALUE "InternalName",     "MediaAccess"
       VALUE "LegalCopyright",   "Copyright (C) 2026 ReaperAccessible. GPL-3.0."
       VALUE "OriginalFilename", "MediaAccess.exe"
       VALUE "ProductName",      "MediaAccess"
-      VALUE "ProductVersion",   "2.52"
+      VALUE "ProductVersion",   "2.53"
     END
   END
   BLOCK "VarFileInfo"
@@ -733,8 +733,9 @@ BEGIN
     // Delete removes the user-dir copy (shipped files are never touched).
     LTEXT           "Keymap:", IDC_LABEL_ACTIONS_KEYMAP_COMBO, 10, 10, 30, 10
     COMBOBOX        IDC_ACTIONS_KEYMAP_COMBO, 45, 8, 200, 200, CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
-    PUSHBUTTON      "&Import...", IDC_ACTIONS_KEYMAP_IMPORT, 255, 7, 60, 14
-    PUSHBUTTON      "De&lete",    IDC_ACTIONS_KEYMAP_DELETE, 320, 7, 50, 14
+    PUSHBUTTON      "&Import...", IDC_ACTIONS_KEYMAP_IMPORT, 255, 7, 55, 14
+    PUSHBUTTON      "Ex&port...", IDC_ACTIONS_KEYMAP_EXPORT, 313, 7, 55, 14
+    PUSHBUTTON      "De&lete",    IDC_ACTIONS_KEYMAP_DELETE, 371, 7, 50, 14
 
     LTEXT           "Section:", IDC_LABEL_ACTIONS_CATEGORY, 10, 30, 50, 10
     COMBOBOX        IDC_ACTIONS_CATEGORY, 65, 28, 110, 100, CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP

@@ -787,13 +787,15 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
             [[fallthrough]];
         case WM_KEYDOWN:
             // -----------------------------------------------------------
-            // Keyboard help (F12-toggled "describe key" mode)
+            // Keyboard help ("describe key" mode)
             //
             // When g_keyboardHelpMode is on, every keypress in the main
-            // window is announced instead of executed. F12 itself is
-            // excluded so the user can always toggle the mode off.
+            // window is announced instead of executed. The key bound to the
+            // "Keyboard help" action is excluded so the user can always
+            // toggle the mode off — even after remapping it away from the
+            // F12 default (F12 still works as a safety net). See issue #11.
             // -----------------------------------------------------------
-            if (g_keyboardHelpMode && wParam != VK_F12) {
+            if (g_keyboardHelpMode && !IsKeyboardHelpToggleKey(wParam)) {
                 std::string desc = DescribeKey(wParam, lParam);
                 if (!desc.empty()) Speak(desc);
                 return 0;
@@ -2506,13 +2508,14 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLi
 
         // Skip accelerators when keyboard help is on, so the WM_KEYDOWN
         // describe-the-key path receives Space, arrows, and every other
-        // accelerator-bound key. F12 still needs to pass through so the
-        // user can toggle the mode back off; we let it reach the
-        // accelerator translator unconditionally.
+        // accelerator-bound key. The key bound to "Keyboard help" still
+        // needs to pass through so the user can toggle the mode back off;
+        // we let it reach the accelerator translator. This follows the
+        // user's remapped binding, not a hardcoded F12 (issue #11).
         bool kbHelpBlock = g_keyboardHelpMode &&
                            msg.hwnd == hwnd &&
                            (msg.message == WM_KEYDOWN || msg.message == WM_SYSKEYDOWN) &&
-                           msg.wParam != VK_F12;
+                           !IsKeyboardHelpToggleKey(msg.wParam);
 
         if (ytHasFocus || kbHelpBlock || !TranslateAcceleratorW(hwnd, hAccel, &msg)) {
             TranslateMessage(&msg);

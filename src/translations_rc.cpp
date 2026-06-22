@@ -1327,6 +1327,12 @@ void RegisterRcTranslations() {
     AddTranslation("en", "&Import...", L"&Import...");
     AddTranslation("fr", "&Import...", L"&Importer...");
 
+    // Keymap Export button (issue #13). Distinct mnemonic from the action
+    // "&Edit..." which also lives in this dialog and would otherwise clash
+    // with "&Export..." on Alt+E in English.
+    AddTranslation("en", "Ex&port...", L"Ex&port...");
+    AddTranslation("fr", "Ex&port...", L"&Exporter...");
+
     AddTranslation("en", "De&lete", L"De&lete");
     AddTranslation("fr", "De&lete", L"Su&pprimer");
 

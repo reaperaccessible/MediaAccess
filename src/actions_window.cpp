@@ -468,6 +468,28 @@ static bool IsValidKeymapName(const std::wstring& name)
 
 static bool ResolveConflictAndAssign(HWND dlg, const Action* target, const Shortcut& sc)
 {
+    // issue #12 — YouTube download actions act on the SELECTED result inside
+    // the YouTube results listbox, which uses single-letter type-ahead for
+    // navigation. A bare key (no modifier) bound to one of these actions
+    // would either hijack that navigation or, more commonly, never fire at
+    // all. Require at least one modifier (Ctrl / Shift / Alt / Windows).
+    // Shift counts as a real modifier here; CapsLock is not a modifier and
+    // structurally cannot be captured into a Shortcut. This guard runs before
+    // the conflict lookup so we never disturb an existing binding for an
+    // assignment we are about to reject. OnEdit removed the old binding before
+    // calling us and restores it when we return false, so the user's previous
+    // valid shortcut is preserved on rejection.
+    if (target->category == ActionCategory::YouTube &&
+        !sc.ctrl && !sc.shift && !sc.alt && !sc.win) {
+        std::wstring msg = U8ToW(Ts(
+            "YouTube download shortcuts must include a modifier key (Ctrl, "
+            "Shift, Alt, or Windows). A key on its own would clash with the "
+            "results list navigation."));
+        MessageBoxW(dlg, msg.c_str(), U8ToW(Ts("Invalid shortcut")).c_str(),
+                    MB_OK | MB_ICONWARNING);
+        return false;
+    }
+
     // v1.75 — Same-category duplicates are forbidden by policy. The previous
     // 3-button dialog (Yes / No / Cancel) had a "No = keep both" branch that
     // silently created intra-category duplicates; the dispatcher (which is
@@ -619,6 +641,53 @@ static void OnKeymapImport(HWND dlg)
     }
     PopulateKeymapCombo(dlg);
     std::string spoken = Ts("Keymap") + " " + importedName + " " + Ts("imported");
+    Speak(spoken);
+}
+
+// Export the active keymap to a file the user picks (issue #13). The combo
+// always reflects the active keymap (selecting another row loads it as
+// active), so "export" means "write the current keymap somewhere I choose"
+// — handy for backing up or sharing without digging through %APPDATA%.
+static void OnKeymapExport(HWND dlg)
+{
+    const KeyMap& km = GetActiveKeyMap();
+
+    // Pre-fill the Save dialog with "<name>.MediaAccessKeyMap".
+    std::wstring suggested = U8ToW(km.name);
+    if (suggested.empty()) suggested = L"keymap";
+    suggested += L".MediaAccessKeyMap";
+
+    wchar_t buf[MAX_PATH] = L"";
+    wcsncpy(buf, suggested.c_str(), MAX_PATH - 1);
+
+    // Default the Save dialog to MediaAccess's own keymaps folder
+    // (%APPDATA%\MediaAccess\KeyMaps\) so exporting lands next to the
+    // user's other keymaps by default; they can still browse elsewhere.
+    EnsureUserKeyMapsDir();
+    std::wstring keymapDir = GetUserKeyMapPath(km.name.empty() ? "keymap" : km.name);
+    size_t slash = keymapDir.find_last_of(L"\\/");
+    if (slash != std::wstring::npos) keymapDir.erase(slash);
+
+    OPENFILENAMEW ofn{};
+    ofn.lStructSize    = sizeof(ofn);
+    ofn.hwndOwner      = dlg;
+    ofn.lpstrFile      = buf;
+    ofn.nMaxFile       = MAX_PATH;
+    ofn.lpstrFilter    = L"MediaAccess KeyMap\0*.MediaAccessKeyMap\0All files\0*.*\0";
+    ofn.lpstrDefExt    = L"MediaAccessKeyMap";
+    ofn.lpstrInitialDir = keymapDir.empty() ? nullptr : keymapDir.c_str();
+    ofn.Flags          = OFN_OVERWRITEPROMPT | OFN_PATHMUSTEXIST | OFN_HIDEREADONLY |
+                         OFN_NOCHANGEDIR;
+    if (!GetSaveFileNameW(&ofn)) return;
+
+    std::string err;
+    if (!SaveKeyMap(buf, km, &err)) {
+        std::wstring msg = U8ToW(Ts("Could not export keymap") +
+                                 (err.empty() ? "" : (": " + err)));
+        MessageBoxW(dlg, msg.c_str(), L"MediaAccess", MB_OK | MB_ICONWARNING);
+        return;
+    }
+    std::string spoken = Ts("Keymap") + " " + km.name + " " + Ts("exported");
     Speak(spoken);
 }
 
@@ -851,6 +920,9 @@ static INT_PTR CALLBACK ActionsDlgProc(HWND dlg, UINT msg, WPARAM wp, LPARAM lp)
                     return TRUE;
                 case IDC_ACTIONS_KEYMAP_IMPORT:           // v1.72
                     OnKeymapImport(dlg);
+                    return TRUE;
+                case IDC_ACTIONS_KEYMAP_EXPORT:           // issue #13
+                    OnKeymapExport(dlg);
                     return TRUE;
                 case IDC_ACTIONS_KEYMAP_DELETE:           // v1.72
                     OnKeymapDelete(dlg);

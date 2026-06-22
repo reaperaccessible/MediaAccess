@@ -19,4 +19,12 @@
 // All command names are translated via the T() / Ts() layer.
 std::string DescribeKey(WPARAM wParam, LPARAM lParam);
 
+// Returns true when the given key event corresponds to the action currently
+// bound to "Keyboard help" (KEYBOARD_HELP_TOGGLE) in the active keymap, so the
+// main window can let that key through to toggle the mode back off even after
+// the user has remapped it away from the F12 default. Modifier states are read
+// internally, exactly like DescribeKey. F12 is always treated as a valid exit
+// key too, as a safety net so the user can never get stuck in help mode.
+bool IsKeyboardHelpToggleKey(WPARAM wParam);
+
 #endif

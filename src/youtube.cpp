@@ -4414,9 +4414,18 @@ static void ShowYtResultsContextMenu(HWND hwnd, int x, int y) {
 // v2.30 (issue #6 follow-up) — subclass on the results LISTBOX so user-bound
 // YouTube-category download keys fire while it has focus. A focused Win32 LISTBOX
 // consumes WM_KEYDOWN in its own window proc (it is NOT forwarded to the dialog
-// proc, unlike WM_CONTEXTMENU), so the keymap lookup must happen here. We only act
-// on chords with Ctrl/Alt/Win held, so plain typing and first-letter list
-// navigation are never swallowed. No keyboard-help (F12) announcement logic here —
+// proc, unlike WM_CONTEXTMENU), so the keymap lookup must happen here.
+//
+// issue #12 — we now act on any chord that holds at least one modifier,
+// INCLUDING Shift (previously Ctrl/Alt/Win only). The Actions dialog forbids
+// assigning a bare key to these actions, so every binding that reaches here
+// carries a modifier. When a bound chord matches we consume the key (return 0
+// without calling DefSubclassProc): the YouTube dialog is modeless and pumped
+// through IsDialogMessageW (see main.cpp), which dispatches WM_KEYDOWN to this
+// proc and, seeing it handled, stops — so no WM_CHAR / type-ahead follows for
+// that keystroke. Unbound Shift+letter chords fall through to DefSubclassProc
+// and still drive the listbox's capital-letter type-ahead navigation, so
+// navigation is never lost. No keyboard-help (F12) announcement logic here —
 // the key simply executes the download.
 static constexpr UINT_PTR kYtResultsSubclassId = 1;
 static LRESULT CALLBACK YtResultsSubclassProc(HWND h, UINT m, WPARAM w, LPARAM l,
@@ -4437,9 +4446,10 @@ static LRESULT CALLBACK YtResultsSubclassProc(HWND h, UINT m, WPARAM w, LPARAM l
             sc.alt   = (GetKeyState(VK_MENU)    & 0x8000) != 0;
             sc.win   = ((GetKeyState(VK_LWIN) & 0x8000) != 0) ||
                        ((GetKeyState(VK_RWIN) & 0x8000) != 0);
-            // Require Ctrl/Alt/Win so Shift-only chords don't clash with the
-            // listbox's capital-letter type-ahead navigation.
-            if (sc.ctrl || sc.alt || sc.win) {
+            // Require at least one modifier (Ctrl / Shift / Alt / Win). A
+            // matched chord is consumed below, so a bound Shift+letter won't
+            // also type-ahead; an unbound one falls through and still does.
+            if (sc.ctrl || sc.shift || sc.alt || sc.win) {
                 int cmd = mediaaccess::GetActiveKeyMap().FindCommandFor(
                     sc, mediaaccess::ActionCategory::YouTube);
                 if (cmd != 0) {

@@ -51,6 +51,15 @@ static const Action g_actions[] = {
     { "FILE_ADD_FOLDER",          IDM_FILE_ADD_FOLDER,        ActionCategory::Main,
       "Add folder...",                "Ajouter un dossier...",
       { 'O', true,  true,  false } },
+    // "Enter a book" entry points. They live in Main (not Books) so they fire
+    // BEFORE a book is open — the Books category only takes priority once a
+    // book is already loaded, which would otherwise shadow these (issue #12).
+    { "BOOK_OPEN",                IDM_FILE_OPEN_BOOK,         ActionCategory::Main,
+      "Open book...",                 "Ouvrir un livre...",
+      { 'B', true, false, false } },           // Ctrl+B
+    { "BOOK_LIBRARY",             IDM_TOOLS_BOOK_LIBRARY,     ActionCategory::Main,
+      "Book library...",              "Bibliothèque de livres...",
+      { 'B', true, true,  false } },           // Ctrl+Shift+B
     { "FILE_PLAYLIST",            IDM_FILE_PLAYLIST,          ActionCategory::Main,
       "Playlist manager...",          "Gestionnaire de listes de lecture...",
       { 'P', true,  false, false } },
@@ -797,13 +806,9 @@ static const Action g_actions[] = {
 
     // ========================================================================
     // CATEGORY: Books — DAISY / EPUB reader (v1.49 Phase 1)
+    // (Open book / Book library moved to Main — they are needed before a book
+    //  is open; see the file-ops block above. issue #12)
     // ========================================================================
-    { "BOOK_OPEN",                IDM_FILE_OPEN_BOOK,         ActionCategory::Books,
-      "Open book...",                 "Ouvrir un livre...",
-      { 'B', true, false, false } },           // Ctrl+B
-    { "BOOK_LIBRARY",             IDM_TOOLS_BOOK_LIBRARY,     ActionCategory::Books,
-      "Book library...",              "Bibliothèque de livres...",
-      { 'B', true, true,  false } },           // Ctrl+Shift+B
     { "BOOK_NAV_LEVEL_UP",        IDM_BOOK_NAV_LEVEL_UP,      ActionCategory::Books,
       "Next navigation level",        "Niveau de navigation suivant",
       { VK_UP, false, true, false } },        // Shift+Up

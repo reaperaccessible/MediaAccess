@@ -578,6 +578,28 @@ void RegisterUiTranslations() {
     AddTranslation("en", "Could not import keymap", L"Could not import keymap");
     AddTranslation("fr", "Could not import keymap", L"Impossible d'importer le keymap");
 
+    AddTranslation("en", "Could not export keymap", L"Could not export keymap");
+    AddTranslation("fr", "Could not export keymap", L"Impossible d'exporter le keymap");
+
+    // issue #12 — bare-key guard for YouTube download shortcuts.
+    AddTranslation("en", "Invalid shortcut", L"Invalid shortcut");
+    AddTranslation("fr", "Invalid shortcut", L"Raccourci invalide");
+
+    AddTranslation("en",
+        "YouTube download shortcuts must include a modifier key (Ctrl, "
+        "Shift, Alt, or Windows). A key on its own would clash with the "
+        "results list navigation.",
+        L"YouTube download shortcuts must include a modifier key (Ctrl, "
+        L"Shift, Alt, or Windows). A key on its own would clash with the "
+        L"results list navigation.");
+    AddTranslation("fr",
+        "YouTube download shortcuts must include a modifier key (Ctrl, "
+        "Shift, Alt, or Windows). A key on its own would clash with the "
+        "results list navigation.",
+        L"Les raccourcis de téléchargement YouTube doivent inclure une touche "
+        L"de modification (Ctrl, Maj, Alt ou Windows). Une touche seule "
+        L"entrerait en conflit avec la navigation dans la liste des résultats.");
+
     AddTranslation("en", "Could not delete keymap", L"Could not delete keymap");
     AddTranslation("fr", "Could not delete keymap", L"Impossible de supprimer le keymap");
 
@@ -603,6 +625,8 @@ void RegisterUiTranslations() {
     AddTranslation("fr", "active",    L"activé");
     AddTranslation("en", "imported",  L"imported");
     AddTranslation("fr", "imported",  L"importé");
+    AddTranslation("en", "exported",  L"exported");
+    AddTranslation("fr", "exported",  L"exporté");
     AddTranslation("en", "deleted",   L"deleted");
     AddTranslation("fr", "deleted",   L"supprimé");
     AddTranslation("en", "created",   L"created");

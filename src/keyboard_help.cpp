@@ -96,3 +96,37 @@ std::string DescribeKey(WPARAM wParam, LPARAM lParam)
     if (!a) return label + " : " + Ts("no action assigned");
     return label + " : " + mediaaccess::ActionDisplayName(*a);
 }
+
+// -----------------------------------------------------------------------------
+// Keyboard-help exit key
+// -----------------------------------------------------------------------------
+bool IsKeyboardHelpToggleKey(WPARAM wParam)
+{
+    UINT vk = (UINT)wParam;
+
+    // F12 always works as an emergency exit so the user can never get stuck
+    // in help mode, even if the action is unbound or rebound to a dead key.
+    if (vk == VK_F12) return true;
+
+    // Bare modifiers are never the toggle key on their own.
+    switch (vk) {
+        case VK_CONTROL:  case VK_LCONTROL: case VK_RCONTROL:
+        case VK_SHIFT:    case VK_LSHIFT:   case VK_RSHIFT:
+        case VK_MENU:     case VK_LMENU:    case VK_RMENU:
+        case VK_LWIN:     case VK_RWIN:
+        case VK_CAPITAL:  case VK_NUMLOCK:  case VK_SCROLL:
+            return false;
+    }
+
+    mediaaccess::Shortcut sc;
+    sc.vk    = vk;
+    sc.ctrl  = (GetKeyState(VK_CONTROL) & 0x8000) != 0;
+    sc.shift = (GetKeyState(VK_SHIFT)   & 0x8000) != 0;
+    sc.alt   = (GetKeyState(VK_MENU)    & 0x8000) != 0;
+    sc.win   = ((GetKeyState(VK_LWIN) & 0x8000) != 0) ||
+               ((GetKeyState(VK_RWIN) & 0x8000) != 0);
+
+    std::string actionId = mediaaccess::GetActiveKeyMap()
+        .FindActionFor(sc, mediaaccess::ActionCategory::Main);
+    return actionId == "KEYBOARD_HELP_TOGGLE";
+}

@@ -648,7 +648,7 @@
 <h3>Télécharger au clavier (raccourcis assignables)</h3>
 <p>Si vous préférez ne pas passer par le menu contextuel, vous pouvez télécharger au clavier. Les actions sont disponibles dans <strong>Outils → Actions</strong> (<kbd>F4</kbd>) ; <strong>aucune touche n'est attribuée par défaut</strong>, à vous d'assigner celles que vous voulez :</p>
 <ul>
-  <li>Catégorie <strong>YouTube</strong> — <strong>Télécharger le résultat sélectionné</strong> en audio M4A, MP3, OGG, en vidéo, ou « avec options » : agit sur le résultat sélectionné dans la liste. Ces actions ne se déclenchent que lorsque la fenêtre YouTube a le focus.</li>
+  <li>Catégorie <strong>YouTube</strong> — <strong>Télécharger le résultat sélectionné</strong> en audio M4A, MP3, OGG, en vidéo, ou « avec options » : agit sur le résultat sélectionné dans la liste. Ces actions ne se déclenchent que lorsque la fenêtre YouTube a le focus. Leur raccourci doit inclure une touche de modification (<kbd>Ctrl</kbd>, <kbd>Maj</kbd>, <kbd>Alt</kbd> ou <kbd>Windows</kbd>) — une touche seule entrerait en conflit avec la navigation par lettre dans la liste des résultats et est refusée à l'assignation.</li>
   <li>Catégorie <strong>Globale</strong> — <strong>Télécharger la vidéo YouTube en cours de lecture</strong>, en deux variantes : <strong>en audio M4A</strong> ou <strong>en vidéo</strong> (meilleure qualité, image + son). Télécharge directement la vidéo que vous écoutez, depuis le lecteur, sans revenir à la liste de résultats. Si rien (ou un fichier non-YouTube) n'est en lecture, MediaAccess annonce « Aucune vidéo YouTube en cours de lecture ».</li>
 </ul>
 
@@ -911,7 +911,7 @@
 
 <h3>Keymaps régionaux et personnalisés</h3>
 <p>L'installateur fournit trois keymaps prêts à l'emploi : <strong>USA</strong>, <strong>FR-CA</strong> (français canadien) et <strong>FR-FR</strong> (français de France). Au premier lancement, MediaAccess détecte automatiquement votre disposition de clavier Windows et choisit le keymap approprié.</p>
-<p>En haut de la fenêtre Actions, une liste déroulante <strong>Keymap</strong> contient tous les keymaps disponibles (l'union de ceux fournis et de ceux que vous avez créés). L'élément sélectionné est toujours le keymap actif ; changer la sélection bascule en direct — les raccourcis globaux se réenregistrent immédiatement et le choix est conservé. À côté de la liste, <strong>Importer...</strong> copie un fichier <code>.MediaAccessKeyMap</code> externe dans votre dossier utilisateur, et <strong>Supprimer</strong> retire votre copie du keymap sélectionné (le fichier fourni d'origine n'est jamais touché). En bas de la fenêtre, <strong>Nouveau keymap...</strong> crée un nouveau keymap en clonant l'actif, et <strong>Réinitialiser aux défauts</strong> restaure le défaut régional pour votre disposition de clavier. Les fichiers sont des fichiers texte <code>.MediaAccessKeyMap</code> stockés dans <code>%APPDATA%\MediaAccess\KeyMaps\</code>, faciles à partager.</p>
+<p>En haut de la fenêtre Actions, une liste déroulante <strong>Keymap</strong> contient tous les keymaps disponibles (l'union de ceux fournis et de ceux que vous avez créés). L'élément sélectionné est toujours le keymap actif ; changer la sélection bascule en direct — les raccourcis globaux se réenregistrent immédiatement et le choix est conservé. À côté de la liste, <strong>Importer...</strong> copie un fichier <code>.MediaAccessKeyMap</code> externe dans votre dossier utilisateur, <strong>Exporter...</strong> enregistre le keymap actif dans le fichier de votre choix (sauvegarde ou partage ; la fenêtre s'ouvre par défaut sur le dossier des keymaps de MediaAccess, mais vous pouvez choisir n'importe quel emplacement), et <strong>Supprimer</strong> retire votre copie du keymap sélectionné (le fichier fourni d'origine n'est jamais touché). En bas de la fenêtre, <strong>Nouveau keymap...</strong> crée un nouveau keymap en clonant l'actif, et <strong>Réinitialiser aux défauts</strong> restaure le défaut régional pour votre disposition de clavier. Les fichiers sont des fichiers texte <code>.MediaAccessKeyMap</code> stockés dans <code>%APPDATA%\MediaAccess\KeyMaps\</code>, faciles à partager.</p>
 <p>Les libellés de raccourci affichés dans les menus se mettent à jour automatiquement pour correspondre au keymap actif.</p>
 
 <h3>Section Globale</h3>
@@ -1148,6 +1148,7 @@
   <li>Si la touche n'a pas d'action associée : « K : aucune action assignée ».</li>
   <li>Appuyez à nouveau sur <kbd>F12</kbd> pour revenir au mode normal : « Aide clavier désactivée ».</li>
 </ul>
+<p>Si vous avez réassigné l'action « Aide clavier » à une autre touche que <kbd>F12</kbd> (dans <strong>Outils → Actions</strong>), c'est cette touche qui active et désactive le mode. <kbd>F12</kbd> reste toujours utilisable en secours pour sortir du mode, afin de ne jamais rester bloqué.</p>
 <p>Le mode aide clavier fonctionne uniquement dans la fenêtre principale. Dans les dialogues (Options, recherche YouTube, etc.), les touches conservent leur comportement normal pour vous permettre de saisir du texte.</p>
 </section>
 
@@ -1314,7 +1315,7 @@
 <p>Les EPUB qui intègrent un audio enregistré synchronisé avec le texte (la norme «&nbsp;Media Overlays&nbsp;» de l'EPUB 3, équivalente au DAISY 3) sont lus comme des livres audio classiques. À l'ouverture, MediaAccess extrait les fichiers audio embarqués dans l'EPUB vers un dossier temporaire et les joue via BASS&nbsp;; le dossier est nettoyé automatiquement à la fermeture du livre. Les EPUB sans audio enregistré continuent de passer par la synthèse vocale décrite plus haut.</p>
 
 <h3>Réaffecter les raccourcis</h3>
-<p>Chaque raccourci DAISY listé ci-dessus est réaffectable via <strong>Outils → Actions</strong> (<kbd>F4</kbd>), section <strong>Livres</strong>.</p>
+<p>Les raccourcis de navigation et de lecture DAISY listés ci-dessus sont réaffectables via <strong>Outils → Actions</strong> (<kbd>F4</kbd>), section <strong>Livres</strong>. En revanche, <strong>Ouvrir un livre</strong> (<kbd>Ctrl</kbd>+<kbd>B</kbd>) et <strong>Bibliothèque de livres</strong> (<kbd>Ctrl</kbd>+<kbd>Maj</kbd>+<kbd>B</kbd>) se trouvent dans la section <strong>Principal</strong> : ce sont des actions d'entrée que l'on utilise avant même qu'un livre soit ouvert, donc elles fonctionnent en tout temps.</p>
 </section>
 
 <section id="minuterie" aria-labelledby="minuterie-h">
