@@ -120,6 +120,8 @@ static HWND g_ytDialog = nullptr;
 // UI-thread only (same as g_nowPlayingItem) — plain wstring, no atomics needed.
 static std::wstring g_currentYtVideoId;
 static std::wstring g_currentYtTitle;
+// v2.52 — generation counter for in-flight auto-caption fetches (discard stale).
+static std::atomic<int> g_ytCaptionGen{0};
 static std::vector<YouTubeResult> g_ytResults;
 static std::wstring g_ytNextPageToken;
 static std::wstring g_ytCurrentQuery;
@@ -1209,6 +1211,133 @@ static std::wstring GetYouTubeCacheDir() {
     dir += L"\\YouTubeCache";
     CreateDirectoryW(dir.c_str(), nullptr);
     return dir;
+}
+
+// ===========================================================================
+// v2.52 — YouTube automatic-caption fetch (Approach B: yt-dlp -> .vtt -> the
+// existing subtitle cue pipeline). Persistent cache keyed by videoId+lang is
+// the primary mitigation for fetch latency and YouTube 429 rate-limiting.
+// ===========================================================================
+std::wstring GetCurrentYtVideoId() { return g_currentYtVideoId; }
+int GetYtCaptionGen() { return g_ytCaptionGen.load(); }
+
+static bool CaptionFileOk(const std::wstring& path) {
+    WIN32_FILE_ATTRIBUTE_DATA fad;
+    if (!GetFileAttributesExW(path.c_str(), GetFileExInfoStandard, &fad)) return false;
+    if (fad.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) return false;
+    return (fad.nFileSizeHigh != 0 || fad.nFileSizeLow > 0);  // non-empty
+}
+
+// Find an already-cached caption .vtt for this video+lang (GLOB, so it matches
+// both the normalized name and yt-dlp's native "...lang.vtt" name). Empty if none.
+static std::wstring FindCachedCaption(const std::wstring& cacheDir, const std::wstring& videoId,
+                                      const std::wstring& langKey) {
+    std::wstring globPat = cacheDir + L"\\yt-" + videoId + L".sub-" + langKey + L"*.vtt";
+    WIN32_FIND_DATAW fd;
+    HANDLE h = FindFirstFileW(globPat.c_str(), &fd);
+    if (h == INVALID_HANDLE_VALUE) return std::wstring();
+    std::wstring found = cacheDir + L"\\" + fd.cFileName;
+    FindClose(h);
+    return CaptionFileOk(found) ? found : std::wstring();
+}
+
+bool YouTubeFetchCaption(const std::wstring& videoId, const std::wstring& langCode,
+                         std::wstring& outVttPath, const char** outFailKey) {
+    if (outFailKey) *outFailKey = "No captions available for this video";
+    if (!IsValidVideoId(videoId)) return false;
+    std::wstring langKey, subLangs;
+    if (langCode.empty()) {
+        langKey  = L"orig";
+        subLangs = L".*-orig";  // YouTube's original auto-caption track (e.g. "de-orig")
+    } else {
+        for (wchar_t c : langCode) {
+            bool ok = (c >= L'a' && c <= L'z') || (c >= L'0' && c <= L'9') || c == L'-';
+            if (!ok) return false;  // langCode flows into a yt-dlp arg — strict whitelist
+        }
+        langKey  = langCode;
+        subLangs = langCode;       // auto-translation is reached through the same code
+    }
+    std::wstring cacheDir = GetYouTubeCacheDir();
+    std::wstring cachePath = cacheDir + L"\\yt-" + videoId + L".sub-" + langKey + L".vtt";
+
+    // Cache hit (GLOB, robust to a prior failed normalize). Primary 429/latency
+    // mitigation: a language fetched once is replayed without any network call.
+    std::wstring cached = FindCachedCaption(cacheDir, videoId, langKey);
+    if (!cached.empty()) { outVttPath = cached; if (outFailKey) *outFailKey = nullptr; return true; }
+
+    std::wstring url     = L"https://www.youtube.com/watch?v=" + videoId;
+    std::wstring outTmpl = cacheDir + L"\\yt-" + videoId + L".sub-" + langKey + L".%(ext)s";
+    // --write-subs FIRST so a real manual track wins over auto when both exist.
+    std::wstring args =
+        L"--skip-download --write-subs --write-auto-subs --sub-format vtt "
+        L"--no-playlist --no-warnings --sub-langs \"" + subLangs + L"\" "
+        L"-o \"" + outTmpl + L"\" \"" + url + L"\"";
+    int exitCode = 0;
+    std::wstring stderrText;
+    RunYtdlp(args, YTDLP_PLAYBACK_TIMEOUT_MS, &exitCode, &stderrText);  // bounded 60s
+
+    std::wstring produced = FindCachedCaption(cacheDir, videoId, langKey);
+    if (produced.empty()) {
+        // No file: distinguish a TRANSIENT failure (rate-limit / network / timeout)
+        // from a genuine "no captions" so the spoken message is accurate. yt-dlp
+        // reports the reason on stderr and may still exit 0 (e.g. on a 429).
+        if (outFailKey) {
+            std::wstring lower = stderrText;
+            for (wchar_t& c : lower) if (c >= L'A' && c <= L'Z') c = (wchar_t)(c - L'A' + L'a');
+            bool transient = lower.find(L"429") != std::wstring::npos ||
+                             lower.find(L"too many requests") != std::wstring::npos ||
+                             lower.find(L"unable to download") != std::wstring::npos ||
+                             lower.find(L"timed out") != std::wstring::npos ||
+                             lower.find(L"timeout") != std::wstring::npos ||
+                             lower.find(L"connection") != std::wstring::npos ||
+                             lower.find(L"temporar") != std::wstring::npos;
+            *outFailKey = transient ? "Captions temporarily unavailable, try again"
+                                    : "No captions available for this video";
+        }
+        return false;
+    }
+    if (produced != cachePath) {
+        // Best-effort normalize so the cache name is tidy; the GLOB cache-hit above
+        // already covers the case where this rename fails.
+        if (MoveFileExW(produced.c_str(), cachePath.c_str(), MOVEFILE_REPLACE_EXISTING) &&
+            CaptionFileOk(cachePath)) {
+            produced = cachePath;
+        }
+    }
+    outVttPath = produced;
+    if (outFailKey) *outFailKey = nullptr;
+    return true;
+}
+
+// Worker that fetches a caption and posts WM_YT_CAPTION_READY (gen-stamped).
+struct CaptionFetchArg { int gen; std::wstring videoId; std::wstring lang; };
+static DWORD WINAPI CaptionFetchThread(LPVOID p) {
+    CaptionFetchArg* a = static_cast<CaptionFetchArg*>(p);
+    std::wstring vtt;
+    const char* failKey = nullptr;
+    bool ok = YouTubeFetchCaption(a->videoId, a->lang, vtt, &failKey);
+    if (!g_isShuttingDown && g_hwnd && a->gen == g_ytCaptionGen.load()) {
+        auto* r = new YtCaptionReady{ a->gen, ok ? vtt : std::wstring(),
+                                      ok ? nullptr : (failKey ? failKey : "No captions available for this video") };
+        PostMessageW(g_hwnd, WM_YT_CAPTION_READY, (WPARAM)a->gen, (LPARAM)r);
+    }
+    delete a;
+    return 0;
+}
+
+// Kick an async caption fetch for the just-started video. No-op if disabled.
+static void KickCaptionFetch(const std::wstring& videoId) {
+    if (!g_ytFetchCaptions) return;
+    int gen = ++g_ytCaptionGen;
+    CaptionFetchArg* a = new CaptionFetchArg{gen, videoId, g_ytCaptionLang};
+    HANDLE t = CreateThread(nullptr, 0, CaptionFetchThread, a, 0, nullptr);
+    if (t) CloseHandle(t); else delete a;
+}
+
+// v2.52 — re-fetch captions for the current video in the current language and
+// switch to it (used when the user changes the preferred language in Options).
+void YouTubeRefreshCaptionsForCurrent() {
+    if (!g_currentYtVideoId.empty()) KickCaptionFetch(g_currentYtVideoId);
 }
 
 // Returns the file in the cache for this video id if one exists, else L"".
@@ -2451,6 +2580,7 @@ bool YouTubePlayById(const std::wstring& videoId) {
         if (YouTubeGetVideoURL(videoId, url)) {
             if (LoadURL(url.c_str(), /*silentOnFail=*/true)) {
                 Speak(Ts("Playing video"));
+                KickCaptionFetch(videoId);  // v2.52
                 return true;
             }
         }
@@ -2482,6 +2612,7 @@ bool YouTubePlayById(const std::wstring& videoId) {
             } else {
                 StartCacheRefreshIfNeeded(safeId);
             }
+            KickCaptionFetch(videoId);  // v2.52
             return true;
         }
     }
@@ -2515,6 +2646,7 @@ bool YouTubePlayById(const std::wstring& videoId) {
             std::wstring* idCopy = new std::wstring(videoId);
             HANDLE t = CreateThread(nullptr, 0, HybridDownloadThread, idCopy, 0, nullptr);
             if (t) CloseHandle(t);
+            KickCaptionFetch(videoId);  // v2.52
             return true;
         }
         // Stream failed: re-enable video for next time (e.g. real video playback).
@@ -2534,6 +2666,7 @@ bool YouTubePlayById(const std::wstring& videoId) {
     g_ytLastFailureKey = nullptr;
     if (YouTubeDownloadAudio(videoId, localFile) && LoadFile(localFile.c_str())) {
         Speak(Ts("Playing"));
+        KickCaptionFetch(videoId);  // v2.52
         return true;
     }
 

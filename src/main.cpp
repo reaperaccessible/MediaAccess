@@ -89,6 +89,12 @@ static void SubtitleVolumeRestoreNow() {
     s_duckCurrent = s_duckTarget = 1.0;
     if (g_hwnd) KillTimer(g_hwnd, IDT_SUBTITLE_FADE);
     MPVSetDuck(1.0f);   // v2.44 — clear the duck multiplier and re-apply full volume
+    // v2.52 — also restore the BASS (audio-mode) music sink.
+    g_subtitleBassDuck.store(1.0f, std::memory_order_relaxed);
+    if (g_legacyVolume && g_fxStream) {
+        float base = g_muted ? 0.0f : (g_volume * g_volume);
+        BASS_ChannelSetAttribute(g_fxStream, BASS_ATTRIB_VOL, base);
+    }
 }
 
 // Current state of the Edge subtitle reader (the prefetch scheduler). Tracks
@@ -104,9 +110,24 @@ static bool         s_subLastPaused = false;
 // is re-enabled so the user still hears text subtitles.
 static bool         s_subEdgeFailed = false;
 
+// v2.52 — YouTube auto-caption session. When s_subSourceIsYtCaption is true the
+// subtitle reader is driven by a fetched .vtt (s_ytCaptionVtt) and the session
+// is anchored on the videoId (s_ytCaptionVideoId), NOT a playlist media path —
+// YouTube never populates g_playlist, and this survives the hybrid mpv->BASS
+// swap. Works in BOTH video and audio mode.
+static std::wstring s_ytCaptionVtt;
+static std::wstring s_ytCaptionVideoId;
+static bool         s_subSourceIsYtCaption = false;
+static bool         s_ytCaptionLiveOnly = false;  // v2.52 — method the active YT caption session uses (live screen reader vs Edge)
+
 // Per-cue fallback: a single line whose Edge synthesis gave up is read by the
 // screen reader instead of being silent. Wired into the scheduler.
 static void SubtitleFallbackSpeak(const std::wstring& text) {
+    if (!text.empty()) SpeakW(text, true);
+}
+
+// v2.52 — live-only cue emit (audio-mode screen-reader caption, no Edge voice).
+static void SubtitleCueSpeak(const std::wstring& text) {
     if (!text.empty()) SpeakW(text, true);
 }
 
@@ -126,6 +147,8 @@ struct SubPrepResult {
     std::string                        rate;
     double                             duck;
     std::vector<mediaaccess::SubCue>   cues;
+    bool                               isYt = false;     // v2.52 — YouTube caption session
+    std::wstring                       ytVideoId;        // v2.52
 };
 static std::atomic<int> s_subPrepGen{0};
 
@@ -139,16 +162,32 @@ static std::atomic<int> s_subPrepGen{0};
 // never freezes; the worker posts WM_SUBTITLE_READY back and the scheduler is
 // started on the UI thread there.
 void RefreshSubtitleEdge() {
-    bool want = g_speakSubtitles && g_subtitleUseEdgeVoice &&
-                g_activeEngine == PlaybackEngine::MPV && IsMPVInitialized();
+    // v2.52 — two sources: (1) a fetched YouTube auto-caption .vtt (either engine,
+    // either reader method), or (2) the existing embedded/sidecar subtitles read
+    // via the Edge voice in MPV video mode.
+    // v2.52 — a fetched caption exists for the current video. NOT gated on the
+    // active-session flag: after the user unchecks "Speak subtitles" we stop the
+    // reader (clearing s_subSourceIsYtCaption), but the .vtt is still valid, so
+    // re-checking must be able to restart reading without reloading the video.
+    bool ytCap = !s_ytCaptionVtt.empty() && GetCurrentYtVideoId() == s_ytCaptionVideoId;
+    bool wantVideoEdge = g_speakSubtitles && g_subtitleUseEdgeVoice &&
+                         g_activeEngine == PlaybackEngine::MPV && IsMPVInitialized() && !ytCap;
+    bool wantYt = g_speakSubtitles && ytCap;   // YouTube captions: either engine/reader
+    bool want = wantVideoEdge || wantYt;
     std::wstring media = CurrentMediaPath();
-    long ff = want ? MPVGetActiveSubtitleFfIndex() : -1;
+    long ff = wantVideoEdge ? MPVGetActiveSubtitleFfIndex() : -1;
 
-    if (want && !media.empty() &&
-        (!s_subEdgeActive || media != s_subEdgeMedia || (int)ff != s_subEdgeFf)) {
+    bool need = want && ( wantYt
+        ? (!s_subEdgeActive || !s_subSourceIsYtCaption || s_ytCaptionVideoId != GetCurrentYtVideoId() ||
+           s_ytCaptionLiveOnly != (!g_subtitleUseEdgeVoice))  // v2.52 — method (Edge vs screen reader) changed
+
+        : (!media.empty() && (!s_subEdgeActive || s_subSourceIsYtCaption ||
+                              media != s_subEdgeMedia || (int)ff != s_subEdgeFf)) );
+
+    if (need) {
         mediaaccess::SubStop();
         s_subEdgeActive = false; s_subEdgeMedia.clear(); s_subEdgeFf = -2;
-        s_subEdgeFailed = false;
+        s_subEdgeFailed = false; s_subSourceIsYtCaption = false;
         SubtitleVolumeRestoreNow();
         int gen = ++s_subPrepGen;                 // invalidate any older in-flight prep
         std::string voice = g_subtitleEdgeVoice.empty()
@@ -157,22 +196,30 @@ void RefreshSubtitleEdge() {
         char rateBuf[16]; sprintf_s(rateBuf, "%+d%%", g_subtitleEdgeRate);
         std::string rate = rateBuf;
         double duck = g_subtitleDuckLevel;
-        int ffi = (int)ff;
-        std::thread([gen, media, ffi, voice, rate, duck]() {
-            auto cues = mediaaccess::SubExtractCues(media, ffi);
-            auto* r = new SubPrepResult{ gen, media, ffi, voice, rate, duck, std::move(cues) };
-            // v2.44 — gate on the real shutdown flag, not g_hwnd (which is never
-            // cleared): posting to a live window after shutdown began would leak
-            // `r` since WM_SUBTITLE_READY is no longer pumped/handled.
-            if (!g_isShuttingDown && g_hwnd) PostMessageW(g_hwnd, WM_SUBTITLE_READY, 0, (LPARAM)r);
-            else delete r;
-        }).detach();
+        if (wantYt) {
+            std::wstring vtt = s_ytCaptionVtt, vid = s_ytCaptionVideoId;
+            std::thread([gen, vtt, vid, voice, rate, duck]() {
+                auto cues = mediaaccess::SubLoadCuesFromFile(vtt, /*isAutoCaption=*/true);
+                auto* r = new SubPrepResult{ gen, vid, -1, voice, rate, duck, std::move(cues), true, vid };
+                if (!g_isShuttingDown && g_hwnd) PostMessageW(g_hwnd, WM_SUBTITLE_READY, 0, (LPARAM)r);
+                else delete r;
+            }).detach();
+        } else {
+            int ffi = (int)ff; std::wstring m = media;
+            std::thread([gen, m, ffi, voice, rate, duck]() {
+                auto cues = mediaaccess::SubExtractCues(m, ffi);
+                auto* r = new SubPrepResult{ gen, m, ffi, voice, rate, duck, std::move(cues), false, std::wstring() };
+                // v2.44 — gate on the real shutdown flag, not g_hwnd (never cleared).
+                if (!g_isShuttingDown && g_hwnd) PostMessageW(g_hwnd, WM_SUBTITLE_READY, 0, (LPARAM)r);
+                else delete r;
+            }).detach();
+        }
     } else if (!want && (s_subEdgeActive || s_subEdgeFailed)) {
         ++s_subPrepGen;                           // discard any in-flight prep
         mediaaccess::SubStop();
         SubtitleVolumeRestoreNow();
         s_subEdgeActive = false; s_subEdgeMedia.clear(); s_subEdgeFf = -2;
-        s_subEdgeFailed = false;
+        s_subEdgeFailed = false; s_subSourceIsYtCaption = false;
     }
 }
 
@@ -878,12 +925,22 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
                 // given the lookahead absorbs synthesis latency. Bail out if the
                 // media changed under us (stale cues would play over a new file).
                 if (s_subEdgeActive) {
-                    if (CurrentMediaPath() != s_subEdgeMedia) {
+                    // v2.52 — engine-neutral driver. A YouTube caption session is
+                    // anchored on the videoId (survives the hybrid mpv->BASS swap);
+                    // a normal session on the media path. Position/pause/speed come
+                    // from whichever engine is active.
+                    bool yt = s_subSourceIsYtCaption;
+                    bool stale = yt ? (s_ytCaptionVideoId != GetCurrentYtVideoId())
+                                    : (CurrentMediaPath() != s_subEdgeMedia);
+                    if (stale) {
                         mediaaccess::SubStop(); SubtitleVolumeRestoreNow();
                         s_subEdgeActive = false; s_subEdgeMedia.clear(); s_subEdgeFf = -2;
+                        s_subSourceIsYtCaption = false;
                     } else {
-                        double pos = MPVGetPosition();
-                        bool paused = MPVIsPaused();
+                        bool bass = (g_activeEngine == PlaybackEngine::BASS);
+                        double pos    = bass ? GetCurrentPosition()        : MPVGetPosition();
+                        bool   paused = bass ? IsCurrentlyPaused()         : MPVIsPaused();
+                        double speed  = bass ? GetEffectivePlaybackSpeed() : MPVGetSpeed();
                         if (paused != s_subLastPaused) {
                             mediaaccess::SubOnPause(paused);
                             s_subLastPaused = paused;
@@ -891,7 +948,6 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
                         // A position jump that isn't normal forward playback means
                         // a seek. The forward threshold scales with playback speed
                         // so fast playback isn't mistaken for a seek.
-                        double speed = MPVGetSpeed();
                         double dt = pos - s_subLastPos;
                         if (dt < -0.4 || dt > 0.5 + 0.3 * speed) mediaaccess::SubOnSeek(pos);
                         s_subLastPos = pos;
@@ -958,7 +1014,17 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
                     s_duckCurrent = (s_duckCurrent + step > s_duckTarget) ? s_duckTarget : s_duckCurrent + step;
                 else
                     s_duckCurrent = (s_duckCurrent - step < s_duckTarget) ? s_duckTarget : s_duckCurrent - step;
-                MPVSetDuck((float)s_duckCurrent);   // v2.44 — single-owner video volume
+                // v2.52 — write the ramp to the ACTIVE engine's sink: MPV video
+                // volume in video mode, the BASS music sink in audio mode.
+                if (g_activeEngine == PlaybackEngine::BASS) {
+                    g_subtitleBassDuck.store((float)s_duckCurrent, std::memory_order_relaxed);
+                    if (g_legacyVolume && g_fxStream) {
+                        float base = g_muted ? 0.0f : (g_volume * g_volume);
+                        BASS_ChannelSetAttribute(g_fxStream, BASS_ATTRIB_VOL, base * (float)s_duckCurrent);
+                    }
+                } else {
+                    MPVSetDuck((float)s_duckCurrent);   // v2.44 — single-owner video volume
+                }
                 if (s_duckCurrent == s_duckTarget) KillTimer(hwnd, IDT_SUBTITLE_FADE);
                 return 0;
             }
@@ -979,7 +1045,12 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
                 // Live screen-reader path: when speaking subtitles AND either the
                 // method is the screen reader, OR the Edge reader failed for this
                 // media (no text cues / network down) so we fall back to live.
-                if (g_speakSubtitles && (!g_subtitleUseEdgeVoice || s_subEdgeFailed))
+                // v2.52 — NOT for a YouTube caption session: our own scheduler
+                // already reads it (Edge clip or cue-crossing emit), and the .vtt
+                // is also loaded into mpv for the picture/seek — without this guard
+                // mpv's sub-text would speak each line a SECOND time (double-read).
+                if (g_speakSubtitles && !s_subSourceIsYtCaption &&
+                    (!g_subtitleUseEdgeVoice || s_subEdgeFailed))
                     SpeakW(text, true);
                 free(text);
             }
@@ -999,17 +1070,30 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
             // UI thread if this result is still the current request and wanted.
             SubPrepResult* r = reinterpret_cast<SubPrepResult*>(lParam);
             if (r) {
-                bool current = (r->gen == s_subPrepGen.load()) &&
-                               g_speakSubtitles && g_subtitleUseEdgeVoice &&
-                               r->media == CurrentMediaPath();
+                // v2.52 — a result is current if it is the latest request and its
+                // source still matches: a YouTube caption result matches by videoId
+                // (either engine), a normal result by media path + Edge method.
+                bool current = (r->gen == s_subPrepGen.load()) && g_speakSubtitles &&
+                    ( (!r->isYt && g_subtitleUseEdgeVoice && r->media == CurrentMediaPath()) ||
+                      ( r->isYt && r->ytVideoId == GetCurrentYtVideoId()) );
                 if (current && !r->cues.empty()) {
+                    // YouTube captions with the screen-reader (non-Edge) method run
+                    // live-only (no synthesis worker); everything else uses Edge.
+                    bool liveOnly = (r->isYt && !g_subtitleUseEdgeVoice);
                     mediaaccess::SubSetDuckCallback(SubtitleDuck);
                     mediaaccess::SubSetFallbackCallback(SubtitleFallbackSpeak);
-                    mediaaccess::SubStart(r->cues, r->voice, 2.5, r->duck, r->rate);
+                    mediaaccess::SubSetCueSpeakCallback(liveOnly ? SubtitleCueSpeak : nullptr);
+                    mediaaccess::SubSetVoiceVolume(g_subtitleVoiceVolume);  // v2.52
+                    mediaaccess::SubStart(r->cues, r->voice, 2.5, r->duck, r->rate, liveOnly);
                     s_subEdgeActive = true; s_subEdgeFailed = false;
-                    s_subEdgeMedia = r->media; s_subEdgeFf = r->ff;
-                    s_subLastPos = MPVGetPosition(); s_subLastPaused = MPVIsPaused();
-                } else if (r->gen == s_subPrepGen.load()) {
+                    s_subSourceIsYtCaption = r->isYt;
+                    s_ytCaptionLiveOnly = liveOnly;  // v2.52 — remember the method so a setting change restarts
+                    if (r->isYt) { s_ytCaptionVideoId = r->ytVideoId; }
+                    else         { s_subEdgeMedia = r->media; s_subEdgeFf = r->ff; }
+                    bool bass = (g_activeEngine == PlaybackEngine::BASS);
+                    s_subLastPos = bass ? GetCurrentPosition() : MPVGetPosition();
+                    s_subLastPaused = bass ? IsCurrentlyPaused() : MPVIsPaused();
+                } else if (r->gen == s_subPrepGen.load() && !r->isYt) {
                     // No usable text cues for this media. Mark failed so the live
                     // screen-reader path takes over for text tracks; for image
                     // tracks (no text anywhere) tell the user once why it's silent.
@@ -1025,6 +1109,36 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
                 }
                 delete r;
             }
+            return 0;
+        }
+
+        case WM_YT_CAPTION_READY: {
+            // v2.52 — a background YouTube auto-caption fetch finished. lParam is a
+            // heap YtCaptionReady* (vtt path on success, else a failure reason key).
+            YtCaptionReady* r = reinterpret_cast<YtCaptionReady*>(lParam);
+            if (!r) return 0;
+            if ((int)wParam != GetYtCaptionGen()) { delete r; return 0; }  // stale
+            if (r->vtt.empty()) {
+                // Accurate reason: a transient 429/network error says "try again";
+                // only a clean run with no captions says "no captions".
+                Speak(Ts(r->failKey ? r->failKey : "No captions available for this video"));
+                delete r;
+                return 0;
+            }
+            s_ytCaptionVtt = r->vtt;
+            s_ytCaptionVideoId = GetCurrentYtVideoId();
+            s_subSourceIsYtCaption = true;
+            delete r;
+            // v2.52 — a NEW caption file arrived (e.g. the user changed the caption
+            // language). Stop any active reader so RefreshSubtitleEdge reloads the
+            // new file instead of keeping the old language (its gate only checks the
+            // videoId, which is unchanged for a language switch on the same video).
+            if (s_subEdgeActive) { mediaaccess::SubStop(); SubtitleVolumeRestoreNow(); s_subEdgeActive = false; }
+            // In video mode, also hand the file to mpv so the picture shows subs
+            // and the "1 subtitle" seek unit works.
+            if (g_activeEngine == PlaybackEngine::MPV && IsMPVInitialized())
+                MPVLoadExternalSubtitle(s_ytCaptionVtt.c_str());
+            RefreshSubtitleEdge();   // starts the reader (Edge or live screen reader)
             return 0;
         }
 

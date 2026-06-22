@@ -75,6 +75,12 @@ double g_loopStart = -1.0;
 double g_loopEnd   = -1.0;
 bool   g_loopEnabled = false;
 
+// v2.52 — YouTube automatic-caption settings + audio-mode subtitle duck.
+bool g_ytFetchCaptions = false;
+std::wstring g_ytCaptionLang;
+std::atomic<float> g_subtitleBassDuck{1.0f};
+float g_subtitleVoiceVolume = 1.0f;
+
 // Playlist
 std::vector<std::wstring> g_playlist;
 int g_currentTrack = -1;

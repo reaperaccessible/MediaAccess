@@ -8,6 +8,7 @@
 #include "mediaaccess/book_text_window.h"  // theme + always-hide
 #include "mediaaccess/wasapi_loopback.h"   // v1.94 — system loopback device list
 #include "mediaaccess/edge_tts_client.h"   // Edge voice list + preview synthesis
+#include "mediaaccess/subtitle_scheduler.h" // v2.52 — SubSetVoiceVolume
 #include "bass.h"                          // preview playback
 #include <set>
 #include <cmath>
@@ -16,6 +17,26 @@
 // Dialog-private message: a background voice-preview synthesis finished.
 // lParam = std::vector<unsigned char>* MP3 (heap, owned here) or nullptr on failure.
 #define WM_SUB_PREVIEW_READY (WM_APP + 41)
+
+// v2.52 — fixed list of selectable YouTube caption languages (selection-only
+// combo, no free typing). `name` is an English key localized via T(); `code` is
+// the yt-dlp language code ("" = the video's original track). Index-mapped: the
+// combo item order matches this array.
+struct CaptionLangChoice { const char* name; const wchar_t* code; };
+static const CaptionLangChoice kCaptionLangs[] = {
+    { "Original",   L""   },
+    { "English",    L"en" },
+    { "French",     L"fr" },
+    { "Spanish",    L"es" },
+    { "German",     L"de" },
+    { "Italian",    L"it" },
+    { "Portuguese", L"pt" },
+    { "Dutch",      L"nl" },
+    { "Japanese",   L"ja" },
+    { "Korean",     L"ko" },
+    { "Chinese",    L"zh" },
+};
+static const int kCaptionLangCount = (int)(sizeof(kCaptionLangs) / sizeof(kCaptionLangs[0]));
 
 // Dialog-private message (v2.44): the background Edge voice-catalog fetch
 // finished, so the voice/language combos (filled from the offline fallback at
@@ -34,6 +55,12 @@ struct SubDuckOpt { const wchar_t* label; double value; };
 static const SubDuckOpt s_subDuckOpts[] = {
     {L"100% (off)", 1.00}, {L"75%", 0.75}, {L"50%", 0.50},
     {L"30%", 0.30}, {L"15%", 0.15}, {L"0% (mute)", 0.00},
+};
+
+// v2.52 — subtitle voice-volume choices for the "Subtitle voice volume" combo.
+struct SubVoiceVolOpt { const wchar_t* label; float value; };
+static const SubVoiceVolOpt s_subVoiceVolOpts[] = {
+    {L"50%", 0.50f}, {L"75%", 0.75f}, {L"100%", 1.00f}, {L"125%", 1.25f}, {L"150%", 1.50f},
 };
 
 // Speech-rate choices (percent offset) for the "Speech rate" combo.
@@ -231,6 +258,7 @@ void ShowTabControls(HWND hwnd, int tab) {
                          IDC_SUBTITLE_EDGE, IDC_SUBTITLE_EDGE_VOICE, IDC_LABEL_SUBTITLE_EDGE_VOICE,
                          IDC_SUBTITLE_EDGE_LANG, IDC_LABEL_SUBTITLE_EDGE_LANG, IDC_SUBTITLE_EDGE_PREVIEW,
                          IDC_SUBTITLE_DUCK, IDC_LABEL_SUBTITLE_DUCK,
+                         IDC_SUBTITLE_VOICE_VOL, IDC_LABEL_SUBTITLE_VOICE_VOL,
                          IDC_SUBTITLE_RATE, IDC_LABEL_SUBTITLE_RATE,
                          IDC_LABEL_SPEECH_DESCRIPTION};
     // Movement tab controls (tab 4)
@@ -251,7 +279,8 @@ void ShowTabControls(HWND hwnd, int tab) {
     // YouTube tab controls (tab 8) — yt-dlp path/browse removed (bundled + auto-updated)
     int youtubeCtrls[] = {IDC_YT_APIKEY, IDC_YT_CLEAR_ON_EXIT, IDC_YT_CLEAR_NOW, IDC_YT_CACHE_LIMIT, IDC_LABEL_YT_LIMIT,
                           IDC_YT_DOWNLOAD_PATH, IDC_YT_DOWNLOAD_PATH_BROWSE, IDC_LABEL_YT_DOWNLOAD_PATH,
-                          IDC_LABEL_YOUTUBE_API_KEY, IDC_LABEL_YOUTUBE_API_HELP, IDC_LABEL_YOUTUBE_API_NOTE};
+                          IDC_LABEL_YOUTUBE_API_KEY, IDC_LABEL_YOUTUBE_API_HELP, IDC_LABEL_YOUTUBE_API_NOTE,
+                          IDC_YT_VIDEO_MODE, IDC_YT_FETCH_CAPTIONS, IDC_YT_CAPTION_LANG, IDC_LABEL_YT_CAPTION_LANG};
     // SoundTouch tab controls (tab 9)
     int soundtouchCtrls[] = {IDC_ST_AA_FILTER, IDC_ST_AA_LENGTH, IDC_ST_QUICK_ALGO, IDC_ST_SEQUENCE,
                              IDC_ST_SEEKWINDOW, IDC_ST_OVERLAP, IDC_ST_PREVENT_CLICK, IDC_ST_ALGORITHM,
@@ -768,6 +797,20 @@ INT_PTR CALLBACK OptionsDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
             // Initialize YouTube tab (yt-dlp path is bundled/auto-detected, no UI)
             SetDlgItemTextW(hwnd, IDC_YT_APIKEY, g_ytApiKey.c_str());
             CheckDlgButton(hwnd, IDC_YT_CLEAR_ON_EXIT, g_clearYtCacheOnExit ? BST_CHECKED : BST_UNCHECKED);
+            CheckDlgButton(hwnd, IDC_YT_VIDEO_MODE, GetYouTubeVideoMode() ? BST_CHECKED : BST_UNCHECKED);
+            // v2.52 — YouTube auto-captions
+            CheckDlgButton(hwnd, IDC_YT_FETCH_CAPTIONS, g_ytFetchCaptions ? BST_CHECKED : BST_UNCHECKED);
+            {
+                HWND hLang = GetDlgItem(hwnd, IDC_YT_CAPTION_LANG);
+                SendMessageW(hLang, CB_RESETCONTENT, 0, 0);
+                int sel = 0;  // default = Original
+                for (int i = 0; i < kCaptionLangCount; i++) {
+                    SendMessageW(hLang, CB_ADDSTRING, 0, (LPARAM)T(kCaptionLangs[i].name));
+                    if (g_ytCaptionLang == kCaptionLangs[i].code && g_ytCaptionLang.size())
+                        sel = i;
+                }
+                SendMessageW(hLang, CB_SETCURSEL, sel, 0);
+            }
             SetDlgItemInt(hwnd, IDC_YT_CACHE_LIMIT, g_ytCacheLimitMB, FALSE);
             // v1.71 — show current YouTube download folder (empty string is fine; it
             // signals to the user that the historical default is in effect).
@@ -876,6 +919,18 @@ INT_PTR CALLBACK OptionsDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
                     if (d < best) { best = d; duckSel = i; }
                 }
                 SendMessageW(duck, CB_SETCURSEL, duckSel, 0);
+                // v2.52 — subtitle voice-volume combo.
+                {
+                    HWND vv = GetDlgItem(hwnd, IDC_SUBTITLE_VOICE_VOL);
+                    SendMessageW(vv, CB_RESETCONTENT, 0, 0);
+                    int vvSel = 2; float bestV = 1e9f;  // default 100%
+                    for (int i = 0; i < (int)(sizeof(s_subVoiceVolOpts)/sizeof(s_subVoiceVolOpts[0])); i++) {
+                        SendMessageW(vv, CB_ADDSTRING, 0, (LPARAM)s_subVoiceVolOpts[i].label);
+                        float d = fabsf(s_subVoiceVolOpts[i].value - g_subtitleVoiceVolume);
+                        if (d < bestV) { bestV = d; vvSel = i; }
+                    }
+                    SendMessageW(vv, CB_SETCURSEL, vvSel, 0);
+                }
                 // Speech-rate combo ("Normal" is localized; v2.44).
                 HWND rate = GetDlgItem(hwnd, IDC_SUBTITLE_RATE);
                 SendMessageW(rate, CB_RESETCONTENT, 0, 0);
@@ -1276,6 +1331,21 @@ INT_PTR CALLBACK OptionsDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
                         g_ytApiKey = buf;
                     }
                     g_clearYtCacheOnExit = (IsDlgButtonChecked(hwnd, IDC_YT_CLEAR_ON_EXIT) == BST_CHECKED);
+                    SetYouTubeVideoMode(IsDlgButtonChecked(hwnd, IDC_YT_VIDEO_MODE) == BST_CHECKED);
+                    // v2.52 — YouTube auto-captions
+                    {
+                        // v2.52 — capture old caption settings to detect a change and
+                        // apply it immediately to the currently-playing YouTube video.
+                        std::wstring oldCapLang = g_ytCaptionLang;
+                        bool oldFetch = g_ytFetchCaptions;
+                        g_ytFetchCaptions = (IsDlgButtonChecked(hwnd, IDC_YT_FETCH_CAPTIONS) == BST_CHECKED);
+                        int sel = (int)SendMessageW(GetDlgItem(hwnd, IDC_YT_CAPTION_LANG), CB_GETCURSEL, 0, 0);
+                        if (sel >= 0 && sel < kCaptionLangCount) g_ytCaptionLang = kCaptionLangs[sel].code;
+                        if (g_ytFetchCaptions &&
+                            (g_ytCaptionLang != oldCapLang || g_ytFetchCaptions != oldFetch)) {
+                            YouTubeRefreshCaptionsForCurrent();  // re-fetch + switch now
+                        }
+                    }
                     {
                         BOOL ok = FALSE;
                         int v = (int)GetDlgItemInt(hwnd, IDC_YT_CACHE_LIMIT, &ok, FALSE);
@@ -1341,6 +1411,11 @@ INT_PTR CALLBACK OptionsDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
                         int di = (int)SendMessageW(GetDlgItem(hwnd, IDC_SUBTITLE_DUCK), CB_GETCURSEL, 0, 0);
                         if (di >= 0 && di < (int)(sizeof(s_subDuckOpts)/sizeof(s_subDuckOpts[0])))
                             g_subtitleDuckLevel = s_subDuckOpts[di].value;
+                        // v2.52 — subtitle voice volume (apply live to any active reader).
+                        int vi = (int)SendMessageW(GetDlgItem(hwnd, IDC_SUBTITLE_VOICE_VOL), CB_GETCURSEL, 0, 0);
+                        if (vi >= 0 && vi < (int)(sizeof(s_subVoiceVolOpts)/sizeof(s_subVoiceVolOpts[0])))
+                            g_subtitleVoiceVolume = s_subVoiceVolOpts[vi].value;
+                        mediaaccess::SubSetVoiceVolume(g_subtitleVoiceVolume);
                         g_subtitleEdgeRate = SubRatePercentFromCombo(hwnd);
                     }
                     extern void RefreshSubtitleEdge();

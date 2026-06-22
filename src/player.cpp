@@ -527,7 +527,17 @@ bool LoadURL(const wchar_t* url, bool silentOnFail) {
         // Internal BASS error code is logged but never shown to the user
         // (autonomy rule: never surface implementation detail).
         LogF("BASS", "URL load failed: code=%d", error);
-        if (!silentOnFail) MessageBoxW(GetMessageBoxOwner(), msg.c_str(), APP_NAME, MB_ICONERROR);
+        if (!silentOnFail) {
+            // v2.52 — speak the reason first so a screen-reader user hears why
+            // the stream failed even if the modal box never takes focus; then
+            // show the box for sighted users. Gated by !silentOnFail so silent
+            // probe/fallback loads stay quiet.
+            std::wstring spoken = T("Cannot play URL:");
+            spoken += L" ";
+            spoken += errorMsg;
+            SpeakW(spoken);
+            MessageBoxW(GetMessageBoxOwner(), msg.c_str(), APP_NAME, MB_ICONERROR);
+        }
         return false;
     }
 
@@ -2014,7 +2024,9 @@ void SetVolume(float vol) {
     // In legacy mode, use BASS_ATTRIB_VOL (faster but affects recordings)
     // In normal mode, volume DSP automatically uses updated g_volume
     if (g_legacyVolume && g_fxStream) {
-        float curvedVolume = vol * vol;  // Apply perceptual curve
+        // v2.52 — fold in the caption duck so a volume change during a spoken
+        // caption keeps the music attenuated (mirrors the MPV ApplyVideoVolume fix).
+        float curvedVolume = (vol * vol) * g_subtitleBassDuck.load(std::memory_order_relaxed);
         BASS_ChannelSetAttribute(g_fxStream, BASS_ATTRIB_VOL, curvedVolume);
     }
 
@@ -2048,7 +2060,8 @@ void ToggleMute() {
         if (g_muted) {
             BASS_ChannelSetAttribute(g_fxStream, BASS_ATTRIB_VOL, 0.0f);
         } else {
-            float curvedVolume = g_volume * g_volume;
+            // v2.52 — preserve the caption duck on unmute mid-caption.
+            float curvedVolume = (g_volume * g_volume) * g_subtitleBassDuck.load(std::memory_order_relaxed);
             BASS_ChannelSetAttribute(g_fxStream, BASS_ATTRIB_VOL, curvedVolume);
         }
     }

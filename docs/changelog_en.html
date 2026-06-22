@@ -8,6 +8,13 @@
 </head>
 <body>
 <h1>MediaAccess - Changelog</h1>
+<h2>Version 2.52</h2>
+<p>Fix: searching for radio stations (for example "all radios of France") sometimes returned nothing or made the window hang, because all searches went through a single Radio-Browser server. MediaAccess now uses the load-balanced entry point, applies connection timeouts so a dead server fails fast, and automatically retries on another server.</p>
+<p>New: a "Play YouTube videos as video (enables subtitles)" option in Options &rarr; YouTube. By default YouTube plays as audio only (so all tempo and pitch effects are available); tick this to watch the video and display subtitles. Takes effect on the next YouTube playback.</p>
+<p>Improvement (accessibility): when an internet stream (radio, podcast or URL) cannot be opened, MediaAccess now speaks the reason aloud in addition to showing the message, so the failure is announced to screen-reader users.</p>
+<p>New: read YouTube auto-generated captions. Enable "Read YouTube auto-generated captions" in Options &rarr; YouTube and pick a preferred language (empty = original; YouTube auto-translations are reached through the language code). Captions are read by your usual subtitle voice (Edge neural voice or screen reader), in both video and audio mode. Note: auto-captions are unpunctuated and sometimes imperfect, and a short delay may precede their appearance.</p>
+<p>New: a "Subtitle voice volume" setting in Options → Speech, to adjust the spoken subtitle voice independently of the background audio.</p>
+<p>Subtitle improvements: you can change the language or turn reading on/off at any time during playback (immediate, no need to reload the video). When the screen reader reads subtitles, each line is now spoken only once.</p>
 <h2>Version 2.51</h2>
 <p>Fix: on a custom keymap (created from the French France or Canadian layout), the A-B loop default shortcuts fell back to the US ones, so the loop markers did not land on the right AZERTY keys. Defaults now follow the keymap&#x27;s region (not its name), so a custom keymap inherits the correct shortcuts; already-affected keymaps are corrected automatically on startup. Reported by a French user.</p>
 <p>Fix: when opening several files at once (Ctrl+O, or "select all" in Explorer then Enter), a single unsupported file (for example a .jpg image) prevented MediaAccess from opening. Supported files are now loaded and the rest are simply skipped.</p>

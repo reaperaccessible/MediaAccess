@@ -482,6 +482,31 @@ void RegisterRcTranslations() {
 
     AddTranslation("en", "Clear cache when MediaAccess closes", L"Clear cache when MediaAccess closes");
     AddTranslation("fr", "Clear cache when MediaAccess closes", L"Vider le cache à la fermeture de MediaAccess");
+    AddTranslation("en", "Subtitle &voice volume:", L"Subtitle &voice volume:");
+    AddTranslation("fr", "Subtitle &voice volume:", L"Volume de la voix des sous-titres :");
+    AddTranslation("en", "SoundFont status", L"SoundFont status");
+    AddTranslation("fr", "SoundFont status", L"État de la SoundFont");
+    AddTranslation("en", "&Test YouTube playback", L"&Test YouTube playback");
+    AddTranslation("fr", "&Test YouTube playback", L"&Tester la lecture YouTube");
+    AddTranslation("en", "Play YouTube videos as video (enables subtitles)", L"Play YouTube videos as video (enables subtitles)");
+    AddTranslation("fr", "Play YouTube videos as video (enables subtitles)", L"Lire les vidéos YouTube en mode vidéo (active les sous-titres)");
+    // v2.52 — YouTube automatic captions
+    AddTranslation("en", "Read YouTube auto-generated captions", L"Read YouTube auto-generated captions");
+    AddTranslation("fr", "Read YouTube auto-generated captions", L"Lire les sous-titres générés automatiquement par YouTube");
+    AddTranslation("en", "Preferred caption language:", L"Preferred caption language:");
+    AddTranslation("fr", "Preferred caption language:", L"Langue de sous-titres préférée :");
+    AddTranslation("en", "Original", L"Original");
+    AddTranslation("fr", "Original", L"Originale");
+    AddTranslation("en", "English", L"English");      AddTranslation("fr", "English", L"Anglais");
+    AddTranslation("en", "French", L"French");        AddTranslation("fr", "French", L"Français");
+    AddTranslation("en", "Spanish", L"Spanish");      AddTranslation("fr", "Spanish", L"Espagnol");
+    AddTranslation("en", "German", L"German");        AddTranslation("fr", "German", L"Allemand");
+    AddTranslation("en", "Italian", L"Italian");      AddTranslation("fr", "Italian", L"Italien");
+    AddTranslation("en", "Portuguese", L"Portuguese"); AddTranslation("fr", "Portuguese", L"Portugais");
+    AddTranslation("en", "Dutch", L"Dutch");          AddTranslation("fr", "Dutch", L"Néerlandais");
+    AddTranslation("en", "Japanese", L"Japanese");    AddTranslation("fr", "Japanese", L"Japonais");
+    AddTranslation("en", "Korean", L"Korean");        AddTranslation("fr", "Korean", L"Coréen");
+    AddTranslation("en", "Chinese", L"Chinese");      AddTranslation("fr", "Chinese", L"Chinois");
 
     AddTranslation("en", "Clear cache now...", L"Clear cache now...");
     AddTranslation("fr", "Clear cache now...", L"Vider le cache maintenant...");

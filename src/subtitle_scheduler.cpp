@@ -181,6 +181,12 @@ double                   g_duckLevel = 0.3;
 double                   g_speed     = 1.0;     // current playback speed (for lookahead scaling)
 SubDuckFn                g_duckFn    = nullptr;
 SubFallbackFn            g_fallbackFn = nullptr;
+float                    g_voiceVol  = 1.0f;    // v2.52 — subtitle clip volume
+// v2.52 — live-only (no Edge prefetch) cue-crossing emit for audio-mode screen
+// reader. g_liveOnly: no worker, speak each cue as it becomes current.
+SubCueSpeakFn            g_cueSpeakFn = nullptr;
+bool                     g_liveOnly   = false;
+int                      g_lastEmitCue = -1;
 
 // Playback state — app thread only.
 HSTREAM g_clipStream = 0;
@@ -234,10 +240,16 @@ void StopClip() {
 
 void SubSetDuckCallback(SubDuckFn fn) { g_duckFn = fn; }
 void SubSetFallbackCallback(SubFallbackFn fn) { g_fallbackFn = fn; }
+void SubSetCueSpeakCallback(SubCueSpeakFn fn) { g_cueSpeakFn = fn; }
+void SubSetVoiceVolume(float vol) {
+    if (vol < 0.0f) vol = 0.0f;
+    g_voiceVol = vol;
+    if (g_clipStream) BASS_ChannelSetAttribute(g_clipStream, BASS_ATTRIB_VOL, vol);  // apply live
+}
 void SubSetSpeed(double speed) { std::lock_guard<std::mutex> lk(g_mtx); g_speed = speed; }
 
 void SubStart(const std::vector<SubCue>& cues, const std::string& edgeVoice,
-              double lookaheadSec, double duckLevel, const std::string& rate) {
+              double lookaheadSec, double duckLevel, const std::string& rate, bool liveOnly) {
     SubStop();
     std::lock_guard<std::mutex> lk(g_mtx);
     g_cues.clear(); g_cues.reserve(cues.size());
@@ -246,11 +258,13 @@ void SubStart(const std::vector<SubCue>& cues, const std::string& edgeVoice,
     g_voice = edgeVoice; g_rate = rate; g_lookahead = lookaheadSec; g_duckLevel = duckLevel;
     g_speed = 1.0;
     g_curCue = -1; g_clipStream = 0; g_ducked = false;
+    g_liveOnly = liveOnly; g_lastEmitCue = -1;   // v2.52
     g_running = true;
     g_workerCancel.store(false);   // v2.44 — re-arm in case a prior SubStop cancelled
-    g_worker = std::thread(WorkerLoop);
-    LogF("subtts", "started: %zu cues, voice=%s, lookahead=%.1fs",
-         g_cues.size(), edgeVoice.c_str(), lookaheadSec);
+    // v2.52 — live-only mode has no Edge prefetch, so no worker thread.
+    if (!liveOnly) g_worker = std::thread(WorkerLoop);
+    LogF("subtts", "started: %zu cues, voice=%s, lookahead=%.1fs, live=%d",
+         g_cues.size(), edgeVoice.c_str(), lookaheadSec, liveOnly ? 1 : 0);
 }
 
 void SubStop() {
@@ -280,12 +294,15 @@ void SubOnTimePos(double pos) {
     int toPlay = -1;
     std::vector<unsigned char> mp3;
     std::wstring fallbackText;
+    std::wstring liveText;   // v2.52 — live-only screen-reader emit
     {
         std::lock_guard<std::mutex> lk(g_mtx);
         if (!g_running) return;
         // 2) prefetch cues entering the lookahead window. The window is widened
         // at fast playback (synthesis latency is wall-clock, so video advances
         // faster and we need more video-seconds of lead).
+        // v2.52 — live-only mode has no synthesis worker, so skip prefetch.
+        if (!g_liveOnly) {
         double lead = g_lookahead * (g_speed > 1.0 ? g_speed : 1.0);
         bool queued = false;
         for (int i = 0; i < (int)g_cues.size(); i++) {
@@ -295,6 +312,7 @@ void SubOnTimePos(double pos) {
             }
         }
         if (queued) g_cv.notify_all();
+        }
         // 3) the cue currently on screen = latest-start, not-yet-handled cue whose
         //    window contains pos. Act on its state.
         //    Overlap policy (v2.44, explicit): at most ONE cue is spoken at a
@@ -309,7 +327,15 @@ void SubOnTimePos(double pos) {
             if (s.state != ST_PLAYED && s.cue.startSec <= pos && pos < s.cue.endSec)
                 if (sel < 0 || s.cue.startSec > g_cues[sel].cue.startSec) sel = i;
         }
-        if (sel >= 0 && sel != g_curCue) {
+        if (g_liveOnly) {
+            // v2.52 — speak each cue once as it becomes current (screen reader).
+            if (sel >= 0 && sel != g_lastEmitCue) {
+                liveText = g_cues[sel].cue.text;
+                g_cues[sel].state = ST_PLAYED;
+                g_lastEmitCue = sel;
+                g_curCue = sel;
+            }
+        } else if (sel >= 0 && sel != g_curCue) {
             if (g_cues[sel].state == ST_READY) {
                 toPlay = sel;
                 mp3 = g_cues[sel].mp3;
@@ -325,12 +351,14 @@ void SubOnTimePos(double pos) {
     }
 
     if (!fallbackText.empty() && g_fallbackFn) g_fallbackFn(fallbackText);
+    if (!liveText.empty() && g_cueSpeakFn) g_cueSpeakFn(liveText);  // v2.52
 
     // 4) start the chosen clip (cutting any current one = overlap policy)
     if (toPlay >= 0) {
         if (g_clipStream) { BASS_ChannelStop(g_clipStream); BASS_StreamFree(g_clipStream); g_clipStream = 0; }
         HSTREAM st = BASS_StreamCreateFile(BASS_FILE_MEMCOPY, mp3.data(), 0, mp3.size(), BASS_SAMPLE_FLOAT);
         if (st) {
+            BASS_ChannelSetAttribute(st, BASS_ATTRIB_VOL, g_voiceVol);  // v2.52 — voice volume
             if (!g_ducked) { Duck(g_duckLevel); g_ducked = true; }
             BASS_ChannelPlay(st, FALSE);
             g_clipStream = st; g_curCue = toPlay;
@@ -342,6 +370,7 @@ void SubOnTimePos(double pos) {
 
 void SubOnSeek(double pos) {
     StopClip();
+    g_lastEmitCue = -1;   // v2.52 — re-allow emitting the cue at the new position
     std::lock_guard<std::mutex> lk(g_mtx);
     for (SchedCue& s : g_cues) {
         if (s.cue.endSec <= pos)                                   s.state = ST_PLAYED;  // already past
@@ -479,6 +508,44 @@ std::vector<SubCue> SubExtractCues(const std::wstring& mediaPath, int subFfIndex
         // and the unique name means nothing else ever reclaims it. No-op if absent.
         DeleteFileW(tmp.c_str());
     }
+    return cues;
+}
+
+// v2.52 — collapse YouTube auto-caption rolling/duplicate cues in place.
+// Auto-captions "roll": each cue repeats the previous line plus one new
+// fragment, and many lines appear twice (a real cue + a ~10ms duplicate).
+// Without this, the screen reader / voice speaks each line 2-3 times.
+void CollapseRollingCues(std::vector<SubCue>& cues) {
+    std::vector<SubCue> out;
+    out.reserve(cues.size());
+    for (auto& c : cues) {
+        // 1) drop micro-cues (the tiny duplicate stamps auto-captions emit).
+        if (c.endSec - c.startSec < 0.05) continue;
+        if (c.text.empty()) continue;
+        if (!out.empty()) {
+            SubCue& prev = out.back();
+            // 2) exact-duplicate adjacent text -> extend the previous span.
+            if (prev.text == c.text) { if (c.endSec > prev.endSec) prev.endSec = c.endSec; continue; }
+            // 3) rolling repeat: this cue starts with the whole previous text ->
+            //    keep only the new tail (trim a leading space too).
+            if (c.text.size() > prev.text.size() &&
+                c.text.compare(0, prev.text.size(), prev.text) == 0) {
+                std::wstring tail = c.text.substr(prev.text.size());
+                size_t a = tail.find_first_not_of(L" \t\r\n");
+                if (a == std::wstring::npos) { if (c.endSec > prev.endSec) prev.endSec = c.endSec; continue; }
+                c.text = tail.substr(a);
+            }
+        }
+        out.push_back(c);
+    }
+    cues.swap(out);
+}
+
+// v2.52 — load + parse a subtitle file; collapse rolling cues for auto-captions.
+std::vector<SubCue> SubLoadCuesFromFile(const std::wstring& path, bool isAutoCaption) {
+    std::vector<SubCue> cues = ParseSubtitles(ReadFileRetry(path));
+    if (isAutoCaption) CollapseRollingCues(cues);
+    LogF("subtts", "loaded %ls -> %zu cues (auto=%d)", path.c_str(), cues.size(), isAutoCaption ? 1 : 0);
     return cues;
 }
 

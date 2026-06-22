@@ -134,6 +134,14 @@
 #define WM_SUBTITLE_READY     (WM_USER + 17) // background cue extraction done (lParam = SubPrepResult* heap)
 #define WM_BOOKEDGE_READY     (WM_USER + 18) // v2.48 — Edge synth ready for the current book paragraph (wParam=gen, lParam=segIdx)
 #define WM_BOOKEDGE_END       (WM_USER + 19) // v2.48 — Edge book paragraph clip finished (wParam=gen, lParam=segIdx) -> advance
+#define WM_YT_CAPTION_READY   (WM_USER + 20) // v2.52 — YouTube auto-caption fetch done (wParam=gen, lParam=std::wstring* vtt path or null)
+
+// v2.52 — YouTube automatic-caption options (YouTube tab). 1760-1762 verified free.
+#define IDC_YT_FETCH_CAPTIONS    1760
+#define IDC_YT_CAPTION_LANG      1761
+#define IDC_LABEL_YT_CAPTION_LANG 1762
+#define IDC_SUBTITLE_VOICE_VOL   1763
+#define IDC_LABEL_SUBTITLE_VOICE_VOL 1764
 
 // Playback tab controls
 #define IDC_BRING_TO_FRONT  531

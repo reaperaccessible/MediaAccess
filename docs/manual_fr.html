@@ -672,7 +672,8 @@
 <p>Certaines vidéos ne peuvent pas être lues ou téléchargées (privées, réservées aux membres, supprimées, ou directs en cours). Dans ces cas, MediaAccess annonce la raison précise à voix haute (par exemple « Cette vidéo est privée » ou « Cette vidéo est indisponible ») et n'ouvre pas la liste des formats — ce n'est pas une panne de l'application. En cas de problème persistant, utilisez <strong>Aide → Tester la lecture YouTube</strong>.</p>
 
 <h3>Mode audio / vidéo</h3>
-<p>Par défaut MediaAccess lit YouTube en mode audio seul (pour avoir tous les effets BASS comme tempo et hauteur). Pour la vidéo, activez le mode vidéo dans les options YouTube.</p>
+<p>Par défaut MediaAccess lit YouTube en mode audio seul (pour avoir tous les effets BASS comme tempo et hauteur). Pour voir la vidéo et afficher les sous-titres, cochez « Lire les vidéos YouTube en mode vidéo (active les sous-titres) » dans <strong>Options &rarr; YouTube</strong>. Le changement prend effet à la prochaine lecture YouTube.</p>
+<p><strong>Sous-titres automatiques.</strong> Cochez « Lire les sous-titres générés automatiquement par YouTube » dans <strong>Options &rarr; YouTube</strong> et choisissez une <strong>langue de sous-titres préférée</strong> (laissez vide pour la langue d'origine de la vidéo ; les traductions automatiques de YouTube sont obtenues via le code de langue, par exemple « fr »). Les sous-titres sont lus par votre <strong>voix de sous-titres habituelle</strong> (voix neuronale Edge si activée, sinon le lecteur d'écran), aussi bien quand vous regardez la vidéo qu'en mode audio. Désactivé par défaut. À savoir : les sous-titres automatiques sont sans ponctuation et parfois mal transcrits, et un court délai peut précéder leur apparition (le temps du téléchargement).</p>
 
 <h3>Cache</h3>
 <p>Les vidéos lues sont mises en cache dans <code>%LOCALAPPDATA%\MediaAccess\YouTubeCache\</code>. Le cache est <strong>permanent</strong> — il survit aux redémarrages. Pour le vider : <strong>Aide → Vider le cache YouTube</strong>.</p>
@@ -1040,7 +1041,11 @@
   <li><strong>Annoncer le volume lors des ajustements</strong> (activé par défaut)</li>
   <li><strong>Annoncer la valeur d'effet lors des ajustements</strong> (activé par défaut)</li>
   <li><strong>Annoncer l'activation des effets YouTube</strong> (activé par défaut) — quand une vidéo YouTube est lue en mode hybride, la lecture commence d'abord via libmpv (sans effets) puis bascule vers BASS dès que le téléchargement est terminé. Cette annonce vous indique le moment où les effets BASS (tempo, hauteur, EQ, etc.) deviennent disponibles. Décochez si vous trouvez l'annonce répétitive.</li>
-  <li><strong>Énoncer les sous-titres</strong> (désactivé par défaut) — route chaque ligne de la piste de sous-titres active vers le lecteur d'écran à mesure qu'elle apparaît, en mode interruption. Voir <a href="#video">section 5</a> pour les détails.</li>
+  <li><strong>Annoncer la position lors d'un déplacement</strong> (désactivé par défaut) — énonce le nouveau temps quand vous vous déplacez dans la piste.</li>
+  <li><strong>Énoncer les sous-titres</strong> (désactivé par défaut) — lit chaque ligne de sous-titre à mesure qu'elle apparaît. Vous pouvez l'activer ou la désactiver à tout moment pendant la lecture (effet immédiat). Voir <a href="#video">section 5</a>.</li>
+  <li><strong>Lire les sous-titres avec une voix neuronale (Edge, en ligne)</strong> — au lieu du lecteur d'écran, utilise une voix neuronale Microsoft Edge. Réglages associés : <strong>voix</strong> (avec un bouton <strong>Aperçu</strong>), <strong>filtre de langue</strong> et <strong>débit de la voix</strong>.</li>
+  <li><strong>Volume de l'audio pendant l'énoncé du sous-titre</strong> — baisse le son du média (vidéo ou audio) pendant qu'un sous-titre est lu. 100 % = aucune baisse, 0 % = média coupé pendant la voix.</li>
+  <li><strong>Volume de la voix des sous-titres</strong> — règle le volume de la voix elle-même (50 % à 150 %), indépendamment du fond sonore. Pratique si la voix couvre trop l'original : baissez-la plutôt que de baisser le média.</li>
 </ul>
 
 <h3>Onglet Déplacement</h3>
@@ -1066,6 +1071,9 @@
   <li><strong>Vider le cache à la fermeture de MediaAccess</strong> (désactivé par défaut) — chaque vidéo YouTube écoutée est mise en cache permanent dans <code>%LOCALAPPDATA%\MediaAccess\YouTubeCache\</code> pour des relectures instantanées. Cochez si vous voulez tout effacer à chaque fermeture (utile sur poste partagé ou pour économiser l'espace disque). Attention : les relectures redeviendront alors lentes (re-téléchargement à chaque écoute).</li>
   <li><strong>Vider le cache maintenant</strong> — bouton pour effacer le cache immédiatement. Demande confirmation, affiche la taille actuelle, puis indique le nombre de fichiers supprimés.</li>
   <li><strong>Limite du cache (Mo, 0 = illimité)</strong> — taille maximale autorisée. Quand le cache dépasse cette limite, les fichiers les plus anciens sont supprimés au prochain démarrage. Suggéré : 500 Mo pour un usage léger, 2000 Mo pour un usage quotidien.</li>
+  <li><strong>Lire les vidéos YouTube en mode vidéo</strong> (désactivé par défaut) — par défaut, MediaAccess lit les vidéos YouTube comme de l'audio seul. Cochez pour ouvrir la fenêtre vidéo. C'est nécessaire pour afficher et énoncer les sous-titres d'une vidéo.</li>
+  <li><strong>Lire les sous-titres générés automatiquement par YouTube</strong> (désactivé par défaut) — quand une vidéo YouTube est lue, récupère ses sous-titres générés automatiquement (s'ils existent) pour pouvoir les énoncer ou les afficher. Combinez avec « Énoncer les sous-titres » (onglet Voix) pour les entendre. Si aucun sous-titre n'est disponible, ou si YouTube limite temporairement les requêtes, MediaAccess vous l'annonce.</li>
+  <li><strong>Langue de sous-titres préférée</strong> — choisissez dans la liste la langue des sous-titres à récupérer. Le changement s'applique immédiatement : si une vidéo est en cours, MediaAccess re-télécharge et bascule sur la nouvelle langue sans avoir à relancer la lecture.</li>
 </ul>
 
 <h3>Onglet SoundTouch</h3>

@@ -45,6 +45,12 @@ void RegisterPlayerTranslations() {
     AddTranslation("en", "No loop", L"No loop");
     AddTranslation("fr", "No loop", L"Aucune boucle");
 
+    // v2.52 — YouTube automatic captions
+    AddTranslation("en", "No captions available for this video", L"No captions available for this video");
+    AddTranslation("fr", "No captions available for this video", L"Aucun sous-titre disponible pour cette vidéo");
+    AddTranslation("en", "Captions temporarily unavailable, try again", L"Captions temporarily unavailable, try again");
+    AddTranslation("fr", "Captions temporarily unavailable, try again", L"Sous-titres temporairement indisponibles, réessayez");
+
     // v2.32 — automatic output-device re-routing announcements (GitHub issue #7)
     AddTranslation("en", "Audio device changed", L"Audio device changed");
     AddTranslation("fr", "Audio device changed", L"Périphérique audio modifié");

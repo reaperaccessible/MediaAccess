@@ -67,3 +67,24 @@ Sylvain Marcel - Aidez moi -/
 
 # Editor/compiler scratch
 *.tmp.*
+
+# Local test media — never commit user content
+Contents Tests/
+*.mkv
+*.avi
+*.mp4
+*.webm
+*.mov
+*.ts
+*.m4a
+*.mp3
+
+# Scratch / experimental code and temp artifacts
+spike/
+_pr9tmp/
+_pr10_*.cpp
+RCa*
+MediaAccess_audio_diagnostic.txt
+Output/
+Wav_Files/
+(Wav_Files)/

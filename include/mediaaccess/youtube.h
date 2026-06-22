@@ -52,6 +52,33 @@ bool GetYouTubeVideoMode();
 // same videoId are instant.
 bool YouTubeDownloadAudio(const std::wstring& videoId, std::wstring& filePath);
 
+// v2.52 — automatic-caption support.
+// YouTubeFetchCaption downloads the chosen-language caption (manual preferred,
+// else auto-generated/auto-translated) to a persistent .vtt under the YouTube
+// cache and returns its path in outVttPath. langCode empty = original track.
+// Blocking + network: call ONLY from a worker thread. Returns false on failure;
+// when it fails, *outFailKey (if non-null) is set to an English message key
+// (e.g. a transient "try again" reason on a 429/network error vs a genuine
+// "no captions") so the caller can announce an accurate reason.
+bool YouTubeFetchCaption(const std::wstring& videoId, const std::wstring& langCode,
+                         std::wstring& outVttPath, const char** outFailKey = nullptr);
+
+// Payload posted to the UI thread via WM_YT_CAPTION_READY. vtt non-empty on
+// success; otherwise failKey is the English reason key to speak.
+struct YtCaptionReady {
+    int          gen;
+    std::wstring vtt;
+    const char*  failKey;
+};
+// Accessor for the videoId currently playing (g_currentYtVideoId is file-static).
+std::wstring GetCurrentYtVideoId();
+// Re-fetch captions for the currently-playing YouTube video in the current
+// preferred language (g_ytCaptionLang) and switch to it. No-op if captions are
+// disabled or no YouTube video is playing. Call after changing the language.
+void YouTubeRefreshCaptionsForCurrent();
+// Generation counter for in-flight caption fetches (discard stale results).
+int GetYtCaptionGen();
+
 // Returns true if the video is already in the persistent cache.
 bool YouTubeIsAudioCached(const std::wstring& videoId);
 

@@ -9,8 +9,8 @@ IDI_APPICON ICON "MediaAccess.ico"
 // ASCII only (rc.exe mojibake risk). FILEVERSION is hardcoded: bump it each
 // release to match include/mediaaccess/version.h (build_new.bat passes no /D to rc).
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION    2,51,0,0
- PRODUCTVERSION 2,51,0,0
+ FILEVERSION    2,52,0,0
+ PRODUCTVERSION 2,52,0,0
  FILEFLAGSMASK  0x3fL
  FILEFLAGS      0x0L
  FILEOS         VOS__WINDOWS32
@@ -23,12 +23,12 @@ BEGIN
     BEGIN
       VALUE "CompanyName",      "ReaperAccessible"
       VALUE "FileDescription",  "MediaAccess - accessible audio and video player"
-      VALUE "FileVersion",      "2.51"
+      VALUE "FileVersion",      "2.52"
       VALUE "InternalName",     "MediaAccess"
       VALUE "LegalCopyright",   "Copyright (C) 2026 ReaperAccessible. GPL-3.0."
       VALUE "OriginalFilename", "MediaAccess.exe"
       VALUE "ProductName",      "MediaAccess"
-      VALUE "ProductVersion",   "2.51"
+      VALUE "ProductVersion",   "2.52"
     END
   END
   BLOCK "VarFileInfo"
@@ -236,6 +236,8 @@ BEGIN
     COMBOBOX        IDC_SUBTITLE_RATE, 85, 220, 95, 200, CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
     LTEXT           "Video volume while spea&king:", IDC_LABEL_SUBTITLE_DUCK, 27, 240, 100, 10
     COMBOBOX        IDC_SUBTITLE_DUCK, 130, 238, 55, 100, CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    LTEXT           "Subtitle &voice volume:", IDC_LABEL_SUBTITLE_VOICE_VOL, 27, 256, 100, 10
+    COMBOBOX        IDC_SUBTITLE_VOICE_VOL, 130, 254, 55, 100, CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
 
     // Movement tab controls (shown when tab 4 selected)
     LTEXT           "Seek amounts (use , and . to cycle):", IDC_LABEL_MOVEMENT_DESCRIPTION, 17, 30, 260, 10
@@ -312,6 +314,10 @@ BEGIN
     LTEXT           "&Download folder (empty = default):", IDC_LABEL_YT_DOWNLOAD_PATH, 17, 167, 200, 10
     EDITTEXT        IDC_YT_DOWNLOAD_PATH, 17, 180, 205, 14, ES_AUTOHSCROLL
     PUSHBUTTON      "Bro&wse...", IDC_YT_DOWNLOAD_PATH_BROWSE, 225, 179, 50, 14
+    AUTOCHECKBOX    "Play YouTube videos as video (enables subtitles)", IDC_YT_VIDEO_MODE, 17, 200, 260, 10
+    AUTOCHECKBOX    "Read YouTube auto-generated captions", IDC_YT_FETCH_CAPTIONS, 17, 216, 260, 10
+    LTEXT           "Preferred caption language:", IDC_LABEL_YT_CAPTION_LANG, 17, 232, 230, 10
+    COMBOBOX        IDC_YT_CAPTION_LANG, 17, 245, 120, 200, CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
 
     // SoundTouch tab controls (shown when tab 9 selected)
     LTEXT           "SoundTouch settings (changes apply on next file load):", IDC_LABEL_SOUNDTOUCH_DESCRIPTION, 17, 30, 220, 10

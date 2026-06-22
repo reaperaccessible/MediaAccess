@@ -130,11 +130,29 @@ static const UINT WM_RADIO_LANGUAGES_READY = WM_APP + 13;
 // Persisted in the INI under [Radio] AdvancedSearchOpen.
 static bool g_radioAdvancedOpen = false;
 
+// v2.52 — Radio-Browser.info mirrors. Previously every call was hard-pinned to
+// "de1.api..."; when that single host was slow or down, broad searches (e.g.
+// "all radios of France") returned nothing and the UI could hang. We now hit
+// the geo round-robin entry point first and fail over to named mirrors.
+static const wchar_t* kRadioHosts[] = {
+    L"all.api.radio-browser.info",   // geo round-robin (recommended primary)
+    L"de1.api.radio-browser.info",   // explicit failover
+    L"nl1.api.radio-browser.info",   // explicit failover
+};
+static const int kRadioHostCount = 3;
+
 // HTTP GET request (reused from youtube.cpp pattern)
 static std::wstring RadioHttpGet(const std::wstring& url, const wchar_t* extraHeaders = nullptr) {
     std::wstring result;
     HINTERNET hInternet = InternetOpenW(L"MediaAccess/1.0", INTERNET_OPEN_TYPE_PRECONFIG, nullptr, nullptr, 0);
     if (!hInternet) return result;
+
+    // v2.52 — fail fast when a mirror is unreachable instead of hanging the UI
+    // thread on WinINet defaults (the search runs synchronously).
+    DWORD connectTimeout = 6000;   // ms
+    DWORD receiveTimeout = 10000;  // ms
+    InternetSetOptionW(hInternet, INTERNET_OPTION_CONNECT_TIMEOUT, &connectTimeout, sizeof(connectTimeout));
+    InternetSetOptionW(hInternet, INTERNET_OPTION_RECEIVE_TIMEOUT, &receiveTimeout, sizeof(receiveTimeout));
 
     // Use INTERNET_FLAG_SECURE for HTTPS
     DWORD flags = INTERNET_FLAG_RELOAD | INTERNET_FLAG_NO_CACHE_WRITE;
@@ -170,6 +188,22 @@ static std::wstring RadioHttpGet(const std::wstring& url, const wchar_t* extraHe
     }
     InternetCloseHandle(hInternet);
     return result;
+}
+
+// v2.52 — try each Radio-Browser mirror until one returns a non-empty body.
+// pathAndQuery must start with '/'. This replaces the old single hard-pinned
+// host so a dead/slow mirror no longer yields an empty result and "No stations
+// found".
+static std::wstring RadioHttpGetMirrored(const std::wstring& pathAndQuery,
+                                         const wchar_t* extraHeaders = nullptr) {
+    for (int i = 0; i < kRadioHostCount; ++i) {
+        std::wstring url = L"https://";
+        url += kRadioHosts[i];
+        url += pathAndQuery;
+        std::wstring body = RadioHttpGet(url, extraHeaders);
+        if (!body.empty()) return body;
+    }
+    return std::wstring();
 }
 
 // URL encode a string
@@ -270,8 +304,7 @@ static void PopulateCountryCombo(HWND hwnd) {
 // Background thread: fetch RadioBrowser countries and notify dialog
 static DWORD WINAPI FetchRadioCountriesThreadProc(LPVOID param) {
     HWND hwnd = reinterpret_cast<HWND>(param);
-    std::wstring url = L"https://de1.api.radio-browser.info/json/countries?hidebroken=true&order=stationcount&reverse=true";
-    std::wstring json = RadioHttpGet(url);
+    std::wstring json = RadioHttpGetMirrored(L"/json/countries?hidebroken=true&order=stationcount&reverse=true");
 
     if (!json.empty()) {
         size_t pos = 0;
@@ -317,9 +350,9 @@ static void EnsureRadioCountriesFetched(HWND hwnd) {
 
 // Generic list fetcher for RadioBrowser's /tags and /languages endpoints.
 // Same JSON-array parsing logic as countries (each object has a "name").
-static void FetchRadioListInto(const std::wstring& url,
+static void FetchRadioListInto(const std::wstring& pathAndQuery,
                                std::vector<std::wstring>& out) {
-    std::wstring json = RadioHttpGet(url);
+    std::wstring json = RadioHttpGetMirrored(pathAndQuery);
     if (json.empty()) return;
     size_t pos = 0;
     while ((pos = json.find(L'{', pos)) != std::wstring::npos) {
@@ -349,7 +382,7 @@ static DWORD WINAPI FetchRadioTagsThreadProc(LPVOID param) {
     // Cap to top 500 by station count — the full list is enormous and most
     // entries are typos / one-station tags that are useless as filters.
     FetchRadioListInto(
-        L"https://de1.api.radio-browser.info/json/tags?hidebroken=true"
+        L"/json/tags?hidebroken=true"
         L"&order=stationcount&reverse=true&limit=500",
         g_radioTags);
     g_radioTagsFetched  = true;
@@ -361,7 +394,7 @@ static DWORD WINAPI FetchRadioTagsThreadProc(LPVOID param) {
 static DWORD WINAPI FetchRadioLanguagesThreadProc(LPVOID param) {
     HWND hwnd = reinterpret_cast<HWND>(param);
     FetchRadioListInto(
-        L"https://de1.api.radio-browser.info/json/languages?hidebroken=true"
+        L"/json/languages?hidebroken=true"
         L"&order=stationcount&reverse=true",
         g_radioLanguages);
     g_radioLanguagesFetched  = true;
@@ -488,7 +521,7 @@ static bool SearchRadioBrowser(const std::wstring& query,
     results.clear();
 
     // Use search endpoint; all named filters are optional.
-    std::wstring url = L"https://de1.api.radio-browser.info/json/stations/search?limit=100&hidebroken=true";
+    std::wstring url = L"/json/stations/search?limit=100&hidebroken=true";
     if (!query.empty()) {
         url += L"&name=" + RadioUrlEncode(query);
     }
@@ -517,7 +550,7 @@ static bool SearchRadioBrowser(const std::wstring& query,
         // browse case used to ship without any explicit sort).
         url += L"&order=clickcount&reverse=true";
     }
-    std::wstring json = RadioHttpGet(url);
+    std::wstring json = RadioHttpGetMirrored(url);
     if (json.empty()) return false;
 
     // Simple JSON array parser - find each object by tracking brace depth

@@ -295,6 +295,10 @@ void LoadSettings() {
     g_subtitleDuckLevel = GetPrivateProfileIntW(L"Speech", L"SubtitleDuck", 30, g_configPath.c_str()) / 100.0;
     if (g_subtitleDuckLevel < 0.0)      g_subtitleDuckLevel = 0.0;   // v2.44 — clamp a hand-edited INI
     else if (g_subtitleDuckLevel > 1.0) g_subtitleDuckLevel = 1.0;   // (SubtitleDuck=500 would over-amplify)
+    // v2.52 — subtitle voice volume (percent; 25..150)
+    g_subtitleVoiceVolume = GetPrivateProfileIntW(L"Speech", L"SubtitleVoiceVolume", 100, g_configPath.c_str()) / 100.0f;
+    if (g_subtitleVoiceVolume < 0.0f)      g_subtitleVoiceVolume = 0.0f;
+    else if (g_subtitleVoiceVolume > 2.0f) g_subtitleVoiceVolume = 2.0f;
     {
         wchar_t rb[16] = {0};   // string read so a negative rate parses correctly
         GetPrivateProfileStringW(L"Speech", L"SubtitleEdgeRate", L"0", rb, 16, g_configPath.c_str());
@@ -395,6 +399,13 @@ void LoadSettings() {
     g_clearYtCacheOnExit = GetPrivateProfileIntW(L"YouTube", L"ClearCacheOnExit", 0, g_configPath.c_str()) != 0;
     g_ytCacheLimitMB = GetPrivateProfileIntW(L"YouTube", L"CacheLimitMB", 0, g_configPath.c_str());
     if (g_ytCacheLimitMB < 0) g_ytCacheLimitMB = 0;
+    // v2.52 — YouTube automatic captions
+    g_ytFetchCaptions = GetPrivateProfileIntW(L"YouTube", L"FetchCaptions", 0, g_configPath.c_str()) != 0;
+    {
+        wchar_t capLang[64] = {0};
+        GetPrivateProfileStringW(L"YouTube", L"CaptionLang", L"", capLang, 64, g_configPath.c_str());
+        g_ytCaptionLang = capLang;
+    }
 
     // Language: load saved setting, or auto-detect from Windows on first run.
     // Note: InitTranslations() must have been called before this so SetLanguage()
@@ -667,6 +678,8 @@ void SaveSettings() {
     {
         wchar_t db[8]; _snwprintf_s(db, _TRUNCATE, L"%d", (int)(g_subtitleDuckLevel * 100 + 0.5));
         WritePrivateProfileStringW(L"Speech", L"SubtitleDuck", db, g_configPath.c_str());
+        wchar_t vv[8]; _snwprintf_s(vv, _TRUNCATE, L"%d", (int)(g_subtitleVoiceVolume * 100 + 0.5f));
+        WritePrivateProfileStringW(L"Speech", L"SubtitleVoiceVolume", vv, g_configPath.c_str());
         wchar_t rb[8]; _snwprintf_s(rb, _TRUNCATE, L"%d", g_subtitleEdgeRate);
         WritePrivateProfileStringW(L"Speech", L"SubtitleEdgeRate", rb, g_configPath.c_str());
     }
@@ -834,6 +847,9 @@ void SaveSettings() {
     // YouTube video mode
     WritePrivateProfileStringW(L"YouTube", L"VideoMode", GetYouTubeVideoMode() ? L"1" : L"0", g_configPath.c_str());
     WritePrivateProfileStringW(L"YouTube", L"ClearCacheOnExit", g_clearYtCacheOnExit ? L"1" : L"0", g_configPath.c_str());
+    // v2.52 — YouTube automatic captions
+    WritePrivateProfileStringW(L"YouTube", L"FetchCaptions", g_ytFetchCaptions ? L"1" : L"0", g_configPath.c_str());
+    WritePrivateProfileStringW(L"YouTube", L"CaptionLang", g_ytCaptionLang.c_str(), g_configPath.c_str());
     {
         wchar_t buf[32]; swprintf(buf, 32, L"%d", g_ytCacheLimitMB);
         WritePrivateProfileStringW(L"YouTube", L"CacheLimitMB", buf, g_configPath.c_str());

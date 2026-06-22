@@ -56,11 +56,30 @@ std::vector<SubCue> ParseSubtitles(const std::string& utf8Data);
 using SubDuckFn = void (*)(double level);
 void SubSetDuckCallback(SubDuckFn fn);
 
+// v2.52 — set the volume of the spoken subtitle clip itself (1.0 = normal).
+// Applies to the next clip and the currently-playing one. Lets the user balance
+// the voice against the background independently of the ducking setting.
+void SubSetVoiceVolume(float vol);
+
 // Per-cue fallback: called (on the app thread, from SubOnTimePos) with a cue's
 // text when its synthesis has permanently failed, so the app can read that one
 // line via the screen reader instead of leaving it silent. Optional.
 using SubFallbackFn = void (*)(const std::wstring& text);
 void SubSetFallbackCallback(SubFallbackFn fn);
+
+// v2.52 — per-cue "speak now" hook used in LIVE-ONLY mode (no Edge prefetch):
+// fired on the app thread as each cue becomes current, so a plain screen-reader
+// user gets the caption text in audio mode. Optional (null = not live-only).
+using SubCueSpeakFn = void (*)(const std::wstring& text);
+void SubSetCueSpeakCallback(SubCueSpeakFn fn);
+
+// v2.52 — load + parse a subtitle file into cues. When isAutoCaption is true,
+// runs CollapseRollingCues to remove YouTube auto-caption rolling duplication.
+// BLOCKING (file read) — call on a worker thread.
+std::vector<SubCue> SubLoadCuesFromFile(const std::wstring& path, bool isAutoCaption);
+
+// v2.52 — collapse YouTube auto-caption rolling/duplicate cues in place.
+void CollapseRollingCues(std::vector<SubCue>& cues);
 
 // Tell the scheduler the current video playback speed so the lookahead window
 // (in video-seconds) is widened at fast speeds — synthesis latency is wall-clock,
@@ -70,9 +89,11 @@ void SubSetSpeed(double speed);
 // Begin prefetching/scheduling `cues` with the given Edge voice short name.
 // `lookaheadSec` is how far ahead of playback to pre-synthesize. Replaces any
 // previous session. Starts the worker thread.
+// v2.52 — liveOnly: skip the Edge prefetch worker entirely and instead fire the
+// cue-speak callback as each cue becomes current (live screen-reader mode).
 void SubStart(const std::vector<SubCue>& cues, const std::string& edgeVoice,
               double lookaheadSec = 2.5, double duckLevel = 0.3,
-              const std::string& rate = "+0%");
+              const std::string& rate = "+0%", bool liveOnly = false);
 
 // Source subtitle cues for `mediaPath` — first a sidecar .srt/.vtt next to the
 // file, else the embedded subtitle track `subFfIndex` extracted via the bundled

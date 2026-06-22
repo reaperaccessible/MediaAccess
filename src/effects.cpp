@@ -546,11 +546,15 @@ static void CALLBACK VolumeDSPProc(HDSP handle, DWORD channel, void* buffer, DWO
     if (legacyVol) return;
 
     float volume = muted ? 0.0f : vol;
-    if (volume == 1.0f) return; // No processing needed at full volume
 
-    // Apply perceptual volume curve (quadratic) to match BASS_ATTRIB_VOL behavior
-    // This makes lower volumes feel more gradual and natural
-    float curvedVolume = volume * volume;
+    // Apply perceptual volume curve (quadratic) to match BASS_ATTRIB_VOL behavior.
+    // v2.52 — fold in the subtitle/caption duck so the music is attenuated while a
+    // spoken caption plays in audio mode. The duck multiplier is 1.0 except while
+    // a caption is speaking, so the full-volume fast-path below still skips work
+    // during normal playback.
+    float duck = g_subtitleBassDuck.load(std::memory_order_relaxed);
+    float curvedVolume = (volume * volume) * duck;
+    if (curvedVolume == 1.0f) return; // No processing needed at full volume, no duck
 
     BASS_CHANNELINFO info;
     if (!BASS_ChannelGetInfo(channel, &info)) return;

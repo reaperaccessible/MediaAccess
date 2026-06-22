@@ -672,7 +672,8 @@
 <p>Some videos cannot be played or downloaded (private, members-only, removed videos, or ongoing live streams). In those cases MediaAccess speaks the specific reason (for example "This video is private" or "This video is unavailable") and does not open the format list — this is not an app failure. If a problem persists, use <strong>Help → Test YouTube playback</strong>.</p>
 
 <h3>Audio / video mode</h3>
-<p>By default MediaAccess plays YouTube in audio-only mode (so all BASS effects like tempo and pitch are available). For video, enable video mode in the YouTube options.</p>
+<p>By default MediaAccess plays YouTube in audio-only mode (so all BASS effects like tempo and pitch are available). To watch the video and show subtitles, tick "Play YouTube videos as video (enables subtitles)" in <strong>Options &rarr; YouTube</strong>. The change takes effect on the next YouTube playback.</p>
+<p><strong>Automatic captions.</strong> Tick "Read YouTube auto-generated captions" in <strong>Options &rarr; YouTube</strong> and choose a <strong>preferred caption language</strong> (leave empty for the video's original language; YouTube auto-translations are reached through the language code, e.g. "fr"). Captions are read by your <strong>usual subtitle voice</strong> (the Edge neural voice if enabled, otherwise the screen reader), both when watching the video and in audio mode. Off by default. Note: auto-captions are unpunctuated and sometimes mis-transcribed, and a short delay (the download) may precede their appearance.</p>
 
 <h3>Cache</h3>
 <p>Played videos are cached in <code>%LOCALAPPDATA%\MediaAccess\YouTubeCache\</code>. The cache is <strong>permanent</strong> — it survives reboots. To clear it: <strong>Help → Clear YouTube cache</strong>.</p>
@@ -1044,7 +1045,11 @@
   <li><strong>Speak volume when adjusted</strong> (on by default)</li>
   <li><strong>Speak effect value when adjusted</strong> (on by default)</li>
   <li><strong>Announce YouTube effects activation</strong> (on by default) — when a YouTube video plays in hybrid mode, playback starts via libmpv (no effects) then swaps to BASS once the download completes. This announcement tells you when the BASS effects (tempo, pitch, EQ, etc.) become available. Uncheck if you find the announcement repetitive.</li>
-  <li><strong>Speak subtitles</strong> (off by default) — routes each line of the active subtitle track to the screen reader as it appears, in interrupt mode. See <a href="#video">section 5</a> for details.</li>
+  <li><strong>Announce position when seeking</strong> (off by default) — speaks the new time when you move through the track.</li>
+  <li><strong>Speak subtitles</strong> (off by default) — reads each subtitle line aloud as it appears. You can turn it on or off at any time during playback (takes effect immediately). See <a href="#video">section 5</a>.</li>
+  <li><strong>Read subtitles with a neural voice (Edge, online)</strong> — instead of the screen reader, uses a Microsoft Edge neural voice. Related settings: <strong>voice</strong> (with a <strong>Preview</strong> button), <strong>language filter</strong> and <strong>voice rate</strong>.</li>
+  <li><strong>Audio volume while a subtitle is spoken</strong> — lowers the media sound (video or audio) while a subtitle is being read. 100% = no reduction, 0% = media muted during the voice.</li>
+  <li><strong>Subtitle voice volume</strong> — sets the volume of the voice itself (50% to 150%), independently of the background sound. Useful if the voice covers the original too much: lower it instead of lowering the media.</li>
 </ul>
 
 <h3>Movement tab</h3>
@@ -1070,6 +1075,9 @@
   <li><strong>Clear cache when MediaAccess closes</strong> (off by default) — every YouTube video played is cached permanently in <code>%LOCALAPPDATA%\MediaAccess\YouTubeCache\</code> for instant replays. Check this if you want everything wiped on each close (useful on shared machines or to save disk space). Note: replays will then be slow (re-download every time).</li>
   <li><strong>Clear cache now</strong> — button to wipe the cache immediately. Asks for confirmation, shows the current size, then reports the number of removed files.</li>
   <li><strong>Limit cache size (MB, 0 = unlimited)</strong> — maximum allowed size. When the cache exceeds this limit, the oldest files are removed at the next startup. Suggested: 500 MB for light use, 2000 MB for daily use.</li>
+  <li><strong>Play YouTube videos in video mode</strong> (off by default) — by default, MediaAccess plays YouTube videos as audio only. Check this to open the video window. It is required to display and speak a video's subtitles.</li>
+  <li><strong>Read YouTube auto-generated captions</strong> (off by default) — when a YouTube video plays, fetches its auto-generated captions (if any) so they can be spoken or displayed. Combine with "Speak subtitles" (Speech tab) to hear them. If no captions are available, or if YouTube is temporarily rate-limiting requests, MediaAccess tells you.</li>
+  <li><strong>Preferred caption language</strong> — pick from the list the language of the captions to fetch. The change applies immediately: if a video is playing, MediaAccess re-downloads and switches to the new language without having to restart playback.</li>
 </ul>
 
 <h3>SoundTouch tab</h3>
