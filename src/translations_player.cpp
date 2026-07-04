@@ -888,6 +888,9 @@ void RegisterPlayerTranslations() {
     AddTranslation("en", "No episodes found", L"No episodes found");
     AddTranslation("fr", "No episodes found", L"Aucun épisode trouvé");
 
+    AddTranslation("en", "Back to search results", L"Back to search results");
+    AddTranslation("fr", "Back to search results", L"Retour aux résultats de recherche");
+
     AddTranslation("en", "No episode selected", L"No episode selected");
     AddTranslation("fr", "No episode selected", L"Aucun épisode sélectionné");
 

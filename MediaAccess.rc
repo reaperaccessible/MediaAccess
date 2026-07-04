@@ -9,8 +9,8 @@ IDI_APPICON ICON "MediaAccess.ico"
 // ASCII only (rc.exe mojibake risk). FILEVERSION is hardcoded: bump it each
 // release to match include/mediaaccess/version.h (build_new.bat passes no /D to rc).
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION    2,55,0,0
- PRODUCTVERSION 2,55,0,0
+ FILEVERSION    2,56,0,0
+ PRODUCTVERSION 2,56,0,0
  FILEFLAGSMASK  0x3fL
  FILEFLAGS      0x0L
  FILEOS         VOS__WINDOWS32
@@ -23,12 +23,12 @@ BEGIN
     BEGIN
       VALUE "CompanyName",      "ReaperAccessible"
       VALUE "FileDescription",  "MediaAccess - accessible audio and video player"
-      VALUE "FileVersion",      "2.55"
+      VALUE "FileVersion",      "2.56"
       VALUE "InternalName",     "MediaAccess"
       VALUE "LegalCopyright",   "Copyright (C) 2026 ReaperAccessible. GPL-3.0."
       VALUE "OriginalFilename", "MediaAccess.exe"
       VALUE "ProductName",      "MediaAccess"
-      VALUE "ProductVersion",   "2.55"
+      VALUE "ProductVersion",   "2.56"
     END
   END
   BLOCK "VarFileInfo"
@@ -666,7 +666,7 @@ BEGIN
     EDITTEXT        IDC_PODCAST_SEARCH_EDIT, 72, 28, 290, 14, ES_AUTOHSCROLL
     PUSHBUTTON      "&Search", IDC_PODCAST_SEARCH_BTN, 366, 27, 50, 14
     LISTBOX         IDC_PODCAST_SEARCH_LIST, 14, 48, 402, 175, LBS_NOTIFY | WS_VSCROLL | WS_TABSTOP
-    LTEXT           "Enter = preview, Escape = close", IDC_PODCAST_SEARCH_HELP, 14, 228, 150, 10
+    LTEXT           "Enter = show episodes, Escape = close", IDC_PODCAST_SEARCH_HELP, 14, 228, 190, 10
     PUSHBUTTON      "S&ubscribe", IDC_PODCAST_SUBSCRIBE, 168, 226, 55, 14
     PUSHBUTTON      "&Import OPML...", IDC_PODCAST_IMPORT_OPML, 228, 226, 60, 14
     PUSHBUTTON      "&Add URL...", IDC_PODCAST_ADD_URL, 293, 226, 55, 14

@@ -817,6 +817,9 @@ static std::wstring BuildPodcastDiagMessage(const std::wstring& feedUrl, const P
 // own selection bookkeeping and accessibility events BEFORE we rewrite the
 // description edit.
 static const UINT WM_PODCAST_UPDATE_DESC = WM_APP + 12;
+// Posted from the episodes listbox subclass on Backspace: the dialog backs out
+// of the search-episode sub-view (no-op when not in that mode). WM_APP+21.
+static const UINT WM_PODCAST_EPS_BACK = WM_APP + 21;
 // Track the last caret index we updated the description for so we don't
 // rewrite the description on Ctrl+Space toggles or other events that don't
 // move the caret.
@@ -855,6 +858,12 @@ static LRESULT CALLBACK PodcastEpsListSubclassProc(HWND hwnd, UINT msg, WPARAM w
                 NotifyWinEvent(EVENT_OBJECT_FOCUS, hwnd, OBJID_CLIENT, newCaret + 1);
                 NotifyEpsCaretMoved(hwnd);
             }
+            return 0;
+        }
+        if (!ctrl && !shift && wParam == VK_BACK) {
+            // Backspace: ask the dialog to leave the search-episode sub-view.
+            // Harmless no-op when browsing a real subscription's episodes.
+            PostMessageW(GetParent(hwnd), WM_PODCAST_EPS_BACK, 0, 0);
             return 0;
         }
         if (ctrl && !shift && wParam == VK_SPACE && count > 0) {
@@ -919,6 +928,54 @@ static std::wstring CleanPodcastDescription(const std::wstring& raw) {
     return desc;
 }
 
+// Fill the episodes list control from g_podcastEpisodes, select the first item,
+// trigger the description update, and announce the count. Shared by the
+// Subscriptions load path and the search-result episode browser (Séb).
+static void PopulateEpisodesList(HWND hwnd) {
+    HWND hList = GetDlgItem(hwnd, IDC_PODCAST_EPISODES);
+    SendMessageW(hList, LB_RESETCONTENT, 0, 0);
+    for (const auto& ep : g_podcastEpisodes) {
+        std::wstring display = ep.title;
+        if (!ep.pubDate.empty()) {
+            size_t commaPos = ep.pubDate.find(L',');
+            if (commaPos != std::wstring::npos && commaPos + 12 < ep.pubDate.length()) {
+                display += L" (" + ep.pubDate.substr(commaPos + 2, 11) + L")";
+            }
+        }
+        if (!ep.description.empty()) {
+            std::wstring desc = ep.description;
+            size_t pos;
+            while ((pos = desc.find(L'<')) != std::wstring::npos) {
+                size_t endPos = desc.find(L'>', pos);
+                if (endPos != std::wstring::npos) desc.erase(pos, endPos - pos + 1);
+                else break;
+            }
+            while ((pos = desc.find(L"&nbsp;")) != std::wstring::npos) desc.replace(pos, 6, L" ");
+            while ((pos = desc.find(L"&amp;"))  != std::wstring::npos) desc.replace(pos, 5, L"&");
+            while ((pos = desc.find(L"&quot;")) != std::wstring::npos) desc.replace(pos, 6, L"\"");
+            while ((pos = desc.find(L"&apos;")) != std::wstring::npos) desc.replace(pos, 6, L"'");
+            while ((pos = desc.find(L"&lt;"))   != std::wstring::npos) desc.replace(pos, 4, L"<");
+            while ((pos = desc.find(L"&gt;"))   != std::wstring::npos) desc.replace(pos, 4, L">");
+            while (!desc.empty() && (desc[0] == L' ' || desc[0] == L'\n' || desc[0] == L'\r' || desc[0] == L'\t')) {
+                desc.erase(0, 1);
+            }
+            if (desc.length() > 150) desc = desc.substr(0, 147) + L"...";
+            if (!desc.empty()) display += L" - " + desc;
+        }
+        SendMessageW(hList, LB_ADDSTRING, 0, reinterpret_cast<LPARAM>(display.c_str()));
+    }
+    if (!g_podcastEpisodes.empty()) {
+        SendMessageW(hList, LB_SETSEL, FALSE, -1);
+        SendMessageW(hList, LB_SETSEL, TRUE, 0);
+        SendMessageW(hList, LB_SETCARETINDEX, 0, FALSE);
+        g_lastDescCaret = -1;
+        PostMessageW(hwnd, WM_PODCAST_UPDATE_DESC, 0, 0);
+    }
+    char buf[64];
+    snprintf(buf, sizeof(buf), Ts("%d episodes").c_str(), static_cast<int>(g_podcastEpisodes.size()));
+    Speak(buf);
+}
+
 // Load episodes for a subscription
 static void LoadPodcastEpisodes(HWND hwnd, const std::wstring& feedUrl) {
     HWND hList = GetDlgItem(hwnd, IDC_PODCAST_EPISODES);
@@ -931,83 +988,47 @@ static void LoadPodcastEpisodes(HWND hwnd, const std::wstring& feedUrl) {
     std::wstring title;
     PodcastFetchDiag diag;
     if (ParsePodcastFeed(feedUrl, title, g_podcastEpisodes, L"", L"", &diag)) {
-        for (const auto& ep : g_podcastEpisodes) {
-            std::wstring display = ep.title;
-            if (!ep.pubDate.empty()) {
-                // Truncate pub date to just the date part
-                size_t commaPos = ep.pubDate.find(L',');
-                if (commaPos != std::wstring::npos && commaPos + 12 < ep.pubDate.length()) {
-                    display += L" (" + ep.pubDate.substr(commaPos + 2, 11) + L")";
-                }
-            }
-            if (!ep.description.empty()) {
-                // Clean up description - remove HTML tags and limit length
-                std::wstring desc = ep.description;
-                // Remove HTML tags
-                size_t pos;
-                while ((pos = desc.find(L'<')) != std::wstring::npos) {
-                    size_t endPos = desc.find(L'>', pos);
-                    if (endPos != std::wstring::npos) {
-                        desc.erase(pos, endPos - pos + 1);
-                    } else {
-                        break;
-                    }
-                }
-                // Replace &nbsp; and other entities
-                while ((pos = desc.find(L"&nbsp;")) != std::wstring::npos) {
-                    desc.replace(pos, 6, L" ");
-                }
-                while ((pos = desc.find(L"&amp;")) != std::wstring::npos) {
-                    desc.replace(pos, 5, L"&");
-                }
-                while ((pos = desc.find(L"&quot;")) != std::wstring::npos) {
-                    desc.replace(pos, 6, L"\"");
-                }
-                while ((pos = desc.find(L"&apos;")) != std::wstring::npos) {
-                    desc.replace(pos, 6, L"'");
-                }
-                while ((pos = desc.find(L"&lt;")) != std::wstring::npos) {
-                    desc.replace(pos, 4, L"<");
-                }
-                while ((pos = desc.find(L"&gt;")) != std::wstring::npos) {
-                    desc.replace(pos, 4, L">");
-                }
-                // Trim whitespace and collapse multiple spaces
-                while (!desc.empty() && (desc[0] == L' ' || desc[0] == L'\n' || desc[0] == L'\r' || desc[0] == L'\t')) {
-                    desc.erase(0, 1);
-                }
-                // Truncate to reasonable length
-                if (desc.length() > 150) {
-                    desc = desc.substr(0, 147) + L"...";
-                }
-                if (!desc.empty()) {
-                    display += L" - " + desc;
-                }
-            }
-            SendMessageW(hList, LB_ADDSTRING, 0, reinterpret_cast<LPARAM>(display.c_str()));
-        }
-
-        // Select first episode (multi-select listbox needs LB_SETSEL + LB_SETCARETINDEX)
-        if (!g_podcastEpisodes.empty()) {
-            SendMessageW(hList, LB_SETSEL, FALSE, -1);
-            SendMessageW(hList, LB_SETSEL, TRUE, 0);
-            SendMessageW(hList, LB_SETCARETINDEX, 0, FALSE);
-            // Force a description update for the newly selected first episode.
-            g_lastDescCaret = -1;
-            PostMessageW(hwnd, WM_PODCAST_UPDATE_DESC, 0, 0);
-        }
-
-        char buf[64];
-        snprintf(buf, sizeof(buf), Ts("%d episodes").c_str(), static_cast<int>(g_podcastEpisodes.size()));
-        Speak(buf);
+        PopulateEpisodesList(hwnd);
     } else {
         Speak(Ts("Failed to load episodes"));
         ShowTagDialog(T("Podcast Load Failed"), BuildPodcastDiagMessage(feedUrl, diag));
     }
 }
 
+// --- Browse a search-result show's episodes without subscribing (Séb) ---------
+// When g_searchEpisodesMode is on we reuse the (Subscriptions-tab) episodes list
+// and description controls as a sub-view of the Search tab: the search results
+// list is hidden and the episodes of the picked show are shown instead.
+static const UINT WM_PODCAST_SEARCH_EPS_READY = WM_APP + 20;
+static bool         g_searchEpisodesMode = false;  // episodes list shows a search show's episodes
+static std::wstring g_searchShowName;              // show name used for the Now Playing title
+static bool         g_searchEpsFetching  = false;  // guard against concurrent fetches
+static std::vector<PodcastEpisode> g_searchEpsBuffer;  // filled by the worker thread
+static std::wstring g_searchEpsShowName;           // channel title from the fetched feed
+static int          g_searchEpsSourceSel = -1;     // search-list index to restore on "back"
+
+struct SearchEpsFetchParam { HWND hwnd; std::wstring feedUrl; std::wstring showName; };
+
+// Worker: fetch a show's feed off the UI thread (mirrors the radio worker idiom),
+// then post WM_PODCAST_SEARCH_EPS_READY. Only one runs at a time.
+static DWORD WINAPI FetchSearchShowEpisodesThreadProc(LPVOID param) {
+    SearchEpsFetchParam* p = reinterpret_cast<SearchEpsFetchParam*>(param);
+    std::wstring title;
+    g_searchEpsBuffer.clear();
+    bool ok = ParsePodcastFeed(p->feedUrl, title, g_searchEpsBuffer, L"", L"", nullptr);
+    g_searchEpsShowName = !title.empty() ? title : p->showName;
+    g_searchEpsFetching = false;
+    HWND hwnd = p->hwnd;
+    delete p;
+    if (IsWindow(hwnd)) PostMessageW(hwnd, WM_PODCAST_SEARCH_EPS_READY, ok ? 1 : 0, 0);
+    return 0;
+}
+
 // Update visibility of podcast tab controls
 static void UpdatePodcastTabVisibility(HWND hwnd, int tab) {
+    // Leaving the Search tab always exits the search-episode sub-view.
+    if (tab != 1) g_searchEpisodesMode = false;
+
     // Subscriptions tab controls (tab 0)
     int subsCtrls[] = {IDC_PODCAST_SUBS_LIST, IDC_PODCAST_EPISODES, IDC_PODCAST_EP_DESC,
                        IDC_PODCAST_DOWNLOAD, IDC_PODCAST_DOWNLOAD_ALL, IDC_PODCAST_EXPORT_OPML,
@@ -1024,6 +1045,31 @@ static void UpdatePodcastTabVisibility(HWND hwnd, int tab) {
     for (int id : searchCtrls) {
         ShowWindow(GetDlgItem(hwnd, id), tab == 1 ? SW_SHOW : SW_HIDE);
     }
+
+    // Search-episode sub-view: on the Search tab, swap the search results list
+    // (and its action buttons) for the episodes list + description. The label is
+    // reused so it doesn't matter that IDC_PODCAST_EP_LABEL belongs to subsCtrls.
+    if (tab == 1 && g_searchEpisodesMode) {
+        int hideForEps[] = {IDC_PODCAST_SEARCH_LIST, IDC_PODCAST_SUBSCRIBE,
+                            IDC_PODCAST_IMPORT_OPML, IDC_PODCAST_ADD_URL};
+        for (int id : hideForEps) ShowWindow(GetDlgItem(hwnd, id), SW_HIDE);
+        ShowWindow(GetDlgItem(hwnd, IDC_PODCAST_EPISODES), SW_SHOW);
+        ShowWindow(GetDlgItem(hwnd, IDC_PODCAST_EP_DESC),  SW_SHOW);
+    }
+}
+
+// Leave the search-episode sub-view and return to the search results list.
+static void ExitSearchEpisodesMode(HWND hwnd) {
+    g_searchEpisodesMode = false;
+    SendMessageW(GetDlgItem(hwnd, IDC_PODCAST_EPISODES), LB_RESETCONTENT, 0, 0);
+    g_podcastEpisodes.clear();
+    SetDlgItemTextW(hwnd, IDC_PODCAST_EP_DESC, L"");
+    UpdatePodcastTabVisibility(hwnd, 1);   // mode now false -> normal search layout
+    HWND hSearch = GetDlgItem(hwnd, IDC_PODCAST_SEARCH_LIST);
+    SetFocus(hSearch);
+    if (g_searchEpsSourceSel >= 0)
+        SendMessageW(hSearch, LB_SETCURSEL, g_searchEpsSourceSel, 0);
+    Speak(Ts("Back to search results"));
 }
 
 // Podcast add dialog data
@@ -1264,7 +1310,9 @@ static INT_PTR CALLBACK PodcastDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARA
                                 // Preset podcast name + first episode title
                                 // before PlayTrack so the title bar is
                                 // correct from the first frame.
-                                std::wstring podName = GetPodcastNameById(g_currentPodcastId);
+                                std::wstring podName = g_searchEpisodesMode
+                                    ? g_searchShowName
+                                    : GetPodcastNameById(g_currentPodcastId);
                                 std::wstring epTitle;
                                 if (!selItems.empty() && selItems[0] >= 0 &&
                                     selItems[0] < (int)g_podcastEpisodes.size()) {
@@ -1286,28 +1334,24 @@ static INT_PTR CALLBACK PodcastDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARA
                         // Trigger search
                         SendMessageW(hwnd, WM_COMMAND, MAKEWPARAM(IDC_PODCAST_SEARCH_BTN, BN_CLICKED), 0);
                     } else if (hFocus == GetDlgItem(hwnd, IDC_PODCAST_SEARCH_LIST)) {
-                        // Preview/play first episode of selected podcast
+                        // Show the selected show's episode list (fetched off the
+                        // UI thread), instead of the old one-shot preview. The
+                        // user then plays episodes and Backspace/Escape returns
+                        // to the search results. Requested by Séb.
                         int sel = static_cast<int>(SendMessageW(hFocus, LB_GETCURSEL, 0, 0));
-                        if (sel >= 0 && sel < static_cast<int>(g_podcastSearchResults.size())) {
-                            std::vector<PodcastEpisode> eps;
-                            std::wstring title;
-                            Speak(Ts("Loading preview"));
-                            if (ParsePodcastFeed(g_podcastSearchResults[sel].feedUrl, title, eps) && !eps.empty()) {
-                                // The title returned by ParsePodcastFeed is
-                                // the podcast (channel) name; eps[0].title
-                                // is the episode.
-                                SetNowPlaying(SourceType::Podcast,
-                                              title.empty()
-                                                  ? g_podcastSearchResults[sel].name
-                                                  : title,
-                                              eps[0].title);
-                                g_playlist.clear();
-                                g_playlist.push_back(eps[0].audioUrl);
-                                PlayTrack(0, true);
-                                Speak(Ts("Playing"));
-                            } else {
-                                Speak(Ts("No episodes found"));
-                            }
+                        if (sel >= 0 && sel < static_cast<int>(g_podcastSearchResults.size())
+                            && !g_searchEpsFetching) {
+                            g_searchEpsSourceSel = sel;
+                            g_searchEpsFetching  = true;
+                            Speak(Ts("Loading episodes"));
+                            SearchEpsFetchParam* p = new SearchEpsFetchParam{
+                                hwnd, g_podcastSearchResults[sel].feedUrl,
+                                g_podcastSearchResults[sel].name };
+                            HANDLE th = CreateThread(nullptr, 0,
+                                FetchSearchShowEpisodesThreadProc, p, 0, nullptr);
+                            if (th) { CloseHandle(th); }
+                            else    { g_searchEpsFetching = false; delete p;
+                                      Speak(Ts("Failed to load episodes")); }
                         }
                     }
                     return TRUE;
@@ -1742,12 +1786,19 @@ static INT_PTR CALLBACK PodcastDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARA
 
                 case IDC_PODCAST_SEARCH_LIST:
                     if (HIWORD(wParam) == LBN_DBLCLK) {
-                        // Subscribe on double-click
-                        SendMessageW(hwnd, WM_COMMAND, MAKEWPARAM(IDC_PODCAST_SUBSCRIBE, BN_CLICKED), 0);
+                        // Open the show's episode list on double-click (same as
+                        // Enter). Subscribe stays available via its button.
+                        SendMessageW(hwnd, WM_COMMAND, MAKEWPARAM(IDOK, BN_CLICKED), 0);
                     }
                     break;
 
                 case IDCANCEL:
+                    // In the search-episode sub-view, Escape backs out to the
+                    // search results first instead of closing the dialog.
+                    if (g_searchEpisodesMode) {
+                        ExitSearchEpisodesMode(hwnd);
+                        return TRUE;
+                    }
                     EndDialog(hwnd, IDCANCEL);
                     return TRUE;
             }
@@ -1771,6 +1822,30 @@ static INT_PTR CALLBACK PodcastDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARA
                     SendDlgItemMessageW(hwnd, IDC_PODCAST_EP_DESC, WM_VSCROLL, SB_TOP, 0);
                 } else {
                     SetDlgItemTextW(hwnd, IDC_PODCAST_EP_DESC, L"");
+                }
+                return TRUE;
+            }
+            if (msg == WM_PODCAST_EPS_BACK) {
+                if (g_searchEpisodesMode) ExitSearchEpisodesMode(hwnd);
+                return TRUE;
+            }
+            if (msg == WM_PODCAST_SEARCH_EPS_READY) {
+                // Episodes fetched for a search-result show. Ignore if the user
+                // left the Search tab meanwhile.
+                int curTab = static_cast<int>(SendMessageW(GetDlgItem(hwnd, IDC_PODCAST_TAB),
+                                                           TCM_GETCURSEL, 0, 0));
+                if (curTab != 1) { g_searchEpsBuffer.clear(); return TRUE; }
+                if (wParam == 1 && !g_searchEpsBuffer.empty()) {
+                    g_searchEpisodesMode = true;
+                    g_currentPodcastId   = -1;
+                    g_podcastEpisodes    = std::move(g_searchEpsBuffer);
+                    g_searchShowName     = g_searchEpsShowName;
+                    UpdatePodcastTabVisibility(hwnd, 1);   // reveal episodes sub-view
+                    PopulateEpisodesList(hwnd);
+                    SetFocus(GetDlgItem(hwnd, IDC_PODCAST_EPISODES));
+                } else {
+                    g_searchEpsBuffer.clear();
+                    Speak(Ts("No episodes found"));
                 }
                 return TRUE;
             }

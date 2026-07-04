@@ -1185,8 +1185,8 @@ void RegisterRcTranslations() {
     AddTranslation("en", "&Search iTunes:", L"&Search iTunes:");
     AddTranslation("fr", "&Search iTunes:", L"&Rechercher sur iTunes :");
 
-    AddTranslation("en", "Enter = preview, Escape = close", L"Enter = preview, Escape = close");
-    AddTranslation("fr", "Enter = preview, Escape = close", L"Entrée = aperçu, Échap = fermer");
+    AddTranslation("en", "Enter = show episodes, Escape = close", L"Enter = show episodes, Escape = close");
+    AddTranslation("fr", "Enter = show episodes, Escape = close", L"Entrée = voir les épisodes, Échap = fermer");
 
     AddTranslation("en", "S&ubscribe", L"S&ubscribe");
     AddTranslation("fr", "S&ubscribe", L"S'a&bonner");
