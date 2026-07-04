@@ -73,12 +73,16 @@ void LoadBassPlugins() {
         L"bassape.dll",    // Monkey's Audio (APE)
         L"bassalac.dll",   // Apple Lossless (ALAC)
         L"bassmidi.dll",   // MIDI
-        L"basscd.dll",     // CD Audio
         L"bassdsd.dll",    // DSD
         L"basshls.dll",    // HLS streaming
-        L"bassmix.dll",    // Mixer (for some stream types)
         L"bass_aac.dll",   // AAC/M4A (if available)
     };
+    // NOTE: basscd.dll (CD reading) and bassmix.dll (mixer) are deliberately
+    // NOT in this list. They are add-ons with their own APIs, NOT BASS format
+    // plugins, so BASS_PluginLoad always fails on them — which used to push
+    // them into g_failedPlugins and falsely trigger the "Some audio format
+    // modules failed to load. Please reinstall." message for every user. They
+    // are not used anywhere in the code either. (Reported by a user via email.)
 
     for (const wchar_t* plugin : plugins) {
         std::wstring fullPath = libPath + plugin;
@@ -109,10 +113,8 @@ static const wchar_t* PluginFriendlyName(const std::wstring& dll) {
     if (dll == L"bassape.dll")   return L"Monkey's Audio (APE)";
     if (dll == L"bassalac.dll")  return L"Apple Lossless (ALAC)";
     if (dll == L"bassmidi.dll")  return L"MIDI";
-    if (dll == L"basscd.dll")    return L"CD audio";
     if (dll == L"bassdsd.dll")   return L"DSD";
     if (dll == L"basshls.dll")   return L"HLS streams";
-    if (dll == L"bassmix.dll")   return L"mixer";
     if (dll == L"bass_aac.dll")  return L"AAC / M4A";
     return dll.c_str();
 }
@@ -1719,7 +1721,7 @@ void Seek(double seconds) {
         if (len > 0 && target > len) target = len;
         MPVSeek(seconds);
         UpdateStatusBar();
-        if (g_speechSeekPosition) SpeakW(FormatTime(target));  // v1.65 gate
+        if (g_speechSeekPosition) SpeakW(FormatTimeSpoken(target));  // v1.65 gate
         return;
     }
     if (!g_fxStream || g_isBusy || g_isLoading) return;
@@ -1751,7 +1753,7 @@ void Seek(double seconds) {
     // press NVDA+End after every left/right press. Speak() defaults to
     // interrupt=true so rapid repeated seeks coalesce to the last one.
     // v1.65 — gated by Options > Speech > "Announce position after seek".
-    if (g_speechSeekPosition) SpeakW(FormatTime(newPos));
+    if (g_speechSeekPosition) SpeakW(FormatTimeSpoken(newPos));
 }
 
 // Seek by tracks (positive = forward, negative = backward)
@@ -1845,7 +1847,7 @@ void SeekToPosition(double seconds, bool announce) {
         if (len > 0 && target > len) target = len;
         MPVSeekToPosition(seconds);
         UpdateStatusBar();
-        if (announce && g_speechSeekPosition) SpeakW(FormatTime(target));  // v1.64/65
+        if (announce && g_speechSeekPosition) SpeakW(FormatTimeSpoken(target));  // v1.64/65
         return;
     }
     if (!g_fxStream) return;
@@ -1858,7 +1860,7 @@ void SeekToPosition(double seconds, bool announce) {
 
     processor->SetPosition(seconds);
     UpdateStatusBar();
-    if (announce && g_speechSeekPosition) SpeakW(FormatTime(seconds));  // v1.64/65
+    if (announce && g_speechSeekPosition) SpeakW(FormatTimeSpoken(seconds));  // v1.64/65
 }
 
 // Get current playback position in seconds
@@ -2107,14 +2109,14 @@ void SpeakElapsed() {
     if (g_activeEngine == PlaybackEngine::MPV) {
         double pos = MPVGetPosition();
         if (pos < 0) pos = 0;
-        Speak(WideToUtf8(FormatTime(pos)));
+        Speak(WideToUtf8(FormatTimeSpoken(pos)));
         return;
     }
     if (!g_fxStream) return;
     TempoProcessor* processor = GetTempoProcessor();
     if (!processor || !processor->IsActive()) return;
     double pos = processor->GetPosition() / GetEffectivePlaybackSpeed();
-    std::wstring posStr = FormatTime(pos);
+    std::wstring posStr = FormatTimeSpoken(pos);
     Speak(WideToUtf8(posStr));
 }
 
@@ -2125,7 +2127,7 @@ void SpeakRemaining() {
         double len = MPVGetLength();
         double remaining = len - pos;
         if (remaining < 0) remaining = 0;
-        Speak(WideToUtf8(FormatTime(remaining)));
+        Speak(WideToUtf8(FormatTimeSpoken(remaining)));
         return;
     }
     if (!g_fxStream) return;
@@ -2136,7 +2138,7 @@ void SpeakRemaining() {
     double len = processor->GetLength()  / speed;
     double remaining = len - pos;
     if (remaining < 0) remaining = 0;
-    std::wstring remStr = FormatTime(remaining);
+    std::wstring remStr = FormatTimeSpoken(remaining);
     Speak(WideToUtf8(remStr));
 }
 
@@ -2146,14 +2148,14 @@ void SpeakTotal() {
     if (g_activeEngine == PlaybackEngine::MPV) {
         double len = MPVGetLength();
         if (len < 0) len = 0;
-        Speak(WideToUtf8(FormatTime(len)));
+        Speak(WideToUtf8(FormatTimeSpoken(len)));
         return;
     }
     if (!g_fxStream) return;
     TempoProcessor* processor = GetTempoProcessor();
     if (!processor || !processor->IsActive()) return;
     double len = processor->GetLength() / GetEffectivePlaybackSpeed();
-    std::wstring lenStr = FormatTime(len);
+    std::wstring lenStr = FormatTimeSpoken(len);
     Speak(WideToUtf8(lenStr));
 }
 
@@ -3365,7 +3367,13 @@ void SpeakTagBitrate() {
         return;
     }
 
-    HSTREAM sourceStream = g_stream ? g_stream : g_fxStream;
+    // Query the real SOURCE decode stream, not g_stream: with the default
+    // SoundTouch algorithm g_stream is nulled after BASS_FX takes ownership
+    // (see LoadFile), so "g_stream ? g_stream : g_fxStream" fell back to the
+    // 32-bit-float effects output and the bitrate attribute was always 0 —
+    // which is why every file/podcast announced "32-bit". g_sourceStream keeps
+    // the source handle, exactly like the (correct) status-bar GetCurrentBitrate.
+    HSTREAM sourceStream = g_sourceStream ? g_sourceStream : g_fxStream;
 
     // Get bitrate if available (for compressed formats)
     float bitrate = 0;
@@ -3652,7 +3660,7 @@ std::wstring GetTagDuration() {
     // v2.13 — MPV video: real length from the MPV clock.
     if (g_activeEngine == PlaybackEngine::MPV) {
         double len = MPVGetLength();
-        return len > 0 ? FormatTime(len) : std::wstring(T("Unknown duration"));
+        return len > 0 ? FormatTimeSpoken(len) : std::wstring(T("Unknown duration"));
     }
     HSTREAM stream = GetTagStream();
     if (!stream) return T("Nothing playing");
@@ -3662,9 +3670,9 @@ std::wstring GetTagDuration() {
         QWORD len = BASS_ChannelGetLength(stream, BASS_POS_BYTE);
         if (len == (QWORD)-1) return T("Unknown duration");
         double duration = BASS_ChannelBytes2Seconds(stream, len);
-        return FormatTime(duration);
+        return FormatTimeSpoken(duration);
     }
-    return FormatTime(processor->GetLength());
+    return FormatTimeSpoken(processor->GetLength());
 }
 
 std::wstring GetTagFilename() {

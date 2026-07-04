@@ -3505,6 +3505,13 @@ static void PlaySelected(HWND hwnd) {
                             result.videoId, static_cast<int>(SourceType::YouTube));
     }
     YouTubePlayById(result.videoId);
+
+    // Keep keyboard focus and selection on the just-activated result so the
+    // user stays put in the list (a Down arrow then moves to the next result).
+    // Starting playback can otherwise pull focus off the row. Re-asserting the
+    // same index does not fire LBN_SELCHANGE, so it won't trigger auto-load-more.
+    SetFocus(hList);
+    SendMessageW(hList, LB_SETCURSEL, sel, 0);
 }
 
 // Permanently download the selected result to Downloads\MediaAccess\YouTube.

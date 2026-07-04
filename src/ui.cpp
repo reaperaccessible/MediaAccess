@@ -640,13 +640,13 @@ std::vector<std::wstring> GetFilesFromClipboard() {
                             // Recursively add folder contents
                             AddFilesFromFolder(path, files);
                         } else {
-                            // Check if it's a supported audio file
-                            size_t dotPos = path.rfind(L'.');
-                            if (dotPos != std::wstring::npos) {
-                                std::wstring ext = path.substr(dotPos);
-                                if (IsSupportedMediaExt(ext)) {
-                                    files.push_back(path);
-                                }
+                            // Accept everything the Open dialog supports (the
+                            // full audio superset + video), so e.g. .mp2 pastes
+                            // exactly like it opens. Previously used the narrower
+                            // IsSupportedMediaExt, which rejected .mp2/.mp1/
+                            // tracker/etc. — reported by a user.
+                            if (IsOpenableMediaPath(path)) {
+                                files.push_back(path);
                             }
                         }
                     }
@@ -687,13 +687,11 @@ std::vector<std::wstring> GetFilesFromClipboard() {
                                 if (attrs & FILE_ATTRIBUTE_DIRECTORY) {
                                     AddFilesFromFolder(line, files);
                                 } else {
-                                    std::wstring ext = line;
-                                    size_t dotPos = ext.rfind(L'.');
-                                    if (dotPos != std::wstring::npos) {
-                                        ext = ext.substr(dotPos);
-                                        if (IsSupportedAudioExt(ext)) {
-                                            files.push_back(line);
-                                        }
+                                    // Same full set as the Open dialog (audio
+                                    // superset + video) so a pasted path to
+                                    // .mp2 (or any supported format) is accepted.
+                                    if (IsOpenableMediaPath(line)) {
+                                        files.push_back(line);
                                     }
                                 }
                             }

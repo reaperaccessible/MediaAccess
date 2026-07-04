@@ -551,7 +551,7 @@ void DaisySeekRelative(double delta) {
     // Announce the new position so the user knows where the seek
     // landed without having to query the status bar. Gated by
     // Options > Speech > "Announce position after seek".
-    if (g_speechSeekPosition) SpeakW(FormatTime(target));
+    if (g_speechSeekPosition) SpeakW(FormatTimeSpoken(target));
 }
 
 double DaisyGetBookPosition() {

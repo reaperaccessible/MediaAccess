@@ -8,6 +8,13 @@
 </head>
 <body>
 <h1>MediaAccess - Changelog</h1>
+<h2>Version 2.55</h2>
+<p>Fix: when seeking through a file (left/right arrows) or announcing elapsed, remaining or total time, the screen reader misread durations — for example "0:11" was spoken as "0 hours 11". Durations are now announced in full words ("11 seconds", "2 minutes 5 seconds"...), unambiguously. This also applies to A-B loop points, DAISY books and the Duration window. The on-screen display is unchanged.</p>
+<p>Fix: the announced bitrate (dedicated shortcut) always said "32-bit" for audio files and podcasts instead of the real bitrate. It now announces correctly, e.g. "128 kbps, 44100 Hz, stereo". Reported by Séb.</p>
+<p>Fix: pasting from Windows Explorer (Ctrl+V) did not work for every supported format — for example .mp2 files. Now anything that can be opened from the Open menu can also be pasted.</p>
+<p>Fix: Help → Audio formats showed "some modules failed to load, please reinstall" on a perfectly healthy install. That was a false alarm (two internal components tested by mistake); the message now only appears on a genuinely incomplete install.</p>
+<p>Improvement: in YouTube search, pressing Enter to play a result now keeps the focus on that result in the list, so you can move to the next one with the Down arrow.</p>
+<p>New: in the Podcast and Radio windows, you can switch between tabs with Ctrl+Tab (next tab) and Ctrl+Shift+Tab (previous tab).</p>
 <h2>Version 2.54</h2>
 <p>New: two global actions to download the currently playing YouTube video as <strong>MP3</strong> or <strong>OGG</strong> audio, in addition to the existing M4A and video ones. Assign them in Tools → Actions (F4), Global category. (Reported on GitHub.)</p>
 <p>Fix: clearing the sleep timer (or letting the fade-out run) needlessly announced the volume when "Speak volume when adjusted" was enabled. Volume restoration is now silent. (Reported on GitHub.)</p>

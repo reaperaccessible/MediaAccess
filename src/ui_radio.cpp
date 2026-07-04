@@ -1550,6 +1550,45 @@ static void ShowRadioContextMenu(HWND hwnd, HWND hList, bool isFavorites, int x,
     }
 }
 
+// ---------------------------------------------------------------------------
+// Ctrl+Tab / Ctrl+Shift+Tab tab navigation (same proven pattern as the Options
+// dialog): a modal DialogBoxW eats VK_TAB for focus traversal before it reaches
+// the dialog proc, so we use a thread-local WH_GETMESSAGE hook that spots
+// Ctrl+Tab, cycles the tab control, and swallows the key. Installed at
+// WM_INITDIALOG, removed at WM_DESTROY.
+static HHOOK s_radioMsgHook = nullptr;
+static HWND  s_radioDlg     = nullptr;
+
+static void RadioCycleTab(HWND hwnd, bool forward) {
+    HWND hTab = GetDlgItem(hwnd, IDC_RADIO_TAB);
+    if (!hTab) return;
+    int count = TabCtrl_GetItemCount(hTab);
+    if (count <= 1) return;
+    int cur = TabCtrl_GetCurSel(hTab);
+    if (cur < 0) cur = 0;
+    int next = forward ? (cur + 1) % count : (cur - 1 + count) % count;
+    TabCtrl_SetCurSel(hTab, next);
+    UpdateRadioTabVisibility(hwnd, next);
+    // Focus the tab control so NVDA/JAWS announce the new tab name (TCN_SELCHANGE
+    // is not raised by TabCtrl_SetCurSel, so the focus move drives the readout).
+    SetFocus(hTab);
+}
+
+static LRESULT CALLBACK RadioGetMsgHook(int code, WPARAM wParam, LPARAM lParam) {
+    if (code == HC_ACTION && wParam == PM_REMOVE && s_radioDlg) {
+        MSG* m = reinterpret_cast<MSG*>(lParam);
+        if (m && m->message == WM_KEYDOWN && m->wParam == VK_TAB &&
+            (GetKeyState(VK_CONTROL) & 0x8000)) {
+            if (m->hwnd == s_radioDlg || IsChild(s_radioDlg, m->hwnd)) {
+                const bool back = (GetKeyState(VK_SHIFT) & 0x8000) != 0;
+                RadioCycleTab(s_radioDlg, !back);
+                m->message = WM_NULL;   // consume: don't let the dialog see Tab
+            }
+        }
+    }
+    return CallNextHookEx(s_radioMsgHook, code, wParam, lParam);
+}
+
 // Radio dialog proc
 static INT_PTR CALLBACK RadioDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
     switch (msg) {
@@ -1632,8 +1671,21 @@ static INT_PTR CALLBACK RadioDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM 
             if (SendMessageW(hList, LB_GETCOUNT, 0, 0) > 0) {
                 SendMessageW(hList, LB_SETCURSEL, 0, 0);
             }
+
+            // Ctrl+Tab / Ctrl+Shift+Tab navigation hook for this modal dialog.
+            s_radioDlg = hwnd;
+            s_radioMsgHook = SetWindowsHookExW(WH_GETMESSAGE, RadioGetMsgHook,
+                                               nullptr, GetCurrentThreadId());
             return FALSE;
         }
+
+        case WM_DESTROY:
+            if (s_radioMsgHook) {
+                UnhookWindowsHookEx(s_radioMsgHook);
+                s_radioMsgHook = nullptr;
+            }
+            s_radioDlg = nullptr;
+            return FALSE;
 
         case WM_COMMAND:
             switch (LOWORD(wParam)) {

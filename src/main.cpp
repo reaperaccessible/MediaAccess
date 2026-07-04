@@ -1932,7 +1932,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
                     g_loopStart = GetCurrentPosition();
                     if (g_loopEnd >= 0 && g_loopEnd <= g_loopStart) g_loopEnd = -1.0;  // stale end
                     ArmLoopSync();
-                    SpeakW(std::wstring(T("Loop start at ")) + FormatTime(g_loopStart));
+                    SpeakW(std::wstring(T("Loop start at ")) + FormatTimeSpoken(g_loopStart));
                     break;
                 case IDM_SET_LOOP_END: {
                     if (g_isLiveStream) { SpeakW(T("A-B loop is not available for live streams")); break; }
@@ -1945,7 +1945,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
                     g_loopEnd = end;
                     g_loopEnabled = true;
                     ArmLoopSync();
-                    SpeakW(std::wstring(T("Loop end at ")) + FormatTime(g_loopEnd));
+                    SpeakW(std::wstring(T("Loop end at ")) + FormatTimeSpoken(g_loopEnd));
                     break;
                 }
                 case IDM_TOGGLE_LOOP:

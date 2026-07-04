@@ -8,6 +8,13 @@
 </head>
 <body>
 <h1>MediaAccess - Journal des modifications</h1>
+<h2>Version 2.55</h2>
+<p>Correction : lors d'un déplacement dans un fichier (flèches gauche/droite) ou de l'annonce du temps écoulé, restant ou total, le lecteur d'écran lisait mal les durées — par exemple « 0:11 » était énoncé « 0 heure 11 ». Les durées sont désormais annoncées en toutes lettres (« 11 secondes », « 2 minutes 5 secondes »…), sans ambiguïté. S'applique aussi aux points de boucle A-B, aux livres DAISY et à la fenêtre Durée. L'affichage à l'écran ne change pas.</p>
+<p>Correction : le débit annoncé (touche dédiée) affichait toujours « 32 bits » pour les fichiers audio et les podcasts, au lieu du vrai débit. Il annonce maintenant correctement, par exemple « 128 kbps, 44100 Hz, stéréo ». Signalé par Séb.</p>
+<p>Correction : coller depuis l'Explorateur Windows (Ctrl+V) ne fonctionnait pas pour tous les formats pris en charge — par exemple les fichiers .mp2. Désormais, tout ce qui peut être ouvert par le menu Ouvrir peut aussi être collé.</p>
+<p>Correction : le menu Aide → Formats audio affichait « certains modules n'ont pas pu être chargés, veuillez réinstaller » sur une installation pourtant parfaitement saine. C'était une fausse alerte (deux composants internes testés à tort) ; le message n'apparaît plus que sur une vraie installation incomplète.</p>
+<p>Amélioration : dans la recherche YouTube, appuyer sur Entrée pour lire un résultat garde désormais le focus sur ce résultat dans la liste, pour passer facilement au suivant avec la flèche Bas.</p>
+<p>Nouveau : dans les fenêtres Podcast et Radio, on peut basculer entre les onglets avec Ctrl+Tab (onglet suivant) et Ctrl+Maj+Tab (onglet précédent).</p>
 <h2>Version 2.54</h2>
 <p>Nouveau : deux actions globales pour télécharger la vidéo YouTube en cours de lecture en audio <strong>MP3</strong> ou <strong>OGG</strong>, en plus du M4A et de la vidéo qui existaient déjà. À assigner dans Outils → Actions (F4), catégorie Globale. (Signalé sur GitHub.)</p>
 <p>Correction : annuler la minuterie de sommeil (ou laisser le fondu de fin se dérouler) annonçait inutilement le volume quand l'option « Annoncer le volume » était activée. La restauration du volume est désormais silencieuse. (Signalé sur GitHub.)</p>
