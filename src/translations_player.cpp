@@ -232,6 +232,11 @@ void RegisterPlayerTranslations() {
     AddTranslation("en", "Failed to launch installer.", L"Failed to launch installer.");
     AddTranslation("fr", "Failed to launch installer.", L"Échec du lancement de l'installateur.");
 
+    AddTranslation("en", "The downloaded update is incomplete. Please try again, or install the latest version manually.",
+                   L"The downloaded update is incomplete. Please try again, or install the latest version manually.");
+    AddTranslation("fr", "The downloaded update is incomplete. Please try again, or install the latest version manually.",
+                   L"La mise à jour téléchargée est incomplète. Veuillez réessayer, ou installer la dernière version manuellement.");
+
     AddTranslation("en", "Failed to launch update script.", L"Failed to launch update script.");
     AddTranslation("fr", "Failed to launch update script.", L"Échec du lancement du script de mise à jour.");
 

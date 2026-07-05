@@ -8,6 +8,8 @@
 </head>
 <body>
 <h1>MediaAccess - Changelog</h1>
+<h2>Version 2.57</h2>
+<p>Fix: on some connections (unstable network, proxy, antivirus inspecting the stream), the automatic update downloaded an incomplete installer but treated it as complete, so the install never happened (the download "looked like it worked"). MediaAccess now verifies the download is complete (expected size and a valid executable) before launching the install; if the download was interrupted, it says so clearly and asks you to retry instead of staying silent.</p>
 <h2>Version 2.56</h2>
 <p>New: in the podcast manager's Search tab, you can now browse a show's episode list directly from the results, without having to subscribe first. Press Enter (or double-click) on a result to show its episodes, Enter to play an episode, and Backspace or Escape to return to the results. Subscribing is still available via its button. Requested by Séb.</p>
 <h2>Version 2.55</h2>

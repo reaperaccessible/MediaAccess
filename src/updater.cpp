@@ -9,6 +9,7 @@
 #include <commctrl.h>
 #include <fstream>
 #include <sstream>
+#include <cstdio>
 #include <thread>
 #include <regex>
 #include <algorithm>
@@ -255,6 +256,8 @@ static std::string HttpGet(const std::wstring& host, const std::wstring& path, b
     return result;
 }
 
+static void UpdateLog(const char* stage);  // defined below; used for diagnostics
+
 // Download file with progress callback
 static bool HttpDownload(const std::string& url, const std::wstring& destPath,
                          DownloadProgressCallback progressCallback, int maxRedirects = 5) {
@@ -346,31 +349,47 @@ static bool HttpDownload(const std::string& url, const std::wstring& destPath,
         }
 
         size_t totalDownloaded = 0;
-        DWORD bytesAvailable;
+        DWORD bytesAvailable = 0;
         std::vector<char> buffer(65536);
+        bool streamError = false;
 
-        while (WinHttpQueryDataAvailable(hRequest, &bytesAvailable) && bytesAvailable > 0) {
+        for (;;) {
+            if (!WinHttpQueryDataAvailable(hRequest, &bytesAvailable)) { streamError = true; break; }
+            if (bytesAvailable == 0) break;   // end of stream
             DWORD toRead = (bytesAvailable < (DWORD)buffer.size()) ? bytesAvailable : (DWORD)buffer.size();
-            DWORD bytesRead;
-            if (WinHttpReadData(hRequest, buffer.data(), toRead, &bytesRead)) {
-                outFile.write(buffer.data(), bytesRead);
-                totalDownloaded += bytesRead;
+            DWORD bytesRead = 0;
+            if (!WinHttpReadData(hRequest, buffer.data(), toRead, &bytesRead)) { streamError = true; break; }
+            if (bytesRead == 0) break;
+            outFile.write(buffer.data(), bytesRead);
+            totalDownloaded += bytesRead;
 
-                if (progressCallback) {
-                    if (!progressCallback(totalDownloaded, contentLength)) {
-                        outFile.close();
-                        DeleteFileW(destPath.c_str());
-                        WinHttpCloseHandle(hRequest);
-                        WinHttpCloseHandle(hConnect);
-                        WinHttpCloseHandle(hSession);
-                        return false;
-                    }
-                }
+            if (progressCallback && !progressCallback(totalDownloaded, contentLength)) {
+                outFile.close();
+                DeleteFileW(destPath.c_str());
+                WinHttpCloseHandle(hRequest);
+                WinHttpCloseHandle(hConnect);
+                WinHttpCloseHandle(hSession);
+                return false;
             }
         }
 
         outFile.close();
-        success = (totalDownloaded > 0);
+
+        // A download only counts as success if the stream finished cleanly AND
+        // matches the server-announced Content-Length. Previously any non-zero
+        // amount was treated as success, so a connection dropped mid-download
+        // (unstable network / proxy / antivirus) left a TRUNCATED installer that
+        // "downloaded" but could not install. When the server sends no
+        // Content-Length (chunked) we can't size-check, so a clean stream passes.
+        success = !streamError && totalDownloaded > 0 &&
+                  (contentLength == 0 || totalDownloaded == (size_t)contentLength);
+        if (!success) {
+            DeleteFileW(destPath.c_str());   // never leave a partial file behind
+            if (streamError)
+                UpdateLog("HttpDownload: stream error (connection interrupted)");
+            else if (contentLength != 0 && totalDownloaded != (size_t)contentLength)
+                UpdateLog("HttpDownload: size mismatch (truncated download)");
+        }
     }
 
     WinHttpCloseHandle(hRequest);
@@ -542,6 +561,24 @@ void ApplyUpdate() {
             return;
         }
 
+        // Guard against a corrupt/truncated download: a real Windows installer is
+        // a PE and must start with the "MZ" signature. If it doesn't, the download
+        // was incomplete — launching it would look like "nothing happened". Delete
+        // it and ask the user to retry rather than quitting into a broken installer.
+        {
+            std::ifstream probe(installerPath, std::ios::binary);
+            char mz[2] = {0};
+            probe.read(mz, 2);
+            if (!probe || mz[0] != 'M' || mz[1] != 'Z') {
+                UpdateLog("ApplyUpdate: installer not a valid exe (corrupt/truncated download)");
+                DeleteFileW(installerPath.c_str());
+                MessageBoxW(GetMessageBoxOwner(),
+                    T("The downloaded update is incomplete. Please try again, or install the latest version manually."),
+                    T("Update Error"), MB_OK | MB_ICONERROR);
+                return;
+            }
+        }
+
         // v2.33 — delegate the whole close/replace/relaunch dance to the Inno
         // installer instead of hand-rolling a batch + ping settle delay.
         //
@@ -583,6 +620,10 @@ void ApplyUpdate() {
         sei.lpParameters = L"/SILENT /SUPPRESSMSGBOXES /FORCECLOSEAPPLICATIONS /NORESTART /AUTOUPDATE=1";
         sei.nShow = SW_SHOWNORMAL;
         if (!ShellExecuteExW(&sei)) {
+            char b[96];
+            snprintf(b, sizeof(b), "ApplyUpdate: ShellExecuteExW failed, GetLastError=%lu",
+                     (unsigned long)GetLastError());
+            UpdateLog(b);
             MessageBoxW(GetMessageBoxOwner(), T("Failed to launch installer."),
                 T("Update Error"), MB_OK | MB_ICONERROR);
             return;
