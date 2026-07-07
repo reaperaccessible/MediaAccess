@@ -178,6 +178,11 @@ void RegisterRcTranslations() {
     AddTranslation("en", "Check for &Updates...", L"Check for &Updates...");
     AddTranslation("fr", "Check for &Updates...", L"Rechercher des &mises à jour...");
 
+    AddTranslation("en", "Download latest &version (manual install)...",
+                   L"Download latest &version (manual install)...");
+    AddTranslation("fr", "Download latest &version (manual install)...",
+                   L"Télécharger la dernière &version (installation manuelle)...");
+
     AddTranslation("en", "&Audio formats...", L"&Audio formats...");
     AddTranslation("fr", "&Audio formats...", L"Formats &audio...");
 

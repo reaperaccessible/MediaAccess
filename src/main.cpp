@@ -1496,6 +1496,17 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
                 case IDM_HELP_UPDATES:
                     ShowCheckForUpdatesDialog(hwnd, false);
                     break;
+                case IDM_HELP_DOWNLOAD_LATEST:
+                    // Direct, permanent download of the latest full installer — a
+                    // reliable fallback when the in-app auto-update can't complete
+                    // (e.g. a network that truncates the download). The fixed-name
+                    // "MediaAccessInstaller.exe" mirror is uploaded to every
+                    // release, so /latest/download/<name> always fetches the newest
+                    // one in a single click. Requested by a user (David).
+                    ShellExecuteW(hwnd, L"open",
+                        L"https://github.com/reaperaccessible/MediaAccess/releases/latest/download/MediaAccessInstaller.exe",
+                        nullptr, nullptr, SW_SHOWNORMAL);
+                    break;
                 case IDM_HELP_SET_DEFAULT:
                     HelpSetAsDefault(hwnd);
                     break;

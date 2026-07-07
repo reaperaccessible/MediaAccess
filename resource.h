@@ -397,6 +397,7 @@
 #define IDM_HELP_AUDIO_DIAG      130   // v2.12 — dump audio device tables for support
 #define IDM_HELP_ABOUT           131   // v2.29 — Help -> About: app name, version, publisher, repo
 #define IDM_HELP_CHANGELOG       132   // v2.46 — Help -> open docs\changelog_<lang>.html in browser (default F2)
+#define IDM_HELP_DOWNLOAD_LATEST 133   // v2.58 — Help -> open the releases page to download the full installer manually
 
 // Sleep timer (v1.55)
 #define IDM_SLEEP_TIMER_OPEN     127   // F8 — opens dialog

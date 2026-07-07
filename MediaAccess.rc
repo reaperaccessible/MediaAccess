@@ -9,8 +9,8 @@ IDI_APPICON ICON "MediaAccess.ico"
 // ASCII only (rc.exe mojibake risk). FILEVERSION is hardcoded: bump it each
 // release to match include/mediaaccess/version.h (build_new.bat passes no /D to rc).
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION    2,57,0,0
- PRODUCTVERSION 2,57,0,0
+ FILEVERSION    2,58,0,0
+ PRODUCTVERSION 2,58,0,0
  FILEFLAGSMASK  0x3fL
  FILEFLAGS      0x0L
  FILEOS         VOS__WINDOWS32
@@ -23,12 +23,12 @@ BEGIN
     BEGIN
       VALUE "CompanyName",      "ReaperAccessible"
       VALUE "FileDescription",  "MediaAccess - accessible audio and video player"
-      VALUE "FileVersion",      "2.57"
+      VALUE "FileVersion",      "2.58"
       VALUE "InternalName",     "MediaAccess"
       VALUE "LegalCopyright",   "Copyright (C) 2026 ReaperAccessible. GPL-3.0."
       VALUE "OriginalFilename", "MediaAccess.exe"
       VALUE "ProductName",      "MediaAccess"
-      VALUE "ProductVersion",   "2.57"
+      VALUE "ProductVersion",   "2.58"
     END
   END
   BLOCK "VarFileInfo"
@@ -140,6 +140,7 @@ BEGIN
         MENUITEM "&Changelog\tF2", IDM_HELP_CHANGELOG
         MENUITEM "&Readme", IDM_HELP_README
         MENUITEM "Check for &Updates...", IDM_HELP_UPDATES
+        MENUITEM "Download latest &version (manual install)...", IDM_HELP_DOWNLOAD_LATEST
         MENUITEM SEPARATOR
         MENUITEM "Set as &default media player...", IDM_HELP_SET_DEFAULT
         MENUITEM SEPARATOR
