@@ -20,6 +20,7 @@
 #include "utils.h"
 #include <string>
 #include <queue>
+#include <cwctype>
 
 #ifdef USE_UNIVERSAL_SPEECH
 #include "UniversalSpeech.h"
@@ -33,6 +34,24 @@ static std::queue<SpeechEntry> g_speechQueue;
 static CRITICAL_SECTION g_speechCS;
 static bool g_speechCSInitialized = false;
 static bool g_speechInitialized = false;
+
+// True when the screen reader UniversalSpeech is currently driving is JAWS.
+// JAWS drops rapid successive utterances when we do speechStop() immediately
+// before speechSay(text, interrupt) — the redundant double-flush (the explicit
+// stop PLUS speechSay's own interrupt flag) makes JAWS discard the new line.
+// This shows up only on fast, automatic announcements like subtitles; one-off
+// announcements (time, volume) are far enough apart to survive. So for JAWS we
+// let speechSay's own interrupt flag do the interrupting and skip the extra
+// stop. NVDA keeps the explicit stop (it needs it to actually interrupt).
+static bool ActiveEngineIsJaws() {
+    int idx = speechGetValue(SP_ENGINE);
+    if (idx < 0) return false;
+    const wchar_t* name = speechGetString(SP_ENGINE + idx);
+    if (!name) return false;
+    std::wstring n(name);
+    for (auto& c : n) c = towlower(c);
+    return n.find(L"jaws") != std::wstring::npos;
+}
 
 // Drain the queue and speak. Called on the UI thread in response to
 // WM_SPEAK. The "interrupt" flag of the FIRST queued message wins — if any
@@ -71,7 +90,10 @@ void DoSpeak() {
     LeaveCriticalSection(&g_speechCS);
 
     if (!combined.empty()) {
-        if (interrupt) {
+        // For JAWS, skip the explicit speechStop() and let speechSay's own
+        // interrupt flag do the work — the double-flush otherwise makes JAWS
+        // drop fast successive lines (subtitles). NVDA keeps the explicit stop.
+        if (interrupt && !ActiveEngineIsJaws()) {
             speechStop();
         }
         speechSay(combined.c_str(), interrupt ? 1 : 0);
