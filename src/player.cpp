@@ -1111,9 +1111,10 @@ static bool ScanMp4ForVideoHandler(const uint8_t* buf, size_t len) {
 // container — better to let BASS try (and possibly succeed with the audio
 // track) than to false-positive into MPV and hand the user a broken file.
 //
-// The moov atom is usually at the start (faststart MP4s) or at the very
-// end (recordings that flush moov last). We scan the first 64 MB, and if
-// not found, the last 4 MB. Anything weirder isn't worth chasing.
+// The moov atom may be at the start (faststart MP4s) or at the very end
+// (recordings/downloads that flush moov last). We walk the whole top-level
+// atom chain — jumping over mdat via its size, so it's only a few reads even
+// on a multi-GB file — to find moov wherever it is.
 static bool HasMp4VideoTrack(const wchar_t* path) {
     HANDLE h = CreateFileW(path, GENERIC_READ,
                            FILE_SHARE_READ | FILE_SHARE_WRITE,
@@ -1164,12 +1165,19 @@ static bool HasMp4VideoTrack(const wchar_t* path) {
     };
 
     uint64_t moovOffset = 0, moovSize = 0;
-    findMoov(0, 64ULL * 1024 * 1024, moovOffset, moovSize);
-    if (moovOffset == 0 && size > 4ULL * 1024 * 1024) {
-        findMoov(size - 4ULL * 1024 * 1024, 4ULL * 1024 * 1024, moovOffset, moovSize);
-    }
+    // Walk the top-level atom chain across the WHOLE file. Each atom is skipped
+    // via its declared size (a handful of reads even for a multi-GB file), so
+    // this finds `moov` whether it sits before OR after `mdat`. The old 64 MB
+    // forward window + 4 MB-from-end fallback missed a `moov` that was both at
+    // the end AND larger than 4 MB — e.g. a movie with several audio tracks
+    // (moov ~12 MB, 12 MB before EOF) — so MediaAccess wrongly treated the
+    // video as audio-only and BASS exposed just one audio track.
+    findMoov(0, size, moovOffset, moovSize);
 
-    if (moovOffset == 0 || moovSize == 0 || moovSize > 16ULL * 1024 * 1024) {
+    // 64 MB cap: a long film with many tracks can have a moov of tens of MB;
+    // 16 MB used to reject those. We read the moov into memory below, so keep a
+    // sane upper bound but generous enough for real files.
+    if (moovOffset == 0 || moovSize == 0 || moovSize > 64ULL * 1024 * 1024) {
         CloseHandle(h);
         return false;
     }

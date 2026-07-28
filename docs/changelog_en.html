@@ -8,6 +8,8 @@
 </head>
 <body>
 <h1>MediaAccess - Changelog</h1>
+<h2>Version 2.60</h2>
+<p>Fix: some MP4 files with several audio tracks (for example a movie with multiple languages) were not recognized as video and played as audio only, showing just one track. The cause was video-track detection not looking for the metadata when it was stored at the end of the file. Such files now play correctly as video, with access to all their audio tracks (Video menu → Cycle audio track) and their subtitles.</p>
 <h2>Version 2.59</h2>
 <p>Fix: under JAWS, reading subtitles with the screen reader did not work (while it works under NVDA). The cause was a double speech interruption that JAWS handled poorly for the fast, automatic announcements that subtitles are. This is fixed, with no change for NVDA or other screen readers.</p>
 <h2>Version 2.58</h2>
