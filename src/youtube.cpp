@@ -160,8 +160,10 @@ static std::atomic<const char*> g_ytLastFailureKey{nullptr};
 
 // Forward declarations
 static bool SearchWithAPI(const std::wstring& query, std::vector<YouTubeResult>& results,
-                          std::wstring& nextPageToken, const std::wstring& pageToken);
-static bool SearchWithYtdlp(const std::wstring& query, std::vector<YouTubeResult>& results, int count = 50);
+                          std::wstring& nextPageToken, const std::wstring& pageToken,
+                          const YtFilters& filters);
+static bool SearchWithYtdlp(const std::wstring& query, std::vector<YouTubeResult>& results,
+                            int count, const YtFilters& filters);
 static std::wstring UrlEncode(const std::wstring& str);
 static std::wstring HttpGet(const std::wstring& url);
 static std::wstring ParseJsonString(const std::wstring& json, const std::wstring& key);
@@ -259,6 +261,62 @@ static std::wstring UrlEncode(const std::wstring& str) {
         }
     }
     return encoded.str();
+}
+
+// --- Search filters: build the YouTube "sp" parameter -------------------------
+// sp is a small protobuf, base64-encoded, then percent-encoded. See YtFilters.
+
+static std::wstring YtBase64(const std::string& in) {
+    static const char* T =
+        "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    std::wstring out;
+    size_t i = 0;
+    for (; i + 3 <= in.size(); i += 3) {
+        unsigned n = (unsigned char)in[i] << 16 | (unsigned char)in[i+1] << 8 | (unsigned char)in[i+2];
+        out += T[(n>>18)&63]; out += T[(n>>12)&63]; out += T[(n>>6)&63]; out += T[n&63];
+    }
+    if (i + 1 == in.size()) {
+        unsigned n = (unsigned char)in[i] << 16;
+        out += T[(n>>18)&63]; out += T[(n>>12)&63]; out += L'='; out += L'=';
+    } else if (i + 2 == in.size()) {
+        unsigned n = (unsigned char)in[i] << 16 | (unsigned char)in[i+1] << 8;
+        out += T[(n>>18)&63]; out += T[(n>>12)&63]; out += T[(n>>6)&63]; out += L'=';
+    }
+    return out;
+}
+
+static bool YtAnyFilterActive(const YtFilters& f) {
+    return f.duration || f.uploadDate || f.sort || f.feature;
+}
+
+// Raw protobuf bytes for sp. Inner "filters" fields are emitted in ascending
+// field order (upload_date=1, duration=3, feature>=4), then wrapped as top
+// field 2; the top-level sort_by is field 1. All values are < 128 (single-byte
+// varints and a single-byte inner length).
+static std::string YtBuildSpBytes(const YtFilters& f) {
+    static const int kSort[] = {0, 2, 3};          // relevance omitted / upload / views
+    static const int kDate[] = {0, 1, 2, 3, 4, 5}; // hour..year
+    static const int kDur[]  = {0, 1, 3, 2};        // <4=short(1), 4-20=medium(3), >20=long(2)
+    static const unsigned char kFeatTag[] = {0, 0x40, 0x70, 0x20, 0x28, 0x30};
+    //  feature: 1 live(f8), 2 4K(f14), 3 HD(f4), 4 subtitles(f5), 5 CC(f6)
+
+    std::string inner;
+    if (f.uploadDate) { inner += (char)0x08; inner += (char)kDate[f.uploadDate]; }
+    if (f.duration)   { inner += (char)0x18; inner += (char)kDur[f.duration]; }
+    if (f.feature)    { inner += (char)kFeatTag[f.feature]; inner += (char)0x01; }
+
+    std::string out;
+    if (f.sort) { out += (char)0x08; out += (char)kSort[f.sort]; }
+    if (!inner.empty()) {
+        out += (char)0x12;                   // top field 2, length-delimited
+        out += (char)(inner.size() & 0x7F);  // length (< 128 here)
+        out += inner;
+    }
+    return out;
+}
+
+static std::wstring YtBuildSpParam(const YtFilters& f) {
+    return UrlEncode(YtBase64(YtBuildSpBytes(f)));
 }
 
 // Simple HTTP GET request. m2 (v2.03): optional out-param `httpStatus` receives
@@ -621,7 +679,17 @@ std::wstring RunYtdlp(const std::wstring& args,
 
     if (!IsYtdlpAvailable()) return L"";
 
-    std::wstring cmdLine = L"\"" + g_ytdlpPath + L"\" " + args;
+    // Ask YouTube for metadata in the app's language so titles/descriptions come
+    // back in French on a French install, instead of YouTube's English
+    // auto-translation of the original title (reported by a user browsing a
+    // French channel). Only the youtube extractor honors this arg; it is a no-op
+    // for other sites, so it is safe to add to every yt-dlp invocation.
+    std::string lang = GetCurrentLanguage();     // "fr" or "en"
+    if (lang != "fr" && lang != "en") lang = "en";
+    std::wstring langArg = L"--extractor-args \"youtube:lang=" +
+                           std::wstring(lang.begin(), lang.end()) + L"\" ";
+
+    std::wstring cmdLine = L"\"" + g_ytdlpPath + L"\" " + langArg + args;
 
     SECURITY_ATTRIBUTES sa;
     sa.nLength = sizeof(sa);
@@ -813,11 +881,37 @@ static const char* ClassifyYtdlpFailure(int exitCode, const std::wstring& stderr
 
 // Search using YouTube Data API
 static bool SearchWithAPI(const std::wstring& query, std::vector<YouTubeResult>& results,
-                          std::wstring& nextPageToken, const std::wstring& pageToken) {
+                          std::wstring& nextPageToken, const std::wstring& pageToken,
+                          const YtFilters& filters) {
     if (!HasApiKey()) return false;
 
     std::wstring url = L"https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&maxResults=25&q=";
     url += UrlEncode(query);
+
+    // Apply the search filters (the 4 dropdowns) as Data API search.list params.
+    // (4K has no clean API equivalent — the caller routes 4K to yt-dlp instead.)
+    if (filters.duration) {
+        static const wchar_t* d[] = {L"", L"short", L"medium", L"long"};
+        url += std::wstring(L"&videoDuration=") + d[filters.duration];
+    }
+    if (filters.sort == 1)      url += L"&order=date";
+    else if (filters.sort == 2) url += L"&order=viewCount";
+    switch (filters.feature) {
+        case 1: url += L"&eventType=live";               break;  // live
+        case 3: url += L"&videoDefinition=high";         break;  // HD
+        case 4: url += L"&videoCaption=closedCaption";   break;  // subtitles
+        case 5: url += L"&videoLicense=creativeCommon";  break;  // Creative Commons
+        default: break;
+    }
+    if (filters.uploadDate) {
+        static const long long secs[] = {0, 3600, 86400, 604800, 2592000LL, 31536000LL};
+        time_t t = time(nullptr) - (time_t)secs[filters.uploadDate];
+        struct tm g; gmtime_s(&g, &t);
+        wchar_t buf[32];
+        swprintf(buf, 32, L"%04d-%02d-%02dT%02d:%02d:%02dZ",
+                 g.tm_year + 1900, g.tm_mon + 1, g.tm_mday, g.tm_hour, g.tm_min, g.tm_sec);
+        url += std::wstring(L"&publishedAfter=") + buf;
+    }
     // E (v2.00): percent-encode the API key and page token before splicing them
     // into the query string. A key/token containing a URL-reserved char (&, =,
     // +, /, whitespace) would otherwise break the parameter boundary or corrupt
@@ -970,15 +1064,26 @@ static int g_ytYtdlpLoaded = 0;
 // for skipping any items already shown to the user (see DoLoadMore path).
 static bool SearchWithYtdlp(const std::wstring& query,
                             std::vector<YouTubeResult>& results,
-                            int count) {
+                            int count, const YtFilters& filters) {
     // Use yt-dlp to search YouTube. --quiet/--no-warnings keep stdout pure
     // JSON (the "%(...)j"/--dump-json lines), so warnings can't corrupt our
     // line-by-line parser below.
-    std::wstring safeQuery = SanitizeForCommandLine(query);
-    wchar_t prefix[32];
-    swprintf(prefix, 32, L"ytsearch%d:", count);
-    std::wstring args = L"--flat-playlist --dump-json --quiet --no-warnings \""
-                        + std::wstring(prefix) + safeQuery + L"\"";
+    std::wstring args;
+    if (YtAnyFilterActive(filters)) {
+        // Filtered search: use the search-results URL with the sp filter param
+        // (yt-dlp's youtube:search_url extractor), paginated via --playlist-end.
+        // The query is a URL query-string value here, so UrlEncode it (not the
+        // command-line sanitizer). sp is already percent-encoded.
+        std::wstring url = L"https://www.youtube.com/results?search_query="
+                         + UrlEncode(query) + L"&sp=" + YtBuildSpParam(filters);
+        args = L"--flat-playlist --dump-json --quiet --no-warnings --playlist-end "
+             + std::to_wstring(count) + L" \"" + url + L"\"";
+    } else {
+        wchar_t prefix[32];
+        swprintf(prefix, 32, L"ytsearch%d:", count);
+        args = L"--flat-playlist --dump-json --quiet --no-warnings \""
+             + std::wstring(prefix) + SanitizeForCommandLine(query) + L"\"";
+    }
     YT_DBG((L"[YT] Running: " + g_ytdlpPath + L" " + args + L"\n").c_str());
     int exitCode = 0;
     std::wstring stderrText;
@@ -1004,7 +1109,8 @@ static bool SearchWithYtdlp(const std::wstring& query,
 // Public search function
 bool YouTubeSearch(const std::wstring& query, std::vector<YouTubeResult>& results,
                    std::wstring& nextPageToken, const std::wstring& pageToken,
-                   const std::vector<std::wstring>* seenIdsSnapshot) {
+                   const std::vector<std::wstring>* seenIdsSnapshot,
+                   const YtFilters& filters) {
     results.clear();
     nextPageToken.clear();
 
@@ -1012,8 +1118,11 @@ bool YouTubeSearch(const std::wstring& query, std::vector<YouTubeResult>& result
     YT_DBG((L"[YT] HasApiKey: " + std::wstring(HasApiKey() ? L"yes" : L"no") + L"\n").c_str());
     YT_DBG((L"[YT] IsYtdlpAvailable: " + std::wstring(IsYtdlpAvailable() ? L"yes" : L"no") + L"\n").c_str());
 
-    // Try API first if available
-    if (HasApiKey() && SearchWithAPI(query, results, nextPageToken, pageToken)) {
+    // Try API first if available. The Data API has no clean 4K filter, so when
+    // 4K is requested we skip the API and use yt-dlp (which honors it via sp).
+    const bool forceYtdlp = (filters.feature == 2);  // 2 = 4K
+    if (HasApiKey() && !forceYtdlp &&
+        SearchWithAPI(query, results, nextPageToken, pageToken, filters)) {
         YT_DBG(L"[YT] API search succeeded\n");
         return true;
     }
@@ -1027,7 +1136,7 @@ bool YouTubeSearch(const std::wstring& query, std::vector<YouTubeResult>& result
         if (pageToken.empty()) {
             // First page.
             g_ytYtdlpLoaded = 0;
-            if (!SearchWithYtdlp(query, results, batchSize)) return false;
+            if (!SearchWithYtdlp(query, results, batchSize, filters)) return false;
             g_ytYtdlpLoaded = static_cast<int>(results.size());
             // Use a sentinel non-empty token so the auto-load path keeps
             // firing — we don't have a real "no more results" signal until
@@ -1039,7 +1148,7 @@ bool YouTubeSearch(const std::wstring& query, std::vector<YouTubeResult>& result
             // Subsequent page: re-fetch a bigger batch, return only the new ids.
             int newTotal = g_ytYtdlpLoaded + batchSize;
             std::vector<YouTubeResult> all;
-            if (!SearchWithYtdlp(query, all, newTotal)) return false;
+            if (!SearchWithYtdlp(query, all, newTotal, filters)) return false;
             // Build the set of ids already known to the caller so we don't
             // re-emit them. Dedup against the new batch too in case yt-dlp
             // returns dups.
@@ -2850,7 +2959,13 @@ struct YtSearchRequest {
     std::wstring query;        // Search kind: the user's query
     std::wstring playlistId;   // Playlist kind: the playlist id
     std::wstring channelUrl;   // Channel kind: canonical /videos URL (v2.12)
+    YtFilters    filters;      // Search kind: the 4 filter dropdowns
 };
+
+// Filters of the CURRENT result set — snapshotted from the combos when a search
+// starts, so "load more" paginates with the same filters even if the user has
+// since changed a combo without re-searching. UI-thread + worker read only.
+static YtFilters g_ytActiveFilters;
 
 // Result posted back to the UI (heap, freed by the handler). Carries the parsed
 // results + the new page token + (on failure) the classified spoken key,
@@ -2886,7 +3001,7 @@ static DWORD WINAPI SearchThreadProc(LPVOID arg) {
     } else {
         // First page: no seen-ids snapshot needed (results are starting fresh).
         res->ok = YouTubeSearch(req->query, res->results,
-                                res->nextPageToken, L"", nullptr);
+                                res->nextPageToken, L"", nullptr, req->filters);
     }
     if (!res->ok) res->failureKey = g_ytLastFailureKey;
 
@@ -3074,9 +3189,22 @@ static void DoSearch(HWND hwnd) {
     g_ytIsChannelView = false;
     UpdateResultsList(hwnd);   // clear the visible list immediately
 
+    // Snapshot the 4 filter dropdowns for this search (and for its load-more).
+    YtFilters filters;
+    filters.duration   = (int)SendDlgItemMessageW(hwnd, IDC_YT_FILTER_DURATION, CB_GETCURSEL, 0, 0);
+    filters.uploadDate = (int)SendDlgItemMessageW(hwnd, IDC_YT_FILTER_DATE,     CB_GETCURSEL, 0, 0);
+    filters.sort       = (int)SendDlgItemMessageW(hwnd, IDC_YT_FILTER_SORT,     CB_GETCURSEL, 0, 0);
+    filters.feature    = (int)SendDlgItemMessageW(hwnd, IDC_YT_FILTER_FEATURE,  CB_GETCURSEL, 0, 0);
+    if (filters.duration   < 0) filters.duration   = 0;  // CB_ERR (-1) -> no filter
+    if (filters.uploadDate < 0) filters.uploadDate = 0;
+    if (filters.sort       < 0) filters.sort       = 0;
+    if (filters.feature    < 0) filters.feature    = 0;
+    g_ytActiveFilters = filters;
+
     YtSearchRequest* req = new YtSearchRequest;
     req->kind = YtSearchKind::Search;
     req->query = query;
+    req->filters = filters;
     StartSearchAsync(req);
 }
 
@@ -3120,6 +3248,7 @@ struct YtLoadMoreData {
     std::wstring query;
     std::wstring pageToken;
     std::vector<std::wstring> seenIds;   // ids already shown — for dedup snapshot
+    YtFilters filters;                    // filters of the current result set
 };
 
 static DWORD WINAPI LoadMoreThreadProc(LPVOID arg) {
@@ -3134,7 +3263,7 @@ static DWORD WINAPI LoadMoreThreadProc(LPVOID arg) {
     if (d->isPlaylist) {
         YouTubeGetPlaylistContents(d->playlistId, d->results, d->newToken, d->pageToken);
     } else {
-        YouTubeSearch(d->query, d->results, d->newToken, d->pageToken, &d->seenIds);
+        YouTubeSearch(d->query, d->results, d->newToken, d->pageToken, &d->seenIds, d->filters);
     }
     // Post to the always-alive main window. The main wndproc forwards to the YT
     // dialog only if it still exists, and frees `d` unconditionally — so a
@@ -3161,6 +3290,7 @@ static void TriggerAutoLoadMore(HWND hwnd, int selection) {
     d->playlistId = g_ytCurrentPlaylistId;
     d->query      = g_ytCurrentQuery;
     d->pageToken  = g_ytNextPageToken;
+    d->filters    = g_ytActiveFilters;   // same filters that produced these results
     d->seenIds.reserve(g_ytResults.size());
     for (const auto& r : g_ytResults) d->seenIds.push_back(r.videoId);
 
@@ -4484,13 +4614,31 @@ static LRESULT CALLBACK YtResultsSubclassProc(HWND h, UINT m, WPARAM w, LPARAM l
 
 INT_PTR CALLBACK YouTubeDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
     switch (msg) {
-        case WM_INITDIALOG:
+        case WM_INITDIALOG: {
             LocalizeDialog(hwnd);
             g_ytDialog = hwnd;
             g_ytResults.clear();
             g_ytNextPageToken.clear();
             g_ytIsPlaylistView = false;
             g_ytIsChannelView = false;
+
+            // Populate the 4 filter dropdowns (items are added at runtime, so
+            // they must be translated here — LocalizeDialog only touches static
+            // control text). Default selection 0 = no filter on each axis.
+            auto fillCombo = [&](int id, std::initializer_list<const char*> items) {
+                HWND c = GetDlgItem(hwnd, id);
+                for (const char* it : items)
+                    SendMessageW(c, CB_ADDSTRING, 0, (LPARAM)T(it));
+                SendMessageW(c, CB_SETCURSEL, 0, 0);
+            };
+            fillCombo(IDC_YT_FILTER_DURATION,
+                      {"(All)", "Under 4 minutes", "4 to 20 minutes", "Over 20 minutes"});
+            fillCombo(IDC_YT_FILTER_DATE,
+                      {"(Any time)", "Last hour", "Today", "This week", "This month", "This year"});
+            fillCombo(IDC_YT_FILTER_SORT,
+                      {"Relevance", "Upload date", "View count"});
+            fillCombo(IDC_YT_FILTER_FEATURE,
+                      {"(None)", "Live", "4K", "HD", "Subtitles/CC", "Creative Commons"});
             // v2.12 — start with no list, so "Download all" is hidden until a
             // playlist or channel is loaded (never offered for a keyword search).
             // BUT if a batch from a previous dialog session is still running,
@@ -4508,6 +4656,7 @@ INT_PTR CALLBACK YouTubeDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
                               YtResultsSubclassProc, kYtResultsSubclassId, 0);
             SetFocus(GetDlgItem(hwnd, IDC_YT_SEARCH));
             return FALSE;  // We set focus manually
+        }
 
         case WM_COMMAND:
             switch (LOWORD(wParam)) {
@@ -4600,7 +4749,19 @@ INT_PTR CALLBACK YouTubeDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
             int height = HIWORD(lParam);
             // Resize controls
             SetWindowPos(GetDlgItem(hwnd, IDC_YT_SEARCH), nullptr, 7, 22, width - 14, 14, SWP_NOZORDER);
-            SetWindowPos(GetDlgItem(hwnd, IDC_YT_RESULTS), nullptr, 7, 54, width - 14, height - 90, SWP_NOZORDER);
+            // Filter rows: two rows of (label + combo), left/right columns.
+            {
+                int half = width / 2;
+                SetWindowPos(GetDlgItem(hwnd, IDC_YT_LBL_DURATION),   nullptr, 7,        42, 44, 10, SWP_NOZORDER);
+                SetWindowPos(GetDlgItem(hwnd, IDC_YT_FILTER_DURATION),nullptr, 53,       40, half - 60, 120, SWP_NOZORDER);
+                SetWindowPos(GetDlgItem(hwnd, IDC_YT_LBL_DATE),       nullptr, half + 3, 42, 40, 10, SWP_NOZORDER);
+                SetWindowPos(GetDlgItem(hwnd, IDC_YT_FILTER_DATE),    nullptr, half + 45,40, width - (half + 45) - 7, 120, SWP_NOZORDER);
+                SetWindowPos(GetDlgItem(hwnd, IDC_YT_LBL_SORT),       nullptr, 7,        64, 44, 10, SWP_NOZORDER);
+                SetWindowPos(GetDlgItem(hwnd, IDC_YT_FILTER_SORT),    nullptr, 53,       62, half - 60, 120, SWP_NOZORDER);
+                SetWindowPos(GetDlgItem(hwnd, IDC_YT_LBL_FEATURE),    nullptr, half + 3, 64, 40, 10, SWP_NOZORDER);
+                SetWindowPos(GetDlgItem(hwnd, IDC_YT_FILTER_FEATURE), nullptr, half + 45,62, width - (half + 45) - 7, 120, SWP_NOZORDER);
+            }
+            SetWindowPos(GetDlgItem(hwnd, IDC_YT_RESULTS), nullptr, 7, 90, width - 14, height - 126, SWP_NOZORDER);
             SetWindowPos(GetDlgItem(hwnd, IDC_YT_LOADMORE), nullptr, 7, height - 30, 55, 14, SWP_NOZORDER);
             // v2.23 — the simple Download and "Download with options" buttons were
             // removed; downloads now live in the results context menu (Application

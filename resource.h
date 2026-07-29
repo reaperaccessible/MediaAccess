@@ -342,6 +342,16 @@
 #define IDM_YT_DL_PLAYING_MP3    781   // v2.54 — download the currently-playing YouTube video as audio MP3 (Global, user-bindable)
 #define IDM_YT_DL_PLAYING_OGG    782   // v2.54 — download the currently-playing YouTube video as audio OGG (Global, user-bindable)
 
+// YouTube search filter dropdowns (IDD_YOUTUBE). 790-799 free.
+#define IDC_YT_FILTER_DURATION   790
+#define IDC_YT_FILTER_DATE       791
+#define IDC_YT_FILTER_SORT       792
+#define IDC_YT_FILTER_FEATURE    793
+#define IDC_YT_LBL_DURATION      794
+#define IDC_YT_LBL_DATE          795
+#define IDC_YT_LBL_SORT          796
+#define IDC_YT_LBL_FEATURE       797
+
 // Bookmarks
 #define IDM_BOOKMARK_ADD    800
 #define IDM_BOOKMARK_LIST   801

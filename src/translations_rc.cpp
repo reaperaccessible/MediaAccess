@@ -1084,6 +1084,47 @@ void RegisterRcTranslations() {
     AddTranslation("en", "&Date:", L"&Date:");
     AddTranslation("fr", "&Date:", L"&Date :");
 
+    // YouTube search filter dropdowns (label + items). D&uration:/&Date:/S&ort:/
+    // (None) are already translated above / in translations_player.cpp.
+    AddTranslation("en", "&Features:", L"&Features:");
+    AddTranslation("fr", "&Features:", L"&Fonctionnalités :");
+    AddTranslation("en", "(All)", L"(All)");
+    AddTranslation("fr", "(All)", L"(Tout)");
+    AddTranslation("en", "Under 4 minutes", L"Under 4 minutes");
+    AddTranslation("fr", "Under 4 minutes", L"Moins de 4 minutes");
+    AddTranslation("en", "4 to 20 minutes", L"4 to 20 minutes");
+    AddTranslation("fr", "4 to 20 minutes", L"4 à 20 minutes");
+    AddTranslation("en", "Over 20 minutes", L"Over 20 minutes");
+    AddTranslation("fr", "Over 20 minutes", L"Plus de 20 minutes");
+    AddTranslation("en", "(Any time)", L"(Any time)");
+    AddTranslation("fr", "(Any time)", L"(Tout)");
+    AddTranslation("en", "Last hour", L"Last hour");
+    AddTranslation("fr", "Last hour", L"Dernière heure");
+    AddTranslation("en", "Today", L"Today");
+    AddTranslation("fr", "Today", L"Aujourd'hui");
+    AddTranslation("en", "This week", L"This week");
+    AddTranslation("fr", "This week", L"Cette semaine");
+    AddTranslation("en", "This month", L"This month");
+    AddTranslation("fr", "This month", L"Ce mois-ci");
+    AddTranslation("en", "This year", L"This year");
+    AddTranslation("fr", "This year", L"Cette année");
+    AddTranslation("en", "Relevance", L"Relevance");
+    AddTranslation("fr", "Relevance", L"Pertinence");
+    AddTranslation("en", "Upload date", L"Upload date");
+    AddTranslation("fr", "Upload date", L"Date de mise en ligne");
+    AddTranslation("en", "View count", L"View count");
+    AddTranslation("fr", "View count", L"Nombre de vues");
+    AddTranslation("en", "Live", L"Live");
+    AddTranslation("fr", "Live", L"En direct");
+    AddTranslation("en", "4K", L"4K");
+    AddTranslation("fr", "4K", L"4K");
+    AddTranslation("en", "HD", L"HD");
+    AddTranslation("fr", "HD", L"HD");
+    AddTranslation("en", "Subtitles/CC", L"Subtitles/CC");
+    AddTranslation("fr", "Subtitles/CC", L"Sous-titres");
+    AddTranslation("en", "Creative Commons", L"Creative Commons");
+    AddTranslation("fr", "Creative Commons", L"Creative Commons");
+
     AddTranslation("en", "&Time:", L"&Time:");
     AddTranslation("fr", "&Time:", L"&Heure :");
 

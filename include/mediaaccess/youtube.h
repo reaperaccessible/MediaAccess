@@ -18,6 +18,19 @@ struct YouTubeResult {
     bool isChannel = false;
 };
 
+// YouTube search filters (the 4 dropdowns in the search window). Each field is
+// the combo's 0-based selection index; 0 always means "no filter" for that axis.
+//   duration : 0=(All) 1=<4min 2=4-20min 3=>20min
+//   uploadDate: 0=(Any) 1=hour 2=today 3=week 4=month 5=year
+//   sort      : 0=relevance 1=upload date 2=view count
+//   feature   : 0=(None) 1=live 2=4K 3=HD 4=subtitles 5=Creative Commons
+struct YtFilters {
+    int duration   = 0;
+    int uploadDate = 0;
+    int sort       = 0;
+    int feature    = 0;
+};
+
 // Search YouTube using API or yt-dlp fallback
 // Returns results, nextPageToken is set if more results available.
 //
@@ -31,7 +44,8 @@ struct YouTubeResult {
 // thread is involved.
 bool YouTubeSearch(const std::wstring& query, std::vector<YouTubeResult>& results,
                    std::wstring& nextPageToken, const std::wstring& pageToken = L"",
-                   const std::vector<std::wstring>* seenIdsSnapshot = nullptr);
+                   const std::vector<std::wstring>* seenIdsSnapshot = nullptr,
+                   const YtFilters& filters = YtFilters{});
 
 // Get contents of a playlist or channel
 bool YouTubeGetPlaylistContents(const std::wstring& playlistId, std::vector<YouTubeResult>& results,
