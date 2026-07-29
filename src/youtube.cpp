@@ -4548,8 +4548,11 @@ INT_PTR CALLBACK YouTubeDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
                     break;
 
                 case IDCANCEL:
-                    DestroyWindow(hwnd);
-                    g_ytDialog = nullptr;
+                    // Hide (do NOT destroy) so the search and its results survive
+                    // until the window is reopened — or MediaAccess closes. The
+                    // window is destroyed for real only on app shutdown, when its
+                    // owner (the main window) goes away. Requested by a user.
+                    ShowWindow(hwnd, SW_HIDE);
                     return TRUE;
             }
             break;
@@ -4648,8 +4651,14 @@ INT_PTR CALLBACK YouTubeDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
 // Show YouTube dialog
 void ShowYouTubeDialog(HWND parent) {
     if (g_ytDialog) {
-        // Already open, bring to front
+        // Window already exists (possibly hidden after a previous close): show it
+        // again with its previous search + results intact, and land the focus on
+        // the results list — or the search box when there are no results yet.
+        ShowWindow(g_ytDialog, SW_SHOW);
         SetForegroundWindow(g_ytDialog);
+        HWND focusTarget = GetDlgItem(g_ytDialog,
+            g_ytResults.empty() ? IDC_YT_SEARCH : IDC_YT_RESULTS);
+        if (focusTarget) SetFocus(focusTarget);
         return;
     }
 

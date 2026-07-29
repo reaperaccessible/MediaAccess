@@ -2514,9 +2514,11 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLi
 
     MSG msg;
     while (GetMessageW(&msg, nullptr, 0, 0)) {
-        // Handle modeless YouTube dialog
+        // Handle modeless YouTube dialog. Only when it is actually VISIBLE:
+        // closing the window now just hides it (keeping the search alive), and a
+        // hidden dialog must never intercept the main window's keys.
         HWND ytDlg = GetYouTubeDialog();
-        if (ytDlg && IsDialogMessageW(ytDlg, &msg)) {
+        if (ytDlg && IsWindowVisible(ytDlg) && IsDialogMessageW(ytDlg, &msg)) {
             continue;  // Message was handled by the dialog
         }
 
