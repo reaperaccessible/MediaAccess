@@ -167,6 +167,7 @@ static bool SearchWithYtdlp(const std::wstring& query, std::vector<YouTubeResult
 static std::wstring UrlEncode(const std::wstring& str);
 static std::wstring HttpGet(const std::wstring& url);
 static std::wstring ParseJsonString(const std::wstring& json, const std::wstring& key);
+static double ParseJsonNumber(const std::wstring& json, const std::wstring& key);  // defined ~line 1959
 
 // RunYtdlp is declared in youtube.h (constants + signature) so the async lot 2
 // can drive it from another translation unit.
@@ -286,13 +287,13 @@ static std::wstring YtBase64(const std::string& in) {
 }
 
 static bool YtAnyFilterActive(const YtFilters& f) {
-    return f.duration || f.uploadDate || f.sort || f.feature;
+    return f.duration || f.uploadDate || f.sort || f.feature || f.type;
 }
 
 // Raw protobuf bytes for sp. Inner "filters" fields are emitted in ascending
-// field order (upload_date=1, duration=3, feature>=4), then wrapped as top
-// field 2; the top-level sort_by is field 1. All values are < 128 (single-byte
-// varints and a single-byte inner length).
+// field order (upload_date=1, type=2, duration=3, feature>=4), then wrapped as
+// top field 2; the top-level sort_by is field 1. All values are < 128
+// (single-byte varints and a single-byte inner length).
 static std::string YtBuildSpBytes(const YtFilters& f) {
     static const int kSort[] = {0, 2, 3};          // relevance omitted / upload / views
     static const int kDate[] = {0, 1, 2, 3, 4, 5}; // hour..year
@@ -302,6 +303,7 @@ static std::string YtBuildSpBytes(const YtFilters& f) {
 
     std::string inner;
     if (f.uploadDate) { inner += (char)0x08; inner += (char)kDate[f.uploadDate]; }
+    if (f.type)       { inner += (char)0x10; inner += (char)f.type; }  // field 2: 1=video 2=channel 3=playlist
     if (f.duration)   { inner += (char)0x18; inner += (char)kDur[f.duration]; }
     if (f.feature)    { inner += (char)kFeatTag[f.feature]; inner += (char)0x01; }
 
@@ -1042,6 +1044,28 @@ static void ParseYtdlpJsonLines(const std::wstring& output,
             if (!cid.empty()) result.channelUrl = L"https://www.youtube.com/channel/" + cid;
         }
 
+        // v2.61 (Phase 1) — enriched announcement fields. ParseJsonNumber returns
+        // 0.0 when a key is absent, so a MISSING view_count would read as a false
+        // "0 views"; test presence explicitly and keep -1 (= unknown) otherwise.
+        // In --flat-playlist mode view_count/duration are present for videos but
+        // null for live streams (-> omitted downstream); upload_date is absent, so
+        // upload age is intentionally not announced.
+        result.viewCount   = (line.find(L"\"view_count\"") != std::wstring::npos)
+                           ? (long long)ParseJsonNumber(line, L"view_count") : -1;
+        result.durationSec = (int)ParseJsonNumber(line, L"duration");
+
+        // v2.61 (Phase 1) — detect Channel/Playlist entries (the Type filter can
+        // return these). yt-dlp flat entries carry a "url": /playlist?list=... for
+        // playlists, /channel/... for channels; plain video rows use watch?v=...
+        // (neither substring), so this never misfires on a video.
+        std::wstring entryUrl = ParseJsonString(line, L"url");
+        if (entryUrl.find(L"/playlist?list=") != std::wstring::npos) {
+            result.isPlaylist = true;   // videoId already holds the PL.../RD... id
+        } else if (entryUrl.find(L"/channel/") != std::wstring::npos) {
+            result.isChannel = true;
+            if (result.channelUrl.empty()) result.channelUrl = entryUrl;
+        }
+
         if (!result.videoId.empty() && !result.title.empty()) {
             results.push_back(result);
         }
@@ -1120,7 +1144,11 @@ bool YouTubeSearch(const std::wstring& query, std::vector<YouTubeResult>& result
 
     // Try API first if available. The Data API has no clean 4K filter, so when
     // 4K is requested we skip the API and use yt-dlp (which honors it via sp).
-    const bool forceYtdlp = (filters.feature == 2);  // 2 = 4K
+    // v2.61 — channel/playlist Type results also go through yt-dlp: SearchWithAPI's
+    // parser only understands id.videoId (not channelId/playlistId) and can't
+    // supply the enriched duration/views either.
+    const bool forceYtdlp = (filters.feature == 2)     // 2 = 4K
+                         || (filters.type >= 2);        // 2/3 = channel/playlist
     if (HasApiKey() && !forceYtdlp &&
         SearchWithAPI(query, results, nextPageToken, pageToken, filters)) {
         YT_DBG(L"[YT] API search succeeded\n");
@@ -2889,18 +2917,48 @@ bool ParseYouTubeURL(const std::wstring& url, std::wstring& id, bool& isPlaylist
     return false;
 }
 
+// v2.61 (Phase 1) — abbreviate a view count for the results announcement
+// ("56M", "1.2M", "3.4K", or the raw number below 1000). The compact form is
+// deliberate: a screen reader speaking "56,197,307 views" on every row is noise.
+// n < 0 means unknown -> the caller omits the whole segment.
+static std::wstring FormatViewCount(long long n) {
+    if (n < 0) return L"";
+    wchar_t buf[32];
+    if (n >= 1000000) {
+        double m = n / 1000000.0;
+        swprintf(buf, 32, (m >= 10.0 ? L"%.0fM" : L"%.1fM"), m);
+    } else if (n >= 1000) {
+        double k = n / 1000.0;
+        swprintf(buf, 32, (k >= 10.0 ? L"%.0fK" : L"%.1fK"), k);
+    } else {
+        swprintf(buf, 32, L"%lld", n);
+    }
+    return buf;
+}
+
 // Update results list in dialog
 static void UpdateResultsList(HWND hwnd) {
     HWND hList = GetDlgItem(hwnd, IDC_YT_RESULTS);
     SendMessageW(hList, LB_RESETCONTENT, 0, 0);
 
     for (const auto& result : g_ytResults) {
+        // v2.61 (Phase 1) — enriched, comma-separated announcement. The list-item
+        // TEXT is exactly what NVDA/JAWS read on arrow, so this string IS the
+        // announcement. Commas give natural screen-reader pauses. Each segment is
+        // appended only when its data exists (channel/playlist rows and live
+        // streams degrade cleanly to just the title). Duration is spelled in units
+        // (FormatTimeSpoken) rather than "12:34" — the project's spoken-time
+        // doctrine.
         std::wstring display = result.title;
         if (!result.channel.empty()) {
-            display += L" - " + result.channel;
+            display += std::wstring(L", ") + T("by") + L" " + result.channel;
         }
-        if (!result.duration.empty()) {
-            display += L" [" + result.duration + L"]";
+        if (result.durationSec > 0) {
+            display += std::wstring(L", ") + FormatTimeSpoken(result.durationSec);
+        }
+        if (result.viewCount >= 0) {
+            display += std::wstring(L", ") + FormatViewCount(result.viewCount)
+                     + L" " + T(result.viewCount == 1 ? "view" : "views");
         }
         SendMessageW(hList, LB_ADDSTRING, 0, reinterpret_cast<LPARAM>(display.c_str()));
     }
@@ -3189,13 +3247,15 @@ static void DoSearch(HWND hwnd) {
     g_ytIsChannelView = false;
     UpdateResultsList(hwnd);   // clear the visible list immediately
 
-    // Snapshot the 4 filter dropdowns for this search (and for its load-more).
+    // Snapshot the 5 filter dropdowns for this search (and for its load-more).
     YtFilters filters;
+    filters.type       = (int)SendDlgItemMessageW(hwnd, IDC_YT_FILTER_TYPE,     CB_GETCURSEL, 0, 0);
     filters.duration   = (int)SendDlgItemMessageW(hwnd, IDC_YT_FILTER_DURATION, CB_GETCURSEL, 0, 0);
     filters.uploadDate = (int)SendDlgItemMessageW(hwnd, IDC_YT_FILTER_DATE,     CB_GETCURSEL, 0, 0);
     filters.sort       = (int)SendDlgItemMessageW(hwnd, IDC_YT_FILTER_SORT,     CB_GETCURSEL, 0, 0);
     filters.feature    = (int)SendDlgItemMessageW(hwnd, IDC_YT_FILTER_FEATURE,  CB_GETCURSEL, 0, 0);
-    if (filters.duration   < 0) filters.duration   = 0;  // CB_ERR (-1) -> no filter
+    if (filters.type       < 0) filters.type       = 0;  // CB_ERR (-1) -> no filter
+    if (filters.duration   < 0) filters.duration   = 0;
     if (filters.uploadDate < 0) filters.uploadDate = 0;
     if (filters.sort       < 0) filters.sort       = 0;
     if (filters.feature    < 0) filters.feature    = 0;
@@ -3621,6 +3681,51 @@ static void PlaySelected(HWND hwnd) {
     if (sel < 0 || sel >= static_cast<int>(g_ytResults.size())) return;
 
     const YouTubeResult& result = g_ytResults[sel];
+
+    // v2.61 (Phase 1) — a Channel or Playlist result row OPENS (lists its videos)
+    // instead of playing, reusing the same async path as a pasted channel/playlist
+    // URL. Copy every field we need into locals FIRST: the branches below call
+    // g_ytResults.clear(), which invalidates the reference above (use-after-free).
+    // Once the view flags are set, "Download all" (see UpdateResultsList) becomes
+    // available on the opened channel/playlist.
+    if (result.isChannel || result.isPlaylist) {
+        const bool  isCh  = result.isChannel;
+        std::wstring chSrc = result.channelUrl;   // .../channel/UC... for a channel row
+        std::wstring plId  = result.videoId;      // PL.../RD... for a playlist row
+        std::wstring title = result.title;
+        if (isCh) {
+            std::wstring chUrl = YtChannelVideosUrl(chSrc);
+            if (chUrl.empty()) {
+                Speak(Ts("Channel browsing is not supported yet. Paste a video or "
+                         "playlist URL, or type keywords."));
+                return;
+            }
+            g_ytCurrentQuery = title;
+            g_ytResults.clear();
+            g_ytNextPageToken.clear();
+            g_ytIsPlaylistView = false;
+            g_ytIsChannelView = true;
+            g_ytCurrentChannelUrl = chUrl;
+            UpdateResultsList(hwnd);   // clear the visible list immediately
+            YtSearchRequest* req = new YtSearchRequest;
+            req->kind = YtSearchKind::Channel;
+            req->channelUrl = chUrl;
+            StartSearchAsync(req);
+        } else {
+            g_ytCurrentQuery = title;
+            g_ytResults.clear();
+            g_ytNextPageToken.clear();
+            g_ytIsPlaylistView = true;
+            g_ytIsChannelView = false;
+            g_ytCurrentPlaylistId = plId;
+            UpdateResultsList(hwnd);   // clear the visible list immediately
+            YtSearchRequest* req = new YtSearchRequest;
+            req->kind = YtSearchKind::Playlist;
+            req->playlistId = plId;
+            StartSearchAsync(req);
+        }
+        return;
+    }
     // v1.60 — preset YouTube channel + video title BEFORE the engine
     // pipeline so the window shows it even before mpv/yt-dlp finishes
     // resolving the stream. The (still-empty) item gets refreshed later
@@ -4631,6 +4736,8 @@ INT_PTR CALLBACK YouTubeDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
                     SendMessageW(c, CB_ADDSTRING, 0, (LPARAM)T(it));
                 SendMessageW(c, CB_SETCURSEL, 0, 0);
             };
+            fillCombo(IDC_YT_FILTER_TYPE,
+                      {"(All)", "Video", "Channel", "Playlist"});
             fillCombo(IDC_YT_FILTER_DURATION,
                       {"(All)", "Under 4 minutes", "4 to 20 minutes", "Over 20 minutes"});
             fillCombo(IDC_YT_FILTER_DATE,
@@ -4749,19 +4856,22 @@ INT_PTR CALLBACK YouTubeDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
             int height = HIWORD(lParam);
             // Resize controls
             SetWindowPos(GetDlgItem(hwnd, IDC_YT_SEARCH), nullptr, 7, 22, width - 14, 14, SWP_NOZORDER);
-            // Filter rows: two rows of (label + combo), left/right columns.
+            // Filter rows (22px pitch): Type on its own full-width row, then two
+            // rows of (label + combo) in left/right columns.
             {
                 int half = width / 2;
-                SetWindowPos(GetDlgItem(hwnd, IDC_YT_LBL_DURATION),   nullptr, 7,        42, 44, 10, SWP_NOZORDER);
-                SetWindowPos(GetDlgItem(hwnd, IDC_YT_FILTER_DURATION),nullptr, 53,       40, half - 60, 120, SWP_NOZORDER);
-                SetWindowPos(GetDlgItem(hwnd, IDC_YT_LBL_DATE),       nullptr, half + 3, 42, 40, 10, SWP_NOZORDER);
-                SetWindowPos(GetDlgItem(hwnd, IDC_YT_FILTER_DATE),    nullptr, half + 45,40, width - (half + 45) - 7, 120, SWP_NOZORDER);
-                SetWindowPos(GetDlgItem(hwnd, IDC_YT_LBL_SORT),       nullptr, 7,        64, 44, 10, SWP_NOZORDER);
-                SetWindowPos(GetDlgItem(hwnd, IDC_YT_FILTER_SORT),    nullptr, 53,       62, half - 60, 120, SWP_NOZORDER);
-                SetWindowPos(GetDlgItem(hwnd, IDC_YT_LBL_FEATURE),    nullptr, half + 3, 64, 40, 10, SWP_NOZORDER);
-                SetWindowPos(GetDlgItem(hwnd, IDC_YT_FILTER_FEATURE), nullptr, half + 45,62, width - (half + 45) - 7, 120, SWP_NOZORDER);
+                SetWindowPos(GetDlgItem(hwnd, IDC_YT_LBL_TYPE),       nullptr, 7,        42, 44, 10, SWP_NOZORDER);
+                SetWindowPos(GetDlgItem(hwnd, IDC_YT_FILTER_TYPE),    nullptr, 53,       40, width - 60, 120, SWP_NOZORDER);
+                SetWindowPos(GetDlgItem(hwnd, IDC_YT_LBL_DURATION),   nullptr, 7,        64, 44, 10, SWP_NOZORDER);
+                SetWindowPos(GetDlgItem(hwnd, IDC_YT_FILTER_DURATION),nullptr, 53,       62, half - 60, 120, SWP_NOZORDER);
+                SetWindowPos(GetDlgItem(hwnd, IDC_YT_LBL_DATE),       nullptr, half + 3, 64, 40, 10, SWP_NOZORDER);
+                SetWindowPos(GetDlgItem(hwnd, IDC_YT_FILTER_DATE),    nullptr, half + 45,62, width - (half + 45) - 7, 120, SWP_NOZORDER);
+                SetWindowPos(GetDlgItem(hwnd, IDC_YT_LBL_SORT),       nullptr, 7,        86, 44, 10, SWP_NOZORDER);
+                SetWindowPos(GetDlgItem(hwnd, IDC_YT_FILTER_SORT),    nullptr, 53,       84, half - 60, 120, SWP_NOZORDER);
+                SetWindowPos(GetDlgItem(hwnd, IDC_YT_LBL_FEATURE),    nullptr, half + 3, 86, 40, 10, SWP_NOZORDER);
+                SetWindowPos(GetDlgItem(hwnd, IDC_YT_FILTER_FEATURE), nullptr, half + 45,84, width - (half + 45) - 7, 120, SWP_NOZORDER);
             }
-            SetWindowPos(GetDlgItem(hwnd, IDC_YT_RESULTS), nullptr, 7, 90, width - 14, height - 126, SWP_NOZORDER);
+            SetWindowPos(GetDlgItem(hwnd, IDC_YT_RESULTS), nullptr, 7, 108, width - 14, height - 144, SWP_NOZORDER);
             SetWindowPos(GetDlgItem(hwnd, IDC_YT_LOADMORE), nullptr, 7, height - 30, 55, 14, SWP_NOZORDER);
             // v2.23 — the simple Download and "Download with options" buttons were
             // removed; downloads now live in the results context menu (Application

@@ -1125,6 +1125,20 @@ void RegisterRcTranslations() {
     AddTranslation("en", "Creative Commons", L"Creative Commons");
     AddTranslation("fr", "Creative Commons", L"Creative Commons");
 
+    // v2.61 (Phase 1) — Type filter dropdown + enriched result announcements.
+    // "Video" and "Playlist" are already translated elsewhere (identical values);
+    // only the new keys are added here.
+    AddTranslation("en", "T&ype:", L"T&ype:");
+    AddTranslation("fr", "T&ype:", L"T&ype :");
+    AddTranslation("en", "Channel", L"Channel");
+    AddTranslation("fr", "Channel", L"Chaîne");
+    AddTranslation("en", "by", L"by");
+    AddTranslation("fr", "by", L"par");
+    AddTranslation("en", "view", L"view");
+    AddTranslation("fr", "view", L"vue");
+    AddTranslation("en", "views", L"views");
+    AddTranslation("fr", "views", L"vues");
+
     AddTranslation("en", "&Time:", L"&Time:");
     AddTranslation("fr", "&Time:", L"&Heure :");
 
