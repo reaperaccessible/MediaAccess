@@ -8,6 +8,14 @@
 </head>
 <body>
 <h1>MediaAccess - Changelog</h1>
+<h2>Version 2.61</h2>
+<p>New: a "Type" filter in YouTube search — All, Video, Channel or Playlist — alongside the Duration, Date, Sort and Features filters. Selecting a Channel or Playlist result opens it and lists its videos; the "Download all" button then downloads the whole channel or playlist.</p>
+<p>New: YouTube results are announced more richly by the screen reader — title, channel, duration (spoken in full) and view count.</p>
+<p>New: autoplay next result. When a YouTube video ends, the next result in the list plays automatically (announces "Playing next"). Off by default; enable it in Options → YouTube tab, "Autoplay next result when a video ends".</p>
+<p>New: search within a channel. Once a channel is open, typing keywords searches only within its videos; an empty query reloads the whole channel. To return to a global search, close and reopen the YouTube window.</p>
+<p>New: YouTube channel subscriptions, local and with no Google account (the list stays on this computer). Subscribe from the context menu (Applications key) of any result — "Subscribe to channel". The File → YouTube subscriptions window lists your followed channels with a new-video count; at startup MediaAccess checks for new uploads and announces them, and the "Check now" button re-runs the check.</p>
+<p>Fix: some playlists or channels mixed into the video results were played as videos and reported "unavailable". They are now correctly recognized and excluded from video searches (unless you explicitly choose the Channel or Playlist type).</p>
+<p>Fix: in local video playlists, the end of a track could skip the next track (a double-trigger in the video engine). Fixed.</p>
 <h2>Version 2.60</h2>
 <p>Fix: some MP4 files with several audio tracks (for example a movie with multiple languages) were not recognized as video and played as audio only, showing just one track. The cause was video-track detection not looking for the metadata when it was stored at the end of the file. Such files now play correctly as video, with access to all their audio tracks (Video menu → Cycle audio track) and their subtitles.</p>
 <h2>Version 2.59</h2>

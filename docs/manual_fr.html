@@ -610,9 +610,25 @@
   <li><kbd>Ctrl</kbd>+<kbd>Y</kbd> ou <strong>Fichier → YouTube</strong> ouvre le dialogue.</li>
   <li>Tapez votre recherche et appuyez sur <kbd>Entrée</kbd>.</li>
   <li>Naviguez dans les résultats avec les flèches. Quand vous atteignez le dernier élément, plus de résultats se chargent automatiquement (vous pouvez aussi utiliser le bouton « Charger plus »).</li>
-  <li><kbd>Entrée</kbd> lance la lecture du résultat sélectionné.</li>
+  <li><kbd>Entrée</kbd> lance la lecture du résultat sélectionné (ou, sur un résultat de type chaîne ou playlist, l'ouvre — voir « Ouvrir une chaîne ou une playlist » ci-dessous).</li>
   <li>Pour <strong>télécharger</strong> un résultat, ouvrez son menu contextuel (touche <kbd>Application</kbd>, <kbd>Maj</kbd>+<kbd>F10</kbd> ou clic droit) — voir ci-dessous. Les fichiers vont dans <code>Téléchargements\MediaAccess\YouTube\</code>.</li>
 </ol>
+<p>Chaque résultat est énoncé sous la forme <strong>titre, puis la chaîne, puis la durée, puis le nombre de vues</strong> — par exemple « Entretien, par Radio One, douze minutes trente secondes, 45 K vues ». Un direct, qui n'a ni durée ni nombre de vues, est énoncé avec son seul titre et sa chaîne.</p>
+
+<h3>Filtres de recherche</h3>
+<p>Entre le champ de recherche et la liste des résultats se trouvent cinq listes déroulantes, atteintes avec <kbd>Tab</kbd> après le champ de recherche. Elles affinent votre <em>prochaine</em> recherche : réglez celles que vous voulez, puis tapez votre requête et appuyez sur <kbd>Entrée</kbd>. Chacune démarre sur « aucun filtre » :</p>
+<ul>
+  <li><strong>Type</strong> : (Tout), Vidéo, Chaîne, Liste de lecture.</li>
+  <li><strong>Durée</strong> : (Tout), Moins de 4 minutes, 4 à 20 minutes, Plus de 20 minutes.</li>
+  <li><strong>Date</strong> : (Tout), Dernière heure, Aujourd'hui, Cette semaine, Ce mois-ci, Cette année.</li>
+  <li><strong>Tri</strong> : Pertinence, Date de mise en ligne, Nombre de vues.</li>
+  <li><strong>Caractéristiques</strong> : (Aucun), En direct, 4K, HD, Sous-titres, Creative Commons.</li>
+</ul>
+<p>Dans une recherche ordinaire (Type sur (Tout) ou Vidéo), les chaînes et les playlists sont écartées : vous n'obtenez que des vidéos. Choisissez <strong>Type = Chaîne</strong> ou <strong>Type = Liste de lecture</strong> pour chercher des chaînes ou des playlists ; appuyer sur <kbd>Entrée</kbd> sur un de ces résultats l'ouvre alors (voir « Ouvrir une chaîne ou une playlist » ci-dessous).</p>
+
+<h3>Lecture automatique du résultat suivant</h3>
+<p>Quand une vidéo YouTube se termine, MediaAccess peut lire automatiquement le résultat suivant de la liste. Il annonce « Lecture du suivant : » puis le titre, et saute les lignes de type chaîne ou playlist (celles-ci s'ouvrent au lieu de se lire). Quand il ne reste plus rien à lire, il annonce « Fin des résultats ».</p>
+<p>La fonction est <strong>désactivée par défaut</strong>. Activez-la dans <strong>Options → YouTube</strong> avec la case <strong>« Lecture automatique du résultat suivant à la fin d'une vidéo »</strong>. Le réglage est conservé d'une session à l'autre.</p>
 
 <h3>Télécharger (menu contextuel)</h3>
 <p>Sur un résultat YouTube, ouvrez le menu contextuel avec la touche <kbd>Application</kbd> (ou <kbd>Maj</kbd>+<kbd>F10</kbd>, ou un clic droit), puis le sous-menu <strong>Télécharger</strong> :</p>
@@ -661,6 +677,12 @@
   <li><strong>Une chaîne</strong> (formats <code>/channel/…</code>, <code>/@pseudo</code>, <code>/c/…</code> et <code>/user/…</code>) : ses vidéos sont listées, jusqu'à un maximum de <strong>100</strong>. Quand ce plafond est atteint, MediaAccess annonce « 100 premières vidéos » pour vous indiquer que la liste est tronquée.</li>
 </ul>
 
+<h3>Ouvrir une chaîne ou une playlist</h3>
+<p>Une chaîne ou une playlist s'ouvre de deux façons : en collant son URL (ci-dessus), ou, quand vous avez cherché avec <strong>Type = Chaîne</strong> ou <strong>Type = Liste de lecture</strong>, en appuyant sur <kbd>Entrée</kbd> sur un de ces résultats. Dans les deux cas, MediaAccess liste les vidéos de cette chaîne ou de cette playlist au lieu de lire quoi que ce soit, et le bouton <strong>Tout télécharger</strong> (ci-dessous) apparaît pour récupérer toute la chaîne ou la playlist d'un coup.</p>
+<h4>Rechercher dans une chaîne</h4>
+<p>Une fois une chaîne ouverte (ses vidéos sont listées), le champ de recherche cherche <strong>à l'intérieur de cette chaîne</strong> : tapez des mots-clés et appuyez sur <kbd>Entrée</kbd> pour ne trouver que les vidéos correspondantes de cette chaîne (MediaAccess annonce « Recherche dans cette chaîne »), ou laissez le champ vide et appuyez sur <kbd>Entrée</kbd> pour recharger la chaîne entière (« Affichage de toutes les vidéos de la chaîne »).</p>
+<p>Tant qu'une chaîne est ouverte, chaque requête reste confinée à celle-ci — impossible de lancer une recherche globale depuis ce même champ. Pour revenir à une <strong>recherche YouTube globale</strong>, fermez la fenêtre YouTube et rouvrez-la (<kbd>Ctrl</kbd>+<kbd>Y</kbd>).</p>
+
 <h3>Tout télécharger (playlist ou chaîne entière)</h3>
 <p>Quand une <strong>playlist</strong> ou une <strong>chaîne</strong> est affichée, un bouton <strong>Tout télécharger</strong> (<kbd>Alt</kbd>+<kbd>H</kbd>) apparaît. Il ne s'affiche que dans ce cas — jamais après une recherche par mots-clés, pour éviter de télécharger par mégarde tous les résultats d'une recherche.</p>
 <ol>
@@ -668,6 +690,22 @@
   <li>Les fichiers sont ensuite téléchargés l'un après l'autre. MediaAccess annonce la progression (par exemple « Téléchargé 3 sur 12 ») puis un récapitulatif à la fin.</li>
   <li>Pendant un téléchargement de masse, le même bouton sert de bouton <strong>Annuler</strong> : activez-le pour arrêter après le fichier en cours. Le contrôle reste disponible même si vous fermez puis rouvrez la fenêtre YouTube.</li>
 </ol>
+
+<h3>Abonnements aux chaînes</h3>
+<p>Vous pouvez <strong>suivre</strong> des chaînes YouTube pour que MediaAccess vous prévienne quand elles publient du nouveau. C'est une <strong>liste de suivi locale, conservée sur cet ordinateur uniquement</strong> : elle n'utilise aucun compte Google ou YouTube, et n'est synchronisée ni avec YouTube ni avec vos autres machines.</p>
+<h4>S'abonner et se désabonner</h4>
+<p>Ouvrez le menu contextuel de n'importe quel résultat (touche <kbd>Application</kbd>, <kbd>Maj</kbd>+<kbd>F10</kbd> ou clic droit). Si vous ne suivez pas la chaîne de cette vidéo, il propose <strong>« S'abonner à la chaîne : &lt;nom&gt; »</strong> ; si vous la suivez déjà, il propose <strong>« Se désabonner de cette chaîne »</strong>. Cela fonctionne sur un résultat vidéo (il suit la chaîne de la vidéo), sur un résultat de type chaîne, et sur une chaîne que vous avez ouverte.</p>
+<h4>La fenêtre des abonnements</h4>
+<p><strong>Fichier → Abonnements YouTube...</strong> ouvre une fenêtre listant les chaînes que vous suivez, chacune accompagnée d'un compteur <strong>« (N nouvelles) »</strong> des vidéos que vous n'avez pas encore vues. Boutons :</p>
+<ul>
+  <li><strong>Ouvrir</strong> : liste les vidéos de cette chaîne dans la fenêtre YouTube.</li>
+  <li><strong>Vérifier maintenant</strong> : revérifie toutes les chaînes suivies à la recherche de nouvelles vidéos.</li>
+  <li><strong>Se désabonner</strong> : retire la chaîne sélectionnée de la liste.</li>
+  <li><strong>Fermer</strong>.</li>
+</ul>
+<h4>Vérification des nouveautés</h4>
+<p>Au démarrage, MediaAccess vérifie tous vos abonnements en arrière-plan et, s'il y a du nouveau, annonce « <em>N</em> nouvelles vidéos dans <em>M</em> chaînes » (il reste silencieux quand il n'y a rien de neuf). « Vérifier maintenant » relance la même vérification à la demande.</p>
+<p>Il n'y a <strong>pas de rattrapage</strong> : quand vous vous abonnez, la vidéo la plus récente de la chaîne sert de point de départ, de sorte que seules les vidéos publiées <em>ensuite</em> comptent comme « nouvelles ». Le compteur augmente jusqu'à ce que vous ouvriez la chaîne, ce qui le remet à zéro.</p>
 
 <h3>Quand ça échoue</h3>
 <p>Certaines vidéos ne peuvent pas être lues ou téléchargées (privées, réservées aux membres, supprimées, ou directs en cours). Dans ces cas, MediaAccess annonce la raison précise à voix haute (par exemple « Cette vidéo est privée » ou « Cette vidéo est indisponible ») et n'ouvre pas la liste des formats — ce n'est pas une panne de l'application. En cas de problème persistant, utilisez <strong>Aide → Tester la lecture YouTube</strong>.</p>
@@ -1080,6 +1118,7 @@
   <li><strong>Lire les vidéos YouTube en mode vidéo</strong> (désactivé par défaut) — par défaut, MediaAccess lit les vidéos YouTube comme de l'audio seul. Cochez pour ouvrir la fenêtre vidéo. C'est nécessaire pour afficher et énoncer les sous-titres d'une vidéo.</li>
   <li><strong>Lire les sous-titres générés automatiquement par YouTube</strong> (désactivé par défaut) — quand une vidéo YouTube est lue, récupère ses sous-titres générés automatiquement (s'ils existent) pour pouvoir les énoncer ou les afficher. Combinez avec « Énoncer les sous-titres » (onglet Voix) pour les entendre. Si aucun sous-titre n'est disponible, ou si YouTube limite temporairement les requêtes, MediaAccess vous l'annonce.</li>
   <li><strong>Langue de sous-titres préférée</strong> — choisissez dans la liste la langue des sous-titres à récupérer. Le changement s'applique immédiatement : si une vidéo est en cours, MediaAccess re-télécharge et bascule sur la nouvelle langue sans avoir à relancer la lecture.</li>
+  <li><strong>Lecture automatique du résultat suivant à la fin d'une vidéo</strong> (désactivé par défaut) — quand une vidéo YouTube se termine, lit automatiquement le résultat suivant de la liste (les lignes de type chaîne ou playlist sont sautées). MediaAccess annonce « Lecture du suivant : » puis le titre, ou « Fin des résultats » quand la liste est épuisée.</li>
 </ul>
 
 <h3>Onglet SoundTouch</h3>

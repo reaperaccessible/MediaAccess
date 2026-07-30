@@ -8,6 +8,14 @@
 </head>
 <body>
 <h1>MediaAccess - Journal des modifications</h1>
+<h2>Version 2.61</h2>
+<p>Nouveau : filtre « Type » dans la recherche YouTube — Tout, Vidéo, Chaîne ou Liste de lecture — accompagné des filtres Durée, Date, Tri et Fonctionnalités. Sélectionner un résultat de type Chaîne ou Liste de lecture l'ouvre et affiche ses vidéos ; le bouton « Tout télécharger » permet alors de télécharger toute la chaîne ou la playlist.</p>
+<p>Nouveau : les résultats YouTube sont annoncés plus richement par le lecteur d'écran — titre, chaîne, durée (énoncée en toutes lettres) et nombre de vues.</p>
+<p>Nouveau : lecture automatique du résultat suivant. Quand une vidéo YouTube se termine, la suivante de la liste démarre automatiquement (annonce « Lecture du suivant »). Désactivé par défaut ; à activer dans Options → onglet YouTube, « Lecture automatique du résultat suivant à la fin d'une vidéo ».</p>
+<p>Nouveau : recherche à l'intérieur d'une chaîne. Une fois une chaîne ouverte, taper des mots-clés cherche uniquement dans ses vidéos ; un champ vide recharge toute la chaîne. Pour revenir à une recherche globale, fermez puis rouvrez la fenêtre YouTube.</p>
+<p>Nouveau : abonnements aux chaînes YouTube, en local et sans compte Google (la liste reste sur cet ordinateur). Abonnez-vous depuis le menu contextuel (touche Applications) de n'importe quel résultat — « S'abonner à la chaîne ». La fenêtre Fichier → Abonnements YouTube liste vos chaînes suivies avec le nombre de nouvelles vidéos ; au démarrage, MediaAccess vérifie les nouveautés et les annonce, et le bouton « Vérifier maintenant » relance la vérification.</p>
+<p>Correction : certaines listes de lecture ou chaînes glissées parmi les résultats vidéo étaient lues comme des vidéos et signalées « non disponible ». Elles sont désormais correctement reconnues et écartées des recherches de vidéos (sauf si vous choisissez explicitement le type Chaîne ou Liste de lecture).</p>
+<p>Correction : dans les listes de lecture de fichiers vidéo locaux, la fin d'une piste pouvait faire sauter la piste suivante (double-déclenchement du moteur vidéo). Corrigé.</p>
 <h2>Version 2.60</h2>
 <p>Correction : certains fichiers MP4 contenant plusieurs pistes audio (par exemple un film avec plusieurs langues) n'étaient pas reconnus comme vidéo et étaient lus en audio seul, ne laissant voir qu'une seule piste. En cause, la détection de la piste vidéo qui ne cherchait pas les métadonnées lorsqu'elles se trouvaient en fin de fichier. Ces fichiers sont désormais correctement lus en vidéo, avec accès à toutes leurs pistes audio (menu Vidéo → Changer de piste audio) et à leurs sous-titres.</p>
 <h2>Version 2.59</h2>

@@ -609,9 +609,25 @@
   <li><kbd>Ctrl</kbd>+<kbd>Y</kbd> or <strong>File → YouTube</strong> opens the dialog.</li>
   <li>Type your search and press <kbd>Enter</kbd>.</li>
   <li>Navigate the results with arrow keys. When you reach the last item, more results load automatically (you can also use the "Load More" button).</li>
-  <li><kbd>Enter</kbd> plays the selected result.</li>
+  <li><kbd>Enter</kbd> plays the selected result (or, on a channel or playlist result, opens it — see "Open a channel or playlist" below).</li>
   <li>To <strong>download</strong> a result, open its context menu (<kbd>Applications</kbd> key, <kbd>Shift</kbd>+<kbd>F10</kbd>, or right-click) — see below. Files go to <code>Downloads\MediaAccess\YouTube\</code>.</li>
 </ol>
+<p>Each result is read out as its <strong>title, then the channel, then the duration, then the number of views</strong> — for example "Interview, by Radio One, twelve minutes thirty seconds, 45K views". A live stream, which has no duration or view count, is read as just its title and channel.</p>
+
+<h3>Search filters</h3>
+<p>Between the search box and the results list are five drop-down lists, reached with <kbd>Tab</kbd> after the search box. They narrow your <em>next</em> search: set the ones you want, then type your query and press <kbd>Enter</kbd>. Each starts on "no filter":</p>
+<ul>
+  <li><strong>Type</strong>: (All), Video, Channel, Playlist.</li>
+  <li><strong>Duration</strong>: (All), Under 4 minutes, 4 to 20 minutes, Over 20 minutes.</li>
+  <li><strong>Date</strong>: (Any time), Last hour, Today, This week, This month, This year.</li>
+  <li><strong>Sort</strong>: Relevance, Upload date, View count.</li>
+  <li><strong>Features</strong>: (None), Live, 4K, HD, Subtitles/CC, Creative Commons.</li>
+</ul>
+<p>In an ordinary search (Type on (All) or Video), channels and playlists are left out — you only get videos. Choose <strong>Type = Channel</strong> or <strong>Type = Playlist</strong> to look for channels or playlists instead; pressing <kbd>Enter</kbd> on one of those results then opens it (see "Open a channel or playlist" below).</p>
+
+<h3>Autoplay next result</h3>
+<p>When a YouTube video finishes, MediaAccess can automatically play the next result in the list. It announces "Playing next:" followed by the title, and skips channel and playlist rows (those open rather than play). When nothing is left to play, it says "End of results".</p>
+<p>The feature is <strong>off by default</strong>. Turn it on in <strong>Options → YouTube</strong> with the check box <strong>"Autoplay next result when a video ends"</strong>. The setting is remembered between sessions.</p>
 
 <h3>Download (context menu)</h3>
 <p>On a YouTube result, open the context menu with the <kbd>Applications</kbd> key (or <kbd>Shift</kbd>+<kbd>F10</kbd>, or right-click), then the <strong>Download</strong> submenu:</p>
@@ -660,6 +676,12 @@
   <li><strong>A channel</strong> (<code>/channel/…</code>, <code>/@handle</code>, <code>/c/…</code> and <code>/user/…</code> forms): its videos are listed, up to a maximum of <strong>100</strong>. When that cap is reached, MediaAccess announces "first 100 videos" so you know the list is truncated.</li>
 </ul>
 
+<h3>Open a channel or playlist</h3>
+<p>A channel or playlist can be opened two ways: by pasting its URL (above), or, when you searched with <strong>Type = Channel</strong> or <strong>Type = Playlist</strong>, by pressing <kbd>Enter</kbd> on one of those results. Either way MediaAccess lists that channel's or playlist's videos instead of playing anything, and the <strong>Download all</strong> button (below) appears so you can grab the whole channel or playlist at once.</p>
+<h4>Search within a channel</h4>
+<p>Once a channel is open (its videos are listed), the search box searches <strong>inside that channel</strong>: type keywords and press <kbd>Enter</kbd> to find only that channel's matching videos (MediaAccess says "Searching in this channel"), or leave the box empty and press <kbd>Enter</kbd> to reload the whole channel ("Showing all channel videos").</p>
+<p>While a channel is open, every query stays confined to it — there is no way to run a normal, site-wide search from the same box. To go back to a <strong>global YouTube search</strong>, close the YouTube window and reopen it (<kbd>Ctrl</kbd>+<kbd>Y</kbd>).</p>
+
 <h3>Download all (whole playlist or channel)</h3>
 <p>When a <strong>playlist</strong> or a <strong>channel</strong> is displayed, a <strong>Download all</strong> button (<kbd>Alt</kbd>+<kbd>A</kbd>) appears. It only shows in that case — never after a keyword search, so you can't accidentally download every search result.</p>
 <ol>
@@ -667,6 +689,22 @@
   <li>The files are then downloaded one after another. MediaAccess announces progress (for example "Downloaded 3 of 12") and a summary at the end.</li>
   <li>During a batch download, the same button acts as a <strong>Cancel</strong> button: activate it to stop after the current file. The control stays available even if you close and reopen the YouTube window.</li>
 </ol>
+
+<h3>Channel subscriptions</h3>
+<p>You can <strong>follow</strong> YouTube channels so MediaAccess tells you when they post something new. This is a <strong>local follow list, kept on this computer only</strong>: it uses no Google or YouTube account, and is not synced to YouTube or to your other machines.</p>
+<h4>Subscribe and unsubscribe</h4>
+<p>Open the context menu of any result (<kbd>Applications</kbd> key, <kbd>Shift</kbd>+<kbd>F10</kbd>, or right-click). If you are not following that video's channel, it offers <strong>"Subscribe to channel: &lt;name&gt;"</strong>; if you already follow it, it offers <strong>"Unsubscribe from this channel"</strong>. This works on a video result (it follows the video's channel), on a Channel-type result, and on a channel you have opened.</p>
+<h4>The subscriptions window</h4>
+<p><strong>File → YouTube subscriptions...</strong> opens a window listing the channels you follow, each shown with a <strong>"(N new)"</strong> count of uploads you have not seen yet. Buttons:</p>
+<ul>
+  <li><strong>Open</strong>: lists that channel's videos in the YouTube window.</li>
+  <li><strong>Check now</strong>: checks every followed channel again for new videos.</li>
+  <li><strong>Unsubscribe</strong>: removes the selected channel from the list.</li>
+  <li><strong>Close</strong>.</li>
+</ul>
+<h4>New-video checks</h4>
+<p>At startup MediaAccess checks all your subscriptions in the background and, if there is anything new, announces "<em>N</em> new videos across <em>M</em> channels" (it stays silent when there is nothing new). "Check now" runs the same check on demand.</p>
+<p>There is <strong>no backlog</strong>: when you subscribe, the channel's current newest upload is taken as the starting point, so only videos posted <em>afterwards</em> count as "new". The count keeps building up until you open the channel, which clears it.</p>
 
 <h3>When it fails</h3>
 <p>Some videos cannot be played or downloaded (private, members-only, removed videos, or ongoing live streams). In those cases MediaAccess speaks the specific reason (for example "This video is private" or "This video is unavailable") and does not open the format list — this is not an app failure. If a problem persists, use <strong>Help → Test YouTube playback</strong>.</p>
@@ -1083,6 +1121,7 @@
   <li><strong>Play YouTube videos in video mode</strong> (off by default) — by default, MediaAccess plays YouTube videos as audio only. Check this to open the video window. It is required to display and speak a video's subtitles.</li>
   <li><strong>Read YouTube auto-generated captions</strong> (off by default) — when a YouTube video plays, fetches its auto-generated captions (if any) so they can be spoken or displayed. Combine with "Speak subtitles" (Speech tab) to hear them. If no captions are available, or if YouTube is temporarily rate-limiting requests, MediaAccess tells you.</li>
   <li><strong>Preferred caption language</strong> — pick from the list the language of the captions to fetch. The change applies immediately: if a video is playing, MediaAccess re-downloads and switches to the new language without having to restart playback.</li>
+  <li><strong>Autoplay next result when a video ends</strong> (off by default) — when a YouTube video finishes, automatically play the next result in the list (channel and playlist rows are skipped). MediaAccess announces "Playing next:" and the title, or "End of results" when the list is exhausted.</li>
 </ul>
 
 <h3>SoundTouch tab</h3>
