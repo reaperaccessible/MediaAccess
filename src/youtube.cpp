@@ -7,6 +7,7 @@
 #include "video_engine.h"  // IsMPVAvailable() — used as YouTube playback fallback
 #include "ui.h"           // v1.60 — SetNowPlaying / SourceType
 #include "resource.h"
+#include "database.h"    // v2.61 (Phase 3b) — YouTube channel subscriptions
 #include "mediaaccess/actions.h"  // v2.30 — Shortcut / ActionCategory (in-dialog download keys)
 #include "mediaaccess/keymap.h"   // v2.30 — GetActiveKeyMap().FindCommandFor
 #include <wininet.h>
@@ -129,6 +130,8 @@ static bool g_ytIsPlaylistView = false;
 static std::wstring g_ytCurrentPlaylistId;
 static bool g_ytIsChannelView = false;          // v2.12 — channel listing view
 static std::wstring g_ytCurrentChannelUrl;      // v2.12 — canonical channel /videos URL
+static std::wstring g_ytCurrentChannelTitle;    // v2.61 — open channel's title (for Subscribe;
+                                                //         g_ytCurrentQuery is clobbered by in-channel search)
 // v2.12 — "Download all" batch state. Declared up here (not next to the download
 // section) so UpdateResultsList / WM_INITDIALOG can keep the button visible and
 // relabelled while a batch runs. g_ytBatchActive is cleared ONLY by the batch
@@ -1344,6 +1347,96 @@ static bool YouTubeSearchInChannel(const std::wstring& channelUrl,
     if (output.empty()) return false;   // no matches OR failure -> honest empty
     ParseYtdlpJsonLines(output, results);
     return !results.empty();
+}
+
+// v2.61 (Phase 3b) — count a channel's uploads NEWER than lastSeenVideoId. Fetches
+// the top 15 (newest-first, verified) via the same safe path as
+// YouTubeGetChannelContents, counts entries above the watermark, and reports the
+// newest id in outNewestId. Returns the new count (>=0), or -1 on failure (yt-dlp
+// error / empty / deleted channel / bad url) so the caller leaves state untouched.
+static int YouTubeCountNewInChannel(const std::wstring& channelUrl,
+                                    const std::wstring& lastSeenVideoId,
+                                    std::wstring& outNewestId) {
+    outNewestId.clear();
+    if (channelUrl.rfind(L"https://www.youtube.com/", 0) != 0) return -1;
+    if (!IsYtdlpAvailable()) return -1;
+    std::wstring args = L"--flat-playlist --dump-json --quiet --no-warnings "
+                        L"--lazy-playlist --playlist-items 1:15 \"" + channelUrl + L"\"";
+    std::wstring output = RunYtdlp(args);
+    if (output.empty()) return -1;   // deleted/renamed channel or network error
+    std::vector<YouTubeResult> vids;
+    ParseYtdlpJsonLines(output, vids);
+    // Keep only real videos (drop any channel/playlist rows the classifier flagged).
+    vids.erase(std::remove_if(vids.begin(), vids.end(),
+                   [](const YouTubeResult& r){ return r.isChannel || r.isPlaylist; }),
+               vids.end());
+    if (vids.empty()) return -1;
+    outNewestId = vids[0].videoId;          // newest-first
+    if (lastSeenVideoId.empty()) return 0;  // no watermark yet -> report 0 (suppress backlog)
+    int newCount = 0;
+    for (const auto& v : vids) {
+        if (v.videoId == lastSeenVideoId) break;   // reached the watermark
+        ++newCount;
+    }
+    return newCount;   // watermark not in top 15 -> counts the cap (>= actual new)
+}
+
+// ---- Background subscription check (Phase 3b) --------------------------------
+static std::atomic<bool> g_ytSubsChecking{false};
+
+struct YtSubsCheckJob    { bool silentIfNone; };
+struct YtSubsCheckResult { int totalNew = 0; int channelsWithNew = 0; int failed = 0; bool silentIfNone = false; };
+
+static DWORD WINAPI SubsCheckThreadProc(LPVOID arg) {
+    YtSubsCheckJob* job = static_cast<YtSubsCheckJob*>(arg);
+    YtSubsCheckResult* res = new YtSubsCheckResult;
+    res->silentIfNone = job->silentIfNone;
+    delete job;
+
+    // DB writes from a worker are safe: the DB is WAL + busy-timeout (see database.cpp).
+    std::vector<YtSubscription> subs = GetYtSubscriptions();
+    for (const auto& s : subs) {
+        std::wstring newest;
+        int n = YouTubeCountNewInChannel(s.channelUrl, s.lastSeenVideoId, newest);
+        if (n < 0) { ++res->failed; continue; }   // leave this subscription untouched
+        UpdateYtCheck(s.id, n, newest);
+        res->totalNew += n;
+        if (n > 0) ++res->channelsWithNew;
+    }
+    PostMessageW(g_hwnd, WM_YT_SUBS_CHECK_DONE, 0, reinterpret_cast<LPARAM>(res));
+    return 0;
+}
+
+// Handler for WM_YT_SUBS_CHECK_DONE (MAIN window proc). Announces regardless of
+// whether the YouTube dialog is open — the check normally runs at startup with the
+// dialog closed — then frees the payload.
+void YouTubeOnSubsCheckDone(LPARAM lParam) {
+    YtSubsCheckResult* res = reinterpret_cast<YtSubsCheckResult*>(lParam);
+    g_ytSubsChecking.store(false);
+    if (!res) return;
+    if (res->totalNew > 0) {
+        Speak(WideToUtf8(FormatCount2(T("%d new videos across %d channels"),
+                                      res->totalNew, res->channelsWithNew)));
+    } else if (!res->silentIfNone) {
+        Speak(Ts("No new videos"));
+    }
+    delete res;
+}
+
+// Kick a background check of every subscription. silentIfNone: say nothing when
+// there are 0 new (used at startup). One check at a time (g_ytSubsChecking).
+void YouTubeCheckSubscriptionsAsync(bool silentIfNone) {
+    if (g_ytSubsChecking.exchange(true)) return;   // already running
+    if (GetYtSubscriptions().empty()) {
+        g_ytSubsChecking.store(false);
+        if (!silentIfNone) Speak(Ts("No subscriptions"));
+        return;
+    }
+    if (!silentIfNone) Speak(Ts("Checking subscriptions"));
+    YtSubsCheckJob* job = new YtSubsCheckJob{ silentIfNone };
+    HANDLE t = CreateThread(nullptr, 0, SubsCheckThreadProc, job, 0, nullptr);
+    if (!t) { delete job; g_ytSubsChecking.store(false); }
+    else CloseHandle(t);
 }
 
 // YouTube video mode toggle
@@ -3270,6 +3363,7 @@ static void DoSearch(HWND hwnd) {
                 g_ytIsPlaylistView = false;
                 g_ytIsChannelView = true;
                 g_ytCurrentChannelUrl = chUrl;
+                g_ytCurrentChannelTitle.clear();  // pasted URL has no title; Subscribe falls back to the first result's channel
                 UpdateResultsList(hwnd);   // clear the visible list immediately
                 YtSearchRequest* req = new YtSearchRequest;
                 req->kind = YtSearchKind::Channel;
@@ -3795,6 +3889,7 @@ static void PlaySelected(HWND hwnd) {
             g_ytIsPlaylistView = false;
             g_ytIsChannelView = true;
             g_ytCurrentChannelUrl = chUrl;
+            g_ytCurrentChannelTitle = title;   // channel-result row's title = channel name
             UpdateResultsList(hwnd);   // clear the visible list immediately
             YtSearchRequest* req = new YtSearchRequest;
             req->kind = YtSearchKind::Channel;
@@ -4763,6 +4858,30 @@ static void ShowYtResultsContextMenu(HWND hwnd, int x, int y) {
     AppendMenuW(root, fc, IDM_YT_CTX_COPY_CHANNEL, T("Copy c&hannel link"));
     AppendMenuW(root, fv, IDM_YT_CTX_COPY_DESC,    T("Copy descri&ption"));
 
+    // v2.61 (Phase 3b) — Subscribe/Unsubscribe to the SELECTED row's channel (a
+    // LOCAL follow, no Google account). Available on ANY result that carries a
+    // channel link (a video -> its uploader's channel; a channel row -> itself),
+    // so it is discoverable without first opening the channel. The label toggles
+    // and names the channel when known.
+    std::wstring subTarget;   // canonical .../videos URL for the row's channel
+    std::wstring subName;
+    if (haveRow) {
+        const YouTubeResult& sr = g_ytResults[sel];
+        if (!sr.channelUrl.empty()) subTarget = YtChannelVideosUrl(sr.channelUrl);
+        subName = !sr.channel.empty() ? sr.channel : (sr.isChannel ? sr.title : std::wstring());
+    }
+    bool subbed = !subTarget.empty() && IsYtSubscribed(subTarget);
+    if (!subTarget.empty()) {
+        AppendMenuW(root, MF_SEPARATOR, 0, nullptr);
+        if (subbed) {
+            AppendMenuW(root, MF_STRING, IDM_YT_CTX_UNSUBSCRIBE, T("&Unsubscribe from this channel"));
+        } else {
+            std::wstring lbl = T("&Subscribe to this channel");
+            if (!subName.empty()) lbl = std::wstring(T("&Subscribe to channel")) + L": " + subName;
+            AppendMenuW(root, MF_STRING, IDM_YT_CTX_SUBSCRIBE, lbl.c_str());
+        }
+    }
+
     SetForegroundWindow(hwnd);  // MSDN TrackPopupMenu idiom (dismiss on focus loss)
     int cmd = static_cast<int>(TrackPopupMenu(
         root, TPM_RETURNCMD | TPM_LEFTALIGN | TPM_TOPALIGN | TPM_RIGHTBUTTON,
@@ -4793,7 +4912,135 @@ static void ShowYtResultsContextMenu(HWND hwnd, int x, int y) {
         case IDM_YT_CTX_COPY_DESC:
             CopyDescriptionOfSelected(hwnd);   // async — unlike the inline copy cases, data isn't in memory
             break;
+        case IDM_YT_CTX_SUBSCRIBE: {
+            if (sel < 0 || sel >= static_cast<int>(g_ytResults.size())) break;
+            const YouTubeResult& sr = g_ytResults[sel];
+            std::wstring target = sr.channelUrl.empty() ? std::wstring() : YtChannelVideosUrl(sr.channelUrl);
+            if (target.empty()) { Speak(Ts("No channel link")); break; }
+            std::wstring name = !sr.channel.empty() ? sr.channel : (sr.isChannel ? sr.title : std::wstring());
+            if (name.empty()) name = target;
+            // Watermark = the channel's newest listed video id ONLY when this row's
+            // channel is the one currently open (so there's no backlog). Otherwise
+            // leave it empty: the first background check records the newest and
+            // reports 0 new (also backlog-free).
+            std::wstring watermark;
+            if (g_ytIsChannelView && target == g_ytCurrentChannelUrl && !g_ytResults.empty())
+                watermark = g_ytResults[0].videoId;
+            if (IsYtSubscribed(target)) {
+                Speak(Ts("Already subscribed"));
+            } else if (AddYtSubscription(target, name, watermark) >= 0) {
+                Speak(Ts("Subscribed"));
+            }
+            break;
+        }
+        case IDM_YT_CTX_UNSUBSCRIBE: {
+            if (sel < 0 || sel >= static_cast<int>(g_ytResults.size())) break;
+            std::wstring src = g_ytResults[sel].channelUrl;
+            std::wstring target = src.empty() ? std::wstring() : YtChannelVideosUrl(src);
+            if (!target.empty()) {
+                RemoveYtSubscriptionByUrl(target);
+                Speak(Ts("Unsubscribed"));
+            }
+            break;
+        }
         default: break;  // 0 = Escape/cancel
+    }
+}
+
+// ============================================================
+// YouTube subscriptions dialog (IDD_YTSUBS, v2.61 Phase 3b) — MODAL, mirrors the
+// podcast subscriptions window. Lists followed channels + new-counts; Open hands
+// off to the (modeless) YouTube window in channel view, reusing all its playback/
+// download/search features. No Google account — the follow list is local (DB).
+// ============================================================
+static std::vector<YtSubscription> g_ytSubsDlgList;   // index map for the listbox
+static YtSubscription g_ytSubsOpenChoice;             // set on Open, read after the modal returns
+
+static void YtSubsRefreshList(HWND hwnd) {
+    HWND hList = GetDlgItem(hwnd, IDC_YTSUBS_LIST);
+    int prevSel = (int)SendMessageW(hList, LB_GETCURSEL, 0, 0);
+    SendMessageW(hList, LB_RESETCONTENT, 0, 0);
+    g_ytSubsDlgList = GetYtSubscriptions();
+    for (const auto& s : g_ytSubsDlgList) {
+        std::wstring line = s.title;
+        if (s.newCount > 0)
+            line += L" (" + FormatCount(T("%d new"), s.newCount) + L")";
+        SendMessageW(hList, LB_ADDSTRING, 0, reinterpret_cast<LPARAM>(line.c_str()));
+    }
+    if (!g_ytSubsDlgList.empty()) {
+        int sel = prevSel < 0 ? 0 : prevSel;
+        if (sel >= (int)g_ytSubsDlgList.size()) sel = (int)g_ytSubsDlgList.size() - 1;
+        SendMessageW(hList, LB_SETCURSEL, sel, 0);
+    }
+}
+
+static INT_PTR CALLBACK YtSubsDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
+    switch (msg) {
+        case WM_INITDIALOG:
+            LocalizeDialog(hwnd);
+            YtSubsRefreshList(hwnd);
+            SetFocus(GetDlgItem(hwnd, IDC_YTSUBS_LIST));
+            return FALSE;   // focus set manually
+        case WM_COMMAND: {
+            int id = LOWORD(wParam);
+            // Double-click a channel = Open.
+            if (id == IDC_YTSUBS_LIST && HIWORD(wParam) == LBN_DBLCLK) id = IDC_YTSUBS_OPEN;
+            switch (id) {
+                case IDC_YTSUBS_OPEN:
+                case IDOK: {
+                    int sel = (int)SendMessageW(GetDlgItem(hwnd, IDC_YTSUBS_LIST), LB_GETCURSEL, 0, 0);
+                    if (sel >= 0 && sel < (int)g_ytSubsDlgList.size()) {
+                        g_ytSubsOpenChoice = g_ytSubsDlgList[sel];
+                        MarkYtSeen(g_ytSubsOpenChoice.id);   // opening = caught up
+                        EndDialog(hwnd, 1);
+                    }
+                    return TRUE;
+                }
+                case IDC_YTSUBS_CHECK:
+                    // Async; announces the aggregate via the main window. The list's
+                    // counts refresh on next open (the modal can't repaint live).
+                    YouTubeCheckSubscriptionsAsync(false);
+                    return TRUE;
+                case IDC_YTSUBS_UNSUB: {
+                    int sel = (int)SendMessageW(GetDlgItem(hwnd, IDC_YTSUBS_LIST), LB_GETCURSEL, 0, 0);
+                    if (sel >= 0 && sel < (int)g_ytSubsDlgList.size()) {
+                        RemoveYtSubscription(g_ytSubsDlgList[sel].id);
+                        Speak(Ts("Unsubscribed"));
+                        YtSubsRefreshList(hwnd);
+                    }
+                    return TRUE;
+                }
+                case IDCANCEL:
+                    EndDialog(hwnd, 0);
+                    return TRUE;
+            }
+            break;
+        }
+    }
+    return FALSE;
+}
+
+// Open the modal subscriptions dialog; on "Open", hand off to the YouTube window
+// in channel view (reuses the whole channel-listing / playback / download path).
+void ShowYtSubscriptionsDialog(HWND parent) {
+    g_ytSubsOpenChoice.id = -1;
+    INT_PTR r = DialogBoxW(GetModuleHandleW(nullptr),
+                           MAKEINTRESOURCEW(IDD_YTSUBS), parent, YtSubsDlgProc);
+    if (r == 1 && g_ytSubsOpenChoice.id >= 0 && !g_ytSubsOpenChoice.channelUrl.empty()) {
+        ShowYouTubeDialog(parent);                 // ensure the (modeless) window is up
+        g_ytCurrentQuery        = g_ytSubsOpenChoice.title;
+        g_ytResults.clear();
+        g_ytNextPageToken.clear();
+        g_ytIsPlaylistView      = false;
+        g_ytIsChannelView       = true;
+        g_ytCurrentChannelUrl   = g_ytSubsOpenChoice.channelUrl;
+        g_ytCurrentChannelTitle = g_ytSubsOpenChoice.title;
+        HWND dlg = GetYouTubeDialog();
+        if (dlg) UpdateResultsList(dlg);
+        YtSearchRequest* req = new YtSearchRequest;
+        req->kind = YtSearchKind::Channel;
+        req->channelUrl = g_ytSubsOpenChoice.channelUrl;
+        StartSearchAsync(req);
     }
 }
 

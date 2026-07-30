@@ -739,6 +739,10 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
             // Silently keep yt-dlp.exe up to date (background thread).
             LaunchYtdlpUpdateCheck();
 
+            // v2.61 (Phase 3b) — check YouTube channel subscriptions for new
+            // uploads (background thread; silent when there are none/no subs).
+            YouTubeCheckSubscriptionsAsync(true);
+
             // v1.63 — drain any CLI switches that came in with our own
             // command line (the launcher stashed them in g_pendingCliCommands).
             // Posted so it runs after WM_CREATE returns and the message pump
@@ -1214,6 +1218,10 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
             YouTubeOnBatchDone(lParam);
             return 0;
 
+        case WM_YT_SUBS_CHECK_DONE:  // v2.61 (Phase 3b) — subscription new-video check
+            YouTubeOnSubsCheckDone(lParam);
+            return 0;
+
         case WM_USER + 200: {
             // Update check result
             auto* data = reinterpret_cast<std::pair<UpdateInfo, bool>*>(lParam);
@@ -1471,6 +1479,9 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
                     break;
                 case IDM_FILE_PODCAST:
                     ShowPodcastDialog();
+                    break;
+                case IDM_FILE_YTSUBS:   // v2.61 (Phase 3b) — YouTube channel subscriptions
+                    ShowYtSubscriptionsDialog(hwnd);
                     break;
                 case IDM_FILE_EXIT:
                     PostQuitMessage(0);

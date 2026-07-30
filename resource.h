@@ -135,6 +135,7 @@
 #define WM_BOOKEDGE_READY     (WM_USER + 18) // v2.48 — Edge synth ready for the current book paragraph (wParam=gen, lParam=segIdx)
 #define WM_BOOKEDGE_END       (WM_USER + 19) // v2.48 — Edge book paragraph clip finished (wParam=gen, lParam=segIdx) -> advance
 #define WM_YT_CAPTION_READY   (WM_USER + 20) // v2.52 — YouTube auto-caption fetch done (wParam=gen, lParam=std::wstring* vtt path or null)
+#define WM_YT_SUBS_CHECK_DONE (WM_USER + 21) // v2.61 (Phase 3b) — subscription new-video check finished (lParam=YtSubsCheckResult* heap)
 
 // v2.52 — YouTube automatic-caption options (YouTube tab). 1760-1762 verified free.
 #define IDC_YT_FETCH_CAPTIONS    1760
@@ -342,6 +343,8 @@
 #define IDM_YT_DL_PLAYING_VIDEO  780   // v2.31 — download the currently-playing YouTube video as VIDEO (Global, user-bindable)
 #define IDM_YT_DL_PLAYING_MP3    781   // v2.54 — download the currently-playing YouTube video as audio MP3 (Global, user-bindable)
 #define IDM_YT_DL_PLAYING_OGG    782   // v2.54 — download the currently-playing YouTube video as audio OGG (Global, user-bindable)
+#define IDM_YT_CTX_SUBSCRIBE     783   // v2.61 (Phase 3b) — subscribe to the open channel (results context menu)
+#define IDM_YT_CTX_UNSUBSCRIBE   784   // v2.61 (Phase 3b) — unsubscribe from the open channel
 
 // YouTube search filter dropdowns (IDD_YOUTUBE). 790-799 used.
 #define IDC_YT_FILTER_DURATION   790
@@ -662,6 +665,16 @@
 #define IDC_PODCAST_SEARCH_LABEL 968
 #define IDC_PODCAST_SEARCH_HELP 969
 #define IDC_PODCAST_EP_DESC     955
+
+// YouTube subscriptions dialog (v2.61, Phase 3b). IDs in the free 1618-1699 gap;
+// IDM_FILE_YTSUBS uses free low id 115.
+#define IDM_FILE_YTSUBS         115
+#define IDD_YTSUBS              1620
+#define IDC_YTSUBS_LIST         1621
+#define IDC_YTSUBS_OPEN         1622
+#define IDC_YTSUBS_CHECK        1623
+#define IDC_YTSUBS_UNSUB        1624
+#define IDC_YTSUBS_LABEL        1625
 
 // Add podcast subscription dialog
 #define IDD_PODCAST_ADD         970

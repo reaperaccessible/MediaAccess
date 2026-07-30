@@ -33,6 +33,22 @@ struct PodcastSubscription {
     int sortOrder;
 };
 
+// YouTube channel subscription (v2.61, Phase 3b) — a LOCAL follow (no Google
+// account). channelUrl is the canonical .../videos URL from YtChannelVideosUrl;
+// lastSeenVideoId is the "already seen" watermark (set at subscribe to the newest
+// upload so there is no backlog); newCount is how many uploads sit above the
+// watermark as of lastChecked.
+struct YtSubscription {
+    int id;
+    std::wstring channelUrl;
+    std::wstring title;
+    std::wstring lastSeenVideoId;
+    int newCount;
+    int64_t lastChecked;
+    int64_t added;
+    int sortOrder;
+};
+
 // Song history entry (a recently played item)
 struct SongHistoryEntry {
     int id;
@@ -135,6 +151,16 @@ bool UpdatePodcastLastUpdated(int id);
 std::vector<PodcastSubscription> GetPodcastSubscriptions();
 bool UpdatePodcastSortOrders(const std::vector<PodcastSubscription>& subs);
 bool ResetPodcastSortOrder();
+
+// YouTube channel subscription operations (v2.61, Phase 3b) — local, no account.
+int  AddYtSubscription(const std::wstring& channelUrl, const std::wstring& title,
+                       const std::wstring& lastSeenVideoId = L"");
+bool RemoveYtSubscription(int id);
+bool RemoveYtSubscriptionByUrl(const std::wstring& channelUrl);
+bool IsYtSubscribed(const std::wstring& channelUrl);
+bool MarkYtSeen(int id);                                    // watermark := newest observed, newCount := 0
+bool UpdateYtCheck(int id, int newCount, const std::wstring& newestVideoId);  // record a check result
+std::vector<YtSubscription> GetYtSubscriptions();
 
 // Schedule operations
 int AddScheduledEvent(const std::wstring& name, ScheduleAction action,

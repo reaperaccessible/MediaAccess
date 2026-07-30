@@ -50,6 +50,7 @@ BEGIN
         MENUITEM "&Radio...\tCtrl+R", IDM_FILE_RADIO
         MENUITEM "&Add Stream to Favorites...\tCtrl+D", IDM_FILE_ADD_TO_FAVORITES
         MENUITEM "&Podcasts...\tCtrl+Shift+P", IDM_FILE_PODCAST
+        MENUITEM "YouTube su&bscriptions...", IDM_FILE_YTSUBS
         MENUITEM "&Schedule...\tCtrl+S", IDM_FILE_SCHEDULE
         MENUITEM "Song &History...\tCtrl+Shift+H", IDM_VIEW_SONG_HISTORY
         MENUITEM SEPARATOR
@@ -653,6 +654,20 @@ BEGIN
 
     DEFPUSHBUTTON   "Find &next", IDOK,     110, 50, 70, 14
     PUSHBUTTON      "Close",      IDCANCEL, 200, 50, 70, 14
+END
+
+// YouTube subscriptions dialog (v2.61, Phase 3b)
+IDD_YTSUBS DIALOGEX 0, 0, 320, 214
+STYLE DS_SETFONT | DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "YouTube subscriptions"
+FONT 8, "MS Shell Dlg"
+BEGIN
+    LTEXT           "Subscribed &channels:", IDC_YTSUBS_LABEL, 7, 7, 250, 10
+    LISTBOX         IDC_YTSUBS_LIST, 7, 20, 306, 162, LBS_NOTIFY | WS_VSCROLL | WS_TABSTOP
+    DEFPUSHBUTTON   "&Open", IDC_YTSUBS_OPEN, 7, 190, 60, 16
+    PUSHBUTTON      "&Check now", IDC_YTSUBS_CHECK, 71, 190, 70, 16
+    PUSHBUTTON      "&Unsubscribe", IDC_YTSUBS_UNSUB, 145, 190, 70, 16
+    PUSHBUTTON      "Close", IDCANCEL, 263, 190, 50, 16
 END
 
 // Podcast dialog

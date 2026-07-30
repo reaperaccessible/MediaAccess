@@ -154,6 +154,30 @@ bool InitDatabase() {
         if (errMsg) sqlite3_free(errMsg);
     }
 
+    // ---- v2.61 (Phase 3b) — yt_subscriptions -------------------------
+    // Local YouTube channel follows (no Google account). channel_url is the
+    // canonical .../videos URL; last_seen_video_id is the watermark; new_count
+    // is the uploads-above-watermark tally from the last check. Brand-new table
+    // (CREATE IF NOT EXISTS), so an existing user DB gains it without touching
+    // podcast_subscriptions.
+    const char* ytSubsSql =
+        "CREATE TABLE IF NOT EXISTS yt_subscriptions ("
+        "  id INTEGER PRIMARY KEY AUTOINCREMENT,"
+        "  channel_url TEXT NOT NULL UNIQUE,"
+        "  title TEXT NOT NULL,"
+        "  last_seen_video_id TEXT,"    // watermark: newest upload the user has seen
+        "  newest_video_id TEXT,"       // newest upload observed at the last check
+        "  new_count INTEGER DEFAULT 0,"
+        "  last_checked INTEGER DEFAULT 0,"
+        "  added INTEGER NOT NULL,"
+        "  sort_order INTEGER DEFAULT 0"
+        ");";
+    errMsg = nullptr;
+    rc = sqlite3_exec(g_db, ytSubsSql, nullptr, nullptr, &errMsg);
+    if (rc != SQLITE_OK) {
+        if (errMsg) sqlite3_free(errMsg);
+    }
+
     // ---- v1.0 — scheduled_events -------------------------------------
     // Timed actions (play/stop/etc) used by the Scheduler dialog.
     // duration + stop_action were added in a later release via the ALTER
@@ -686,6 +710,144 @@ bool ResetPodcastSortOrder() {
     if (!g_db) return false;
     return sqlite3_exec(g_db, "UPDATE podcast_subscriptions SET sort_order = 0;",
                         nullptr, nullptr, nullptr) == SQLITE_OK;
+}
+
+// ==========================================================================
+// YouTube channel subscriptions (v2.61, Phase 3b) — local follow, no account
+// ==========================================================================
+
+// Add a subscription. lastSeenVideoId is the newest upload at subscribe time so
+// there is no backlog. Returns the row id, or -1 on failure. Callers guard with
+// IsYtSubscribed first, so a plain INSERT is fine (channel_url UNIQUE also
+// protects against a race).
+int AddYtSubscription(const std::wstring& channelUrl, const std::wstring& title,
+                      const std::wstring& lastSeenVideoId) {
+    if (!g_db) return -1;
+    std::string urlUtf8   = WideToUtf8(channelUrl);
+    std::string titleUtf8 = WideToUtf8(title);
+    std::string seenUtf8  = WideToUtf8(lastSeenVideoId);
+    // At subscribe time the newest upload becomes BOTH the watermark and the
+    // observed-newest, so there is no backlog and no "new" until later uploads.
+    const char* sql =
+        "INSERT OR IGNORE INTO yt_subscriptions (channel_url, title, last_seen_video_id, newest_video_id, new_count, last_checked, added, sort_order) "
+        "VALUES (?, ?, ?, ?, 0, 0, ?, (SELECT CASE WHEN MAX(sort_order) > 0 THEN MAX(sort_order) + 1 ELSE 0 END FROM yt_subscriptions));";
+    sqlite3_stmt* stmt = nullptr;
+    if (sqlite3_prepare_v2(g_db, sql, -1, &stmt, nullptr) == SQLITE_OK) {
+        sqlite3_bind_text(stmt, 1, urlUtf8.c_str(), -1, SQLITE_TRANSIENT);
+        sqlite3_bind_text(stmt, 2, titleUtf8.c_str(), -1, SQLITE_TRANSIENT);
+        sqlite3_bind_text(stmt, 3, seenUtf8.c_str(), -1, SQLITE_TRANSIENT);
+        sqlite3_bind_text(stmt, 4, seenUtf8.c_str(), -1, SQLITE_TRANSIENT);
+        sqlite3_bind_int64(stmt, 5, static_cast<sqlite3_int64>(time(nullptr)));
+        if (sqlite3_step(stmt) == SQLITE_DONE) {
+            sqlite3_finalize(stmt);
+            return static_cast<int>(sqlite3_last_insert_rowid(g_db));
+        }
+        sqlite3_finalize(stmt);
+    }
+    return -1;
+}
+
+bool RemoveYtSubscription(int id) {
+    if (!g_db) return false;
+    const char* sql = "DELETE FROM yt_subscriptions WHERE id = ?;";
+    sqlite3_stmt* stmt = nullptr;
+    if (sqlite3_prepare_v2(g_db, sql, -1, &stmt, nullptr) == SQLITE_OK) {
+        sqlite3_bind_int(stmt, 1, id);
+        int rc = sqlite3_step(stmt);
+        sqlite3_finalize(stmt);
+        return rc == SQLITE_DONE;
+    }
+    return false;
+}
+
+bool RemoveYtSubscriptionByUrl(const std::wstring& channelUrl) {
+    if (!g_db) return false;
+    std::string urlUtf8 = WideToUtf8(channelUrl);
+    const char* sql = "DELETE FROM yt_subscriptions WHERE channel_url = ?;";
+    sqlite3_stmt* stmt = nullptr;
+    if (sqlite3_prepare_v2(g_db, sql, -1, &stmt, nullptr) == SQLITE_OK) {
+        sqlite3_bind_text(stmt, 1, urlUtf8.c_str(), -1, SQLITE_TRANSIENT);
+        int rc = sqlite3_step(stmt);
+        sqlite3_finalize(stmt);
+        return rc == SQLITE_DONE;
+    }
+    return false;
+}
+
+bool IsYtSubscribed(const std::wstring& channelUrl) {
+    if (!g_db) return false;
+    std::string urlUtf8 = WideToUtf8(channelUrl);
+    const char* sql = "SELECT 1 FROM yt_subscriptions WHERE channel_url = ? LIMIT 1;";
+    sqlite3_stmt* stmt = nullptr;
+    bool found = false;
+    if (sqlite3_prepare_v2(g_db, sql, -1, &stmt, nullptr) == SQLITE_OK) {
+        sqlite3_bind_text(stmt, 1, urlUtf8.c_str(), -1, SQLITE_TRANSIENT);
+        found = (sqlite3_step(stmt) == SQLITE_ROW);
+        sqlite3_finalize(stmt);
+    }
+    return found;
+}
+
+// Mark the channel as fully seen: advance the watermark to the last-observed
+// newest upload and clear new_count. Called when the user opens the channel.
+bool MarkYtSeen(int id) {
+    if (!g_db) return false;
+    const char* sql = "UPDATE yt_subscriptions SET last_seen_video_id = newest_video_id, new_count = 0 WHERE id = ?;";
+    sqlite3_stmt* stmt = nullptr;
+    if (sqlite3_prepare_v2(g_db, sql, -1, &stmt, nullptr) == SQLITE_OK) {
+        sqlite3_bind_int(stmt, 1, id);
+        int rc = sqlite3_step(stmt);
+        sqlite3_finalize(stmt);
+        return rc == SQLITE_DONE;
+    }
+    return false;
+}
+
+// Record a check result: how many uploads sit above the watermark, the newest
+// observed id, and stamp last_checked. Does NOT move the watermark (Model A: new
+// videos accumulate until the user opens the channel).
+bool UpdateYtCheck(int id, int newCount, const std::wstring& newestVideoId) {
+    if (!g_db) return false;
+    std::string newestUtf8 = WideToUtf8(newestVideoId);
+    const char* sql = "UPDATE yt_subscriptions SET new_count = ?, newest_video_id = ?, last_checked = ? WHERE id = ?;";
+    sqlite3_stmt* stmt = nullptr;
+    if (sqlite3_prepare_v2(g_db, sql, -1, &stmt, nullptr) == SQLITE_OK) {
+        sqlite3_bind_int(stmt, 1, newCount);
+        sqlite3_bind_text(stmt, 2, newestUtf8.c_str(), -1, SQLITE_TRANSIENT);
+        sqlite3_bind_int64(stmt, 3, static_cast<sqlite3_int64>(time(nullptr)));
+        sqlite3_bind_int(stmt, 4, id);
+        int rc = sqlite3_step(stmt);
+        sqlite3_finalize(stmt);
+        return rc == SQLITE_DONE;
+    }
+    return false;
+}
+
+std::vector<YtSubscription> GetYtSubscriptions() {
+    std::vector<YtSubscription> subs;
+    if (!g_db) return subs;
+    const char* sql = "SELECT id, channel_url, title, last_seen_video_id, new_count, last_checked, added, sort_order "
+                      "FROM yt_subscriptions ORDER BY sort_order ASC, title COLLATE NOCASE ASC;";
+    sqlite3_stmt* stmt = nullptr;
+    if (sqlite3_prepare_v2(g_db, sql, -1, &stmt, nullptr) == SQLITE_OK) {
+        while (sqlite3_step(stmt) == SQLITE_ROW) {
+            YtSubscription s;
+            s.id = sqlite3_column_int(stmt, 0);
+            const char* urlUtf8 = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 1));
+            s.channelUrl = Utf8ToWide(urlUtf8 ? urlUtf8 : "");
+            const char* titleUtf8 = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 2));
+            s.title = Utf8ToWide(titleUtf8 ? titleUtf8 : "");
+            const char* seenUtf8 = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 3));
+            s.lastSeenVideoId = Utf8ToWide(seenUtf8 ? seenUtf8 : "");
+            s.newCount   = sqlite3_column_int(stmt, 4);
+            s.lastChecked = sqlite3_column_int64(stmt, 5);
+            s.added      = sqlite3_column_int64(stmt, 6);
+            s.sortOrder  = sqlite3_column_int(stmt, 7);
+            subs.push_back(s);
+        }
+        sqlite3_finalize(stmt);
+    }
+    return subs;
 }
 
 // Helper to format schedule time

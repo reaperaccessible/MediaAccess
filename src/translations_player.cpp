@@ -995,6 +995,37 @@ void RegisterPlayerTranslations() {
     AddTranslation("fr", "No results in this channel", L"Aucun résultat dans cette chaîne");
     AddTranslation("en", "Showing all channel videos", L"Showing all channel videos");
     AddTranslation("fr", "Showing all channel videos", L"Affichage de toutes les vidéos de la chaîne");
+    // v2.61 (Phase 3b) — channel subscriptions. "Subscribed"/"Unsubscribed"/"&Open"
+    // are reused from the podcast section (Abonné / Désabonné / Ouvrir).
+    AddTranslation("en", "&Subscribe to this channel", L"&Subscribe to this channel");
+    AddTranslation("fr", "&Subscribe to this channel", L"S'&abonner à cette chaîne");
+    AddTranslation("en", "&Subscribe to channel", L"&Subscribe to channel");
+    AddTranslation("fr", "&Subscribe to channel", L"S'&abonner à la chaîne");
+    AddTranslation("en", "&Unsubscribe from this channel", L"&Unsubscribe from this channel");
+    AddTranslation("fr", "&Unsubscribe from this channel", L"Se &désabonner de cette chaîne");
+    AddTranslation("en", "Already subscribed", L"Already subscribed");
+    AddTranslation("fr", "Already subscribed", L"Déjà abonné");
+    AddTranslation("en", "No subscriptions", L"No subscriptions");
+    AddTranslation("fr", "No subscriptions", L"Aucun abonnement");
+    AddTranslation("en", "Checking subscriptions", L"Checking subscriptions");
+    AddTranslation("fr", "Checking subscriptions", L"Vérification des abonnements");
+    AddTranslation("en", "No new videos", L"No new videos");
+    AddTranslation("fr", "No new videos", L"Aucune nouvelle vidéo");
+    AddTranslation("en", "%d new videos across %d channels", L"%d new videos across %d channels");
+    AddTranslation("fr", "%d new videos across %d channels", L"%d nouvelles vidéos dans %d chaînes");
+    AddTranslation("en", "%d new", L"%d new");
+    AddTranslation("fr", "%d new", L"%d nouvelles");
+    // IDD_YTSUBS dialog + File menu (localized via LocalizeDialog/LocalizeMenu by English key)
+    AddTranslation("en", "YouTube subscriptions", L"YouTube subscriptions");
+    AddTranslation("fr", "YouTube subscriptions", L"Abonnements YouTube");
+    AddTranslation("en", "YouTube su&bscriptions...", L"YouTube su&bscriptions...");
+    AddTranslation("fr", "YouTube su&bscriptions...", L"A&bonnements YouTube...");
+    AddTranslation("en", "Subscribed &channels:", L"Subscribed &channels:");
+    AddTranslation("fr", "Subscribed &channels:", L"&Chaînes suivies :");
+    AddTranslation("en", "&Check now", L"&Check now");
+    AddTranslation("fr", "&Check now", L"&Vérifier maintenant");
+    AddTranslation("en", "&Unsubscribe", L"&Unsubscribe");
+    AddTranslation("fr", "&Unsubscribe", L"&Se désabonner");
 
     AddTranslation("en", "Playing video", L"Playing video");
     AddTranslation("fr", "Playing video", L"Lecture de la vidéo");

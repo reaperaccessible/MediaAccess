@@ -251,6 +251,11 @@ void YouTubeClearCurrentVideo();
 // when the caller should run its normal local-playlist NextTrack instead.
 bool YouTubeAutoplayNext();
 
+// v2.61 (Phase 3b) — YouTube channel subscriptions (local follow, no account).
+void ShowYtSubscriptionsDialog(HWND parent);         // IDM_FILE_YTSUBS
+void YouTubeCheckSubscriptionsAsync(bool silentIfNone); // background new-video check
+void YouTubeOnSubsCheckDone(LPARAM lParam);          // WM_YT_SUBS_CHECK_DONE handler
+
 // Cancel any pending hybrid swap. Call before loading non-YouTube media so a
 // late-arriving download from a previously-started hybrid playback does not
 // clobber the new track the user just opened.
