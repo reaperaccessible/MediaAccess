@@ -78,6 +78,10 @@ bool   g_loopEnabled = false;
 // v2.52 — YouTube automatic-caption settings + audio-mode subtitle duck.
 bool g_ytFetchCaptions = false;
 std::wstring g_ytCaptionLang;
+// v2.61 — YouTube autoplay-next: when a YouTube video ends naturally, play the
+// next result in the list. Default off (a search-results list is not a curated
+// queue; silently rolling into an unrelated result is surprising).
+bool g_ytAutoplayNext = false;
 std::atomic<float> g_subtitleBassDuck{1.0f};
 float g_subtitleVoiceVolume = 1.0f;
 

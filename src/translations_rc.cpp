@@ -500,6 +500,13 @@ void RegisterRcTranslations() {
     AddTranslation("fr", "Read YouTube auto-generated captions", L"Lire les sous-titres générés automatiquement par YouTube");
     AddTranslation("en", "Preferred caption language:", L"Preferred caption language:");
     AddTranslation("fr", "Preferred caption language:", L"Langue de sous-titres préférée :");
+    // v2.61 — YouTube autoplay next result (Options checkbox + spoken cues)
+    AddTranslation("en", "Autoplay &next result when a video ends", L"Autoplay &next result when a video ends");
+    AddTranslation("fr", "Autoplay &next result when a video ends", L"Lecture &automatique du résultat suivant à la fin d'une vidéo");
+    AddTranslation("en", "Playing next: ", L"Playing next: ");
+    AddTranslation("fr", "Playing next: ", L"Lecture du suivant : ");
+    AddTranslation("en", "End of results", L"End of results");
+    AddTranslation("fr", "End of results", L"Fin des résultats");
     AddTranslation("en", "Original", L"Original");
     AddTranslation("fr", "Original", L"Originale");
     AddTranslation("en", "English", L"English");      AddTranslation("fr", "English", L"Anglais");

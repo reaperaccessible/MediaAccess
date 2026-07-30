@@ -401,6 +401,8 @@ void LoadSettings() {
     if (g_ytCacheLimitMB < 0) g_ytCacheLimitMB = 0;
     // v2.52 — YouTube automatic captions
     g_ytFetchCaptions = GetPrivateProfileIntW(L"YouTube", L"FetchCaptions", 0, g_configPath.c_str()) != 0;
+    // v2.61 — YouTube autoplay next result (default off)
+    g_ytAutoplayNext = GetPrivateProfileIntW(L"YouTube", L"AutoplayNext", 0, g_configPath.c_str()) != 0;
     {
         wchar_t capLang[64] = {0};
         GetPrivateProfileStringW(L"YouTube", L"CaptionLang", L"", capLang, 64, g_configPath.c_str());
@@ -849,6 +851,8 @@ void SaveSettings() {
     WritePrivateProfileStringW(L"YouTube", L"ClearCacheOnExit", g_clearYtCacheOnExit ? L"1" : L"0", g_configPath.c_str());
     // v2.52 — YouTube automatic captions
     WritePrivateProfileStringW(L"YouTube", L"FetchCaptions", g_ytFetchCaptions ? L"1" : L"0", g_configPath.c_str());
+    // v2.61 — YouTube autoplay next result
+    WritePrivateProfileStringW(L"YouTube", L"AutoplayNext", g_ytAutoplayNext ? L"1" : L"0", g_configPath.c_str());
     WritePrivateProfileStringW(L"YouTube", L"CaptionLang", g_ytCaptionLang.c_str(), g_configPath.c_str());
     {
         wchar_t buf[32]; swprintf(buf, 32, L"%d", g_ytCacheLimitMB);

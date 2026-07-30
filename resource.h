@@ -140,6 +140,7 @@
 #define IDC_YT_FETCH_CAPTIONS    1760
 #define IDC_YT_CAPTION_LANG      1761
 #define IDC_LABEL_YT_CAPTION_LANG 1762
+#define IDC_YT_AUTOPLAY_NEXT     1766   // v2.61 — autoplay next result when a YouTube video ends
 #define IDC_SUBTITLE_VOICE_VOL   1763
 #define IDC_LABEL_SUBTITLE_VOICE_VOL 1764
 

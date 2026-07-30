@@ -1054,16 +1054,22 @@ static void ParseYtdlpJsonLines(const std::wstring& output,
                            ? (long long)ParseJsonNumber(line, L"view_count") : -1;
         result.durationSec = (int)ParseJsonNumber(line, L"duration");
 
-        // v2.61 (Phase 1) — detect Channel/Playlist entries (the Type filter can
-        // return these). yt-dlp flat entries carry a "url": /playlist?list=... for
-        // playlists, /channel/... for channels; plain video rows use watch?v=...
-        // (neither substring), so this never misfires on a video.
-        std::wstring entryUrl = ParseJsonString(line, L"url");
-        if (entryUrl.find(L"/playlist?list=") != std::wstring::npos) {
-            result.isPlaylist = true;   // videoId already holds the PL.../RD... id
-        } else if (entryUrl.find(L"/channel/") != std::wstring::npos) {
-            result.isChannel = true;
-            if (result.channelUrl.empty()) result.channelUrl = entryUrl;
+        // v2.61 (Phase 1, fixed) — classify Channel/Playlist entries. When a filter
+        // is active, the results page injects channels and playlists inline; they
+        // come back as ie_key "YoutubeTab" with a UC.../PL... id (NOT an 11-char
+        // video id). Playing such an id as watch?v=<id> yields "video unavailable"
+        // (redlaf's report). DO NOT sniff the "url" field: flat entries carry a
+        // "thumbnails":[{"url":...}] array whose i.ytimg.com URL is the FIRST "url"
+        // in the line, so a url-substring test misclassifies a playlist as a video.
+        std::wstring ieKey = ParseJsonString(line, L"ie_key");
+        if (ieKey == L"YoutubeTab" || result.videoId.size() != 11) {
+            if (result.videoId.rfind(L"UC", 0) == 0) {   // UC... = channel id
+                result.isChannel = true;
+                if (result.channelUrl.empty())
+                    result.channelUrl = L"https://www.youtube.com/channel/" + result.videoId;
+            } else {                                       // PL.../RD.../UU... = playlist / mix
+                result.isPlaylist = true;
+            }
         }
 
         if (!result.videoId.empty() && !result.title.empty()) {
@@ -1126,6 +1132,17 @@ static bool SearchWithYtdlp(const std::wstring& query,
 
     // Parse JSON lines (each line is a video). m5 (v2.02): shared helper.
     ParseYtdlpJsonLines(output, results);
+
+    // v2.61 (redlaf) — the results page injects channels/playlists inline when a
+    // filter is active. On a VIDEO-intent search (Type = All or Video) drop those
+    // non-playable rows so the user never lands on a channel/playlist id played as
+    // watch?v=<id> ("video unavailable"). Keep them ONLY when the user explicitly
+    // asked for them via Type = Channel (2) / Playlist (3).
+    if (filters.type < 2) {
+        results.erase(std::remove_if(results.begin(), results.end(),
+                          [](const YouTubeResult& r) { return r.isChannel || r.isPlaylist; }),
+                      results.end());
+    }
 
     return !results.empty();
 }
@@ -3747,6 +3764,58 @@ static void PlaySelected(HWND hwnd) {
     // same index does not fire LBN_SELCHANGE, so it won't trigger auto-load-more.
     SetFocus(hList);
     SendMessageW(hList, LB_SETCURSEL, sel, 0);
+}
+
+// v2.61 — Autoplay next result (continuous playback). Called from the single
+// IDM_PLAY_NEXT dispatch point (main.cpp) BEFORE NextTrack. Returns true when it
+// has consumed the "next" event (advanced to another result, or reached the end
+// of the results and announced it), so the caller does NOT fall through to the
+// local-playlist NextTrack. Returns false when it should NOT act — the option is
+// off, the current source is not a YouTube result, repeat-one is active (let the
+// existing repeat behaviour stand), or the dialog/results are unavailable — in
+// which case the local-playlist path runs unchanged.
+//
+// Only NATURAL end events (and a manual Next while a YouTube video plays with the
+// option on) reach here for YouTube; the mpv double-post is collapsed at its
+// source (video_engine.cpp), so no time-based debounce is needed and rapid manual
+// Next presses keep working.
+bool YouTubeAutoplayNext() {
+    if (!g_ytAutoplayNext) return false;           // feature disabled
+    if (g_repeatMode == 1) return false;           // repeat-one takes precedence
+    if (g_currentYtVideoId.empty()) return false;  // current source is not a YouTube video
+
+    HWND dlg = GetYouTubeDialog();
+    if (!dlg) return false;                         // window never opened -> nothing to advance
+
+    // Locate the currently-playing result by videoId (NOT by list selection: the
+    // user may have arrowed elsewhere in the list during playback).
+    int cur = -1;
+    for (int i = 0; i < (int)g_ytResults.size(); ++i) {
+        if (g_ytResults[i].videoId == g_currentYtVideoId) { cur = i; break; }
+    }
+    if (cur < 0) return false;  // results were replaced by a new search -> let the
+                                // normal (no-op-for-YouTube) local path run
+
+    // Next PLAYABLE row: skip channel/playlist rows (they open, they don't play).
+    int next = -1;
+    for (int i = cur + 1; i < (int)g_ytResults.size(); ++i) {
+        if (!g_ytResults[i].isChannel && !g_ytResults[i].isPlaylist) { next = i; break; }
+    }
+    if (next < 0) {
+        Speak(Ts("End of results"));  // nothing left to play — stop and announce
+        return true;                  // consumed: never advance a local playlist here
+    }
+
+    // Announce BEFORE playing so YouTubePlayById's own engine cue ("Streaming…" /
+    // "Playing from cache") doesn't stomp the title.
+    Speak(Ts("Playing next: ") + WideToUtf8(g_ytResults[next].title));
+
+    // Select the target row, then reuse PlaySelected — it reads LB_GETCURSEL and
+    // runs the full play + now-playing + history + focus/selection path.
+    HWND hList = GetDlgItem(dlg, IDC_YT_RESULTS);
+    SendMessageW(hList, LB_SETCURSEL, next, 0);
+    PlaySelected(dlg);
+    return true;
 }
 
 // Permanently download the selected result to Downloads\MediaAccess\YouTube.

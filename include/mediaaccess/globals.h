@@ -89,6 +89,7 @@ extern bool   g_loopEnabled;
 
 // v2.52 — YouTube automatic-caption settings + audio-mode subtitle duck.
 extern bool g_ytFetchCaptions;          // fetch & read YouTube auto-captions (default off)
+extern bool g_ytAutoplayNext;           // v2.61 — autoplay next result when a YouTube video ends (default off)
 extern std::wstring g_ytCaptionLang;    // preferred caption language code; empty = original
 extern std::atomic<float> g_subtitleBassDuck;  // music attenuation while a caption is spoken (1.0 = none)
 extern float g_subtitleVoiceVolume;     // v2.52 — Edge subtitle-voice clip volume (1.0 = normal)

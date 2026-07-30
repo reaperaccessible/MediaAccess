@@ -245,6 +245,12 @@ void YouTubeDownloadCurrentlyPlayingOgg();
 // Part 2 state lifecycle — called from ui.cpp when a non-YouTube source loads / on clear.
 void YouTubeClearCurrentVideo();
 
+// v2.61 — Autoplay next result. Call from the IDM_PLAY_NEXT handler BEFORE
+// NextTrack: returns true when it has consumed the "next" event for YouTube
+// (advanced to the next playable result, or announced end-of-results), false
+// when the caller should run its normal local-playlist NextTrack instead.
+bool YouTubeAutoplayNext();
+
 // Cancel any pending hybrid swap. Call before loading non-YouTube media so a
 // late-arriving download from a previously-started hybrid playback does not
 // clobber the new track the user just opened.

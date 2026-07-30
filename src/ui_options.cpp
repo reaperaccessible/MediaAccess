@@ -280,7 +280,8 @@ void ShowTabControls(HWND hwnd, int tab) {
     int youtubeCtrls[] = {IDC_YT_APIKEY, IDC_YT_CLEAR_ON_EXIT, IDC_YT_CLEAR_NOW, IDC_YT_CACHE_LIMIT, IDC_LABEL_YT_LIMIT,
                           IDC_YT_DOWNLOAD_PATH, IDC_YT_DOWNLOAD_PATH_BROWSE, IDC_LABEL_YT_DOWNLOAD_PATH,
                           IDC_LABEL_YOUTUBE_API_KEY, IDC_LABEL_YOUTUBE_API_HELP, IDC_LABEL_YOUTUBE_API_NOTE,
-                          IDC_YT_VIDEO_MODE, IDC_YT_FETCH_CAPTIONS, IDC_YT_CAPTION_LANG, IDC_LABEL_YT_CAPTION_LANG};
+                          IDC_YT_VIDEO_MODE, IDC_YT_FETCH_CAPTIONS, IDC_YT_CAPTION_LANG, IDC_LABEL_YT_CAPTION_LANG,
+                          IDC_YT_AUTOPLAY_NEXT};
     // SoundTouch tab controls (tab 9)
     int soundtouchCtrls[] = {IDC_ST_AA_FILTER, IDC_ST_AA_LENGTH, IDC_ST_QUICK_ALGO, IDC_ST_SEQUENCE,
                              IDC_ST_SEEKWINDOW, IDC_ST_OVERLAP, IDC_ST_PREVENT_CLICK, IDC_ST_ALGORITHM,
@@ -800,6 +801,8 @@ INT_PTR CALLBACK OptionsDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
             CheckDlgButton(hwnd, IDC_YT_VIDEO_MODE, GetYouTubeVideoMode() ? BST_CHECKED : BST_UNCHECKED);
             // v2.52 — YouTube auto-captions
             CheckDlgButton(hwnd, IDC_YT_FETCH_CAPTIONS, g_ytFetchCaptions ? BST_CHECKED : BST_UNCHECKED);
+            // v2.61 — YouTube autoplay next result
+            CheckDlgButton(hwnd, IDC_YT_AUTOPLAY_NEXT, g_ytAutoplayNext ? BST_CHECKED : BST_UNCHECKED);
             {
                 HWND hLang = GetDlgItem(hwnd, IDC_YT_CAPTION_LANG);
                 SendMessageW(hLang, CB_RESETCONTENT, 0, 0);
@@ -1332,6 +1335,8 @@ INT_PTR CALLBACK OptionsDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
                     }
                     g_clearYtCacheOnExit = (IsDlgButtonChecked(hwnd, IDC_YT_CLEAR_ON_EXIT) == BST_CHECKED);
                     SetYouTubeVideoMode(IsDlgButtonChecked(hwnd, IDC_YT_VIDEO_MODE) == BST_CHECKED);
+                    // v2.61 — YouTube autoplay next result (persisted by SaveSettings below)
+                    g_ytAutoplayNext = (IsDlgButtonChecked(hwnd, IDC_YT_AUTOPLAY_NEXT) == BST_CHECKED);
                     // v2.52 — YouTube auto-captions
                     {
                         // v2.52 — capture old caption settings to detect a change and

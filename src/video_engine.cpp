@@ -212,6 +212,13 @@ static std::atomic<double> g_mpvDuration{0.0};
 static std::atomic<bool>   g_mpvPaused{true};
 static std::atomic<bool>   g_mpvIdle{true};
 static std::atomic<bool>   g_mpvEofReached{false};
+// v2.61 — mpv signals a single natural end via BOTH the "eof-reached" property
+// AND MPV_EVENT_END_FILE(reason=EOF). Posting IDM_PLAY_NEXT from both double-
+// advances (skips a track in a local video playlist, and skips a result under
+// YouTube autoplay-next). This one-shot guard makes each natural end post the
+// "next" command exactly once; it is cleared when new content loads (MPVLoadFile)
+// or when eof-reached goes false again (e.g. a seek back after end).
+static std::atomic<bool>   g_mpvEndPosted{false};
 
 /* Fullscreen */
 static RECT  g_savedWindowRect = {};
@@ -329,8 +336,12 @@ static DWORD WINAPI MPVEventThread(LPVOID /*param*/)
             {
                 bool eof = *static_cast<int*>(prop->data) != 0;
                 g_mpvEofReached.store(eof);
-                if (eof)
-                    PostMessageW(g_hwnd, WM_COMMAND, MAKEWPARAM(204, 0), 0);
+                if (eof) {
+                    if (!g_mpvEndPosted.exchange(true))   // post at most once per end
+                        PostMessageW(g_hwnd, WM_COMMAND, MAKEWPARAM(204, 0), 0);
+                } else {
+                    g_mpvEndPosted.store(false);          // re-armed for the next end
+                }
             }
             else if (ev->reply_userdata == 0x5B5B5B &&
                      strcmp(prop->name, "sub-text") == 0 &&
@@ -369,7 +380,8 @@ static DWORD WINAPI MPVEventThread(LPVOID /*param*/)
         case MPV_EVENT_END_FILE: {
             auto* ef = static_cast<mpv_event_end_file*>(ev->data);
             if (ef && ef->reason == MPV_END_FILE_REASON_EOF) {
-                PostMessageW(g_hwnd, WM_COMMAND, MAKEWPARAM(204, 0), 0);
+                if (!g_mpvEndPosted.exchange(true))   // paired with the eof-reached guard above
+                    PostMessageW(g_hwnd, WM_COMMAND, MAKEWPARAM(204, 0), 0);
             } else if (ef && ef->reason == MPV_END_FILE_REASON_ERROR) {
                 // v1.77 — surface load failures (the bug Sèb reported on
                 // W9 .ts: MPV silently rejected the file). Capture the
@@ -628,6 +640,7 @@ bool MPVLoadFile(const wchar_t* path)
     std::string utf8 = WideToUtf8(std::wstring(path));
     const char* cmd[] = {"loadfile", utf8.c_str(), nullptr};
     g_mpvEofReached.store(false);
+    g_mpvEndPosted.store(false);   // re-arm the once-per-end guard for new content
     g_mpvIdle.store(false);
     // Force pause off before loadfile: mpv's `pause` property is process-
     // wide and persists across loadfile calls. If the previous media was

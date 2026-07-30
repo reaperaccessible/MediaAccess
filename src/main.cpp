@@ -1693,6 +1693,11 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
                     PrevTrack();
                     break;
                 case IDM_PLAY_NEXT:
+                    // v2.61 — YouTube autoplay-next intercepts the shared "next"
+                    // event when a YouTube result is playing and the option is on;
+                    // it returns true once it has advanced (or announced end-of-
+                    // results), so we skip the local-playlist NextTrack below.
+                    if (YouTubeAutoplayNext()) break;
                     // lParam==1 means don't auto-play (e.g., when auto-advance is disabled)
                     NextTrack(lParam == 0);
                     break;

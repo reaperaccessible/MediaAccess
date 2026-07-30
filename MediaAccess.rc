@@ -319,6 +319,7 @@ BEGIN
     AUTOCHECKBOX    "Read YouTube auto-generated captions", IDC_YT_FETCH_CAPTIONS, 17, 216, 260, 10
     LTEXT           "Preferred caption language:", IDC_LABEL_YT_CAPTION_LANG, 17, 232, 230, 10
     COMBOBOX        IDC_YT_CAPTION_LANG, 17, 245, 120, 200, CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    AUTOCHECKBOX    "Autoplay &next result when a video ends", IDC_YT_AUTOPLAY_NEXT, 17, 265, 260, 10
 
     // SoundTouch tab controls (shown when tab 9 selected)
     LTEXT           "SoundTouch settings (changes apply on next file load):", IDC_LABEL_SOUNDTOUCH_DESCRIPTION, 17, 30, 220, 10
