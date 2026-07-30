@@ -1317,6 +1317,35 @@ static bool YouTubeGetChannelContents(const std::wstring& channelUrl,
     return !results.empty();
 }
 
+// v2.61 (Phase 3a) — search WITHIN a channel. Derives a SAFE channel-search URL
+// from the already-whitelisted g_ytCurrentChannelUrl (which YtChannelVideosUrl
+// guarantees is https://www.youtube.com/<prefix>/<ref>/videos): strip the fixed
+// "/videos" suffix and append "/search?query=<UrlEncode(query)>". Because the
+// base was whitelist-built and the query is percent-encoded, no unsafe character
+// reaches the command line (never hand a raw user URL to yt-dlp). Verified: this
+// URL returns ONLY that channel's matching videos, and empty stdout on no match.
+// Capped like the channel listing; empty return on any failure (honest "no
+// results", mirroring YtChannelVideosUrl's discipline).
+static bool YouTubeSearchInChannel(const std::wstring& channelUrl,
+                                   const std::wstring& query,
+                                   std::vector<YouTubeResult>& results) {
+    results.clear();
+    if (channelUrl.rfind(L"https://www.youtube.com/", 0) != 0) return false;
+    const std::wstring suffix = L"/videos";
+    if (channelUrl.size() < suffix.size() ||
+        channelUrl.compare(channelUrl.size() - suffix.size(), suffix.size(), suffix) != 0)
+        return false;
+    std::wstring base = channelUrl.substr(0, channelUrl.size() - suffix.size());
+    std::wstring searchUrl = base + L"/search?query=" + UrlEncode(query);
+    if (!IsYtdlpAvailable()) return false;
+    std::wstring args = L"--flat-playlist --dump-json --quiet --no-warnings "
+                        L"--lazy-playlist --playlist-items 1:100 \"" + searchUrl + L"\"";
+    std::wstring output = RunYtdlp(args);
+    if (output.empty()) return false;   // no matches OR failure -> honest empty
+    ParseYtdlpJsonLines(output, results);
+    return !results.empty();
+}
+
 // YouTube video mode toggle
 static bool g_ytVideoMode = false;
 void SetYouTubeVideoMode(bool mode) { g_ytVideoMode = mode; }
@@ -3026,7 +3055,7 @@ static std::atomic<bool> g_ytSearching{false};
 // Forward decl — defined further down with the infinite-scroll machinery.
 static void TriggerAutoLoadMore(HWND hwnd, int selection);
 
-enum class YtSearchKind { Search, Playlist, Channel };
+enum class YtSearchKind { Search, Playlist, Channel, ChannelSearch };
 
 // Request handed to the search worker (heap, owned by the worker).
 struct YtSearchRequest {
@@ -3073,6 +3102,9 @@ static DWORD WINAPI SearchThreadProc(LPVOID arg) {
     } else if (req->kind == YtSearchKind::Channel) {
         res->ok = YouTubeGetChannelContents(req->channelUrl, res->results);
         res->nextPageToken.clear();  // channel listing is not paged (capped)
+    } else if (req->kind == YtSearchKind::ChannelSearch) {
+        res->ok = YouTubeSearchInChannel(req->channelUrl, req->query, res->results);
+        res->nextPageToken.clear();  // in-channel search is capped, not paged
     } else {
         // First page: no seen-ids snapshot needed (results are starting fresh).
         res->ok = YouTubeSearch(req->query, res->results,
@@ -3104,6 +3136,9 @@ void YouTubeOnSearchDone(LPARAM lParam) {
             ? (g_ytIsPlaylistView && res->playlistId == g_ytCurrentPlaylistId)
          : (res->kind == YtSearchKind::Channel)
             ? (g_ytIsChannelView && res->channelUrl == g_ytCurrentChannelUrl)
+         : (res->kind == YtSearchKind::ChannelSearch)
+            ? (g_ytIsChannelView && res->channelUrl == g_ytCurrentChannelUrl
+                                 && res->query == g_ytCurrentQuery)
             : (!g_ytIsPlaylistView && !g_ytIsChannelView && res->query == g_ytCurrentQuery));
 
     if (current) {
@@ -3133,6 +3168,16 @@ void YouTubeOnSearchDone(LPARAM lParam) {
                 Speak(Ts(res->failureKey));
             } else {
                 Speak(Ts("No results found"));
+            }
+        } else if (res->kind == YtSearchKind::ChannelSearch) {
+            // v2.61 (Phase 3a) — search within the currently-open channel.
+            if (res->ok) {
+                Speak(WideToUtf8(FormatCount(T("%d results in this channel"),
+                                             static_cast<int>(res->results.size()))));
+            } else if (res->failureKey) {
+                Speak(Ts(res->failureKey));   // real yt-dlp/network failure
+            } else {
+                Speak(Ts("No results in this channel"));  // genuine empty
             }
         } else {
             if (res->ok) {
@@ -3182,7 +3227,9 @@ static void DoSearch(HWND hwnd) {
     int got = GetWindowTextW(hEdit, &query[0], len + 1);
     query.resize(static_cast<size_t>(got));  // drop the trailing NUL slot
 
-    if (query.empty()) return;
+    // v2.61 (Phase 3a) — a blank query is normally a no-op, EXCEPT while a channel
+    // is open, where blank + Enter reloads the full channel (in-channel branch below).
+    if (query.empty() && !g_ytIsChannelView) return;
 
     // Check if it's a YouTube URL FIRST — a single-video paste plays directly
     // and must NOT clobber the current search state / results.
@@ -3254,6 +3301,31 @@ static void DoSearch(HWND hwnd) {
                 return;
             }
         }
+    }
+
+    // v2.61 (Phase 3a) — a channel is open and the input is not a URL: search
+    // WITHIN that channel (or, on a blank query, reload the whole channel). Keep
+    // g_ytIsChannelView / g_ytCurrentChannelUrl so the channel context and the
+    // "Download all" button stay. To return to a GLOBAL keyword search, close and
+    // reopen the window (WM_INITDIALOG resets the view flags) — documented in the
+    // manual. The filter dropdowns are intentionally not applied here.
+    if (g_ytIsChannelView && !g_ytCurrentChannelUrl.empty()) {
+        g_ytCurrentQuery = query;   // may be empty
+        g_ytResults.clear();
+        g_ytNextPageToken.clear();
+        UpdateResultsList(hwnd);    // clear the visible list immediately
+        YtSearchRequest* req = new YtSearchRequest;
+        req->channelUrl = g_ytCurrentChannelUrl;
+        if (query.empty()) {
+            req->kind = YtSearchKind::Channel;   // blank -> reload full channel
+            Speak(Ts("Showing all channel videos"));
+        } else {
+            req->kind = YtSearchKind::ChannelSearch;
+            req->query = query;
+            Speak(Ts("Searching in this channel"));
+        }
+        StartSearchAsync(req);
+        return;
     }
 
     // Regular search — reset view state on the UI thread, fetch on a worker.

@@ -986,6 +986,15 @@ void RegisterPlayerTranslations() {
     AddTranslation("fr", "Channel loaded — %d videos", L"Chaîne chargée — %d vidéos");
     AddTranslation("en", "Channel loaded — first %d videos", L"Channel loaded — first %d videos");
     AddTranslation("fr", "Channel loaded — first %d videos", L"Chaîne chargée — %d premières vidéos");
+    // v2.61 (Phase 3a) — search within a channel
+    AddTranslation("en", "Searching in this channel", L"Searching in this channel");
+    AddTranslation("fr", "Searching in this channel", L"Recherche dans cette chaîne");
+    AddTranslation("en", "%d results in this channel", L"%d results in this channel");
+    AddTranslation("fr", "%d results in this channel", L"%d résultats dans cette chaîne");
+    AddTranslation("en", "No results in this channel", L"No results in this channel");
+    AddTranslation("fr", "No results in this channel", L"Aucun résultat dans cette chaîne");
+    AddTranslation("en", "Showing all channel videos", L"Showing all channel videos");
+    AddTranslation("fr", "Showing all channel videos", L"Affichage de toutes les vidéos de la chaîne");
 
     AddTranslation("en", "Playing video", L"Playing video");
     AddTranslation("fr", "Playing video", L"Lecture de la vidéo");
