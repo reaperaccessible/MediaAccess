@@ -1121,6 +1121,11 @@ void RegisterRcTranslations() {
     AddTranslation("fr", "Upload date", L"Date de mise en ligne");
     AddTranslation("en", "View count", L"View count");
     AddTranslation("fr", "View count", L"Nombre de vues");
+    // v2.62 — Sort combo labels state the (only) direction YouTube search supports.
+    AddTranslation("en", "Upload date (newest first)", L"Upload date (newest first)");
+    AddTranslation("fr", "Upload date (newest first)", L"Date de mise en ligne (du plus récent au plus ancien)");
+    AddTranslation("en", "View count (most viewed first)", L"View count (most viewed first)");
+    AddTranslation("fr", "View count (most viewed first)", L"Nombre de vues (du plus vu au moins vu)");
     AddTranslation("en", "Live", L"Live");
     AddTranslation("fr", "Live", L"En direct");
     AddTranslation("en", "4K", L"4K");

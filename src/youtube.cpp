@@ -684,17 +684,14 @@ std::wstring RunYtdlp(const std::wstring& args,
 
     if (!IsYtdlpAvailable()) return L"";
 
-    // Ask YouTube for metadata in the app's language so titles/descriptions come
-    // back in French on a French install, instead of YouTube's English
-    // auto-translation of the original title (reported by a user browsing a
-    // French channel). Only the youtube extractor honors this arg; it is a no-op
-    // for other sites, so it is safe to add to every yt-dlp invocation.
-    std::string lang = GetCurrentLanguage();     // "fr" or "en"
-    if (lang != "fr" && lang != "en") lang = "en";
-    std::wstring langArg = L"--extractor-args \"youtube:lang=" +
-                           std::wstring(lang.begin(), lang.end()) + L"\" ";
-
-    std::wstring cmdLine = L"\"" + g_ytdlpPath + L"\" " + langArg + args;
+    // v2.62 — do NOT request metadata in French (no "youtube:lang=fr"). YouTube
+    // formats large numbers with space thousands-separators in French ("3 170 802
+    // 522 vues"), and yt-dlp's flat-playlist view_count extractor reads only the
+    // first group -> a 3.1-billion-view video was reported as "3 views" (redlaf,
+    // sorting by view count). Using yt-dlp's default (English) parses view counts
+    // correctly. Trade-off accepted: a few channels that auto-translate their
+    // titles may show the English title again.
+    std::wstring cmdLine = L"\"" + g_ytdlpPath + L"\" " + args;
 
     SECURITY_ATTRIBUTES sa;
     sa.nLength = sizeof(sa);
@@ -1167,8 +1164,13 @@ bool YouTubeSearch(const std::wstring& query, std::vector<YouTubeResult>& result
     // v2.61 — channel/playlist Type results also go through yt-dlp: SearchWithAPI's
     // parser only understands id.videoId (not channelId/playlistId) and can't
     // supply the enriched duration/views either.
+    // v2.62 — an explicit sort (date / view count) also goes through yt-dlp: the
+    // Data API's order=viewCount (and order=date) is unreliable for broad queries
+    // and effectively returns near-relevance order (redlaf: "sort by views" put a
+    // 6-view video first). yt-dlp's sp sort is exact, so route any chosen sort to it.
     const bool forceYtdlp = (filters.feature == 2)     // 2 = 4K
-                         || (filters.type >= 2);        // 2/3 = channel/playlist
+                         || (filters.type >= 2)         // 2/3 = channel/playlist
+                         || (filters.sort >= 1);        // date / view count sort
     if (HasApiKey() && !forceYtdlp &&
         SearchWithAPI(query, results, nextPageToken, pageToken, filters)) {
         YT_DBG(L"[YT] API search succeeded\n");
@@ -3056,23 +3058,14 @@ bool ParseYouTubeURL(const std::wstring& url, std::wstring& id, bool& isPlaylist
     return false;
 }
 
-// v2.61 (Phase 1) — abbreviate a view count for the results announcement
-// ("56M", "1.2M", "3.4K", or the raw number below 1000). The compact form is
-// deliberate: a screen reader speaking "56,197,307 views" on every row is noise.
-// n < 0 means unknown -> the caller omits the whole segment.
+// v2.62 (redlaf) — the FULL view count, always, never a "M"/"K" abbreviation
+// (which "ne veut rien dire" read aloud). The plain integer is spoken as a whole
+// number by the screen reader (e.g. "3170802522" -> "three billion one hundred
+// seventy million..."); no thousands separator, so no French comma-as-decimal
+// ambiguity and no group-splitting. n < 0 means unknown -> caller omits the segment.
 static std::wstring FormatViewCount(long long n) {
     if (n < 0) return L"";
-    wchar_t buf[32];
-    if (n >= 1000000) {
-        double m = n / 1000000.0;
-        swprintf(buf, 32, (m >= 10.0 ? L"%.0fM" : L"%.1fM"), m);
-    } else if (n >= 1000) {
-        double k = n / 1000.0;
-        swprintf(buf, 32, (k >= 10.0 ? L"%.0fK" : L"%.1fK"), k);
-    } else {
-        swprintf(buf, 32, L"%lld", n);
-    }
-    return buf;
+    return std::to_wstring(n);
 }
 
 // Update results list in dialog
@@ -5131,7 +5124,7 @@ INT_PTR CALLBACK YouTubeDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
             fillCombo(IDC_YT_FILTER_DATE,
                       {"(Any time)", "Last hour", "Today", "This week", "This month", "This year"});
             fillCombo(IDC_YT_FILTER_SORT,
-                      {"Relevance", "Upload date", "View count"});
+                      {"Relevance", "Upload date (newest first)", "View count (most viewed first)"});
             fillCombo(IDC_YT_FILTER_FEATURE,
                       {"(None)", "Live", "4K", "HD", "Subtitles/CC", "Creative Commons"});
             // v2.12 — start with no list, so "Download all" is hidden until a
