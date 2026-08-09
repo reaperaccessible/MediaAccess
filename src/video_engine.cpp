@@ -462,6 +462,14 @@ bool InitMPV(HWND parentHwnd)
     /* Keep the window open when playback ends (we handle auto-advance) */
     fn_mpv_set_option_string(g_mpv, "keep-open", "yes");
 
+    /* v2.63 — raise mpv's volume ceiling to 400% so the "Allow volume above 100%"
+     * option (MAX_VOLUME_AMPLIFY = 4.0) actually works for video. mpv's default
+     * volume-max (~130) otherwise clamps our up-to-400 volume writes, so amplify
+     * had almost no effect on video. This only lifts the ceiling; the actual level
+     * still follows g_volume (which respects g_allowAmplify). Applies to every
+     * video type since it's a global mpv option set before init. */
+    fn_mpv_set_option_string(g_mpv, "volume-max", "400");
+
     /* Disable mpv's own key bindings -- MediaAccess handles all hotkeys */
     fn_mpv_set_option_string(g_mpv, "input-default-bindings", "no");
     fn_mpv_set_option_string(g_mpv, "input-vo-keyboard", "no");
