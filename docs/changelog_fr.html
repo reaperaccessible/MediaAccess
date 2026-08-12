@@ -8,6 +8,9 @@
 </head>
 <body>
 <h1>MediaAccess - Journal des modifications</h1>
+<h2>Version 2.65</h2>
+<p>Nouveau : prise en charge des fichiers <strong>.caf</strong> (Core Audio Format d'Apple). Ce conteneur n'est pas reconnu par le moteur audio principal ; MediaAccess le lit désormais avec son moteur ffmpeg intégré, sans conversion ni composant supplémentaire. À noter : sur ce moteur, les effets (tempo, hauteur, égaliseur, suppression du centre) ne s'appliquent pas, comme pour les fichiers vidéo. Aucune fenêtre vidéo ne s'ouvre pour un fichier audio.</p>
+<p>Amélioration : quand un dossier ou un fichier ouvert depuis l'Explorateur ne contient <strong>rien de lisible</strong>, MediaAccess l'annonce (« Aucun fichier lisible dans ce dossier ») au lieu de s'ouvrir en silence, ce qui donnait l'impression d'une panne.</p>
 <h2>Version 2.64</h2>
 <p>Nouveau : dans l'Explorateur Windows, les commandes de MediaAccess sont désormais regroupées dans un <strong>sous-menu « MediaAccess »</strong>, qui contient « Lire avec MediaAccess » et la nouvelle commande <strong>« Ajouter à la file MediaAccess »</strong>. Cette dernière ajoute la sélection à la fin de la liste de lecture <strong>sans interrompre</strong> ce qui est en cours : vous restez dans l'Explorateur et une confirmation est annoncée (« 12 pistes ajoutées à la file d'attente »). Au clavier : Maj+Application, puis M, puis Flèche droite. (Une case de l'installeur permet d'ajouter ou de retirer ce sous-menu.)</p>
 <p>Nouveau : le sous-menu est aussi disponible sur un <strong>dossier</strong> — il n'existait auparavant que sur des fichiers. Le contenu du dossier est chargé récursivement, <strong>audio et vidéo</strong> (les dossiers ouverts depuis l'Explorateur, la ligne de commande ou par glisser-déposer incluent désormais les vidéos).</p>

@@ -94,6 +94,8 @@ void SelectAudioDevice(int deviceIndex);
 void SpeakElapsed();
 void SpeakRemaining();
 void SpeakTotal();
+// v2.65 - true for audio containers BASS cannot parse (.caf), played via libmpv.
+bool IsMpvOnlyAudioFile(const std::wstring& path);
 // v2.64 — announce the TOTAL duration of the current local-file playlist (async;
 // probes each file on a worker thread, then announces on the UI thread).
 void SpeakPlaylistTotalAsync();

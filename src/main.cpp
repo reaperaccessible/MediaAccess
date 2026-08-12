@@ -624,6 +624,7 @@ void ParseCommandLine() {
         for (int i = 1; i < argc; i++) {
             DWORD attrs = GetFileAttributesW(argv[i]);
             if (attrs != INVALID_FILE_ATTRIBUTES) {
+                g_cliHadPathArg = true;   // v2.65 - pour annoncer un dossier sans media
                 std::wstring path = argv[i];
                 if (attrs & FILE_ATTRIBUTE_DIRECTORY) {
                     // v1.93 — Jack reported that passing a folder path on the
@@ -732,6 +733,11 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
                     startIndex = ExpandFileToFolder(singleFile, g_playlist);
                 }
                 PlayTrack(startIndex);
+            } else if (g_cliHadPathArg) {
+                // v2.65 — a path was given but nothing playable came out of it
+                // (typically a folder of unsupported formats). Say so, instead of
+                // opening silently as if nothing had happened.
+                Speak(Ts("No playable file in this folder"));
             }
 
             UpdateStatusBar();
@@ -969,6 +975,12 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
             } else if (wParam == IDT_BATCH_FILES) {
                 KillTimer(hwnd, IDT_BATCH_FILES);
                 g_batchFilesPending = false;   // v2.64 — releases a deferred enqueue batch
+                if (g_pendingFiles.empty()) {
+                    // v2.65 — the Explorer command / drop yielded nothing playable
+                    // (e.g. a folder of unsupported formats). Say so rather than
+                    // silently doing nothing, which reads as a broken app.
+                    Speak(Ts("No playable file in this folder"));
+                }
                 if (!g_pendingFiles.empty()) {
                     int startIndex = 0;
                     if (g_loadFolder && g_pendingFiles.size() == 1) {

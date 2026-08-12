@@ -8,6 +8,9 @@
 </head>
 <body>
 <h1>MediaAccess - Changelog</h1>
+<h2>Version 2.65</h2>
+<p>New: support for <strong>.caf</strong> files (Apple's Core Audio Format). The main audio engine has no parser for this container; MediaAccess now plays it with its built-in ffmpeg engine, with no conversion and no extra component. Note: on that engine the effects (tempo, pitch, equalizer, centre removal) do not apply, as is already the case for video files. No video window opens for an audio file.</p>
+<p>Improvement: when a folder or file opened from Explorer contains <strong>nothing playable</strong>, MediaAccess now says so ("No playable file in this folder") instead of opening silently, which looked like a failure.</p>
 <h2>Version 2.64</h2>
 <p>New: in Windows Explorer, MediaAccess's commands are now grouped in a <strong>"MediaAccess" submenu</strong> containing "Play with MediaAccess" and the new <strong>"Add to MediaAccess queue"</strong>. The latter appends the selection to the playlist <strong>without interrupting</strong> what is playing: you stay in Explorer and a confirmation is announced ("12 tracks added to the queue"). From the keyboard: Shift+Applications, then M, then Right arrow. (A checkbox in the installer adds or removes this submenu.)</p>
 <p>New: the submenu is now also available on a <strong>folder</strong> — previously it existed on files only. The folder is loaded recursively, <strong>audio and video</strong> (folders opened from Explorer, the command line or drag-and-drop now include video files).</p>

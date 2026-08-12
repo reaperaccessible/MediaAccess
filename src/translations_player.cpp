@@ -1321,6 +1321,10 @@ void RegisterPlayerTranslations() {
     // v2.64 — Explorer "Add to MediaAccess queue" confirmation
     AddTranslation("en", "track added to the queue", L"track added to the queue");
     AddTranslation("fr", "track added to the queue", L"piste ajoutée à la file d'attente");
+    AddTranslation("en", "No playable file in this folder", L"No playable file in this folder");
+    AddTranslation("fr", "No playable file in this folder", L"Aucun fichier lisible dans ce dossier");
+    AddTranslation("en", "Failed to load file", L"Failed to load file");
+    AddTranslation("fr", "Failed to load file", L"Impossible de charger le fichier");
     AddTranslation("en", "tracks added to the queue", L"tracks added to the queue");
     AddTranslation("fr", "tracks added to the queue", L"pistes ajoutées à la file d'attente");
 

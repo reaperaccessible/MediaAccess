@@ -976,9 +976,48 @@ static bool PrepareForMpvLoad() {
 }
 
 // Load a video file via MPV engine
+// v2.65 — audio containers BASS cannot parse, played by libmpv instead.
+bool IsMpvOnlyAudioFile(const std::wstring& path) {
+    size_t dot = path.find_last_of(L'.');
+    if (dot == std::wstring::npos) return false;
+    std::wstring ext = path.substr(dot);
+    for (auto& c : ext) c = towlower(c);
+    return ext == L".caf";   // Apple Core Audio Format
+}
+
+// v2.65 — audio-only playback through libmpv, for containers BASS has no parser
+// for (currently Apple's CAF: verified that BASS and every bundled plugin refuse
+// a .caf whatever codec it holds, while libmpv/ffmpeg plays it). Same path as
+// LoadVideoFile but with mpv's video track disabled, so no video window opens for
+// what is an audio file. NOTE: the BASS effects chain (tempo, pitch, EQ, karaoke)
+// does NOT apply here — libmpv is a separate engine.
+static bool LoadAudioViaMpv(const wchar_t* path) {
+    g_isLoading = true;
+    if (!PrepareForMpvLoad()) return false;
+    MPVSetAudioOnly(true);            // no video track -> no video window
+    if (!MPVLoadFile(path)) {
+        Speak(Ts("Failed to load file"));
+        g_isLoading = false;
+        return false;
+    }
+    ApplyVideoVolume();
+    MPVSetMute(g_muted);
+    g_activeEngine = PlaybackEngine::MPV;
+    g_isVideoPlaying = false;         // audio only
+    g_isLiveStream = false;
+    g_isLoading = false;
+    UpdateWindowTitle();
+    UpdateStatusBar();
+    return true;
+}
+
 static bool LoadVideoFile(const wchar_t* path) {
     g_isLoading = true;
     if (!PrepareForMpvLoad()) return false;
+    // v2.65 — mpv's "vid" property is process-wide and persists across loads, so
+    // a previous audio-only load (LoadAudioViaMpv) would silently leave a real
+    // video with no picture. Re-enable the video track explicitly.
+    MPVSetAudioOnly(false);
     if (!MPVLoadFile(path)) {
         Speak(Ts("Failed to load video"));
         g_isLoading = false;
@@ -1210,6 +1249,17 @@ bool LoadFile(const wchar_t* path) {
     // Route unambiguous video files to MPV engine
     if (IsVideoFile(path)) {
         return LoadVideoFile(path);
+    }
+    // v2.65 — Apple CAF: an AUDIO container BASS cannot parse. libmpv (ffmpeg)
+    // decodes it on the fly, so play it audio-only through that engine rather
+    // than failing. Effects don't apply (see LoadAudioViaMpv).
+    if (IsMpvOnlyAudioFile(path)) {
+        if (!IsMPVAvailable()) {
+            MessageBoxW(GetMessageBoxOwner(), T("Cannot play this file:"),
+                        APP_NAME, MB_ICONWARNING);
+            return false;
+        }
+        return LoadAudioViaMpv(path);
     }
     // v1.76 — Smart routing for ambiguous MP4 containers. The .mp4 extension
     // is deliberately NOT in IsVideoFile because it may be an audio-only

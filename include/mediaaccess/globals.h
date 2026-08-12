@@ -147,6 +147,7 @@ extern bool g_trayIconVisible;
 extern std::vector<std::wstring> g_pendingFiles;
 extern DWORD g_startupTime;
 extern std::vector<std::wstring> g_pendingEnqueue;  // v2.64 — "Add to queue" burst
+extern bool g_cliHadPathArg;                        // v2.65 — a path came from the command line
 extern bool g_batchFilesPending;                    // v2.64 — a play-batch is armed
 
 // Recent files

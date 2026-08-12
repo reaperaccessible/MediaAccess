@@ -257,7 +257,7 @@ void CreateStatusBar(HWND hwnd, HINSTANCE hInstance) {
 bool IsSupportedAudioExt(const std::wstring& ext) {
     static const wchar_t* exts[] = {
         L".mp3", L".wav", L".ogg", L".oga", L".flac", L".m4a", L".m4b", L".wma", L".aac",
-        L".opus", L".aiff", L".ape", L".wv", L".mid", L".midi", L".dff", L".dsf"
+        L".opus", L".aiff", L".ape", L".wv", L".mid", L".midi", L".dff", L".dsf", L".caf"
     };
     std::wstring lowerExt = ext;
     for (auto& c : lowerExt) c = towlower(c);
@@ -300,7 +300,7 @@ bool IsOpenableMediaPath(const std::wstring& path) {
         // Audio (mirrors the Open dialog "All Supported" / "Audio Files" lists)
         L".mp3", L".mp2", L".mp1", L".wav", L".ogg", L".oga", L".flac", L".m4a",
         L".m4b", L".m4r", L".wma", L".aac", L".opus", L".aiff", L".aif", L".ape",
-        L".wv", L".alac", L".mid", L".midi", L".rmi", L".kar", L".dff", L".dsf",
+        L".wv", L".alac", L".mid", L".midi", L".rmi", L".kar", L".dff", L".dsf", L".caf",
         L".cda", L".mod", L".s3m", L".xm", L".it", L".mtm", L".umx",
         // Video
         L".mp4", L".wmv", L".mkv", L".avi", L".mov", L".webm", L".flv", L".ts",

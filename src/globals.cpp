@@ -172,6 +172,9 @@ DWORD g_startupTime = 0;
 // g_batchFilesPending says a play-batch is armed, so the enqueue batch defers
 // instead of being wiped by `g_playlist = std::move(g_pendingFiles)`.
 std::vector<std::wstring> g_pendingEnqueue;
+// v2.65 - a path was passed on the command line, so an empty playlist afterwards
+// means "nothing playable in there" - worth announcing instead of staying mute.
+bool g_cliHadPathArg = false;
 bool g_batchFilesPending = false;
 
 // Recent files
