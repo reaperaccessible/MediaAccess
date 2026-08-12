@@ -252,8 +252,22 @@
   <li><kbd>Ctrl</kbd>+<kbd>Maj</kbd>+<kbd>O</kbd> ou <strong>Fichier → Ajouter un dossier</strong> pour charger récursivement tout un dossier ;</li>
   <li><kbd>Ctrl</kbd>+<kbd>U</kbd> pour ouvrir une URL <code>http://</code> ou <code>https://</code> ;</li>
   <li>Glisser-déposer un fichier sur la fenêtre, ou faire « Ouvrir avec » depuis l'Explorateur si MediaAccess est associé aux types de fichiers (case dans <strong>Options → Lecture</strong>).</li>
-  <li>Faire un <strong>clic droit</strong> sur un ou plusieurs fichiers dans l'Explorateur et choisir <strong>« Lire avec MediaAccess »</strong>. Cette commande est disponible sur <strong>tout type de fichier</strong> : elle reste donc présente même si la sélection contient un fichier non pris en charge (par exemple une image <code>.jpg</code>). MediaAccess charge les fichiers pris en charge et <strong>ignore silencieusement les autres</strong>. Sous Windows&nbsp;11, l'entrée se trouve dans <strong>« Afficher plus d'options »</strong> ; la touche <kbd>Maj</kbd>+<kbd>Menu</kbd> (touche Application) — ou <kbd>Maj</kbd>+<kbd>F10</kbd> — ouvre justement ce menu directement. Pour jouer tout un dossier d'un coup : <kbd>Ctrl</kbd>+<kbd>A</kbd> pour tout sélectionner, puis <kbd>Maj</kbd>+<kbd>Menu</kbd> et <strong>« Lire avec MediaAccess »</strong>. L'instance déjà ouverte est réutilisée ; cette entrée ne modifie pas votre lecteur par défaut.</li>
+  <li>Utiliser le <strong>sous-menu MediaAccess</strong> du menu contextuel de l'Explorateur, sur un ou plusieurs fichiers <em>ou sur un dossier</em> — voir ci-dessous.</li>
 </ul>
+
+<h3>Le sous-menu MediaAccess dans l'Explorateur Windows</h3>
+<p>Dans l'Explorateur, un sous-menu <strong>MediaAccess</strong> propose deux commandes :</p>
+<ul>
+  <li><strong>Lire avec MediaAccess</strong> — remplace la liste de lecture par votre sélection et démarre la lecture.</li>
+  <li><strong>Ajouter à la file MediaAccess</strong> — <strong>ajoute</strong> la sélection à la fin de la liste <strong>sans interrompre</strong> ce qui est en cours. Vous restez dans l'Explorateur (la fenêtre de MediaAccess ne passe pas au premier plan) et vous entendez une confirmation du type « 12 pistes ajoutées à la file d'attente ». Si rien n'est en lecture, la première piste ajoutée démarre.</li>
+</ul>
+<p>Les deux commandes acceptent <strong>un dossier</strong> (son contenu est chargé récursivement, audio <em>et</em> vidéo), <strong>plusieurs fichiers</strong>, un fichier de liste de lecture, ou une sélection <strong>mixte</strong> : le sous-menu est disponible sur tout type de fichier, et MediaAccess <strong>ignore silencieusement</strong> ce qu'il ne peut pas lire (une image <code>.jpg</code> par exemple). L'instance déjà ouverte est réutilisée, et ces commandes ne modifient pas votre lecteur par défaut.</p>
+<p><strong>Au clavier, sous Windows&nbsp;11</strong>, deux chemins :</p>
+<ul>
+  <li><kbd>Maj</kbd>+<kbd>Application</kbd> ouvre <strong>directement</strong> le menu complet : appuyez ensuite sur <kbd>M</kbd> pour atteindre le sous-menu <strong>MediaAccess</strong>, puis <kbd>Flèche droite</kbd> pour l'ouvrir. C'est le chemin le plus rapide.</li>
+  <li>Si votre clavier n'a pas de touche Application, <kbd>Maj</kbd>+<kbd>F10</kbd> ouvre le premier menu (le menu moderne) : descendez jusqu'à <strong>« Afficher d'autres options »</strong>, <kbd>Entrée</kbd>, puis <kbd>M</kbd> et <kbd>Flèche droite</kbd>.</li>
+</ul>
+<p>À savoir : au-delà de <strong>100 fichiers sélectionnés</strong>, Windows masque l'entrée (limite du système) — sélectionnez alors le <strong>dossier</strong> plutôt que son contenu. Le sous-menu s'installe via une case à cocher de l'installeur ; pour le retirer, relancez l'installeur et décochez-la. Enfin, les libellés du menu suivent la langue choisie <strong>au moment de l'installation</strong> : changer la langue dans les Options ne les renomme pas.</p>
 
 <div class="note">
 <p><strong>À noter :</strong> sélectionner plusieurs fichiers de types différents (par exemple des morceaux audio <em>et</em> une image) puis appuyer sur <kbd>Entrée</kbd> n'ouvre rien du tout. C'est une limite de Windows lui-même : sur une sélection « mixte », il ne sait pas quelle application utiliser, donc il n'en lance aucune. Aucune application ne peut contourner ce comportement. Utilisez plutôt <strong>« Lire avec MediaAccess »</strong> (clic droit, décrit ci-dessus), qui fonctionne quelle que soit la sélection.</p>

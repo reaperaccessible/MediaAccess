@@ -252,8 +252,22 @@
   <li><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>O</kbd> or <strong>File → Add Folder</strong> to recursively load every audio file in a folder;</li>
   <li><kbd>Ctrl</kbd>+<kbd>U</kbd> to open an <code>http://</code> or <code>https://</code> URL;</li>
   <li>Drag and drop a file on the window, or use "Open with" from Explorer if MediaAccess is registered for the file type (checkbox in <strong>Options → Playback</strong>).</li>
-  <li><strong>Right-click</strong> one or more files in Explorer and choose <strong>"Play with MediaAccess"</strong>. This command is available on <strong>any file type</strong>, so it stays present even when the selection contains an unsupported file (for example a <code>.jpg</code> image). MediaAccess loads the supported files and <strong>silently skips the rest</strong>. On Windows&nbsp;11 the entry is under <strong>"Show more options"</strong>; the <kbd>Shift</kbd>+<kbd>Menu</kbd> (Application) key — or <kbd>Shift</kbd>+<kbd>F10</kbd> — opens exactly that menu directly. To play a whole folder at once: <kbd>Ctrl</kbd>+<kbd>A</kbd> to select all, then <kbd>Shift</kbd>+<kbd>Menu</kbd> and <strong>"Play with MediaAccess"</strong>. The already-running instance is reused; this entry does not change your default player.</li>
+  <li>Use the <strong>MediaAccess submenu</strong> in Explorer's context menu, on one or more files <em>or on a folder</em> — see below.</li>
 </ul>
+
+<h3>The MediaAccess submenu in Windows Explorer</h3>
+<p>In Explorer, a <strong>MediaAccess</strong> submenu offers two commands:</p>
+<ul>
+  <li><strong>Play with MediaAccess</strong> — replaces the playlist with your selection and starts playing.</li>
+  <li><strong>Add to MediaAccess queue</strong> — <strong>appends</strong> the selection to the playlist <strong>without interrupting</strong> what is playing. You stay in Explorer (the MediaAccess window does not come to the front) and hear a confirmation such as "12 tracks added to the queue". If nothing is playing, the first added track starts.</li>
+</ul>
+<p>Both commands accept <strong>a folder</strong> (its contents are loaded recursively, audio <em>and</em> video), <strong>several files</strong>, a playlist file, or a <strong>mixed</strong> selection: the submenu is available on any file type, and MediaAccess <strong>silently skips</strong> what it cannot play (a <code>.jpg</code> image, for instance). The already-running instance is reused, and these commands do not change your default player.</p>
+<p><strong>From the keyboard on Windows&nbsp;11</strong>, two paths:</p>
+<ul>
+  <li><kbd>Shift</kbd>+<kbd>Applications</kbd> opens the full menu <strong>directly</strong>: press <kbd>M</kbd> to reach the <strong>MediaAccess</strong> submenu, then <kbd>Right arrow</kbd> to open it. This is the fastest path.</li>
+  <li>If your keyboard has no Applications key, <kbd>Shift</kbd>+<kbd>F10</kbd> opens the first (modern) menu: arrow down to <strong>"Show more options"</strong>, press <kbd>Enter</kbd>, then <kbd>M</kbd> and <kbd>Right arrow</kbd>.</li>
+</ul>
+<p>Good to know: beyond <strong>100 selected files</strong> Windows hides the entry (a system limit) — select the <strong>folder</strong> instead of its contents. The submenu is installed through a checkbox in the installer; to remove it, re-run the installer and clear that checkbox. Finally, the menu labels follow the language chosen <strong>when installing</strong>: switching the language in Options does not rename them.</p>
 
 <div class="note">
 <p><strong>Note:</strong> selecting several files of different types (for example audio tracks <em>and</em> an image) and pressing <kbd>Enter</kbd> opens nothing at all. This is a limitation of Windows itself: on a "mixed" selection it cannot decide which application to use, so it launches none. No application can override this. Use <strong>"Play with MediaAccess"</strong> (right-click, described above) instead — it works whatever the selection.</p>

@@ -8,6 +8,11 @@
 </head>
 <body>
 <h1>MediaAccess - Journal des modifications</h1>
+<h2>Version 2.64</h2>
+<p>Nouveau : dans l'Explorateur Windows, les commandes de MediaAccess sont désormais regroupées dans un <strong>sous-menu « MediaAccess »</strong>, qui contient « Lire avec MediaAccess » et la nouvelle commande <strong>« Ajouter à la file MediaAccess »</strong>. Cette dernière ajoute la sélection à la fin de la liste de lecture <strong>sans interrompre</strong> ce qui est en cours : vous restez dans l'Explorateur et une confirmation est annoncée (« 12 pistes ajoutées à la file d'attente »). Au clavier : Maj+Application, puis M, puis Flèche droite. (Une case de l'installeur permet d'ajouter ou de retirer ce sous-menu.)</p>
+<p>Nouveau : le sous-menu est aussi disponible sur un <strong>dossier</strong> — il n'existait auparavant que sur des fichiers. Le contenu du dossier est chargé récursivement, <strong>audio et vidéo</strong> (les dossiers ouverts depuis l'Explorateur, la ligne de commande ou par glisser-déposer incluent désormais les vidéos).</p>
+<p>Nouveau : action « <strong>Annoncer la durée totale de la liste</strong> » (à assigner dans Outils → Actions) : elle additionne la durée de tous les fichiers de la liste ou du dossier chargé et l'annonce, par exemple « 34 pistes, 2 heures 47 minutes 12 secondes ». Le calcul se fait en arrière-plan et couvre aussi bien l'audio que la vidéo. Demandé par Romain.</p>
+<p>Nouveau : téléchargement YouTube en <strong>WAV 24 bits / 44,1 kHz</strong>, dans le menu contextuel des résultats et comme action globale pour la vidéo en cours de lecture. Pratique pour importer directement dans un logiciel de montage.</p>
 <h2>Version 2.63</h2>
 <p>Correction : l'option « Autoriser le volume au-dessus de 100 % » ne fonctionnait pas (ou presque) pour la vidéo — le lecteur vidéo plafonnait le volume autour de 130 %. Le plafond est désormais relevé à 400 %, donc l'amplification fonctionne pour tous les types de vidéo (fichiers locaux comme YouTube), au même niveau que pour l'audio.</p>
 <h2>Version 2.62</h2>

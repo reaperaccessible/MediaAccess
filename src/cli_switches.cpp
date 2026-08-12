@@ -12,7 +12,14 @@
 #include "mediaaccess/accessibility.h"
 #include "mediaaccess/translations.h"
 #include "mediaaccess/audio_slots.h"  // v1.67 — ActivateAudioSlot for /slot:N
+#include "mediaaccess/ui.h"           // v2.64 — IsOpenableMediaPath / IsPlaylistFile / ParsePlaylist
+#include "mediaaccess/cue_sheet.h"    // v2.64 — IsCueFile (a .cue can be queued too)
 #include "resource.h"
+
+// v2.64 — from ui.cpp. Declared locally rather than via ui_internal.h, which is
+// UI-implementation-only (same pattern as main.cpp:277).
+void AddFilesFromFolder(const std::wstring& folder, std::vector<std::wstring>& files,
+                        bool includeVideo = false);
 
 #include <cstdlib>
 #include <cwchar>
@@ -72,6 +79,7 @@ constexpr VerbDef kVerbs[] = {
     { L"show",    CliVerb::Show,    false },
     { L"hide",    CliVerb::Hide,    false },
     { L"slot",    CliVerb::Slot,    true  },  // v1.67 — /slot:N (1-10)
+    { L"enqueue", CliVerb::Enqueue, true  },  // v2.64 — /enqueue:<path> (Explorer "Add to queue")
 };
 
 // Case-insensitive wide-string compare for ASCII-only verb names.
@@ -274,6 +282,34 @@ void ApplyCliCommand(HWND hwnd, const CliCommand& cmd, bool fromRemote) {
                 }
             }
             break;
+
+        case CliVerb::Enqueue: {
+            // v2.64 — Explorer "Add to MediaAccess queue". APPENDS; never replaces
+            // the playlist and never interrupts playback. Explorer launches one
+            // process per selected item, so each arrives here separately: we only
+            // ACCUMULATE and (re)arm a one-shot timer, and the WM_TIMER handler
+            // applies the whole burst once (one playlist edit, one announcement).
+            if (cmd.param.empty()) break;
+            std::wstring path = cmd.param;
+            // Defensive: a path ending in a backslash can arrive with a trailing
+            // quote glued on (CommandLineToArgvW treats \" as an escaped quote).
+            while (!path.empty() && (path.back() == L'"' || path.back() == L'\n' ||
+                                     path.back() == L'\r')) path.pop_back();
+            DWORD attrs = GetFileAttributesW(path.c_str());
+            if (attrs == INVALID_FILE_ATTRIBUTES) break;
+            if (attrs & FILE_ATTRIBUTE_DIRECTORY) {
+                AddFilesFromFolder(path, g_pendingEnqueue, /*includeVideo=*/true);
+            } else if (IsPlaylistFile(path)) {
+                auto entries = ParsePlaylist(path);
+                g_pendingEnqueue.insert(g_pendingEnqueue.end(), entries.begin(), entries.end());
+            } else if (IsCueFile(path) || IsOpenableMediaPath(path)) {
+                // A queued .cue is appended as a plain entry (its chapter latch is
+                // an open-time concern; queueing must not disturb what's playing).
+                g_pendingEnqueue.push_back(path);
+            }
+            SetTimer(hwnd, IDT_BATCH_ENQUEUE, g_disableBatchDelay ? 0 : BATCH_DELAY, nullptr);
+            break;
+        }
 
         case CliVerb::Unknown:
         default:

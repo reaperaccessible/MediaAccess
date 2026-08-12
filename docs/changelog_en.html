@@ -8,6 +8,11 @@
 </head>
 <body>
 <h1>MediaAccess - Changelog</h1>
+<h2>Version 2.64</h2>
+<p>New: in Windows Explorer, MediaAccess's commands are now grouped in a <strong>"MediaAccess" submenu</strong> containing "Play with MediaAccess" and the new <strong>"Add to MediaAccess queue"</strong>. The latter appends the selection to the playlist <strong>without interrupting</strong> what is playing: you stay in Explorer and a confirmation is announced ("12 tracks added to the queue"). From the keyboard: Shift+Applications, then M, then Right arrow. (A checkbox in the installer adds or removes this submenu.)</p>
+<p>New: the submenu is now also available on a <strong>folder</strong> — previously it existed on files only. The folder is loaded recursively, <strong>audio and video</strong> (folders opened from Explorer, the command line or drag-and-drop now include video files).</p>
+<p>New: an "<strong>Announce total playlist duration</strong>" action (assign it in Tools → Actions): it sums the duration of every file in the current playlist or loaded folder and announces it, for example "34 tracks, 2 hours 47 minutes 12 seconds". The calculation runs in the background and covers both audio and video. Requested by Romain.</p>
+<p>New: YouTube download in <strong>WAV 24-bit / 44.1 kHz</strong>, from the results context menu and as a global action for the currently playing video. Handy for importing straight into an audio editor.</p>
 <h2>Version 2.63</h2>
 <p>Fix: the "Allow volume above 100%" option did little or nothing for video — the video player capped the volume at around 130%. The ceiling is now raised to 400%, so amplification works for every video type (local files and YouTube), the same as for audio.</p>
 <h2>Version 2.62</h2>

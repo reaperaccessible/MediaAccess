@@ -167,6 +167,12 @@ bool g_trayIconVisible = false;
 // File batching
 std::vector<std::wstring> g_pendingFiles;
 DWORD g_startupTime = 0;
+// v2.64 — Explorer "Add to MediaAccess queue": its own pending list + batch, kept
+// separate from g_pendingFiles because that one REPLACES the playlist and plays.
+// g_batchFilesPending says a play-batch is armed, so the enqueue batch defers
+// instead of being wiped by `g_playlist = std::move(g_pendingFiles)`.
+std::vector<std::wstring> g_pendingEnqueue;
+bool g_batchFilesPending = false;
 
 // Recent files
 std::vector<std::wstring> g_recentFiles;
@@ -289,6 +295,7 @@ const HotkeyAction g_hotkeyActions[] = {
     {IDM_PLAY_ELAPSED, L"Speak Elapsed"},
     {IDM_PLAY_REMAINING, L"Speak Remaining"},
     {IDM_PLAY_TOTAL, L"Speak Total"},
+    {IDM_PLAY_PLAYLIST_TOTAL, L"Speak Playlist Total"},
     {IDM_PLAY_NOWPLAYING, L"Speak Now Playing"},
     // Effects navigation
     {IDM_EFFECT_PREV, L"Previous Effect"},

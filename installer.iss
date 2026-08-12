@@ -40,6 +40,9 @@ OutputDir={#OutputDir}
 Compression=lzma2/max
 SolidCompression=yes
 WizardStyle=modern
+; v2.64 — we register shell verbs / file associations, so tell Windows to refresh
+; the shell (SHChangeNotify SHCNE_ASSOCCHANGED) when Setup finishes.
+ChangesAssociations=yes
 ; Require admin rights to install to Program Files
 PrivilegesRequired=admin
 ; Allow installation for current user only as alternative
@@ -94,13 +97,26 @@ french.VideoFileDesc=Fichier vidéo MediaAccess
 french.PlaylistDesc=Liste de lecture MediaAccess
 french.AppDesc=Lecteur audio et vidéo accessible avec contrôles de tempo, pitch et effets
 
-; v2.41 — Explorer right-click "Play with MediaAccess" verb label (install language)
-english.PlayWithVerb=Play with MediaAccess
-french.PlayWithVerb=Lire avec MediaAccess
+; v2.41 — Explorer right-click verb labels (install language). v2.64: the verbs
+; moved into a "MediaAccess" submenu and gained "&" mnemonics — in the legacy
+; (full) context menu a screen-reader user can then do Shift+F10, M, then P or A.
+; NOTE: these follow the language chosen when INSTALLING; switching the app's
+; language in Options does not relabel the shell menu (re-run the installer).
+english.MediaAccessSubmenu=&MediaAccess
+english.PlayWithVerb=&Play with MediaAccess
+english.EnqueueVerb=&Add to MediaAccess queue
+english.ExplorerMenuTask=Add a MediaAccess submenu to the Windows Explorer right-click menu
+french.MediaAccessSubmenu=&MediaAccess
+french.PlayWithVerb=&Lire avec MediaAccess
+french.EnqueueVerb=&Ajouter à la file MediaAccess
+french.ExplorerMenuTask=Ajouter un sous-menu MediaAccess au menu contextuel de l'Explorateur Windows
 
 [Tasks]
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
 Name: "quicklaunchicon"; Description: "{cm:CreateQuickLaunchIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked; OnlyBelowVersion: 6.1; Check: not IsAdminInstallMode
+; v2.64 — checked by default so upgraders keep the context-menu entry they already
+; have. Unchecking it on a re-run genuinely REMOVES the keys (see [Registry]).
+Name: "explorermenu"; Description: "{cm:ExplorerMenuTask}"; GroupDescription: "{cm:AdditionalIcons}"
 
 [Files]
 ; Install main executable
@@ -229,19 +245,83 @@ Root: HKA; Subkey: "SOFTWARE\Classes\Applications\{#MyAppExeName}\SupportedTypes
 Root: HKA; Subkey: "SOFTWARE\Classes\Applications\{#MyAppExeName}\SupportedTypes"; ValueType: string; ValueName: ".mov";  ValueData: ""
 
 ; ============================================================
-; Step 7 (v2.51) - Explorer right-click "Lire avec MediaAccess".
-; Registered on * (ALL file types) so the command stays available even on a
-; MIXED selection (e.g. audio files + a .jpg): a per-extension verb vanishes
-; as soon as one selected file lacks it, and Windows refuses Enter on a
-; mixed-default selection. MultiSelectModel=Player makes Windows hand the
-; WHOLE selection to a single MediaAccess instance, which then ignores the
-; unsupported files (IsOpenableMediaPath). Does NOT change the default player.
-; On Windows 11 it appears under "Show more options" (Shift+F10 / Menu key).
+; Step 7 (v2.64) - Explorer right-click "MediaAccess" SUBMENU.
+;
+; Structure: a parent verb key carrying MUIVerb + ExtendedSubCommandsKey, whose
+; (Default) is DELIBERATELY left unset (a parent with a default value renders as
+; a FLAT item instead of a submenu). ExtendedSubCommandsKey is the MICROSOFT-
+; DOCUMENTED way to build a cascading menu without a COM handler; unlike the
+; SubCommands+CommandStore form it needs no HKLM-only key, so it works in both
+; admin and "just for me" install modes, and both the file and the folder parent
+; can point at the SAME shared definition below.
+;
+; Registered on * (ALL file types) so the commands stay available on a MIXED
+; selection (audio + a .jpg): a per-extension verb vanishes as soon as one
+; selected file lacks it. Unsupported files are dropped by IsOpenableMediaPath.
+; Also on Directory so a selected FOLDER works (new in v2.64; the app enumerates
+; it recursively - src\main.cpp ParseCommandLine / WM_COPYDATA). Deliberately NOT
+; on Folder or Drive: those cover drives and virtual folders, where a path can end
+; in a backslash and break the "%1" quoting. Does NOT change the default player.
+;
+; MultiSelectModel=Player raises Explorer's LEGACY-verb ceiling from 15 to 100
+; selected items (unset would mean Document = 15). It does NOT hand the whole
+; selection to one process: Explorer launches ONE MediaAccess.exe PER SELECTED
+; ITEM. Merging is done by MediaAccess itself (single-instance mutex ->
+; WM_COPYDATA -> IDT_BATCH_FILES / IDT_BATCH_ENQUEUE coalescing). Above 100
+; selected items the entry simply does not appear - use the folder entry instead.
+; (The pre-2.64 comment here claimed Windows merged the selection; that was wrong.)
+;
+; On Windows 11 this lives in the legacy menu: Shift+F10 (mouse right-click shows
+; the modern menu, where it is under "Show more options").
 ; ============================================================
-Root: HKA; Subkey: "SOFTWARE\Classes\*\shell\MediaAccess.Play"; ValueType: string; ValueName: ""; ValueData: "{cm:PlayWithVerb}"; Flags: uninsdeletekey
-Root: HKA; Subkey: "SOFTWARE\Classes\*\shell\MediaAccess.Play"; ValueType: string; ValueName: "Icon"; ValueData: """{app}\{#MyAppExeName}"",0"
-Root: HKA; Subkey: "SOFTWARE\Classes\*\shell\MediaAccess.Play"; ValueType: string; ValueName: "MultiSelectModel"; ValueData: "Player"
-Root: HKA; Subkey: "SOFTWARE\Classes\*\shell\MediaAccess.Play\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"" ""%1"""
+
+; -- Remove the pre-2.64 FLAT verb so upgraders never see it alongside the new
+; -- submenu. NO Tasks: clause on purpose - it must run even when the user
+; -- DECLINES the submenu, otherwise the old entry would survive forever.
+Root: HKA; Subkey: "SOFTWARE\Classes\*\shell\MediaAccess.Play"; Flags: deletekey
+
+; -- Shared submenu definition (referenced by both parents below).
+; -- deletekey sits on the FIRST entry that writes this subtree so the old shape is
+; -- cleared before the new one is written, without relying on [Registry] ordering.
+; --
+; -- CRITICAL, VERIFIED ON A REAL MACHINE (v2.64 testing): NO key in this subtree
+; -- may carry a (Default) value. With a (Default) on this key (a friendly name) or
+; -- on its "shell" subkey (a "Play,Queue" order list), the submenu APPEARS in the
+; -- context menu but REFUSES TO EXPAND (Enter / Right arrow do nothing) — the shell
+; -- stops treating the target as a subcommand container. Hence ValueType: none,
+; -- which creates the key WITHOUT any value, and no explicit "shell" entry at all
+; -- (the Play/Queue entries below create it implicitly).
+; -- Order therefore follows registry enumeration: "Play" sorts before "Queue",
+; -- which is the order we want. Keep that in mind when adding a third command.
+Root: HKA; Subkey: "SOFTWARE\Classes\MediaAccess.ContextMenu"; ValueType: none; Flags: deletekey uninsdeletekey; Tasks: explorermenu
+
+Root: HKA; Subkey: "SOFTWARE\Classes\MediaAccess.ContextMenu\shell\Play"; ValueType: string; ValueName: "MUIVerb"; ValueData: "{cm:PlayWithVerb}"; Tasks: explorermenu
+Root: HKA; Subkey: "SOFTWARE\Classes\MediaAccess.ContextMenu\shell\Play"; ValueType: string; ValueName: "Icon"; ValueData: """{app}\{#MyAppExeName}"",0"; Tasks: explorermenu
+Root: HKA; Subkey: "SOFTWARE\Classes\MediaAccess.ContextMenu\shell\Play"; ValueType: string; ValueName: "MultiSelectModel"; ValueData: "Player"; Tasks: explorermenu
+Root: HKA; Subkey: "SOFTWARE\Classes\MediaAccess.ContextMenu\shell\Play\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"" ""%1"""; Tasks: explorermenu
+
+Root: HKA; Subkey: "SOFTWARE\Classes\MediaAccess.ContextMenu\shell\Queue"; ValueType: string; ValueName: "MUIVerb"; ValueData: "{cm:EnqueueVerb}"; Tasks: explorermenu
+Root: HKA; Subkey: "SOFTWARE\Classes\MediaAccess.ContextMenu\shell\Queue"; ValueType: string; ValueName: "Icon"; ValueData: """{app}\{#MyAppExeName}"",0"; Tasks: explorermenu
+Root: HKA; Subkey: "SOFTWARE\Classes\MediaAccess.ContextMenu\shell\Queue"; ValueType: string; ValueName: "MultiSelectModel"; ValueData: "Player"; Tasks: explorermenu
+Root: HKA; Subkey: "SOFTWARE\Classes\MediaAccess.ContextMenu\shell\Queue\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"" ""/enqueue:%1"""; Tasks: explorermenu
+
+; -- Parent verb on FILES. (Default) intentionally never written (see above).
+Root: HKA; Subkey: "SOFTWARE\Classes\*\shell\MediaAccess"; ValueType: string; ValueName: "MUIVerb"; ValueData: "{cm:MediaAccessSubmenu}"; Flags: deletekey uninsdeletekey; Tasks: explorermenu
+Root: HKA; Subkey: "SOFTWARE\Classes\*\shell\MediaAccess"; ValueType: string; ValueName: "ExtendedSubCommandsKey"; ValueData: "MediaAccess.ContextMenu"; Tasks: explorermenu
+Root: HKA; Subkey: "SOFTWARE\Classes\*\shell\MediaAccess"; ValueType: string; ValueName: "Icon"; ValueData: """{app}\{#MyAppExeName}"",0"; Tasks: explorermenu
+Root: HKA; Subkey: "SOFTWARE\Classes\*\shell\MediaAccess"; ValueType: string; ValueName: "MultiSelectModel"; ValueData: "Player"; Tasks: explorermenu
+
+; -- Parent verb on FOLDERS (new in v2.64).
+Root: HKA; Subkey: "SOFTWARE\Classes\Directory\shell\MediaAccess"; ValueType: string; ValueName: "MUIVerb"; ValueData: "{cm:MediaAccessSubmenu}"; Flags: deletekey uninsdeletekey; Tasks: explorermenu
+Root: HKA; Subkey: "SOFTWARE\Classes\Directory\shell\MediaAccess"; ValueType: string; ValueName: "ExtendedSubCommandsKey"; ValueData: "MediaAccess.ContextMenu"; Tasks: explorermenu
+Root: HKA; Subkey: "SOFTWARE\Classes\Directory\shell\MediaAccess"; ValueType: string; ValueName: "Icon"; ValueData: """{app}\{#MyAppExeName}"",0"; Tasks: explorermenu
+Root: HKA; Subkey: "SOFTWARE\Classes\Directory\shell\MediaAccess"; ValueType: string; ValueName: "MultiSelectModel"; ValueData: "Player"; Tasks: explorermenu
+
+; -- When the submenu task is DECLINED, remove any subtree left by a previous
+; -- install (these run unconditionally; deletekey is a no-op when absent).
+Root: HKA; Subkey: "SOFTWARE\Classes\*\shell\MediaAccess"; Flags: deletekey; Check: not WantsExplorerMenu
+Root: HKA; Subkey: "SOFTWARE\Classes\Directory\shell\MediaAccess"; Flags: deletekey; Check: not WantsExplorerMenu
+Root: HKA; Subkey: "SOFTWARE\Classes\MediaAccess.ContextMenu"; Flags: deletekey; Check: not WantsExplorerMenu
 
 ; v2.51 - remove the 2.41-2.50 per-extension verbs so upgraders never see a
 ; duplicate "Lire avec MediaAccess" alongside the new * verb. deletekey runs at
@@ -314,6 +394,14 @@ Filename: "{app}\{#MyAppExeName}"; Parameters: "/fromupdate"; Flags: nowait runa
 Type: files; Name: "{app}\installed.txt"
 
 [Code]
+// v2.64 — Check function for the [Registry] cleanup entries that must run when
+// the user DECLINES the Explorer submenu task (so a previous install's keys are
+// removed rather than left behind).
+function WantsExplorerMenu(): Boolean;
+begin
+  Result := WizardIsTaskSelected('explorermenu');
+end;
+
 // Create installed marker file after installation
 procedure CreateInstalledMarker();
 var

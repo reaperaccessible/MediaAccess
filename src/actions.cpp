@@ -278,6 +278,10 @@ static const Action g_actions[] = {
       "Speak total duration",         "Annoncer la durée totale",
       { 'T', true,  true,  false } },
 
+    { "SPEAK_PLAYLIST_TOTAL",     IDM_PLAY_PLAYLIST_TOTAL,    ActionCategory::Main,
+      "Announce total playlist duration", "Annoncer la durée totale de la liste",
+      { 0, false, false, false } },   // v2.64 — no default key; user assigns it
+
     // ========================================================================
     // CATEGORY: Main — effects (selection + value control)
     // ========================================================================
@@ -572,6 +576,9 @@ static const Action g_actions[] = {
     { "GLOBAL_YT_DL_SEL_OGG",     IDM_YT_CTX_DL_OGG,          ActionCategory::YouTube,
       "Download selected result as audio (OGG)",
       "Télécharger le résultat sélectionné en audio (OGG)", {} },
+    { "GLOBAL_YT_DL_SEL_WAV",     IDM_YT_CTX_DL_WAV,          ActionCategory::YouTube,
+      "Download selected result as audio (WAV 24-bit)",
+      "Télécharger le résultat sélectionné en audio (WAV 24 bits)", {} },
     { "GLOBAL_YT_DL_SEL_VIDEO",   IDM_YT_CTX_DL_VIDEO,        ActionCategory::YouTube,
       "Download selected result as video",
       "Télécharger le résultat sélectionné en vidéo", {} },
@@ -589,6 +596,9 @@ static const Action g_actions[] = {
     { "GLOBAL_YT_DL_PLAYING_OGG", IDM_YT_DL_PLAYING_OGG,      ActionCategory::Global,
       "Download currently playing YouTube video (audio OGG) (global)",
       "Télécharger la vidéo YouTube en cours de lecture (audio OGG) (global)", {} },
+    { "GLOBAL_YT_DL_PLAYING_WAV", IDM_YT_DL_PLAYING_WAV,      ActionCategory::Global,
+      "Download currently playing YouTube video (audio WAV 24-bit) (global)",
+      "Télécharger la vidéo YouTube en cours de lecture (audio WAV 24 bits) (global)", {} },
     { "GLOBAL_YT_DL_PLAYING_VIDEO", IDM_YT_DL_PLAYING_VIDEO,  ActionCategory::Global,
       "Download currently playing YouTube video (video) (global)",
       "Télécharger la vidéo YouTube en cours de lecture (vidéo) (global)", {} },
@@ -618,6 +628,9 @@ static const Action g_actions[] = {
       "Speak remaining time (global)","Annoncer le temps restant (global)", {} },
     { "GLOBAL_SPEAK_TOTAL",       IDM_PLAY_TOTAL,             ActionCategory::Global,
       "Speak total duration (global)","Annoncer la durée totale (global)", {} },
+
+    { "GLOBAL_SPEAK_PLAYLIST_TOTAL", IDM_PLAY_PLAYLIST_TOTAL, ActionCategory::Global,
+      "Announce total playlist duration (global)", "Annoncer la durée totale de la liste (global)", {} },
 
     // Now playing — added in v1.58.
     { "GLOBAL_NOW_PLAYING",       IDM_PLAY_NOWPLAYING,        ActionCategory::Global,

@@ -29,7 +29,12 @@ enum class CliVerb {
     SeekRel,    // param is signed seconds delta
     SeekAbs,    // param is unsigned seconds absolute
     Quit, Show, Hide,
-    Slot        // v1.67 — switch to audio slot N (1-10)
+    Slot,       // v1.67 — switch to audio slot N (1-10)
+    Enqueue     // v2.64 — /enqueue:<path> — APPEND a file/folder/playlist to the
+                // playlist without interrupting playback. Unlike every other verb
+                // it is NOT applied inline: it accumulates into g_pendingEnqueue
+                // and a one-shot IDT_BATCH_ENQUEUE timer applies the whole burst
+                // at once (Explorer launches one process per selected file).
 };
 
 struct CliCommand {

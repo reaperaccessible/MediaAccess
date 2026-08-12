@@ -62,6 +62,7 @@
 #define IDM_PLAY_REPEAT_OFF    225   // menu-only radio: repeat off   (g_repeatMode 0)
 #define IDM_PLAY_REPEAT_ONE    226   // menu-only radio: repeat track (g_repeatMode 1)
 #define IDM_PLAY_REPEAT_ALL    227   // menu-only radio: repeat all   (g_repeatMode 2)
+#define IDM_PLAY_PLAYLIST_TOTAL 228  // v2.64 — announce total duration of the current local-file playlist
 #define IDM_PLAY_TOGGLE_SEEK_ANNOUNCE 1800
 
 // v1.79 — Granular seek actions (26 IDs, 1810-1835).
@@ -114,6 +115,7 @@
 #define IDT_DEFERRED_SPEAK  406   // v2.06 — one-shot: fallback for AnnounceStatus when UIA unavailable
 #define IDT_DEVICE_REROUTE  407   // v2.32 — one-shot: coalesce audio-device-change burst before reroute
 #define IDT_SUBTITLE_FADE   408   // smooth duck fade of the mpv video volume while a subtitle is spoken
+#define IDT_BATCH_ENQUEUE   409   // v2.64 — one-shot: coalesce an Explorer "Add to queue" burst (409, not 406: taken)
 
 // Custom messages
 #define WM_SPEAK            (WM_USER + 1)
@@ -136,6 +138,7 @@
 #define WM_BOOKEDGE_END       (WM_USER + 19) // v2.48 — Edge book paragraph clip finished (wParam=gen, lParam=segIdx) -> advance
 #define WM_YT_CAPTION_READY   (WM_USER + 20) // v2.52 — YouTube auto-caption fetch done (wParam=gen, lParam=std::wstring* vtt path or null)
 #define WM_YT_SUBS_CHECK_DONE (WM_USER + 21) // v2.61 (Phase 3b) — subscription new-video check finished (lParam=YtSubsCheckResult* heap)
+#define WM_PLAYLIST_TOTAL_DONE (WM_USER + 22) // v2.64 — playlist total-duration worker finished (lParam=PlaylistTotalResult* heap)
 
 // v2.52 — YouTube automatic-caption options (YouTube tab). 1760-1762 verified free.
 #define IDC_YT_FETCH_CAPTIONS    1760
@@ -345,6 +348,8 @@
 #define IDM_YT_DL_PLAYING_OGG    782   // v2.54 — download the currently-playing YouTube video as audio OGG (Global, user-bindable)
 #define IDM_YT_CTX_SUBSCRIBE     783   // v2.61 (Phase 3b) — subscribe to the open channel (results context menu)
 #define IDM_YT_CTX_UNSUBSCRIBE   784   // v2.61 (Phase 3b) — unsubscribe from the open channel
+#define IDM_YT_CTX_DL_WAV        785   // v2.64 — download selected result as WAV 24-bit / 44.1 kHz
+#define IDM_YT_DL_PLAYING_WAV    786   // v2.64 — download the currently-playing video as WAV 24-bit (Global)
 
 // YouTube search filter dropdowns (IDD_YOUTUBE). 790-799 used.
 #define IDC_YT_FILTER_DURATION   790

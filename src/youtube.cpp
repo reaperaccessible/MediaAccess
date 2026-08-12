@@ -238,7 +238,7 @@ static const wchar_t* const kFormatExts[] = {
 // OGG/vorbis download needs its own probe set or FindProducedFile would miss the
 // produced .ogg and falsely report failure.
 static const wchar_t* const kTranscodeAudioExts[] = {
-    L".mp3", L".ogg", L".oga", L".m4a", L".opus"
+    L".mp3", L".ogg", L".oga", L".m4a", L".opus", L".wav"   // v2.64 — WAV 24-bit
 };
 
 // Check if yt-dlp is available
@@ -2558,14 +2558,25 @@ bool YouTubeDownloadAudioTranscode(const std::wstring& videoId,
     std::wstring dir    = GetDownloadsTargetDir();
     // Suffix disambiguates the file so --no-overwrites never silently skips a
     // different-format re-download of the same title (as with "[video]"/"[ids]").
-    std::wstring tag    = (audioFormat == L"vorbis") ? L" [ogg]" : L" [mp3]";
+    std::wstring tag    = (audioFormat == L"vorbis") ? L" [ogg]"
+                        : (audioFormat == L"wav")    ? L" [wav]"
+                                                     : L" [mp3]";
     std::wstring base   = SanitizeForFilename(title, safeId) + tag;
     std::wstring outBase = dir + L"\\" + base;
     std::wstring outArg  = outBase + L".%(ext)s";
     std::wstring url     = L"https://www.youtube.com/watch?v=" + safeId;
 
+    // v2.64 (redlaf) — WAV is produced at a FIXED 24-bit / 44.1 kHz (pcm_s24le),
+    // the standard DAW import format, instead of ffmpeg's default 16-bit. Note the
+    // source is always lossy (Opus/AAC), so this is a format conversion for editing
+    // convenience, not a quality gain. Verified end-to-end with the bundled ffmpeg.
+    std::wstring ppArgs;
+    if (audioFormat == L"wav")
+        ppArgs = L"--postprocessor-args \"ExtractAudio:-acodec pcm_s24le -ar 44100\" ";
+
     std::wstring args = L"-f \"bestaudio/best\" "
                         L"--extract-audio --audio-format " + audioFormat + L" --audio-quality 0 "
+                        + ppArgs +
                         L"--no-playlist --no-progress --no-warnings --quiet "
                         L"--no-overwrites --embed-chapters --add-metadata "
                         L"--ffmpeg-location \"" + ffmpeg + L"\" "
@@ -4785,6 +4796,7 @@ void YouTubeDownloadSelectedFromAction(int idmCtxId) {
         case IDM_YT_CTX_DL_M4A:   StartImmediateDownload(dlg, YtDlKind::Permanent,      L"");        break;
         case IDM_YT_CTX_DL_MP3:   StartImmediateDownload(dlg, YtDlKind::AudioTranscode, L"mp3");     break;
         case IDM_YT_CTX_DL_OGG:   StartImmediateDownload(dlg, YtDlKind::AudioTranscode, L"vorbis");  break;
+        case IDM_YT_CTX_DL_WAV:   StartImmediateDownload(dlg, YtDlKind::AudioTranscode, L"wav");     break;
         case IDM_YT_CTX_DL_VIDEO: StartImmediateDownload(dlg, YtDlKind::VideoBest,      L"");        break;
         case IDM_YT_CTX_DL_OPTS:  DownloadSelectedWithOptions(dlg);                                  break;
         default: break;
@@ -4818,6 +4830,12 @@ void YouTubeDownloadCurrentlyPlayingOgg() {
     StartImmediateDownloadById(YtDlKind::AudioTranscode, L"vorbis", g_currentYtVideoId, g_currentYtTitle);
 }
 
+// v2.64 — WAV 24-bit / 44.1 kHz (DAW-ready) for the currently-playing video.
+void YouTubeDownloadCurrentlyPlayingWav() {
+    if (g_currentYtVideoId.empty()) { Speak(Ts("No YouTube video playing")); return; }
+    StartImmediateDownloadById(YtDlKind::AudioTranscode, L"wav", g_currentYtVideoId, g_currentYtTitle);
+}
+
 // v2.23 — context menu on a YouTube result (Application key / Shift+F10 / right
 // click). Holds a "Download" submenu: Audio M4A/MP3/OGG + Video (highest quality,
 // no prompt) and "Download with options...". v2.26 adds top-level "Copy link" /
@@ -4842,6 +4860,7 @@ static void ShowYtResultsContextMenu(HWND hwnd, int x, int y) {
     AppendMenuW(dl, f, IDM_YT_CTX_DL_M4A,   T("Audio (&M4A)"));
     AppendMenuW(dl, f, IDM_YT_CTX_DL_MP3,   T("Audio (MP&3)"));
     AppendMenuW(dl, f, IDM_YT_CTX_DL_OGG,   T("Audio (O&GG)"));
+    AppendMenuW(dl, f, IDM_YT_CTX_DL_WAV,   T("Audio (&WAV 24-bit)"));
     AppendMenuW(dl, f, IDM_YT_CTX_DL_VIDEO, T("&Video"));
     AppendMenuW(dl, MF_SEPARATOR, 0, nullptr);
     AppendMenuW(dl, f, IDM_YT_CTX_DL_OPTS,  T("Download with &options..."));
@@ -4885,6 +4904,7 @@ static void ShowYtResultsContextMenu(HWND hwnd, int x, int y) {
         case IDM_YT_CTX_DL_M4A:   StartImmediateDownload(hwnd, YtDlKind::Permanent,      L"");        break;
         case IDM_YT_CTX_DL_MP3:   StartImmediateDownload(hwnd, YtDlKind::AudioTranscode, L"mp3");     break;
         case IDM_YT_CTX_DL_OGG:   StartImmediateDownload(hwnd, YtDlKind::AudioTranscode, L"vorbis");  break;
+        case IDM_YT_CTX_DL_WAV:   StartImmediateDownload(hwnd, YtDlKind::AudioTranscode, L"wav");     break;
         case IDM_YT_CTX_DL_VIDEO: StartImmediateDownload(hwnd, YtDlKind::VideoBest,      L"");        break;
         case IDM_YT_CTX_DL_OPTS:  DownloadSelectedWithOptions(hwnd);                                  break;
         case IDM_YT_CTX_COPY_LINK: {

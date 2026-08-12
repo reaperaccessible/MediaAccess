@@ -93,5 +93,8 @@ extern const wchar_t* const APP_NAME_INTERNAL;
 
 // Shared helpers (defined in ui.cpp, used by multiple UI modules)
 bool IsSupportedAudioExt(const std::wstring& ext);
-void AddFilesFromFolder(const std::wstring& folder, std::vector<std::wstring>& files);
+// includeVideo=false keeps the audio-only "load whole album" behaviour; external
+// entry points (Explorer menu / command line / drop) pass true (v2.64).
+void AddFilesFromFolder(const std::wstring& folder, std::vector<std::wstring>& files,
+                        bool includeVideo = false);
 std::wstring GetExePath();

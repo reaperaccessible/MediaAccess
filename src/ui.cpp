@@ -531,8 +531,13 @@ void ShowOpenDialog() {
     }
 }
 
-// Recursively add audio files from a folder
-static void AddFilesFromFolderRecursive(const std::wstring& folder, std::vector<std::wstring>& files, int depth) {
+// Recursively add media files from a folder.
+// includeVideo=false (default) keeps the historical audio-only behaviour used by
+// "Add folder" / load-whole-album. v2.64: the EXTERNAL entry points (Explorer
+// context menu, command line, drag-and-drop) pass true so right-clicking a folder
+// of videos actually loads them — MediaAccess plays video too.
+static void AddFilesFromFolderRecursive(const std::wstring& folder, std::vector<std::wstring>& files, int depth,
+                                        bool includeVideo) {
     // Limit recursion depth to prevent stack overflow
     if (depth > 32) return;
 
@@ -552,13 +557,14 @@ static void AddFilesFromFolderRecursive(const std::wstring& folder, std::vector<
 
         if (fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
             // Recurse into subdirectory
-            AddFilesFromFolderRecursive(fullPath, files, depth + 1);
+            AddFilesFromFolderRecursive(fullPath, files, depth + 1, includeVideo);
         } else {
-            // Check if it's a supported audio file
+            // Supported audio always; video too when the caller asked for it.
             size_t dotPos = fullPath.rfind(L'.');
             if (dotPos != std::wstring::npos) {
                 std::wstring ext = fullPath.substr(dotPos);
-                if (IsSupportedAudioExt(ext)) {
+                if (IsSupportedAudioExt(ext) ||
+                    (includeVideo && IsOpenableMediaPath(fullPath))) {
                     files.push_back(fullPath);
                 }
             }
@@ -568,8 +574,8 @@ static void AddFilesFromFolderRecursive(const std::wstring& folder, std::vector<
     FindClose(hFind);
 }
 
-void AddFilesFromFolder(const std::wstring& folder, std::vector<std::wstring>& files) {
-    AddFilesFromFolderRecursive(folder, files, 0);
+void AddFilesFromFolder(const std::wstring& folder, std::vector<std::wstring>& files, bool includeVideo) {
+    AddFilesFromFolderRecursive(folder, files, 0, includeVideo);
 }
 
 // Show folder browser dialog and add all audio files

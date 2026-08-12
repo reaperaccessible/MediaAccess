@@ -26,6 +26,7 @@ static void TeardownMpvBeforeLoad();
 #include "bassenc_flac.h"
 #include "tempo_processor.h"
 #include <ctime>
+#include <atomic>   // v2.64 — playlist-total re-entrancy guard
 #include <shlobj.h>
 #include <map>
 #include <algorithm>  // std::sort (v2.43 bookmark navigation)
@@ -2165,6 +2166,148 @@ void SpeakTotal() {
     double len = processor->GetLength() / GetEffectivePlaybackSpeed();
     std::wstring lenStr = FormatTimeSpoken(len);
     Speak(WideToUtf8(lenStr));
+}
+
+// ============================================================
+// v2.64 — announce the TOTAL duration of the current playlist / opened folder
+// ============================================================
+// g_playlist holds mixed local paths AND URLs (radio/podcast/YouTube push http(s)
+// entries), so only local files have a finite measurable length — URLs are skipped.
+// Each file's length is read via a throwaway BASS DECODE stream on a worker thread
+// (a big folder can take a moment), then the total is announced on the UI thread.
+//
+// THREADING: the project convention is that only the app thread touches BASS's
+// PLAYBACK channel (g_stream/g_fxStream) and its sync/DSP callbacks. This worker
+// creates and frees ONLY its own independent decode handles and NEVER touches the
+// playback channel, so it cannot race the player — a deliberate, isolated exception
+// to "one thread touches BASS", safe because the handles are private and transient.
+
+// Safe single-%d substitution on a (possibly translator-supplied) template — never
+// printf a translated string (a dropped/duplicated %d would be undefined behaviour).
+static std::wstring PlaylistSubstCount(const std::wstring& templ, int n) {
+    std::wstring num = std::to_wstring(n);
+    size_t pos = templ.find(L"%d");
+    if (pos == std::wstring::npos) {
+        std::wstring out = templ;
+        if (!out.empty() && out.back() != L' ') out += L' ';
+        return out + num;
+    }
+    return templ.substr(0, pos) + num + templ.substr(pos + 2);
+}
+
+// v2.64 — locate the BUNDLED ffprobe (<app>\lib\ffprobe.exe), used to measure the
+// files BASS can't open (video containers: .mkv, .avi, .mp4 video...). Bundled-only
+// on purpose: no PATH fallback, so a stray "ffprobe.exe" in the working directory
+// can never be picked up (binary-planting). Empty string when unavailable.
+static std::wstring GetFfprobeLocation() {
+    wchar_t exePath[MAX_PATH] = {0};
+    GetModuleFileNameW(nullptr, exePath, MAX_PATH);
+    wchar_t* lastSlash = wcsrchr(exePath, L'\\');
+    if (!lastSlash) return L"";
+    *(lastSlash + 1) = L'\0';
+    std::wstring bundled = std::wstring(exePath) + L"lib\\ffprobe.exe";
+    DWORD attr = GetFileAttributesW(bundled.c_str());
+    if (attr == INVALID_FILE_ATTRIBUTES || (attr & FILE_ATTRIBUTE_DIRECTORY)) return L"";
+    return bundled;
+}
+
+// Read a media file's duration with ffprobe. It parses the container metadata and
+// does NOT decode, so it stays fast even on a large video. Returns 0 on failure
+// (unreadable, no duration, timeout). Worker-thread only.
+static double ProbeDurationWithFfprobe(const std::wstring& ffprobe, const std::wstring& path) {
+    if (ffprobe.empty()) return 0.0;
+    SECURITY_ATTRIBUTES sa{}; sa.nLength = sizeof(sa); sa.bInheritHandle = TRUE;
+    HANDLE rd = nullptr, wr = nullptr;
+    if (!CreatePipe(&rd, &wr, &sa, 0)) return 0.0;
+    SetHandleInformation(rd, HANDLE_FLAG_INHERIT, 0);   // our read end stays private
+
+    std::wstring cmd = L"\"" + ffprobe + L"\" -v error -show_entries format=duration "
+                       L"-of default=noprint_wrappers=1:nokey=1 \"" + path + L"\"";
+    std::vector<wchar_t> buf(cmd.begin(), cmd.end()); buf.push_back(0);
+    STARTUPINFOW si{}; si.cb = sizeof(si);
+    si.dwFlags    = STARTF_USESTDHANDLES;
+    si.hStdOutput = wr;
+    si.hStdError  = wr;
+    PROCESS_INFORMATION pi{};
+    if (!CreateProcessW(nullptr, buf.data(), nullptr, nullptr, TRUE,
+                        CREATE_NO_WINDOW, nullptr, nullptr, &si, &pi)) {
+        CloseHandle(rd); CloseHandle(wr); return 0.0;
+    }
+    CloseHandle(wr);   // drop the parent's write end so the read below sees EOF
+    std::string out; char chunk[256]; DWORD got = 0;
+    while (ReadFile(rd, chunk, sizeof(chunk) - 1, &got, nullptr) && got > 0) {
+        chunk[got] = '\0';
+        out += chunk;
+        if (out.size() > 4096) break;   // the output is one number; bail on anything odd
+    }
+    CloseHandle(rd);
+    // Bound the wait so one pathological file can never stall the whole calculation.
+    if (WaitForSingleObject(pi.hProcess, 10000) == WAIT_TIMEOUT) TerminateProcess(pi.hProcess, 1);
+    CloseHandle(pi.hThread); CloseHandle(pi.hProcess);
+    try { return std::stod(out); } catch (...) { return 0.0; }  // "N/A"/empty -> 0
+}
+
+static std::atomic<bool> g_playlistTotalComputing{false};
+struct PlaylistTotalJob    { std::vector<std::wstring> paths; };
+struct PlaylistTotalResult { double totalSeconds; int counted; int skipped; };
+
+static DWORD WINAPI PlaylistTotalThreadProc(LPVOID arg) {
+    PlaylistTotalJob* job = static_cast<PlaylistTotalJob*>(arg);
+    PlaylistTotalResult* res = new PlaylistTotalResult{0.0, 0, 0};
+    const std::wstring ffprobe = GetFfprobeLocation();   // resolved once, video fallback
+    for (const auto& path : job->paths) {
+        if (IsURL(path.c_str())) { ++res->skipped; continue; }  // radio/podcast/YouTube — no local length
+
+        // Audio: measure with BASS — the same call playback uses, so every format
+        // MediaAccess can play (incl. the plugin ones: FLAC, Opus, M4A, WMA, APE,
+        // ALAC, WavPack, DSD, MIDI) is measurable. No BASS_STREAM_PRESCAN: it reads
+        // each file end-to-end (slow over a whole library), and CBR + Xing/VBRI-
+        // tagged VBR still report an exact length without it.
+        double seconds = 0.0;
+        HSTREAM s = BASS_StreamCreateFile(FALSE, path.c_str(), 0, 0,
+                                          BASS_STREAM_DECODE | BASS_UNICODE);
+        if (s) {
+            QWORD len = BASS_ChannelGetLength(s, BASS_POS_BYTE);
+            if (len != (QWORD)-1) seconds = BASS_ChannelBytes2Seconds(s, len);
+            BASS_StreamFree(s);
+        }
+        // Video (or anything BASS refused): fall back to ffprobe. Only reached for
+        // non-BASS files, so a normal audio folder never pays the process cost.
+        if (seconds <= 0.0) seconds = ProbeDurationWithFfprobe(ffprobe, path);
+
+        if (seconds > 0.0) { res->totalSeconds += seconds; ++res->counted; }
+        else ++res->skipped;
+    }
+    delete job;
+    PostMessageW(g_hwnd, WM_PLAYLIST_TOTAL_DONE, 0, reinterpret_cast<LPARAM>(res));
+    return 0;
+}
+
+// WM_PLAYLIST_TOTAL_DONE handler (main window proc, UI thread). Announces + frees.
+void OnPlaylistTotalDone(LPARAM lParam) {
+    PlaylistTotalResult* res = reinterpret_cast<PlaylistTotalResult*>(lParam);
+    g_playlistTotalComputing.store(false);
+    if (!res) return;
+    if (res->counted == 0) {
+        Speak(Ts("No local audio files to measure"));   // e.g. an all-radio list
+    } else {
+        std::wstring msg = PlaylistSubstCount(T("%d tracks, "), res->counted)
+                         + FormatTimeSpoken(res->totalSeconds);
+        if (res->skipped > 0) msg += PlaylistSubstCount(T(" (%d skipped)"), res->skipped);
+        Speak(WideToUtf8(msg));
+    }
+    delete res;
+}
+
+void SpeakPlaylistTotalAsync() {
+    std::vector<std::wstring> snap = g_playlist;   // snapshot on the UI thread
+    if (snap.empty()) { Speak(Ts("The playlist is empty")); return; }  // before the guard
+    if (g_playlistTotalComputing.exchange(true)) return;               // one run at a time
+    Speak(Ts("Calculating total duration"));
+    PlaylistTotalJob* job = new PlaylistTotalJob{ std::move(snap) };
+    HANDLE t = CreateThread(nullptr, 0, PlaylistTotalThreadProc, job, 0, nullptr);
+    if (!t) { delete job; g_playlistTotalComputing.store(false); }
+    else CloseHandle(t);
 }
 
 // Play the playlist track at `index`. On load failure, walks forward up to

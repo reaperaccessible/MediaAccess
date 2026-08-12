@@ -275,7 +275,8 @@ static void UpdateRepeatMenuRadio(HWND hwnd) {
 
 // Declarations from ui.cpp
 int ExpandFileToFolder(const std::wstring& filePath, std::vector<std::wstring>& outFiles);
-void AddFilesFromFolder(const std::wstring& folder, std::vector<std::wstring>& files);
+void AddFilesFromFolder(const std::wstring& folder, std::vector<std::wstring>& files,
+                        bool includeVideo = false);
 
 // -----------------------------------------------------------------------------
 // Named magic numbers
@@ -630,7 +631,9 @@ void ParseCommandLine() {
                     // pushed into g_playlist as if it were a file, then BASS
                     // refused to open it. Mirror the Ctrl+V code path in ui.cpp
                     // and recursively enumerate the folder's media files.
-                    AddFilesFromFolder(path, g_playlist);
+                    // v2.64 — includeVideo: a folder given from OUTSIDE (Explorer
+                    // "Play with MediaAccess", command line, drop) loads video too.
+                    AddFilesFromFolder(path, g_playlist, /*includeVideo=*/true);
                 } else if (IsCueFile(path)) {
                     // v2.34 — stash the cue; WM_CREATE opens it via OpenCueSheet
                     // (which keeps SetExternalChapters + the load atomic) INSTEAD
@@ -965,6 +968,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
                 }
             } else if (wParam == IDT_BATCH_FILES) {
                 KillTimer(hwnd, IDT_BATCH_FILES);
+                g_batchFilesPending = false;   // v2.64 — releases a deferred enqueue batch
                 if (!g_pendingFiles.empty()) {
                     int startIndex = 0;
                     if (g_loadFolder && g_pendingFiles.size() == 1) {
@@ -984,6 +988,45 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
                                 ShowWindow(hwnd, SW_RESTORE);
                             }
                         }
+                    }
+                }
+            } else if (wParam == IDT_BATCH_ENQUEUE) {
+                // v2.64 — Explorer "Add to MediaAccess queue" burst settled.
+                // APPENDS to the playlist; never replaces it, never steals focus
+                // (the user is still in Explorer), never restarts playback.
+                KillTimer(hwnd, IDT_BATCH_ENQUEUE);
+                static int s_enqueueDeferrals = 0;
+                if (g_batchFilesPending && s_enqueueDeferrals < 20) {
+                    // A play-batch is armed and would wipe us with its
+                    // `g_playlist = std::move(g_pendingFiles)`. Let it land first,
+                    // then append on top. Bounded so we can never livelock.
+                    ++s_enqueueDeferrals;
+                    SetTimer(hwnd, IDT_BATCH_ENQUEUE, BATCH_DELAY, nullptr);
+                } else {
+                    s_enqueueDeferrals = 0;
+                    if (!g_pendingEnqueue.empty()) {
+                        const int added = static_cast<int>(g_pendingEnqueue.size());
+                        const size_t firstAdded = g_playlist.size();
+                        g_playlist.insert(g_playlist.end(),
+                                          std::make_move_iterator(g_pendingEnqueue.begin()),
+                                          std::make_move_iterator(g_pendingEnqueue.end()));
+                        g_pendingEnqueue.clear();
+                        // Non-interrupting: the user is in Explorer and the screen
+                        // reader may be mid-sentence. Speech reaches NVDA/JAWS
+                        // regardless of which window has focus.
+                        std::wstring msg = std::to_wstring(added) + L" " +
+                                           T(added == 1 ? "track added to the queue"
+                                                        : "tracks added to the queue");
+                        SpeakW(msg.c_str(), /*interrupt=*/false);
+                        // If something is playing OR paused we append silently —
+                        // that IS the feature. Only when the player is completely
+                        // idle (typically a cold start straight from Explorer, where
+                        // LoadPlaybackState has restored an old playlist but nothing
+                        // is playing) do we start, at the FIRST ITEM WE JUST ADDED,
+                        // so the user hears what they queued and not last session's
+                        // first track.
+                        if (!IsCurrentlyPlaying() && !IsCurrentlyPaused())
+                            PlayTrack(static_cast<int>(firstAdded));
                     }
                 }
             } else if (wParam == IDT_SCHEDULER) {
@@ -1222,6 +1265,10 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
             YouTubeOnSubsCheckDone(lParam);
             return 0;
 
+        case WM_PLAYLIST_TOTAL_DONE:  // v2.64 — playlist total-duration computed
+            OnPlaylistTotalDone(lParam);
+            return 0;
+
         case WM_USER + 200: {
             // Update check result
             auto* data = reinterpret_cast<std::pair<UpdateInfo, bool>*>(lParam);
@@ -1376,7 +1423,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
                         OpenCueSheet(path);
                     } else if (!g_disableBatchDelay && g_startupBatchOpen && !g_playlist.empty()) {
                         if (isFolder) {
-                            AddFilesFromFolder(path, g_playlist);
+                            AddFilesFromFolder(path, g_playlist, /*includeVideo=*/true);
                         } else if (IsPlaylistFile(path)) {
                             auto entries = ParsePlaylist(path);
                             g_playlist.insert(g_playlist.end(), entries.begin(), entries.end());
@@ -1385,13 +1432,14 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
                         }
                     } else {
                         if (isFolder) {
-                            AddFilesFromFolder(path, g_pendingFiles);
+                            AddFilesFromFolder(path, g_pendingFiles, /*includeVideo=*/true);
                         } else if (IsPlaylistFile(path)) {
                             auto entries = ParsePlaylist(path);
                             g_pendingFiles.insert(g_pendingFiles.end(), entries.begin(), entries.end());
                         } else if (IsOpenableMediaPath(path)) {  // v2.51 — skip unsupported (e.g. .jpg)
                             g_pendingFiles.push_back(path);
                         }
+                        g_batchFilesPending = true;   // v2.64 — defer any enqueue batch until this lands
                         SetTimer(hwnd, IDT_BATCH_FILES, g_disableBatchDelay ? 0 : BATCH_DELAY, nullptr);
                     }
                 }
@@ -1452,6 +1500,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
                 case IDM_YT_CTX_DL_M4A:
                 case IDM_YT_CTX_DL_MP3:
                 case IDM_YT_CTX_DL_OGG:
+                case IDM_YT_CTX_DL_WAV:
                 case IDM_YT_CTX_DL_VIDEO:
                 case IDM_YT_CTX_DL_OPTS:
                     YouTubeDownloadSelectedFromAction(LOWORD(wParam));
@@ -1464,6 +1513,9 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
                     break;
                 case IDM_YT_DL_PLAYING_OGG:
                     YouTubeDownloadCurrentlyPlayingOgg();
+                    break;
+                case IDM_YT_DL_PLAYING_WAV:   // v2.64 — WAV 24-bit / 44.1 kHz
+                    YouTubeDownloadCurrentlyPlayingWav();
                     break;
                 case IDM_YT_DL_PLAYING_VIDEO:
                     YouTubeDownloadCurrentlyPlayingVideo();
@@ -1900,6 +1952,9 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
                     break;
                 case IDM_PLAY_TOTAL:
                     SpeakTotal();
+                    break;
+                case IDM_PLAY_PLAYLIST_TOTAL:  // v2.64 — total duration of the whole list
+                    SpeakPlaylistTotalAsync();
                     break;
                 case IDM_PLAY_NOWPLAYING:
                     SpeakTagTitle();

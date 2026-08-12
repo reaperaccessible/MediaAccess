@@ -19,6 +19,18 @@ void RegisterPlayerTranslations() {
     AddTranslation("en", "Switched to ", L"Switched to ");
     AddTranslation("fr", "Switched to ", L"Basculé vers ");
 
+    // v2.64 — announce total playlist/folder duration
+    AddTranslation("en", "Calculating total duration", L"Calculating total duration");
+    AddTranslation("fr", "Calculating total duration", L"Calcul de la durée totale");
+    AddTranslation("en", "The playlist is empty", L"The playlist is empty");
+    AddTranslation("fr", "The playlist is empty", L"La liste de lecture est vide");
+    AddTranslation("en", "No local audio files to measure", L"No local audio files to measure");
+    AddTranslation("fr", "No local audio files to measure", L"Aucun fichier audio local à mesurer");
+    AddTranslation("en", "%d tracks, ", L"%d tracks, ");
+    AddTranslation("fr", "%d tracks, ", L"%d pistes, ");
+    AddTranslation("en", " (%d skipped)", L" (%d skipped)");
+    AddTranslation("fr", " (%d skipped)", L" (%d ignorés)");
+
     AddTranslation("en", "Failed to switch audio device", L"Failed to switch audio device");
     AddTranslation("fr", "Failed to switch audio device", L"Impossible de changer de périphérique audio");
 
@@ -1303,6 +1315,14 @@ void RegisterPlayerTranslations() {
     AddTranslation("fr", "Audio (MP&3)", L"Audio (MP&3)");
     AddTranslation("en", "Audio (O&GG)", L"Audio (O&GG)");
     AddTranslation("fr", "Audio (O&GG)", L"Audio (O&GG)");
+    // v2.64 — WAV 24-bit / 44.1 kHz (DAW-ready)
+    AddTranslation("en", "Audio (&WAV 24-bit)", L"Audio (&WAV 24-bit)");
+    AddTranslation("fr", "Audio (&WAV 24-bit)", L"Audio (&WAV 24 bits)");
+    // v2.64 — Explorer "Add to MediaAccess queue" confirmation
+    AddTranslation("en", "track added to the queue", L"track added to the queue");
+    AddTranslation("fr", "track added to the queue", L"piste ajoutée à la file d'attente");
+    AddTranslation("en", "tracks added to the queue", L"tracks added to the queue");
+    AddTranslation("fr", "tracks added to the queue", L"pistes ajoutées à la file d'attente");
 
     AddTranslation("en", "C&lear YouTube cache...", L"C&lear YouTube cache...");
     AddTranslation("fr", "C&lear YouTube cache...", L"Vider le cache &YouTube...");

@@ -94,6 +94,10 @@ void SelectAudioDevice(int deviceIndex);
 void SpeakElapsed();
 void SpeakRemaining();
 void SpeakTotal();
+// v2.64 — announce the TOTAL duration of the current local-file playlist (async;
+// probes each file on a worker thread, then announces on the UI thread).
+void SpeakPlaylistTotalAsync();
+void OnPlaylistTotalDone(LPARAM lParam);  // WM_PLAYLIST_TOTAL_DONE handler
 
 // Tag reading functions (speak ID3/metadata tags)
 void SpeakTagTitle();
