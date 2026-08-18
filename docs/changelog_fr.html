@@ -8,6 +8,8 @@
 </head>
 <body>
 <h1>MediaAccess - Journal des modifications</h1>
+<h2>Version 2.66</h2>
+<p>Correction : lorsqu'un tempo (ou une vitesse) modifié était actif, les déplacements avec Ctrl ou Alt + flèche gauche/droite ne tenaient pas compte de l'accélération : la position annoncée était celle du fichier d'origine (donc différente de la barre d'état), et le saut réel ne correspondait pas à la durée demandée — à vitesse double, un pas de 5 secondes n'avançait que de 2,5 secondes d'écoute. Le pas demandé correspond maintenant à du temps réel et la position annoncée est cohérente avec l'affichage. Même correction pour les sauts de chapitre, de signet et les points de boucle A-B, en audio comme en vidéo. Signalé par Charlotte.</p>
 <h2>Version 2.65</h2>
 <p>Nouveau : prise en charge des fichiers <strong>.caf</strong> (Core Audio Format d'Apple). Ce conteneur n'est pas reconnu par le moteur audio principal ; MediaAccess le lit désormais avec son moteur ffmpeg intégré, sans conversion ni composant supplémentaire. À noter : sur ce moteur, les effets (tempo, hauteur, égaliseur, suppression du centre) ne s'appliquent pas, comme pour les fichiers vidéo. Aucune fenêtre vidéo ne s'ouvre pour un fichier audio.</p>
 <p>Amélioration : quand un dossier ou un fichier ouvert depuis l'Explorateur ne contient <strong>rien de lisible</strong>, MediaAccess l'annonce (« Aucun fichier lisible dans ce dossier ») au lieu de s'ouvrir en silence, ce qui donnait l'impression d'une panne.</p>

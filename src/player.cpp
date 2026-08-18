@@ -1773,14 +1773,19 @@ void Seek(double seconds) {
         // v1.64 — capture the target position so we can announce it
         // even though MPVSeek may not have applied yet by the time we
         // call MPVGetPosition (mpv seek is async).
+        // v2.66 (Charlotte) — `seconds` is what the USER asked for, i.e. WALL-CLOCK
+        // seconds, but positions here are SOURCE seconds. At 2x, moving "5 seconds"
+        // must advance 10 source seconds; and the spoken position must be divided
+        // back, exactly like the status bar and SpeakTotal already do.
+        double speed = GetEffectivePlaybackSpeed();
         double cur = MPVGetPosition();
         double len = MPVGetLength();
-        double target = cur + seconds;
+        double target = cur + seconds * speed;
         if (target < 0) target = 0;
         if (len > 0 && target > len) target = len;
-        MPVSeek(seconds);
+        MPVSeek(seconds * speed);
         UpdateStatusBar();
-        if (g_speechSeekPosition) SpeakW(FormatTimeSpoken(target));  // v1.65 gate
+        if (g_speechSeekPosition) SpeakW(FormatTimeSpoken(target / speed));  // v1.65 gate
         return;
     }
     if (!g_fxStream || g_isBusy || g_isLoading) return;
@@ -1800,8 +1805,12 @@ void Seek(double seconds) {
     double length = processor->GetLength();
     if (length <= 0) return;  // Invalid or unknown length
 
+    // v2.66 (Charlotte) — same wall-clock/source conversion as the MPV branch:
+    // the requested step is in wall-clock seconds, the timeline is in source
+    // seconds, so scale by the effective tempo x rate.
+    double speed = GetEffectivePlaybackSpeed();
     double currentPos = processor->GetPosition();
-    double newPos = currentPos + seconds;
+    double newPos = currentPos + seconds * speed;
     if (newPos < 0) newPos = 0;
     if (newPos > length) newPos = length;
 
@@ -1812,7 +1821,7 @@ void Seek(double seconds) {
     // press NVDA+End after every left/right press. Speak() defaults to
     // interrupt=true so rapid repeated seeks coalesce to the last one.
     // v1.65 — gated by Options > Speech > "Announce position after seek".
-    if (g_speechSeekPosition) SpeakW(FormatTimeSpoken(newPos));
+    if (g_speechSeekPosition) SpeakW(FormatTimeSpoken(newPos / speed));
 }
 
 // Seek by tracks (positive = forward, negative = backward)
@@ -1899,6 +1908,10 @@ void ArmLoopSync() {
 // Seek to absolute position in seconds. announce=false suppresses the spoken
 // position (used by the A-B loop wrap so it never talks over the loop message).
 void SeekToPosition(double seconds, bool announce) {
+    // v2.66 — `seconds` is a SOURCE position (chapters, bookmarks, A-B loop are
+    // all stored in source time), so it is used as-is for the seek; only the
+    // SPOKEN value is converted to wall-clock, to match the status bar.
+    const double speed = GetEffectivePlaybackSpeed();
     if (g_activeEngine == PlaybackEngine::MPV) {
         double len = MPVGetLength();
         double target = seconds;
@@ -1906,7 +1919,7 @@ void SeekToPosition(double seconds, bool announce) {
         if (len > 0 && target > len) target = len;
         MPVSeekToPosition(seconds);
         UpdateStatusBar();
-        if (announce && g_speechSeekPosition) SpeakW(FormatTimeSpoken(target));  // v1.64/65
+        if (announce && g_speechSeekPosition) SpeakW(FormatTimeSpoken(target / speed));  // v1.64/65
         return;
     }
     if (!g_fxStream) return;
@@ -1919,7 +1932,7 @@ void SeekToPosition(double seconds, bool announce) {
 
     processor->SetPosition(seconds);
     UpdateStatusBar();
-    if (announce && g_speechSeekPosition) SpeakW(FormatTimeSpoken(seconds));  // v1.64/65
+    if (announce && g_speechSeekPosition) SpeakW(FormatTimeSpoken(seconds / speed));  // v1.64/65
 }
 
 // Get current playback position in seconds
