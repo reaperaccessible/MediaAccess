@@ -625,12 +625,15 @@ bool IsVideoFile(const std::wstring& path)
     const wchar_t* ext = wcsrchr(path.c_str(), L'.');
     if (!ext) return false;
 
-    /* Unambiguous video extensions.  .mp4 and .wmv are excluded because
-       BASS already handles those as audio containers. */
+    /* Unambiguous video extensions.  .mp4 is excluded because it may be an
+       audio-only container (LoadFile probes it for a video track).
+       v2.67 - .wmv is IN: basswma happily decodes the audio stream of a .wmv,
+       so routing it to BASS silently dropped the picture. Audio-only ASF uses
+       .wma, which stays on BASS. */
     static const wchar_t* videoExts[] = {
         L".mkv", L".avi", L".mov", L".webm", L".flv", L".ts", L".m2ts",
         L".vob", L".ogv", L".3gp", L".mpg", L".mpeg", L".m4v", L".divx",
-        L".rmvb"
+        L".rmvb", L".wmv"
     };
     for (auto ve : videoExts) {
         if (_wcsicmp(ext, ve) == 0) return true;

@@ -1082,7 +1082,8 @@ static bool IsVideoExtension(const wchar_t* path) {
     if (!ext) return false;
     static const wchar_t* videoExts[] = {
         L".mkv", L".avi", L".mov", L".webm", L".flv", L".ts", L".m2ts",
-        L".vob", L".ogv", L".3gp", L".mpg", L".mpeg", L".m4v", L".divx", L".rmvb"
+        L".vob", L".ogv", L".3gp", L".mpg", L".mpeg", L".m4v", L".divx", L".rmvb",
+        L".wmv"   // v2.67 - must match IsVideoFile (video_engine.cpp)
     };
     for (auto ve : videoExts)
         if (_wcsicmp(ext, ve) == 0) return true;
@@ -1097,11 +1098,15 @@ static bool IsVideoExtension(const wchar_t* path) {
 // .m4b is NOT included on purpose: by convention it's an audiobook in an
 // MP4 container, BASS handles it fine with full tempo/pitch/DSP support,
 // and the probe would be wasted work.
+// v2.67 (Sebastien) — .m4a IS included: by convention it is audio-only, but a
+// .m4a carrying a video track exists in the wild and BASS would silently drop
+// the picture. The probe only reads the moov atom, so a true audio .m4a pays
+// next to nothing and keeps BASS with its full effects chain.
 static bool IsAmbiguousMp4Ext(const wchar_t* path) {
     if (!path) return false;
     const wchar_t* ext = wcsrchr(path, L'.');
     if (!ext) return false;
-    return _wcsicmp(ext, L".mp4") == 0;
+    return _wcsicmp(ext, L".mp4") == 0 || _wcsicmp(ext, L".m4a") == 0;
 }
 
 // Recursively scan an ISO-BMFF (MP4) container atom for a `hdlr` atom with

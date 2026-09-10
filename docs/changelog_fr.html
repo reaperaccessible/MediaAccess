@@ -8,6 +8,8 @@
 </head>
 <body>
 <h1>MediaAccess - Journal des modifications</h1>
+<h2>Version 2.67</h2>
+<p>Correction : les vidéos <strong>.wmv</strong> étaient lues sans image. MediaAccess les confiait à son moteur audio, qui en extrayait uniquement la bande-son, sans aucun message. Elles passent désormais par le moteur vidéo, avec l'image. Les fichiers <strong>.wma</strong> (audio seul) ne changent pas et gardent tous les effets. Même vérification ajoutée pour les fichiers <strong>.m4a</strong> qui contiennent une vidéo : ils sont maintenant détectés et lus avec l'image, tandis qu'un .m4a audio garde le moteur audio et ses effets. Signalé par Sébastien.</p>
 <h2>Version 2.66</h2>
 <p>Correction : lorsqu'un tempo (ou une vitesse) modifié était actif, les déplacements avec Ctrl ou Alt + flèche gauche/droite ne tenaient pas compte de l'accélération : la position annoncée était celle du fichier d'origine (donc différente de la barre d'état), et le saut réel ne correspondait pas à la durée demandée — à vitesse double, un pas de 5 secondes n'avançait que de 2,5 secondes d'écoute. Le pas demandé correspond maintenant à du temps réel et la position annoncée est cohérente avec l'affichage. Même correction pour les sauts de chapitre, de signet et les points de boucle A-B, en audio comme en vidéo. Signalé par Charlotte.</p>
 <h2>Version 2.65</h2>

@@ -8,6 +8,8 @@
 </head>
 <body>
 <h1>MediaAccess - Changelog</h1>
+<h2>Version 2.67</h2>
+<p>Fix: <strong>.wmv</strong> videos played without a picture. MediaAccess handed them to its audio engine, which extracted only the soundtrack, with no message. They now go through the video engine, with the picture. Audio-only <strong>.wma</strong> files are unchanged and keep all effects. The same check now applies to <strong>.m4a</strong> files that contain video: they are detected and played with the picture, while an audio .m4a stays on the audio engine with its effects. Reported by Sébastien.</p>
 <h2>Version 2.66</h2>
 <p>Fix: with a modified tempo (or rate) active, seeking with Ctrl or Alt + left/right arrow ignored the speed change: the announced position was the original file's (so it disagreed with the status bar), and the actual jump did not match the requested amount — at double speed a 5-second step only advanced 2.5 seconds of listening. The requested step is now real time, and the announced position matches the display. Same fix for chapter jumps, bookmarks and A-B loop points, for audio as well as video. Reported by Charlotte.</p>
 <h2>Version 2.65</h2>
