@@ -8,6 +8,8 @@
 </head>
 <body>
 <h1>MediaAccess - Changelog</h1>
+<h2>Version 2.68</h2>
+<p>Fix: after playing a <strong>.caf</strong> file, YouTube videos played in the same session had sound but no picture, even with "Play YouTube videos as video" enabled. The same could happen after an interrupted YouTube playback in audio mode. YouTube videos now always turn the picture back on, and YouTube audio mode stays sound-only as before.</p>
 <h2>Version 2.67</h2>
 <p>Fix: <strong>.wmv</strong> videos played without a picture. MediaAccess handed them to its audio engine, which extracted only the soundtrack, with no message. They now go through the video engine, with the picture. Audio-only <strong>.wma</strong> files are unchanged and keep all effects. The same check now applies to <strong>.m4a</strong> files that contain video: they are detected and played with the picture, while an audio .m4a stays on the audio engine with its effects. Reported by Sébastien.</p>
 <h2>Version 2.66</h2>

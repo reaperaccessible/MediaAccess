@@ -1038,6 +1038,12 @@ static bool LoadVideoFile(const wchar_t* path) {
 static bool LoadVideoURL(const wchar_t* url) {
     g_isLoading = true;
     if (!PrepareForMpvLoad()) return false;
+    // v2.68 — mpv's "vid" is process-wide and persists across loads. A prior
+    // audio-only load (.caf via LoadAudioViaMpv, or a cancelled YouTube hybrid
+    // stream) left it at "no", so a YouTube video played afterwards had sound but
+    // no picture. Same guard as LoadVideoFile. The hybrid path re-disables video
+    // AFTER this load (see YouTubePlayById).
+    MPVSetAudioOnly(false);
     if (!MPVLoadURL(url)) {
         Speak(Ts("Failed to load video URL"));
         g_isLoading = false;

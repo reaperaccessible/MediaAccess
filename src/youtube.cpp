@@ -2912,15 +2912,19 @@ bool YouTubePlayById(const std::wstring& videoId) {
     // want the audio while we wait for the BASS download to finish.
     // -----------------------------------------------------------------
     if (IsMPVAvailable()) {
-        // Ensure mpv is initialized so the audio-only property sticks for
-        // the next load. InitMPV is idempotent.
+        // InitMPV is idempotent.
         InitMPV(g_videoHwnd);
-        MPVSetAudioOnly(true);
 
         std::wstring rawUrl;
         if (YouTubeGetVideoURL(videoId, rawUrl) &&
             LoadURL(rawUrl.c_str(), /*silentOnFail=*/true))
         {
+            // v2.68 — disable video AFTER the load: LoadVideoURL now resets
+            // "vid" to auto on every video URL (so a leftover audio-only state
+            // can never hide a real video's picture again). "vid" is a runtime
+            // property, so setting it here drops the video track of the stream
+            // that has just been opened.
+            MPVSetAudioOnly(true);
             // LoadURL routed to libmpv showed the video window — hide it,
             // we're audio-only here. Reset main window to audio size too.
             if (g_videoHwnd && IsWindowVisible(g_videoHwnd)) {

@@ -8,6 +8,8 @@
 </head>
 <body>
 <h1>MediaAccess - Journal des modifications</h1>
+<h2>Version 2.68</h2>
+<p>Correction : après la lecture d'un fichier <strong>.caf</strong>, les vidéos YouTube lues pendant la même séance jouaient le son sans l'image, même avec l'option « Lire les vidéos YouTube en mode vidéo » activée. Le même problème pouvait survenir après une lecture YouTube en mode audio interrompue. Les vidéos YouTube réactivent désormais toujours l'image, et le mode audio de YouTube reste en son seul, comme avant.</p>
 <h2>Version 2.67</h2>
 <p>Correction : les vidéos <strong>.wmv</strong> étaient lues sans image. MediaAccess les confiait à son moteur audio, qui en extrayait uniquement la bande-son, sans aucun message. Elles passent désormais par le moteur vidéo, avec l'image. Les fichiers <strong>.wma</strong> (audio seul) ne changent pas et gardent tous les effets. Même vérification ajoutée pour les fichiers <strong>.m4a</strong> qui contiennent une vidéo : ils sont maintenant détectés et lus avec l'image, tandis qu'un .m4a audio garde le moteur audio et ses effets. Signalé par Sébastien.</p>
 <h2>Version 2.66</h2>
