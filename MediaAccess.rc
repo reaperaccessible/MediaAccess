@@ -9,8 +9,8 @@ IDI_APPICON ICON "MediaAccess.ico"
 // ASCII only (rc.exe mojibake risk). FILEVERSION is hardcoded: bump it each
 // release to match include/mediaaccess/version.h (build_new.bat passes no /D to rc).
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION    2,68,0,0
- PRODUCTVERSION 2,68,0,0
+ FILEVERSION    2,69,0,0
+ PRODUCTVERSION 2,69,0,0
  FILEFLAGSMASK  0x3fL
  FILEFLAGS      0x0L
  FILEOS         VOS__WINDOWS32
@@ -23,12 +23,12 @@ BEGIN
     BEGIN
       VALUE "CompanyName",      "ReaperAccessible"
       VALUE "FileDescription",  "MediaAccess - accessible audio and video player"
-      VALUE "FileVersion",      "2.68"
+      VALUE "FileVersion",      "2.69"
       VALUE "InternalName",     "MediaAccess"
       VALUE "LegalCopyright",   "Copyright (C) 2026 ReaperAccessible. GPL-3.0."
       VALUE "OriginalFilename", "MediaAccess.exe"
       VALUE "ProductName",      "MediaAccess"
-      VALUE "ProductVersion",   "2.68"
+      VALUE "ProductVersion",   "2.69"
     END
   END
   BLOCK "VarFileInfo"
@@ -193,6 +193,10 @@ BEGIN
     COMBOBOX        IDC_LANGUAGE_COMBO, 60, 198, 90, 80, CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
     LTEXT           "&History entries:", IDC_LABEL_PLAYBACK_HISTORY_LIMIT, 170, 200, 70, 10
     COMBOBOX        IDC_HISTORY_LIMIT, 245, 198, 50, 120, CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    AUTOCHECKBOX    "S&pace plays/pauses in the playlist manager", IDC_PLAYLIST_SPACE, 17, 235, 250, 10
+    LTEXT           "&Playlists folder (empty = default):", IDC_LABEL_PLAYLIST_FOLDER, 17, 248, 160, 10
+    EDITTEXT        IDC_PLAYLIST_FOLDER, 17, 261, 205, 14, ES_AUTOHSCROLL
+    PUSHBUTTON      "Brows&e...", IDC_PLAYLIST_FOLDER_BROWSE, 228, 260, 50, 14
 
     // Recording tab controls (shown when tab 1 selected)
     LTEXT           "Record audio output to file. Press R to toggle recording.", IDC_LABEL_RECORDING_DESCRIPTION, 17, 30, 320, 10
@@ -628,12 +632,27 @@ STYLE DS_SETFONT | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU | WS_THICKFR
 CAPTION "Playlist Manager"
 FONT 8, "MS Shell Dlg", 400, 0, 0x1
 BEGIN
-    LISTBOX         IDC_PLAYLIST_LIST, 7, 7, 336, 205, LBS_NOINTEGRALHEIGHT | LBS_EXTENDEDSEL | WS_VSCROLL | WS_TABSTOP
+    LTEXT           "Saved play&lists:", IDC_LABEL_PLAYLIST_COMBO, 7, 10, 62, 10
+    COMBOBOX        IDC_PLAYLIST_COMBO, 72, 7, 170, 120, CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    PUSHBUTTON      "De&lete playlist...", IDC_PLAYLIST_DEL_LIST, 248, 6, 95, 14
+    LISTBOX         IDC_PLAYLIST_LIST, 7, 26, 336, 186, LBS_NOINTEGRALHEIGHT | LBS_EXTENDEDSEL | WS_VSCROLL | WS_TABSTOP
     PUSHBUTTON      "&Save...", IDC_PLAYLIST_SAVE, 7, 217, 50, 14
-    LTEXT           "Alt+Up/Down: Move  |  Delete: Remove  |  Enter: Play  |  Ctrl+V: Paste  |  Esc: Close", -1, 65, 220, 278, 10
+    PUSHBUTTON      "Remove trac&k", IDC_PLAYLIST_DEL_TRACK, 62, 217, 70, 14
+    LTEXT           "Alt+Up/Down: Move  |  Delete: Remove  |  Enter: Play  |  Ctrl+S: Save  |  F2: Rename  |  Esc: Close", -1, 138, 220, 205, 10
 END
 
 // Track list dialog (.cue sheet) — v2.34
+IDD_PLAYLIST_RENAME DIALOGEX 0, 0, 240, 70
+STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "Rename playlist"
+FONT 8, "MS Shell Dlg"
+BEGIN
+    LTEXT           "New &name:", -1, 7, 10, 150, 10
+    EDITTEXT        IDC_PLAYLIST_RENAME_EDIT, 7, 24, 226, 14, ES_AUTOHSCROLL
+    DEFPUSHBUTTON   "OK", IDOK, 125, 48, 50, 14
+    PUSHBUTTON      "Cancel", IDCANCEL, 180, 48, 50, 14
+END
+
 IDD_TRACK_LIST DIALOGEX 0, 0, 350, 250
 STYLE DS_SETFONT | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU | WS_THICKFRAME | WS_MINIMIZEBOX | WS_MAXIMIZEBOX
 CAPTION "Track list"

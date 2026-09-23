@@ -242,6 +242,7 @@ void ShowTabControls(HWND hwnd, int tab) {
 
     // Playback tab controls (tab 0)
     int playbackCtrls[] = {IDC_SOUNDCARD, IDC_ALLOW_AMPLIFY, IDC_REMEMBER_STATE, IDC_REMEMBER_POS, IDC_BRING_TO_FRONT, IDC_LOAD_FOLDER, IDC_MINIMIZE_TO_TRAY, IDC_VOLUME_STEP, IDC_SHOW_TITLE, IDC_AUTO_ADVANCE, IDC_PLAYLIST_FOLLOW, IDC_CHECK_UPDATES, IDC_MULTI_INSTANCE, IDC_REGISTER_FILE_TYPES, IDC_ANNOUNCE_ON_FOCUS, IDC_AUTO_FOLLOW_DEVICE, IDC_DOWNLOAD_PATH, IDC_DOWNLOAD_BROWSE, IDC_REWIND_ON_PAUSE, IDC_REWIND_LABEL,
+                           IDC_LABEL_PLAYLIST_FOLDER, IDC_PLAYLIST_FOLDER, IDC_PLAYLIST_FOLDER_BROWSE, IDC_PLAYLIST_SPACE,   // v2.69
                            IDC_LABEL_PLAYBACK_OUTPUT_DEVICE, IDC_LABEL_PLAYBACK_REMEMBER_POS, IDC_LABEL_PLAYBACK_VOLUME_STEP,
                            IDC_HISTORY_LIMIT, IDC_LABEL_PLAYBACK_HISTORY_LIMIT,
                            IDC_LANGUAGE_COMBO, IDC_LABEL_LANGUAGE};
@@ -818,6 +819,8 @@ INT_PTR CALLBACK OptionsDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
             // v1.71 — show current YouTube download folder (empty string is fine; it
             // signals to the user that the historical default is in effect).
             SetDlgItemTextW(hwnd, IDC_YT_DOWNLOAD_PATH, g_ytDownloadPath.c_str());
+            SetDlgItemTextW(hwnd, IDC_PLAYLIST_FOLDER, g_playlistFolder.c_str());   // v2.69
+            CheckDlgButton(hwnd, IDC_PLAYLIST_SPACE, g_playlistSpacePlayPause ? BST_CHECKED : BST_UNCHECKED);
 
             // Initialize Recording tab
             {
@@ -1367,6 +1370,17 @@ INT_PTR CALLBACK OptionsDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
                         g_ytDownloadPath = buf;
                     }
 
+                    // v2.69 — playlists folder. Same contract as the download
+                    // folder: empty reverts to the default, an unusable path
+                    // falls back silently (see GetPlaylistsDir).
+                    {
+                        wchar_t buf[MAX_PATH];
+                        GetDlgItemTextW(hwnd, IDC_PLAYLIST_FOLDER, buf, MAX_PATH);
+                        g_playlistFolder = buf;
+                    }
+                    g_playlistSpacePlayPause =
+                        (IsDlgButtonChecked(hwnd, IDC_PLAYLIST_SPACE) == BST_CHECKED);
+
                     // Get Recording settings
                     {
                         wchar_t buf[512];
@@ -1582,6 +1596,24 @@ INT_PTR CALLBACK OptionsDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
                         wchar_t folderPath[MAX_PATH];
                         if (SHGetPathFromIDListW(pidl, folderPath)) {
                             SetDlgItemTextW(hwnd, IDC_DOWNLOAD_PATH, folderPath);
+                        }
+                        CoTaskMemFree(pidl);
+                    }
+                    return TRUE;
+                }
+
+                case IDC_PLAYLIST_FOLDER_BROWSE: {
+                    // v2.69 — browse for the playlists folder. Clearing the field
+                    // reverts to <download root>\Playlist.
+                    BROWSEINFOW bi = {0};
+                    bi.hwndOwner = hwnd;
+                    bi.lpszTitle = T("Select playlists folder");
+                    bi.ulFlags = BIF_RETURNONLYFSDIRS | BIF_NEWDIALOGSTYLE;
+                    LPITEMIDLIST pidl = SHBrowseForFolderW(&bi);
+                    if (pidl) {
+                        wchar_t folderPath[MAX_PATH];
+                        if (SHGetPathFromIDListW(pidl, folderPath)) {
+                            SetDlgItemTextW(hwnd, IDC_PLAYLIST_FOLDER, folderPath);
                         }
                         CoTaskMemFree(pidl);
                     }

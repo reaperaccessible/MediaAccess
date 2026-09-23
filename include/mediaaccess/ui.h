@@ -68,6 +68,15 @@ void UnregisterAllFileTypes();
 void ShowOpenDialog();
 void ShowAddFolderDialog();
 void ShowPlaylistDialog();
+// v2.69 — folder where playlists are saved (preference, else <download root>\Playlist).
+// Always returns a path, creating it if needed.
+std::wstring GetPlaylistsDir();
+// v2.69 — call after replacing g_playlist wholesale so an open playlist manager
+// rebuilds its list (NotifyPlaylistTrackChanged only moves the caret).
+void NotifyPlaylistContentChanged();
+// v2.69 — expand any playlist file among pasted items into the tracks it lists.
+std::vector<std::wstring> ExpandPastedPlaylists(const std::vector<std::wstring>& in);
+extern HWND g_playlistDlg;   // v2.69 — non-null while the playlist window is open
 void ShowOpenURLDialog();
 void ShowTestYouTubePlayback();  // Help menu diagnostic — verifies yt-dlp is wired correctly
 void ShowJumpToTimeDialog();

@@ -493,6 +493,25 @@ void RegisterRcTranslations() {
     AddTranslation("fr", "SoundFont status", L"État de la SoundFont");
     AddTranslation("en", "&Test YouTube playback", L"&Test YouTube playback");
     AddTranslation("fr", "&Test YouTube playback", L"&Tester la lecture YouTube");
+    AddTranslation("en", "S&pace plays/pauses in the playlist manager", L"S&pace plays/pauses in the playlist manager");
+    AddTranslation("fr", "S&pace plays/pauses in the playlist manager", L"La barre d'es&pace lance/arrête la lecture dans le gestionnaire de listes");
+    // DIALOG: IDD_PLAYLIST_RENAME (v2.69)
+    AddTranslation("en", "Rename playlist", L"Rename playlist");
+    AddTranslation("fr", "Rename playlist", L"Renommer la liste");
+    AddTranslation("en", "New &name:", L"New &name:");
+    AddTranslation("fr", "New &name:", L"Nouveau &nom :");
+    AddTranslation("en", "Saved play&lists:", L"Saved play&lists:");
+    AddTranslation("fr", "Saved play&lists:", L"Listes enre&gistrées :");
+    AddTranslation("en", "De&lete playlist...", L"De&lete playlist...");
+    AddTranslation("fr", "De&lete playlist...", L"Supprimer la l&iste...");
+    AddTranslation("en", "Remove trac&k", L"Remove trac&k");
+    AddTranslation("fr", "Remove trac&k", L"Retirer la pis&te");
+    AddTranslation("en", "&Playlists folder (empty = default):", L"&Playlists folder (empty = default):");
+    AddTranslation("fr", "&Playlists folder (empty = default):", L"Dossier des lis&tes de lecture (vide = par défaut) :");
+    AddTranslation("en", "Brows&e...", L"Brows&e...");
+    AddTranslation("fr", "Brows&e...", L"Parco&urir...");
+    AddTranslation("en", "Select playlists folder", L"Select playlists folder");
+    AddTranslation("fr", "Select playlists folder", L"Choisir le dossier des listes de lecture");
     AddTranslation("en", "Play YouTube videos as video (enables subtitles)", L"Play YouTube videos as video (enables subtitles)");
     AddTranslation("fr", "Play YouTube videos as video (enables subtitles)", L"Lire les vidéos YouTube en mode vidéo (active les sous-titres)");
     // v2.52 — YouTube automatic captions
@@ -1201,10 +1220,10 @@ void RegisterRcTranslations() {
     AddTranslation("en", "&Save...", L"&Save...");
     AddTranslation("fr", "&Save...", L"Enregi&strer...");
 
-    AddTranslation("en", "Alt+Up/Down: Move  |  Delete: Remove  |  Enter: Play  |  Ctrl+V: Paste  |  Esc: Close",
-                   L"Alt+Up/Down: Move  |  Delete: Remove  |  Enter: Play  |  Ctrl+V: Paste  |  Esc: Close");
-    AddTranslation("fr", "Alt+Up/Down: Move  |  Delete: Remove  |  Enter: Play  |  Ctrl+V: Paste  |  Esc: Close",
-                   L"Alt+Haut/Bas : Déplacer  |  Suppr : Retirer  |  Entrée : Lire  |  Ctrl+V : Coller  |  Échap : Fermer");
+    AddTranslation("en", "Alt+Up/Down: Move  |  Delete: Remove  |  Enter: Play  |  Ctrl+S: Save  |  F2: Rename  |  Esc: Close",
+                   L"Alt+Up/Down: Move  |  Delete: Remove  |  Enter: Play  |  Ctrl+S: Save  |  F2: Rename  |  Esc: Close");
+    AddTranslation("fr", "Alt+Up/Down: Move  |  Delete: Remove  |  Enter: Play  |  Ctrl+S: Save  |  F2: Rename  |  Esc: Close",
+                   L"Alt+Haut/Bas : Déplacer  |  Suppr : Retirer  |  Entrée : Lire  |  Ctrl+S : Enregistrer  |  F2 : Renommer  |  Échap : Fermer");
 
     // ===================================================================
     // DIALOG: IDD_TRACK_LIST - "Track list" (.cue sheet, v2.34)

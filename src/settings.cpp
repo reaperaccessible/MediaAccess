@@ -252,6 +252,27 @@ void LoadSettings() {
     GetPrivateProfileStringW(L"YouTube", L"DownloadPath", L"", ytDlBuf, MAX_PATH, g_configPath.c_str());
     g_ytDownloadPath = ytDlBuf;
 
+    // v2.69 - folder where playlists are saved. Empty = <download root>\Playlist,
+    // resolved at use time by GetPlaylistsDir() so it follows the download folder.
+    wchar_t plBuf[MAX_PATH] = {0};
+    GetPrivateProfileStringW(L"Playlist", L"Folder", L"", plBuf, MAX_PATH, g_configPath.c_str());
+    g_playlistFolder = plBuf;
+
+    g_playlistSpacePlayPause =
+        GetPrivateProfileIntW(L"Playlist", L"SpacePlayPause", 1, g_configPath.c_str()) != 0;
+
+    // v2.69 — saved playlists offered by the manager's picker. Capped at 50:
+    // this is a shortlist the user curates, not a history.
+    g_playlistRegistry.clear();
+    for (int i = 0; i < 50; i++) {
+        wchar_t key[32];
+        swprintf(key, 32, L"Recent%d", i);
+        wchar_t buf[MAX_PATH] = {0};
+        GetPrivateProfileStringW(L"Playlist", key, L"", buf, MAX_PATH, g_configPath.c_str());
+        if (buf[0] == 0) break;
+        g_playlistRegistry.push_back(buf);
+    }
+
     // Load downloads settings
     wchar_t dlBuf[512] = {0};
     GetPrivateProfileStringW(L"Downloads", L"Path", L"", dlBuf, 512, g_configPath.c_str());
@@ -650,6 +671,21 @@ void SaveSettings() {
     // each run from %LOCALAPPDATA% / bundled lib / PATH).
     WritePrivateProfileStringW(L"YouTube", L"ApiKey", g_ytApiKey.c_str(), g_configPath.c_str());
     WritePrivateProfileStringW(L"YouTube", L"DownloadPath", g_ytDownloadPath.c_str(), g_configPath.c_str());
+    WritePrivateProfileStringW(L"Playlist", L"Folder", g_playlistFolder.c_str(), g_configPath.c_str());
+    WritePrivateProfileStringW(L"Playlist", L"SpacePlayPause",
+                               g_playlistSpacePlayPause ? L"1" : L"0", g_configPath.c_str());
+    // v2.69 — rewrite the whole picker list, then clear the first stale key so a
+    // shortened list does not keep a trailing ghost entry.
+    for (size_t i = 0; i < g_playlistRegistry.size() && i < 50; i++) {
+        wchar_t key[32];
+        swprintf(key, 32, L"Recent%d", (int)i);
+        WritePrivateProfileStringW(L"Playlist", key, g_playlistRegistry[i].c_str(), g_configPath.c_str());
+    }
+    {
+        wchar_t key[32];
+        swprintf(key, 32, L"Recent%d", (int)g_playlistRegistry.size());
+        WritePrivateProfileStringW(L"Playlist", key, nullptr, g_configPath.c_str());
+    }
 
     // Save downloads settings
     WritePrivateProfileStringW(L"Downloads", L"Path", g_downloadPath.c_str(), g_configPath.c_str());

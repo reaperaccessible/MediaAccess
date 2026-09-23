@@ -320,6 +320,11 @@ bool IsYouTubeURL(const std::wstring& input);
 // Parse YouTube URL to extract video/playlist/channel ID
 bool ParseYouTubeURL(const std::wstring& url, std::wstring& id, bool& isPlaylist, bool& isChannel);
 
+// v2.69 — "MediaAccess data root": the configured download folder if usable,
+// else Downloads\MediaAccess. Created if missing. Saved playlists default to a
+// Playlist subfolder of it (see GetPlaylistsDir in ui.h).
+std::wstring YouTubeGetDownloadRoot();
+
 // Show YouTube search dialog (modeless)
 void ShowYouTubeDialog(HWND parent);
 

@@ -172,6 +172,20 @@ DWORD g_startupTime = 0;
 // g_batchFilesPending says a play-batch is armed, so the enqueue batch defers
 // instead of being wiped by `g_playlist = std::move(g_pendingFiles)`.
 std::vector<std::wstring> g_pendingEnqueue;
+// v2.69 - Options > Playback > "Playlists folder". Empty means "work it out":
+// see GetPlaylistsDir() in ui_playlist.cpp.
+std::wstring g_playlistFolder;
+
+// v2.69 (Nicolas, studio radio) — inside the playlist manager, Space starts and
+// stops playback from anywhere in the window. ON by default. It costs the list
+// box its usual Space-toggles-selection behaviour, hence the switch.
+bool g_playlistSpacePlayPause = true;
+
+// v2.69 — playlists offered by the manager's picker. Full paths, so a playlist
+// can live anywhere on the machine; entries whose file is gone are skipped when
+// the picker is filled (the user owns their files — no nagging).
+std::vector<std::wstring> g_playlistRegistry;
+
 // v2.65 - a path was passed on the command line, so an empty playlist afterwards
 // means "nothing playable in there" - worth announcing instead of staying mute.
 bool g_cliHadPathArg = false;

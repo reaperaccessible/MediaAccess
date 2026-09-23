@@ -651,7 +651,12 @@ std::vector<std::wstring> GetFilesFromClipboard() {
                             // exactly like it opens. Previously used the narrower
                             // IsSupportedMediaExt, which rejected .mp2/.mp1/
                             // tracker/etc. — reported by a user.
-                            if (IsOpenableMediaPath(path)) {
+                            // v2.69 — a playlist file is accepted here too, and
+                            // expanded by ExpandPastedPlaylists below. Deliberately
+                            // NOT added to IsOpenableMediaPath, which also gates
+                            // Explorer multi-selections and folder scans, where a
+                            // .m3u is not a media file.
+                            if (IsOpenableMediaPath(path) || IsPlaylistFile(path)) {
                                 files.push_back(path);
                             }
                         }
@@ -696,7 +701,7 @@ std::vector<std::wstring> GetFilesFromClipboard() {
                                     // Same full set as the Open dialog (audio
                                     // superset + video) so a pasted path to
                                     // .mp2 (or any supported format) is accepted.
-                                    if (IsOpenableMediaPath(line)) {
+                                    if (IsOpenableMediaPath(line) || IsPlaylistFile(line)) {   // v2.69
                                         files.push_back(line);
                                     }
                                 }
@@ -908,6 +913,22 @@ static std::vector<std::wstring> ParsePLS(const std::wstring& playlistPath) {
 }
 
 // Parse playlist file (M3U or PLS)
+// v2.69 (Nicolas) — replace every playlist file of `in` by the tracks it holds,
+// leaving media paths and URLs untouched. Used by the paste paths so pasting a
+// .m3u behaves like pasting the files it names. An unreadable or empty playlist
+// simply contributes nothing.
+std::vector<std::wstring> ExpandPastedPlaylists(const std::vector<std::wstring>& in) {
+    std::vector<std::wstring> out;
+    for (const auto& item : in) {
+        if (!IsURL(item.c_str()) && IsPlaylistFile(item)) {
+            for (const auto& track : ParsePlaylist(item)) out.push_back(track);
+        } else {
+            out.push_back(item);
+        }
+    }
+    return out;
+}
+
 std::vector<std::wstring> ParsePlaylist(const std::wstring& playlistPath) {
     size_t dotPos = playlistPath.find_last_of(L'.');
     if (dotPos == std::wstring::npos) return {};

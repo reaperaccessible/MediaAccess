@@ -8,6 +8,10 @@
 </head>
 <body>
 <h1>MediaAccess - Changelog</h1>
+<h2>Version 2.69</h2>
+<p>New: the <strong>playlist manager</strong> has been rethought for radio-studio use, at <strong>Nicolas</strong>'s request. The window stays open when a track is started (only Esc closes it); a <strong>Saved playlists</strong> drop-down list lets you pick a playlist then Tab to its tracks without interrupting what is playing; two separate buttons remove a track or delete a playlist (asking whether to delete the file too); Ctrl+V accepts an M3U, M3U8 or PLS file, in the main window as well as in the manager; a <strong>Playlists folder</strong> setting (Options → Playback) sets where they are saved, by default the Playlist subfolder of the download folder. In the drop-down list each playlist reads as its name, F2 renames it, Right arrow gives the number of tracks then the file location. Ctrl+S saves from anywhere in the window, straight into the shown playlist's file. Space plays or pauses from anywhere in the window (on by default, Options → Playback). List edges are announced ("First," / "Last,").</p>
+<p>Fix: in the manager, the selection did not actually follow the playing track, and a playlist replaced from Explorer kept showing its old titles. Both are fixed; the selection stays put while you hold a multi-track selection.</p>
+<p>Improvement: when the <strong>Update available</strong> window appears, playback is paused (a live radio stream is stopped) so the release notes can be read with the screen reader; it resumes if you choose "Later". Requested by <strong>Alexandre</strong>. This will be noticeable from the next update onwards.</p>
 <h2>Version 2.68</h2>
 <p>Fix: after playing a <strong>.caf</strong> file, YouTube videos played in the same session had sound but no picture, even with "Play YouTube videos as video" enabled. The same could happen after an interrupted YouTube playback in audio mode. YouTube videos now always turn the picture back on, and YouTube audio mode stays sound-only as before.</p>
 <h2>Version 2.67</h2>

@@ -4,6 +4,8 @@
 #include "accessibility.h"
 #include "translations.h"
 #include "resource.h"
+#include "mediaaccess/player.h"
+#include "mediaaccess/logger.h"   // v2.69 — pause playback while the update prompt is up
 #include <winhttp.h>
 #include <shlobj.h>
 #include <commctrl.h>
@@ -944,6 +946,20 @@ void HandleUpdateCheckResult(HWND hwnd, UpdateInfo* info, bool silent) {
     wmessage += L"\n\n";
     wmessage += T("Do you want to download and install the update?");
 
+    // v2.69 (Alexandre) — silence the media BEFORE the prompt appears: a screen
+    // reader cannot read the "what's new" text over a playing track, and the
+    // user should not have to hunt for the pause key while a dialog has the
+    // focus. A live stream cannot be paused (BASS refuses, and Pause() would
+    // speak over the announcement), so it is stopped instead; Play() knows how
+    // to reopen it. Playback resumes only if the user declines the update — if
+    // they accept, the app is about to restart anyway.
+    const bool pausedForUpdate = IsCurrentlyPlaying();
+    if (pausedForUpdate) {
+        if (g_isLiveStream && g_activeEngine == PlaybackEngine::BASS) Stop();
+        else Pause();
+    }
+    LogF("UPDATE", "prompt shown, playback %s", pausedForUpdate ? "paused" : "was not playing");
+
     Speak(Ts("Update available. ") + info->latestVersion);
 
     // v2.42 (Seb) — when the release carries notes, show the "What's new"
@@ -988,6 +1004,10 @@ void HandleUpdateCheckResult(HWND hwnd, UpdateInfo* info, bool silent) {
     } else {
         // Notes dialog: IDOK = "Update now", anything else (Later / Esc) = decline.
         pressed = (dlgResult == IDOK) ? IDYES : IDNO;
+    }
+    if (pressed != IDYES && pausedForUpdate) {
+        Play();   // v2.69 — "Later": give the track back exactly where it was
+        LogF("UPDATE", "declined, playback resumed");
     }
     if (pressed == IDYES) {
         // Heap-allocate so the background thread has a safe pointer

@@ -547,9 +547,17 @@ static void PasteMediaFromClipboard() {
         Speak(Ts("No media in clipboard"));
         return;
     }
+    // v2.69 (Nicolas) — a pasted .m3u/.m3u8/.pls becomes the tracks it names, so
+    // it replaces the playlist and plays exactly like pasted files do.
+    files = ExpandPastedPlaylists(files);
+    if (files.empty()) {
+        Speak(Ts("No media in clipboard"));
+        return;
+    }
     g_playlist.clear();
     g_currentTrack = -1;
     for (const auto& f : files) g_playlist.push_back(f);
+    NotifyPlaylistContentChanged();   // v2.69 — an open manager must not show the old list
     PlayTrack(0);
     if (files.size() == 1) {
         Speak(Ts("Pasted 1 item"));
@@ -991,7 +999,14 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
                         g_pendingFiles.clear();
                     }
                     PlayTrack(startIndex);
-                    if (g_bringToFront) {
+                    NotifyPlaylistContentChanged();   // v2.69 — the list was replaced
+                    // v2.69 (Nicolas) — with the playlist window open it is the
+                    // one the user is working in (radio cart wall). Pulling the
+                    // main window forward would steal the focus mid-show, so
+                    // raise the playlist instead.
+                    if (g_bringToFront && g_playlistDlg) {
+                        SetForegroundWindow(g_playlistDlg);
+                    } else if (g_bringToFront) {
                         if (!IsWindowVisible(hwnd)) {
                             RestoreFromTray(hwnd);
                         } else {

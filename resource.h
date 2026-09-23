@@ -22,6 +22,16 @@
 #define IDM_FILE_HIDE_TRAY  106
 #define IDM_FILE_ADD_FOLDER 110
 #define IDM_FILE_PLAYLIST   111
+// v2.69 - dedicated folder for saved playlists (Options > Playback)
+#define IDC_LABEL_PLAYLIST_FOLDER   1767
+#define IDC_PLAYLIST_FOLDER         1768
+#define IDC_PLAYLIST_FOLDER_BROWSE  1769
+// v2.69 - playlist manager: saved-playlist picker and the two delete buttons
+#define IDC_LABEL_PLAYLIST_COMBO    1770
+#define IDC_PLAYLIST_COMBO          1771
+#define IDC_PLAYLIST_DEL_LIST       1772
+#define IDC_PLAYLIST_DEL_TRACK      1773
+#define IDC_PLAYLIST_SPACE          1774
 #define IDM_FILE_PASTE      122
 #define IDM_FILE_RECENT_BASE 6000  // Recent files use IDs 6000-6009
 
@@ -138,6 +148,7 @@
 #define WM_BOOKEDGE_END       (WM_USER + 19) // v2.48 — Edge book paragraph clip finished (wParam=gen, lParam=segIdx) -> advance
 #define WM_YT_CAPTION_READY   (WM_USER + 20) // v2.52 — YouTube auto-caption fetch done (wParam=gen, lParam=std::wstring* vtt path or null)
 #define WM_YT_SUBS_CHECK_DONE (WM_USER + 21) // v2.61 (Phase 3b) — subscription new-video check finished (lParam=YtSubsCheckResult* heap)
+#define WM_PLAYLIST_CONTENT_CHANGED (WM_USER + 23) // v2.69 — playlist CONTENT replaced (Explorer open, paste): the manager must rebuild, not just move its caret
 #define WM_PLAYLIST_TOTAL_DONE (WM_USER + 22) // v2.64 — playlist total-duration worker finished (lParam=PlaylistTotalResult* heap)
 
 // v2.52 — YouTube automatic-caption options (YouTube tab). 1760-1762 verified free.
@@ -854,6 +865,8 @@
 
 // Update-notes dialog (v2.42) — release notes shown when an update is offered
 #define IDD_UPDATE_NOTES                   1460
+#define IDD_PLAYLIST_RENAME                1461   // v2.69 - rename a saved playlist (F2)
+#define IDC_PLAYLIST_RENAME_EDIT           1775
 #define IDC_UPDATE_NOTES_SUMMARY           1461   // LTEXT, version summary (set at runtime)
 #define IDC_UPDATE_NOTES_LABEL             1462   // LTEXT "What's new:"
 #define IDC_UPDATE_NOTES_EDIT              1463   // read-only multiline edit (the notes)

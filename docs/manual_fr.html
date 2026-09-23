@@ -576,20 +576,46 @@
 
 <section id="playlists" aria-labelledby="playlists-h">
 <h2 id="playlists-h">9. Listes de lecture</h2>
-<p><kbd>Ctrl</kbd>+<kbd>P</kbd> ouvre le gestionnaire de listes de lecture.</p>
+<p><kbd>Ctrl</kbd>+<kbd>P</kbd> ouvre le gestionnaire de listes de lecture. Depuis la version 2.69, cette fenêtre est conçue pour rester ouverte pendant toute une émission, comme un cartoucheur de studio : lancer un titre ne la ferme plus, et vous pouvez enchaîner les titres sans jamais la rouvrir. Seule la touche <kbd>Échap</kbd> la ferme.</p>
+
+<h3>Deux zones : les listes enregistrées, puis les pistes</h3>
+<p>La fenêtre s'ouvre sur la liste déroulante <strong>Listes enregistrées</strong>. Choisissez-y une liste avec <kbd>↑</kbd> / <kbd>↓</kbd>, puis faites <kbd>Tab</kbd> pour passer aux pistes qu'elle contient. Choisir une liste ne touche pas à ce qui joue : le titre en cours continue jusqu'à ce que vous lanciez une piste avec <kbd>Entrée</kbd>. À ce moment seulement, la liste choisie devient la liste en lecture.</p>
+<p>Dans la liste déroulante, chaque entrée se présente d'abord par son nom. <kbd>→</kbd> donne le nombre de pistes (toujours à jour, même avant d'enregistrer), <kbd>→</kbd> une seconde fois donne l'emplacement du fichier ; <kbd>←</kbd> revient en arrière. <kbd>F2</kbd> renomme la liste : le fichier est renommé sur le disque et l'entrée suit.</p>
+<p>Une liste enregistrée peut se trouver n'importe où sur l'ordinateur ; elle reste proposée tant que son fichier existe. Les formats M3U, M3U8 et PLS sont acceptés.</p>
+
 <table>
 <caption>Touches dans le gestionnaire</caption>
 <thead><tr><th>Touche</th><th>Action</th></tr></thead>
 <tbody>
-<tr><td><kbd>Entrée</kbd></td><td>Lire l'élément sélectionné</td></tr>
-<tr><td><kbd>Suppr</kbd></td><td>Retirer l'élément sélectionné</td></tr>
+<tr><td><kbd>Entrée</kbd></td><td>Lire la piste sous le curseur (la fenêtre reste ouverte)</td></tr>
+<tr><td><kbd>Espace</kbd></td><td>Lecture / pause, depuis n'importe quel endroit de la fenêtre (voir l'option ci-dessous)</td></tr>
+<tr><td><kbd>Ctrl</kbd>+<kbd>S</kbd></td><td>Enregistrer : réécrit directement le fichier de la liste affichée, ou demande un nom s'il n'y en a pas encore</td></tr>
+<tr><td><kbd>F2</kbd></td><td>Renommer la liste choisie dans la liste déroulante</td></tr>
+<tr><td><kbd>→</kbd> / <kbd>←</kbd></td><td>Dans la liste déroulante : nombre de pistes, puis emplacement du fichier</td></tr>
+<tr><td><kbd>Suppr</kbd></td><td>Retirer les pistes sélectionnées de la liste affichée</td></tr>
 <tr><td><kbd>Ctrl</kbd>+<kbd>A</kbd></td><td>Tout sélectionner</td></tr>
-<tr><td><kbd>Ctrl</kbd>+<kbd>V</kbd></td><td>Coller les chemins du presse-papiers</td></tr>
-<tr><td><kbd>Alt</kbd>+<kbd>↑</kbd> / <kbd>Alt</kbd>+<kbd>↓</kbd></td><td>Réorganiser les éléments sélectionnés</td></tr>
+<tr><td><kbd>Ctrl</kbd>+<kbd>V</kbd></td><td>Coller : des fichiers audio dans les pistes, ou un fichier de liste (M3U, M3U8, PLS) qui s'ajoute aux listes enregistrées</td></tr>
+<tr><td><kbd>Alt</kbd>+<kbd>↑</kbd> / <kbd>Alt</kbd>+<kbd>↓</kbd></td><td>Réorganiser les pistes sélectionnées</td></tr>
+<tr><td><kbd>Échap</kbd></td><td>Fermer la fenêtre</td></tr>
 </tbody>
 </table>
-<p>Le bouton <strong>Enregistrer</strong> exporte au format M3U / M3U8 (UTF-8, avec en-tête <code>#EXTM3U</code>). Seuls M3U et M3U8 peuvent être écrits ; PLS est en lecture seule.</p>
-<p>L'option <strong>Suivre la lecture dans la liste de lecture</strong> (Options → Lecture) sélectionne automatiquement la piste en cours quand vous ouvrez le gestionnaire.</p>
+<p>Arriver au bord d'une liste n'est jamais muet : <kbd>↑</kbd> sur la première ligne annonce «&nbsp;Premier,&nbsp;» suivi de la ligne, <kbd>↓</kbd> sur la dernière annonce «&nbsp;Dernier,&nbsp;».</p>
+
+<h3>Boutons</h3>
+<ul>
+  <li><strong>Enregistrer…</strong> demande toujours un nom et s'ouvre dans le dossier des listes (voir ci-dessous). La liste enregistrée rejoint aussitôt la liste déroulante. Formats écrits : M3U et M3U8 (UTF-8, avec en-tête <code>#EXTM3U</code>) ; PLS est en lecture seule.</li>
+  <li><strong>Retirer la piste</strong> retire les pistes sélectionnées de la liste affichée — même chose que <kbd>Suppr</kbd>.</li>
+  <li><strong>Supprimer la liste…</strong> retire la liste choisie de la liste déroulante, puis demande si le fichier doit aussi être effacé du disque.</li>
+</ul>
+
+<h3>Options liées (Options → Lecture)</h3>
+<ul>
+  <li><strong>Dossier des listes de lecture</strong> : là où les listes sont enregistrées. Vide, c'est le sous-dossier <code>Playlist</code> du dossier de téléchargement (par exemple <code>Musique\MediaAccess\Playlist</code> si vous avez choisi <code>Musique\MediaAccess</code> comme dossier de téléchargement YouTube, sinon <code>Téléchargements\MediaAccess\Playlist</code>).</li>
+  <li><strong>La barre d'espace lance/arrête la lecture dans le gestionnaire de listes</strong> (activée par défaut). Quand elle est active, <kbd>Espace</kbd> ne coche plus une piste dans la liste et n'active plus un bouton (utilisez <kbd>Entrée</kbd> ou le raccourci <kbd>Alt</kbd>+lettre du bouton).</li>
+  <li><strong>Suivre la lecture dans la liste de lecture</strong> : la sélection suit la piste en cours. Elle ne bouge pas si vous tenez une sélection de plusieurs pistes.</li>
+  <li><strong>Passer automatiquement à l'élément suivant</strong> : décochez-la pour un usage de type cartoucheur, où chaque titre s'arrête à sa fin et le suivant se lance à la main.</li>
+</ul>
+<p>Dans la fenêtre principale, <kbd>Ctrl</kbd>+<kbd>V</kbd> avec un fichier de liste dans le presse-papiers remplace la liste en cours par son contenu et lance la lecture, comme pour des fichiers audio.</p>
 </section>
 
 <section id="signets" aria-labelledby="signets-h">
@@ -1224,7 +1250,7 @@
 <p><strong>Aide → Télécharger la dernière version (installation manuelle)...</strong> lance directement le téléchargement du dernier installeur complet dans votre navigateur. C'est une solution de repli pratique si la mise à jour automatique n'aboutit pas (par exemple sur une connexion instable) : il suffit ensuite d'exécuter le fichier téléchargé pour installer la dernière version par-dessus l'ancienne.</p>
 
 <h3>Comportement</h3>
-<p>Si une nouvelle version est disponible, MediaAccess affiche un dialogue avec la version actuelle, la nouvelle version et un bouton Oui/Non. Si vous acceptez, le nouvel installateur est téléchargé puis exécuté silencieusement ; MediaAccess se ferme et redémarre dans la nouvelle version.</p>
+<p>Si une nouvelle version est disponible, MediaAccess affiche un dialogue avec la version actuelle, la nouvelle version et un bouton Oui/Non. Dès que ce dialogue apparaît, la lecture en cours est mise en pause (une radio en direct est arrêtée) pour que les nouveautés puissent être lues au lecteur d'écran ; si vous choisissez « Plus tard », la lecture reprend là où elle en était. Si vous acceptez, le nouvel installateur est téléchargé puis exécuté silencieusement ; MediaAccess se ferme et redémarre dans la nouvelle version.</p>
 <p>MediaAccess ne fera jamais de déclassement automatique : si la version distante est plus ancienne, aucun dialogue n'est proposé.</p>
 </section>
 

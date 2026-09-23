@@ -575,20 +575,46 @@
 
 <section id="playlists" aria-labelledby="playlists-h">
 <h2 id="playlists-h">9. Playlists</h2>
-<p><kbd>Ctrl</kbd>+<kbd>P</kbd> opens the playlist manager.</p>
+<p><kbd>Ctrl</kbd>+<kbd>P</kbd> opens the playlist manager. Since version 2.69 this window is meant to stay open for a whole show, like a studio cart wall: starting a track no longer closes it, and you can launch track after track without ever reopening it. Only <kbd>Esc</kbd> closes it.</p>
+
+<h3>Two areas: saved playlists, then tracks</h3>
+<p>The window opens on the <strong>Saved playlists</strong> drop-down list. Pick a playlist with <kbd>↑</kbd> / <kbd>↓</kbd>, then press <kbd>Tab</kbd> to reach the tracks it holds. Picking a playlist leaves playback alone: the current track keeps playing until you start a track with <kbd>Enter</kbd>. Only then does the chosen playlist become the playing one.</p>
+<p>In the drop-down list, each entry reads as its name first. <kbd>→</kbd> gives the number of tracks (always current, even before saving), <kbd>→</kbd> again gives the file location; <kbd>←</kbd> walks back. <kbd>F2</kbd> renames the playlist: the file is renamed on disk and the entry follows.</p>
+<p>A saved playlist can live anywhere on the computer; it stays offered as long as its file exists. M3U, M3U8 and PLS are accepted.</p>
+
 <table>
 <caption>Keys in the playlist manager</caption>
 <thead><tr><th>Key</th><th>Action</th></tr></thead>
 <tbody>
-<tr><td><kbd>Enter</kbd></td><td>Play selected item</td></tr>
-<tr><td><kbd>Delete</kbd></td><td>Remove selected item</td></tr>
+<tr><td><kbd>Enter</kbd></td><td>Play the track under the cursor (the window stays open)</td></tr>
+<tr><td><kbd>Space</kbd></td><td>Play / pause, from anywhere in the window (see the option below)</td></tr>
+<tr><td><kbd>Ctrl</kbd>+<kbd>S</kbd></td><td>Save: writes the shown playlist straight back to its file, or asks for a name if it has none yet</td></tr>
+<tr><td><kbd>F2</kbd></td><td>Rename the playlist chosen in the drop-down list</td></tr>
+<tr><td><kbd>→</kbd> / <kbd>←</kbd></td><td>In the drop-down list: number of tracks, then file location</td></tr>
+<tr><td><kbd>Delete</kbd></td><td>Remove the selected tracks from the shown playlist</td></tr>
 <tr><td><kbd>Ctrl</kbd>+<kbd>A</kbd></td><td>Select all</td></tr>
-<tr><td><kbd>Ctrl</kbd>+<kbd>V</kbd></td><td>Paste paths from clipboard</td></tr>
-<tr><td><kbd>Alt</kbd>+<kbd>↑</kbd> / <kbd>Alt</kbd>+<kbd>↓</kbd></td><td>Reorder selected rows</td></tr>
+<tr><td><kbd>Ctrl</kbd>+<kbd>V</kbd></td><td>Paste: audio files into the tracks, or a playlist file (M3U, M3U8, PLS) which joins the saved playlists</td></tr>
+<tr><td><kbd>Alt</kbd>+<kbd>↑</kbd> / <kbd>Alt</kbd>+<kbd>↓</kbd></td><td>Reorder the selected tracks</td></tr>
+<tr><td><kbd>Esc</kbd></td><td>Close the window</td></tr>
 </tbody>
 </table>
-<p>The <strong>Save</strong> button exports as M3U / M3U8 (UTF-8, with <code>#EXTM3U</code> header). Only M3U and M3U8 can be written; PLS is read-only.</p>
-<p>The <strong>Follow playback in playlist dialog</strong> option (Options → Playback) auto-selects the currently playing track when you open the manager.</p>
+<p>Reaching the edge of a list is never silent: <kbd>↑</kbd> on the first line announces "First," followed by the line, <kbd>↓</kbd> on the last line announces "Last,".</p>
+
+<h3>Buttons</h3>
+<ul>
+  <li><strong>Save…</strong> always asks for a name and opens in the playlists folder (see below). The saved playlist joins the drop-down list right away. Written formats: M3U and M3U8 (UTF-8, with <code>#EXTM3U</code> header); PLS is read-only.</li>
+  <li><strong>Remove track</strong> removes the selected tracks from the shown playlist — same as <kbd>Delete</kbd>.</li>
+  <li><strong>Delete playlist…</strong> removes the chosen playlist from the drop-down list, then asks whether the file should be deleted from the disk as well.</li>
+</ul>
+
+<h3>Related options (Options → Playback)</h3>
+<ul>
+  <li><strong>Playlists folder</strong>: where playlists are saved. Left empty, it is the <code>Playlist</code> subfolder of the download folder (for instance <code>Music\MediaAccess\Playlist</code> if you chose <code>Music\MediaAccess</code> as the YouTube download folder, otherwise <code>Downloads\MediaAccess\Playlist</code>).</li>
+  <li><strong>Space plays/pauses in the playlist manager</strong> (on by default). While it is on, <kbd>Space</kbd> no longer ticks a track in the list nor presses a button (use <kbd>Enter</kbd> or the button's <kbd>Alt</kbd>+letter shortcut).</li>
+  <li><strong>Follow playback in playlist dialog</strong>: the selection follows the playing track. It does not move while you hold a multi-track selection.</li>
+  <li><strong>Auto-advance to next playlist item</strong>: untick it for cart-wall use, where each track stops at its end and the next one is started by hand.</li>
+</ul>
+<p>In the main window, <kbd>Ctrl</kbd>+<kbd>V</kbd> with a playlist file in the clipboard replaces the current playlist with its content and starts playback, just as with audio files.</p>
 </section>
 
 <section id="bookmarks" aria-labelledby="bookmarks-h">
@@ -1227,7 +1253,7 @@
 <p><strong>Help → Download latest version (manual install)...</strong> directly downloads the latest full installer in your browser. It's a handy fallback if the automatic update doesn't complete (for example on an unstable connection): just run the downloaded file to install the latest version over the old one.</p>
 
 <h3>Behavior</h3>
-<p>If a new version is available, MediaAccess shows a dialog with the current version, the new version, and a Yes/No button. If you accept, the new installer is downloaded then executed silently; MediaAccess closes and reopens in the new version.</p>
+<p>If a new version is available, MediaAccess shows a dialog with the current version, the new version, and a Yes/No button. As soon as that dialog appears, playback is paused (a live radio stream is stopped) so the release notes can be read with the screen reader; if you choose "Later", playback resumes where it was. If you accept, the new installer is downloaded then executed silently; MediaAccess closes and reopens in the new version.</p>
 <p>MediaAccess will never automatically downgrade: if the remote version is older, no dialog is shown.</p>
 </section>
 

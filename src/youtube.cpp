@@ -1955,6 +1955,45 @@ static std::wstring GetLegacyDownloadsTargetDir() {
 // field in Options is NOT ES_READONLY, so the user can clear the path by
 // hand to revert to the historical default — any free-typed garbage path
 // simply falls back here without complaint.
+// v2.69 — the folder that acts as the user's "MediaAccess data root": the
+// configured download folder when it is set and usable, otherwise the historical
+// Downloads\MediaAccess. Saved playlists live in a Playlist subfolder of it, so
+// they follow wherever the user sends downloads. Extracted from
+// GetDownloadsTargetDir below, whose behaviour is unchanged.
+std::wstring YouTubeGetDownloadRoot() {
+    std::wstring pref = g_ytDownloadPath;
+    if (!pref.empty()) {
+        wchar_t abs[MAX_PATH] = {0};
+        DWORD n = GetFullPathNameW(pref.c_str(), MAX_PATH, abs, nullptr);
+        if (n > 0 && n < MAX_PATH) {
+            CreateDirectoryW(abs, nullptr);
+            DWORD attrs = GetFileAttributesW(abs);
+            if (attrs != INVALID_FILE_ATTRIBUTES && (attrs & FILE_ATTRIBUTE_DIRECTORY)) {
+                std::wstring probe = std::wstring(abs) + L"\\.ma_write_test";
+                HANDLE h = CreateFileW(probe.c_str(), GENERIC_WRITE, 0, nullptr,
+                                       CREATE_ALWAYS,
+                                       FILE_ATTRIBUTE_TEMPORARY | FILE_FLAG_DELETE_ON_CLOSE,
+                                       nullptr);
+                if (h != INVALID_HANDLE_VALUE) { CloseHandle(h); return abs; }
+            }
+        }
+    }
+    // Same legacy root as the downloads fallback, minus the YouTube leaf.
+    PWSTR raw = nullptr;
+    std::wstring root;
+    if (SUCCEEDED(SHGetKnownFolderPath(FOLDERID_Downloads, 0, nullptr, &raw)) && raw) {
+        root = raw;
+        CoTaskMemFree(raw);
+    } else {
+        wchar_t profile[MAX_PATH] = {0};
+        SHGetFolderPathW(nullptr, CSIDL_PROFILE, nullptr, 0, profile);
+        root = std::wstring(profile) + L"\\Downloads";
+    }
+    std::wstring out = root + L"\\MediaAccess";
+    CreateDirectoryW(out.c_str(), nullptr);
+    return out;
+}
+
 static std::wstring GetDownloadsTargetDir() {
     std::wstring pref = g_ytDownloadPath;   // local snapshot — no race with Options write
     if (!pref.empty()) {
