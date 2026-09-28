@@ -23,6 +23,17 @@ bool IsVideoFile(const std::wstring& path);
 // ===== Playback =====
 bool MPVLoadFile(const wchar_t* path);
 bool MPVLoadURL(const wchar_t* url);
+// v2.71 — load with mpv per-file options ("key=value,key=value"). mpv applies
+// them before its on_load hooks (so the ytdl hook sees them) and undoes them by
+// itself when that file ends. nullptr/empty = same as MPVLoadURL.
+bool MPVLoadURLWithOptions(const wchar_t* url, const char* fileOptions);
+
+// v2.71 — YouTube video quality. YtFormatForQuality turns g_ytVideoQuality-style
+// values (1080/720/480, 0 = best) into a yt-dlp format selector ("" for best).
+// MPVApplyYouTubeQuality pushes the current setting into mpv's ytdl-format; the
+// ytdl hook re-reads it on every load, so a change applies from the next video.
+std::string YtFormatForQuality(int quality);
+void MPVApplyYouTubeQuality();
 void MPVPlay();
 void MPVPause();
 void MPVStop();

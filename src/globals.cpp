@@ -82,6 +82,11 @@ std::wstring g_ytCaptionLang;
 // next result in the list. Default off (a search-results list is not a curated
 // queue; silently rolling into an unrelated result is surprising).
 bool g_ytAutoplayNext = false;
+// v2.71 — "YouTube video quality": maximum height of a STREAMED YouTube video
+// (1080 / 720 / 480), or 0 for the best available. Default 1080. The capped
+// settings also exclude AV1: without it, YouTube hands out AV1 4K, which many
+// laptops cannot decode in hardware (sound played, picture never came).
+int g_ytVideoQuality = 1080;
 std::atomic<float> g_subtitleBassDuck{1.0f};
 float g_subtitleVoiceVolume = 1.0f;
 

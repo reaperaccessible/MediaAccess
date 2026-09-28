@@ -20,7 +20,10 @@ bool LoadFile(const wchar_t* path);
 // LoadURL — load and play a stream URL.
 //   silentOnFail = true → suppresses the BASS error MessageBox so the caller
 //   can attempt a fallback (used by the YouTube path to retry via libmpv).
-bool LoadURL(const wchar_t* url, bool silentOnFail = false);
+//   mpvFileOptions (v2.71) — mpv per-file options for a URL routed to libmpv
+//   (YouTube), e.g. "ytdl-format=bestaudio/best,vid=no" for audio-only
+//   streaming. Applied before the ytdl hook runs, undone by mpv at end of file.
+bool LoadURL(const wchar_t* url, bool silentOnFail = false, const char* mpvFileOptions = nullptr);
 bool IsURL(const wchar_t* path);
 void PlayPause();
 void Play();

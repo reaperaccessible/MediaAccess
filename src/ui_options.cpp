@@ -2,6 +2,7 @@
 #include "mediaaccess/translations.h"
 #include "UniversalSpeech.h"  // v1.91 — speechStop() to suppress "not available"
 #include "mediaaccess/youtube.h"  // ClearYouTubeCache, GetYouTubeCacheSize
+#include "mediaaccess/video_engine.h"      // v2.71 — MPVApplyYouTubeQuality
 #include "mediaaccess/database.h"          // book library folders
 #include "mediaaccess/books_dialog.h"      // RescanBookLibrary
 #include "mediaaccess/tts_player.h"        // SAPI voice list / set active
@@ -37,6 +38,17 @@ static const CaptionLangChoice kCaptionLangs[] = {
     { "Chinese",    L"zh" },
 };
 static const int kCaptionLangCount = (int)(sizeof(kCaptionLangs) / sizeof(kCaptionLangs[0]));
+
+// v2.71 — YouTube video quality choices (Options > YouTube). Index-mapped to the
+// combo, same pattern as kCaptionLangs. height = max stream height, 0 = best.
+struct YtQualityChoice { const char* name; int height; };
+static const YtQualityChoice kYtQualities[] = {
+    { "1080p maximum (recommended)", 1080 },
+    { "720p maximum",                720  },
+    { "480p maximum",                480  },
+    { "Best available",              0    },
+};
+static const int kYtQualityCount = (int)(sizeof(kYtQualities) / sizeof(kYtQualities[0]));
 
 // Dialog-private message (v2.44): the background Edge voice-catalog fetch
 // finished, so the voice/language combos (filled from the offline fallback at
@@ -282,7 +294,7 @@ void ShowTabControls(HWND hwnd, int tab) {
                           IDC_YT_DOWNLOAD_PATH, IDC_YT_DOWNLOAD_PATH_BROWSE, IDC_LABEL_YT_DOWNLOAD_PATH,
                           IDC_LABEL_YOUTUBE_API_KEY, IDC_LABEL_YOUTUBE_API_HELP, IDC_LABEL_YOUTUBE_API_NOTE,
                           IDC_YT_VIDEO_MODE, IDC_YT_FETCH_CAPTIONS, IDC_YT_CAPTION_LANG, IDC_LABEL_YT_CAPTION_LANG,
-                          IDC_YT_AUTOPLAY_NEXT};
+                          IDC_YT_AUTOPLAY_NEXT, IDC_LABEL_YT_VIDEO_QUALITY, IDC_YT_VIDEO_QUALITY};
     // SoundTouch tab controls (tab 9)
     int soundtouchCtrls[] = {IDC_ST_AA_FILTER, IDC_ST_AA_LENGTH, IDC_ST_QUICK_ALGO, IDC_ST_SEQUENCE,
                              IDC_ST_SEEKWINDOW, IDC_ST_OVERLAP, IDC_ST_PREVENT_CLICK, IDC_ST_ALGORITHM,
@@ -804,6 +816,17 @@ INT_PTR CALLBACK OptionsDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
             CheckDlgButton(hwnd, IDC_YT_FETCH_CAPTIONS, g_ytFetchCaptions ? BST_CHECKED : BST_UNCHECKED);
             // v2.61 — YouTube autoplay next result
             CheckDlgButton(hwnd, IDC_YT_AUTOPLAY_NEXT, g_ytAutoplayNext ? BST_CHECKED : BST_UNCHECKED);
+            // v2.71 — YouTube video quality (streaming). Order = kYtQualities.
+            {
+                HWND hQ = GetDlgItem(hwnd, IDC_YT_VIDEO_QUALITY);
+                SendMessageW(hQ, CB_RESETCONTENT, 0, 0);
+                int sel = 0;   // default = 1080p
+                for (int i = 0; i < kYtQualityCount; i++) {
+                    SendMessageW(hQ, CB_ADDSTRING, 0, (LPARAM)T(kYtQualities[i].name));
+                    if (kYtQualities[i].height == g_ytVideoQuality) sel = i;
+                }
+                SendMessageW(hQ, CB_SETCURSEL, sel, 0);
+            }
             {
                 HWND hLang = GetDlgItem(hwnd, IDC_YT_CAPTION_LANG);
                 SendMessageW(hLang, CB_RESETCONTENT, 0, 0);
@@ -1340,6 +1363,16 @@ INT_PTR CALLBACK OptionsDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
                     SetYouTubeVideoMode(IsDlgButtonChecked(hwnd, IDC_YT_VIDEO_MODE) == BST_CHECKED);
                     // v2.61 — YouTube autoplay next result (persisted by SaveSettings below)
                     g_ytAutoplayNext = (IsDlgButtonChecked(hwnd, IDC_YT_AUTOPLAY_NEXT) == BST_CHECKED);
+                    // v2.71 — YouTube video quality: applied to mpv at once, so
+                    // the next video already follows it (no restart needed).
+                    {
+                        int sel = (int)SendMessageW(GetDlgItem(hwnd, IDC_YT_VIDEO_QUALITY), CB_GETCURSEL, 0, 0);
+                        if (sel >= 0 && sel < kYtQualityCount &&
+                            kYtQualities[sel].height != g_ytVideoQuality) {
+                            g_ytVideoQuality = kYtQualities[sel].height;
+                            MPVApplyYouTubeQuality();
+                        }
+                    }
                     // v2.52 — YouTube auto-captions
                     {
                         // v2.52 — capture old caption settings to detect a change and

@@ -413,13 +413,53 @@ static DWORD WINAPI MPVEventThread(LPVOID /*param*/)
             break;
         }
 
-        case MPV_EVENT_FILE_LOADED:
+        case MPV_EVENT_FILE_LOADED: {
+            // v2.71 — diagnostic: what did we actually ask for and select? A
+            // future "sound but no picture" then explains itself in the log.
+            // Not a count of track-list entries: in the ytdl hook's all_formats
+            // mode every YouTube format is LISTED as a track but only opened
+            // when selected, so a listed video track proves nothing. What does:
+            // the format requested from yt-dlp (options/ytdl-format, per-file
+            // value included) and the video track actually SELECTED.
+            {
+                char* fmt   = fn_mpv_get_property_string(g_mpv, "options/ytdl-format");
+                char* codec = fn_mpv_get_property_string(g_mpv, "current-tracks/video/codec");
+                char* w     = fn_mpv_get_property_string(g_mpv, "current-tracks/video/demux-w");
+                char* h     = fn_mpv_get_property_string(g_mpv, "current-tracks/video/demux-h");
+                char* acod  = fn_mpv_get_property_string(g_mpv, "current-tracks/audio/codec");
+                LogF("VIDEO", "file loaded: selected video=%s %sx%s, audio=%s, requested format='%s'",
+                     codec ? codec : "(none)", w ? w : "?", h ? h : "?",
+                     acod ? acod : "(none)",
+                     (fmt && *fmt) ? fmt : "(default)");
+                if (fmt)   fn_mpv_free(fmt);
+                if (codec) fn_mpv_free(codec);
+                if (w)     fn_mpv_free(w);
+                if (h)     fn_mpv_free(h);
+                if (acod)  fn_mpv_free(acod);
+            }
             // A new video finished loading and its track list is now known.
             // Let the UI thread (re)start the Edge subtitle reader for this
             // file if that method is enabled — the subtitle ff-index is valid
             // at this point. Posted so the work happens off the mpv thread.
             if (g_hwnd) PostMessageW(g_hwnd, WM_SUBTITLE_AUTOSTART, 0, 0);
             break;
+        }
+
+        case MPV_EVENT_VIDEO_RECONFIG: {
+            // v2.71 — diagnostic: the decoder actually in use (hardware or not)
+            // and the output size. May fire more than once per file.
+            char* hw = fn_mpv_get_property_string(g_mpv, "hwdec-current");
+            char* w  = fn_mpv_get_property_string(g_mpv, "video-params/w");
+            char* h  = fn_mpv_get_property_string(g_mpv, "video-params/h");
+            if (w && h) {
+                LogF("VIDEO", "video output: %sx%s, hardware decoding=%s",
+                     w, h, (hw && *hw) ? hw : "no");
+            }
+            if (hw) fn_mpv_free(hw);
+            if (w)  fn_mpv_free(w);
+            if (h)  fn_mpv_free(h);
+            break;
+        }
 
         case MPV_EVENT_SHUTDOWN:
             g_mpvThreadRunning.store(false);
@@ -479,6 +519,14 @@ bool InitMPV(HWND parentHwnd)
 
     /* Enable yt-dlp integration for URL playback */
     fn_mpv_set_option_string(g_mpv, "ytdl", "yes");
+
+    /* v2.71 — YouTube video quality (see YtFormatForQuality). Empty = best
+     * available, in which case ytdl-format is left at mpv's default so the hook
+     * keeps its own behaviour (including bestaudio/best when vid=no). */
+    {
+        std::string fmt = YtFormatForQuality(g_ytVideoQuality);
+        if (!fmt.empty()) fn_mpv_set_option_string(g_mpv, "ytdl-format", fmt.c_str());
+    }
 
     /* Tell mpv's ytdl_hook where our bundled yt-dlp.exe lives so it does not
      * rely on PATH lookup. g_ytdlpPath is populated by settings.cpp auto-
@@ -645,11 +693,15 @@ bool IsVideoFile(const std::wstring& path)
  *  Playback
  * ================================================================ */
 
-bool MPVLoadFile(const wchar_t* path)
+// v2.71 — one loader for both forms. With fileOptions, uses the mpv >= 0.38
+// syntax "loadfile <url> replace -1 <options>" (the bundled libmpv is 0.41).
+static bool MPVLoadInternal(const wchar_t* path, const char* fileOptions)
 {
     if (!g_mpv) return false;
     std::string utf8 = WideToUtf8(std::wstring(path));
-    const char* cmd[] = {"loadfile", utf8.c_str(), nullptr};
+    const char* cmdPlain[] = {"loadfile", utf8.c_str(), nullptr};
+    const char* cmdOpts[]  = {"loadfile", utf8.c_str(), "replace", "-1", fileOptions, nullptr};
+    const char** cmd = (fileOptions && *fileOptions) ? cmdOpts : cmdPlain;
     g_mpvEofReached.store(false);
     g_mpvEndPosted.store(false);   // re-arm the once-per-end guard for new content
     g_mpvIdle.store(false);
@@ -659,13 +711,52 @@ bool MPVLoadFile(const wchar_t* path)
     // media would silently load and stay paused. Always start fresh.
     int flag = 0;
     fn_mpv_set_property(g_mpv, "pause", MPV_FORMAT_FLAG, &flag);
-    return fn_mpv_command(g_mpv, cmd) == 0;
+    int rc = fn_mpv_command(g_mpv, cmd);
+    if (rc < 0 && cmd == cmdOpts) {
+        LogF("MPV", "loadfile with options '%s' failed (%d)", fileOptions, rc);
+    }
+    return rc == 0;
+}
+
+bool MPVLoadFile(const wchar_t* path)
+{
+    return MPVLoadInternal(path, nullptr);
 }
 
 bool MPVLoadURL(const wchar_t* url)
 {
     /* mpv handles URLs the same way as local files */
-    return MPVLoadFile(url);
+    return MPVLoadInternal(url, nullptr);
+}
+
+bool MPVLoadURLWithOptions(const wchar_t* url, const char* fileOptions)
+{
+    return MPVLoadInternal(url, fileOptions);
+}
+
+// v2.71 (Lee's ASUS laptop: Intel UHD 620 + GeForce MX150) — without a format,
+// the ytdl hook takes YouTube's best stream, typically AV1 in 4K. Neither chip
+// decodes AV1 in hardware ("Your platform doesn't support hardware accelerated
+// AV1 decoding" in its log), the CPU cannot keep up in 4K: sound, no picture.
+// Capped settings therefore also exclude AV1 (YouTube offers AV1 at 1080p too),
+// which lands on VP9 or H.264. The trailing fallbacks only matter for streams
+// that are already muxed (format 18, live HLS), so no video ever refuses to play.
+std::string YtFormatForQuality(int quality)
+{
+    if (quality <= 0) return "";   // best available: leave mpv/yt-dlp defaults alone
+    std::string h = std::to_string(quality);
+    return "bestvideo[height<=?" + h + "][vcodec!^=av01]+bestaudio"
+           "/best[height<=?" + h + "][vcodec!^=av01]"
+           "/best[height<=?" + h + "]"
+           "/best";
+}
+
+void MPVApplyYouTubeQuality()
+{
+    if (!g_mpv) return;   // InitMPV applies it when mpv starts
+    std::string fmt = YtFormatForQuality(g_ytVideoQuality);
+    fn_mpv_set_property_string(g_mpv, "ytdl-format", fmt.c_str());
+    LogF("VIDEO", "YouTube quality %d -> ytdl-format '%s'", g_ytVideoQuality, fmt.c_str());
 }
 
 void MPVPlay()

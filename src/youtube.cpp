@@ -2955,15 +2955,17 @@ bool YouTubePlayById(const std::wstring& videoId) {
         InitMPV(g_videoHwnd);
 
         std::wstring rawUrl;
+        // v2.71 — audio-only is requested PER FILE, in the loadfile command
+        // itself. Setting options before/after LoadURL raced the ytdl hook
+        // (loadfile is asynchronous; the hook reads its options later, on
+        // mpv's thread), so it could still pick — and download — a video
+        // stream. As per-file options, "ytdl-format=bestaudio/best" and
+        // "vid=no" are in place before the hook runs and are undone by mpv
+        // when this file ends, so the global quality setting stays intact.
         if (YouTubeGetVideoURL(videoId, rawUrl) &&
-            LoadURL(rawUrl.c_str(), /*silentOnFail=*/true))
+            LoadURL(rawUrl.c_str(), /*silentOnFail=*/true,
+                    "ytdl-format=bestaudio/best,vid=no"))
         {
-            // v2.68 — disable video AFTER the load: LoadVideoURL now resets
-            // "vid" to auto on every video URL (so a leftover audio-only state
-            // can never hide a real video's picture again). "vid" is a runtime
-            // property, so setting it here drops the video track of the stream
-            // that has just been opened.
-            MPVSetAudioOnly(true);
             // LoadURL routed to libmpv showed the video window — hide it,
             // we're audio-only here. Reset main window to audio size too.
             if (g_videoHwnd && IsWindowVisible(g_videoHwnd)) {

@@ -458,7 +458,7 @@ bool IsURL(const wchar_t* path) {
 
 // Forward declarations for video engine helpers (defined later in this file)
 static bool LoadVideoFile(const wchar_t* path);
-static bool LoadVideoURL(const wchar_t* url);
+static bool LoadVideoURL(const wchar_t* url, const char* mpvFileOptions = nullptr);
 
 // Load and play an http(s) URL stream — internet radio, podcasts,
 // arbitrary HTTP audio, or a YouTube URL (which is forwarded to MPV).
@@ -472,7 +472,7 @@ static bool LoadVideoURL(const wchar_t* url);
 // the new one. Format detection tries AAC first, then generic, with and
 // without BASS_STREAM_BLOCK — BLOCK mode is only useful for live streams
 // where seeking isn't expected.
-bool LoadURL(const wchar_t* url, bool silentOnFail) {
+bool LoadURL(const wchar_t* url, bool silentOnFail, const char* mpvFileOptions) {
     // Validate URL scheme — only allow http:// and https://
     if (!url ||
         (_wcsnicmp(url, L"http://", 7) != 0 && _wcsnicmp(url, L"https://", 8) != 0)) {
@@ -488,7 +488,7 @@ bool LoadURL(const wchar_t* url, bool silentOnFail) {
         if (urlStr.find(L"youtube.com/watch") != std::wstring::npos ||
             urlStr.find(L"youtu.be/") != std::wstring::npos ||
             urlStr.find(L"youtube.com/playlist") != std::wstring::npos) {
-            return LoadVideoURL(url);
+            return LoadVideoURL(url, mpvFileOptions);
         }
     }
 
@@ -1080,16 +1080,30 @@ static bool LoadVideoFile(const wchar_t* path) {
 }
 
 // Load a video URL via MPV engine
-static bool LoadVideoURL(const wchar_t* url) {
+static bool LoadVideoURL(const wchar_t* url, const char* mpvFileOptions) {
     g_isLoading = true;
     if (!PrepareForMpvLoad()) return false;
     // v2.68 — mpv's "vid" is process-wide and persists across loads. A prior
-    // audio-only load (.caf via LoadAudioViaMpv, or a cancelled YouTube hybrid
-    // stream) left it at "no", so a YouTube video played afterwards had sound but
-    // no picture. Same guard as LoadVideoFile. The hybrid path re-disables video
-    // AFTER this load (see YouTubePlayById).
+    // audio-only load (.caf via LoadAudioViaMpv) left it at "no", so a YouTube
+    // video played afterwards had sound but no picture. Same guard as
+    // LoadVideoFile. Audio-only YouTube streaming (hybrid path) now asks for it
+    // per file instead, through mpvFileOptions (v2.71).
     MPVSetAudioOnly(false);
-    if (!MPVLoadURL(url)) {
+    // v2.71 — every YouTube load carries its own quality as a PER-FILE option,
+    // so the global ytdl-format can never be stale. mpv restores a file's
+    // backed-up options when that file ends: a quality changed in Options while
+    // an audio-only (per-file) stream was playing was silently put back to the
+    // old value. The selector contains [ = ? ! so it is length-escaped (%N%),
+    // mpv's syntax for arbitrary values in a key=value list. "Best available"
+    // passes an empty value, which gives the ytdl hook its default behaviour.
+    std::string perFile;
+    if (mpvFileOptions && *mpvFileOptions) {
+        perFile = mpvFileOptions;          // e.g. the hybrid audio-only request
+    } else {
+        std::string fmt = YtFormatForQuality(g_ytVideoQuality);
+        perFile = "ytdl-format=%" + std::to_string(fmt.size()) + "%" + fmt;
+    }
+    if (!MPVLoadURLWithOptions(url, perFile.c_str())) {
         Speak(Ts("Failed to load video URL"));
         g_isLoading = false;
         return false;

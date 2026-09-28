@@ -867,6 +867,8 @@
 #define IDD_UPDATE_NOTES                   1460
 #define IDD_PLAYLIST_RENAME                1461   // v2.69 - rename a saved playlist (F2)
 #define IDC_PLAYLIST_RENAME_EDIT           1775
+#define IDC_LABEL_YT_VIDEO_QUALITY         1776   // v2.71 - Options > YouTube
+#define IDC_YT_VIDEO_QUALITY               1777   // v2.71 - combo: 1080 / 720 / 480 / best
 #define IDC_UPDATE_NOTES_SUMMARY           1461   // LTEXT, version summary (set at runtime)
 #define IDC_UPDATE_NOTES_LABEL             1462   // LTEXT "What's new:"
 #define IDC_UPDATE_NOTES_EDIT              1463   // read-only multiline edit (the notes)

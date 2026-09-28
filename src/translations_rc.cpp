@@ -522,6 +522,17 @@ void RegisterRcTranslations() {
     // v2.61 — YouTube autoplay next result (Options checkbox + spoken cues)
     AddTranslation("en", "Autoplay &next result when a video ends", L"Autoplay &next result when a video ends");
     AddTranslation("fr", "Autoplay &next result when a video ends", L"Lecture &automatique du résultat suivant à la fin d'une vidéo");
+    // v2.71 — YouTube video quality (streaming)
+    AddTranslation("en", "YouTube &video quality:", L"YouTube &video quality:");
+    AddTranslation("fr", "YouTube &video quality:", L"Qualité &vidéo YouTube :");
+    AddTranslation("en", "1080p maximum (recommended)", L"1080p maximum (recommended)");
+    AddTranslation("fr", "1080p maximum (recommended)", L"1080p maximum (recommandé)");
+    AddTranslation("en", "720p maximum", L"720p maximum");
+    AddTranslation("fr", "720p maximum", L"720p maximum");
+    AddTranslation("en", "480p maximum", L"480p maximum");
+    AddTranslation("fr", "480p maximum", L"480p maximum");
+    AddTranslation("en", "Best available", L"Best available");
+    AddTranslation("fr", "Best available", L"La meilleure possible");
     AddTranslation("en", "Playing next: ", L"Playing next: ");
     AddTranslation("fr", "Playing next: ", L"Lecture du suivant : ");
     AddTranslation("en", "End of results", L"End of results");

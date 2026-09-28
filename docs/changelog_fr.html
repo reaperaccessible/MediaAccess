@@ -8,6 +8,9 @@
 </head>
 <body>
 <h1>MediaAccess - Journal des modifications</h1>
+<h2>Version 2.71</h2>
+<p>Correction : sur beaucoup d'ordinateurs portables, une vidéo YouTube lue en mode vidéo avait le son mais pas d'image. YouTube envoyait par défaut de l'AV1 en 4K, un format que leur carte graphique ne sait pas décoder ; le processeur seul ne tenait pas le rythme. Nouveau réglage <strong>Qualité vidéo YouTube</strong> (Options → YouTube) : 1080p maximum par défaut, 720p, 480p ou « La meilleure possible ». Les choix plafonnés écartent aussi l'AV1 et se rabattent sur des formats que toutes les cartes graphiques décodent. Le réglage s'applique dès la vidéo suivante et réduit aussi la bande passante. En mode audio, MediaAccess ne demande plus que le son à YouTube.</p>
+<p>Diagnostic : le journal indique désormais, pour chaque vidéo, le format reçu, sa définition et si le décodage par la carte graphique a fonctionné.</p>
 <h2>Version 2.70</h2>
 <p>Correction : sur certaines configurations audio, MediaAccess refusait de s'ouvrir et affichait « L'audio n'a pas pu être initialisé. Veuillez réinstaller MediaAccess. », sans que la réinstallation y change quoi que ce soit. C'était notamment le cas avec une sortie numérique S/PDIF choisie comme sortie par défaut de Windows. MediaAccess essaie désormais un second mode d'ouverture de la sortie (DirectSound), puis les autres sorties disponibles ; et si aucune ne s'ouvre, il démarre quand même, sans son, en indiquant où choisir une autre sortie dans les options. Chaque tentative est notée dans le journal avec son code d'erreur. Signalé par <strong>Pierre-Louis</strong>.</p>
 <h2>Version 2.69</h2>

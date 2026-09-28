@@ -424,6 +424,12 @@ void LoadSettings() {
     g_ytFetchCaptions = GetPrivateProfileIntW(L"YouTube", L"FetchCaptions", 0, g_configPath.c_str()) != 0;
     // v2.61 — YouTube autoplay next result (default off)
     g_ytAutoplayNext = GetPrivateProfileIntW(L"YouTube", L"AutoplayNext", 0, g_configPath.c_str()) != 0;
+    // v2.71 — YouTube video quality (max stream height, 0 = best). Unknown -> 1080.
+    g_ytVideoQuality = GetPrivateProfileIntW(L"YouTube", L"VideoQuality", 1080, g_configPath.c_str());
+    if (g_ytVideoQuality != 0 && g_ytVideoQuality != 1080 &&
+        g_ytVideoQuality != 720 && g_ytVideoQuality != 480) {
+        g_ytVideoQuality = 1080;
+    }
     {
         wchar_t capLang[64] = {0};
         GetPrivateProfileStringW(L"YouTube", L"CaptionLang", L"", capLang, 64, g_configPath.c_str());
@@ -889,6 +895,8 @@ void SaveSettings() {
     WritePrivateProfileStringW(L"YouTube", L"FetchCaptions", g_ytFetchCaptions ? L"1" : L"0", g_configPath.c_str());
     // v2.61 — YouTube autoplay next result
     WritePrivateProfileStringW(L"YouTube", L"AutoplayNext", g_ytAutoplayNext ? L"1" : L"0", g_configPath.c_str());
+    WritePrivateProfileStringW(L"YouTube", L"VideoQuality",
+                               std::to_wstring(g_ytVideoQuality).c_str(), g_configPath.c_str());   // v2.71
     WritePrivateProfileStringW(L"YouTube", L"CaptionLang", g_ytCaptionLang.c_str(), g_configPath.c_str());
     {
         wchar_t buf[32]; swprintf(buf, 32, L"%d", g_ytCacheLimitMB);

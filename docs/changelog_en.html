@@ -8,6 +8,9 @@
 </head>
 <body>
 <h1>MediaAccess - Changelog</h1>
+<h2>Version 2.71</h2>
+<p>Fix: on many laptops, a YouTube video played in video mode had sound but no picture. YouTube sent AV1 in 4K by default, a format their graphics chip cannot decode; the processor alone could not keep up. New <strong>YouTube video quality</strong> setting (Options → YouTube): 1080p maximum by default, 720p, 480p or "Best available". The capped choices also rule out AV1 and fall back to formats every graphics chip decodes. The setting applies from the next video and also saves bandwidth. In audio mode, MediaAccess now asks YouTube for the sound only.</p>
+<p>Diagnostics: the log now records, for each video, the format received, its resolution and whether hardware decoding worked.</p>
 <h2>Version 2.70</h2>
 <p>Fix: on some audio setups MediaAccess refused to open and showed "Audio could not be initialized. Please reinstall MediaAccess.", and reinstalling changed nothing. This happened notably with an S/PDIF digital output set as the Windows default output. MediaAccess now tries a second way of opening the output (DirectSound), then the other available outputs; and if none opens, it starts anyway, without sound, telling you where to pick another output in the options. Every attempt is written to the log with its error code. Reported by <strong>Pierre-Louis</strong>.</p>
 <h2>Version 2.69</h2>
