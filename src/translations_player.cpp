@@ -85,6 +85,9 @@ void RegisterPlayerTranslations() {
 
     AddTranslation("en", "Failed to initialize BASS audio library.", L"Audio could not be initialized. Please reinstall MediaAccess.");
     AddTranslation("fr", "Failed to initialize BASS audio library.", L"L'audio n'a pas pu être initialisé. Veuillez réinstaller MediaAccess.");
+    // v2.70 (Pierre-Louis) — startup never blocks on audio any more
+    AddTranslation("en", "No audio output could be opened (audio error %d). MediaAccess will start without sound: choose another output in Options, Playback tab, Output device.", L"No audio output could be opened (audio error %d). MediaAccess will start without sound: choose another output in Options, Playback tab, Output device.");
+    AddTranslation("fr", "No audio output could be opened (audio error %d). MediaAccess will start without sound: choose another output in Options, Playback tab, Output device.", L"Aucune sortie audio n'a pu être ouverte (erreur audio %d). MediaAccess démarre sans son : choisissez une autre sortie dans Options, onglet Lecture, Périphérique de sortie.");
 
     AddTranslation("en", "Only http:// and https:// URLs are supported.", L"Only http:// and https:// URLs are supported.");
     AddTranslation("fr", "Only http:// and https:// URLs are supported.", L"Seules les URL http:// et https:// sont prises en charge.");

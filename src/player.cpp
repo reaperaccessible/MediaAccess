@@ -333,6 +333,31 @@ void ApplyMidiSettings() {
 //   4. ApplyMidiSettings — sets the default soundfont for any future MIDI
 //      streams; cheap to call even if no MIDI is ever loaded.
 //   5. Network configs for URL streaming.
+// v2.70 (Pierre-Louis) — robust audio start. BASS 2.4.18 opens outputs through
+// WASAPI by default, and some endpoints refuse it (reported: an Asus Xonar U5
+// used through its S/PDIF output, as the Windows default device). The app then
+// refused to open at all, with a "please reinstall" message that could not help.
+// Each attempt is logged with BASS's error code so support can see why.
+static int s_lastBassInitError = 0;
+
+static bool TryBassInit(int device, DWORD flags, HWND hwnd, const char* what) {
+    if (BASS_Init(device, 44100, flags, hwnd, nullptr)) {
+        LogF("AUDIO", "BASS_Init ok: device=%d flags=0x%lX (%s)", device, flags, what);
+        return true;
+    }
+    s_lastBassInitError = BASS_ErrorGetCode();
+    LogF("AUDIO", "BASS_Init failed: device=%d flags=0x%lX (%s) error=%d",
+         device, flags, what, s_lastBassInitError);
+    return false;
+}
+
+// Open `device` (-1 = system default): WASAPI first, then DirectSound, which is
+// far more tolerant of unusual endpoints. Returns the device actually opened.
+static bool OpenDevice(int device, HWND hwnd) {
+    if (TryBassInit(device, 0, hwnd, "wasapi")) return true;
+    return TryBassInit(device, BASS_DEVICE_DSOUND, hwnd, "directsound");
+}
+
 bool InitBass(HWND hwnd) {
     // Apply buffer settings before init
     BASS_SetConfig(BASS_CONFIG_BUFFER, g_bufferSize);
@@ -345,22 +370,42 @@ bool InitBass(HWND hwnd) {
     int device = FindDeviceByName(g_selectedDeviceName);
     g_selectedDevice = device;
 
-    if (!BASS_Init(device, 44100, 0, hwnd, nullptr)) {
-        // Fall back to default device if the saved one is gone (USB DAC
-        // unplugged, Bluetooth speaker out of range, etc.). Clear the saved
-        // selection so we don't repeat the failure on next startup.
-        if (device != -1) {
-            if (BASS_Init(-1, 44100, 0, hwnd, nullptr)) {
-                g_selectedDevice = -1;
-                g_selectedDeviceName.clear();
-            } else {
-                MessageBoxW(hwnd, T("Failed to initialize BASS audio library."), APP_NAME, MB_ICONERROR);
-                return false;
+    bool opened = OpenDevice(device, hwnd);
+    if (!opened && device != -1) {
+        // The saved device is gone or refuses (USB DAC unplugged, Bluetooth
+        // speaker out of range...): fall back to the default, and clear the
+        // saved choice so the next start does not repeat the failure.
+        opened = OpenDevice(-1, hwnd);
+        if (opened) {
+            g_selectedDevice = -1;
+            g_selectedDeviceName.clear();
+        }
+    }
+    if (!opened) {
+        // v2.70 — the default refuses too: try every other enabled output.
+        BASS_DEVICEINFO info;
+        for (int i = 1; !opened && BASS_GetDeviceInfo(i, &info); i++) {
+            if (!(info.flags & BASS_DEVICE_ENABLED) || i == device) continue;
+            if (OpenDevice(i, hwnd)) {
+                opened = true;
+                g_selectedDevice = i;
+                g_selectedDeviceName.clear();   // not a user choice: retry the default next time
             }
-        } else {
+        }
+    }
+    if (!opened) {
+        // v2.70 — last resort: BASS's "no sound" device. The app opens, so the
+        // user can reach Options and pick another output — instead of a window
+        // that never appears and a message suggesting a useless reinstall.
+        int err = s_lastBassInitError;
+        if (!TryBassInit(0, 0, hwnd, "no sound")) {
             MessageBoxW(hwnd, T("Failed to initialize BASS audio library."), APP_NAME, MB_ICONERROR);
             return false;
         }
+        g_selectedDevice = 0;
+        wchar_t msg[512];
+        swprintf(msg, 512, T("No audio output could be opened (audio error %d). MediaAccess will start without sound: choose another output in Options, Playback tab, Output device."), err);
+        MessageBoxW(hwnd, msg, APP_NAME, MB_ICONWARNING);
     }
 
     // Load plugins for additional format support
@@ -2658,10 +2703,10 @@ bool ReinitBass(int device) {
 
     BASS_Free();
 
-    if (!BASS_Init(device, 44100, 0, g_hwnd, nullptr)) {
+    if (!OpenDevice(device, g_hwnd)) {   // v2.70 — WASAPI, then DirectSound
         // Try default device as fallback
         if (device != -1) {
-            if (BASS_Init(-1, 44100, 0, g_hwnd, nullptr)) {
+            if (OpenDevice(-1, g_hwnd)) {
                 g_selectedDevice = -1;
                 g_selectedDeviceName.clear();
             }

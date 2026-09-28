@@ -1265,6 +1265,9 @@
 <p><code>%LOCALAPPDATA%\MediaAccess\mediaaccess.log</code></p>
 <p>Rotation is automatic (the old file becomes <code>.log.old</code> at 1 MB).</p>
 
+<h3>The audio output does not open</h3>
+<p>At startup, MediaAccess first tries the output chosen in the options, then the Windows default output, then each of the other available outputs, every time in two ways (WASAPI, then DirectSound, which is more tolerant of some S/PDIF digital outputs). If none opens, MediaAccess starts anyway, without sound, and tells you to pick another one in <strong>Options → Playback → Output device</strong>. Every attempt is written to the log above with its error code: that is the file to send to support.</p>
+
 <h3>Loaded plugins</h3>
 <p><strong>Help → Loaded Plugins</strong> shows the list of detected BASS plugins and any that failed to load. Useful if an audio format doesn't work.</p>
 

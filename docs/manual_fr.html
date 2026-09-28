@@ -1262,6 +1262,9 @@
 <p><code>%LOCALAPPDATA%\MediaAccess\mediaaccess.log</code></p>
 <p>La rotation se fait automatiquement (l'ancien fichier devient <code>.log.old</code> à 1 Mo).</p>
 
+<h3>La sortie audio ne s'ouvre pas</h3>
+<p>Au démarrage, MediaAccess essaie d'abord la sortie choisie dans les options, puis la sortie par défaut de Windows, puis chacune des autres sorties disponibles, chaque fois de deux façons (WASAPI, puis DirectSound, plus tolérant avec certaines sorties numériques S/PDIF). Si aucune ne s'ouvre, MediaAccess démarre quand même, sans son, et vous indique d'en choisir une autre dans <strong>Options → Lecture → Périphérique de sortie</strong>. Chaque tentative est notée dans le journal ci-dessus avec son code d'erreur : c'est le fichier à envoyer au support.</p>
+
 <h3>Modules chargés</h3>
 <p><strong>Aide → Modules chargés</strong> affiche la liste des plugins BASS détectés et ceux qui ont échoué à charger. Utile si un format audio ne fonctionne pas.</p>
 
