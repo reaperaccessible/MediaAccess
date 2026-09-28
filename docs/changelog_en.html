@@ -8,6 +8,12 @@
 </head>
 <body>
 <h1>MediaAccess - Changelog</h1>
+<h2>Version 2.72</h2>
+<p>YouTube: the YouTube extractor is now always up to date. MediaAccess now follows its most recent version, published almost every day, instead of the stable one, which could lag several weeks behind YouTube's changes. It checks at every launch, then every 12 hours while it stays open, and when the computer wakes up.</p>
+<p>YouTube: a new version of the extractor is installed only after the file has been fully checked (size, published checksum, start-up). Fix: an interrupted download could previously be installed as is and break YouTube until the next version.</p>
+<p>YouTube: if you use YouTube during an extractor update, the window "Please wait, a mandatory YouTube update is in progress" appears. Pressing any key announces the progress, and the window closes by itself when done; your action then runs with the new version. If you close MediaAccess during an update, it finishes it silently before exiting.</p>
+<p>Fix: when YouTube asks for an anti-bot check on your connection, MediaAccess no longer says "This video is private" but "YouTube is asking for an anti-bot check on this connection. Try again later." An age-restricted video is announced as such.</p>
+<p>Fix: File → Exit now saves the settings and the playback position, like closing the window.</p>
 <h2>Version 2.71</h2>
 <p>Fix: on many laptops, a YouTube video played in video mode had sound but no picture. YouTube sent AV1 in 4K by default, a format their graphics chip cannot decode; the processor alone could not keep up. New <strong>YouTube video quality</strong> setting (Options → YouTube): 1080p maximum by default, 720p, 480p or "Best available". The capped choices also rule out AV1 and fall back to formats every graphics chip decodes. The setting applies from the next video and also saves bandwidth. In audio mode, MediaAccess now asks YouTube for the sound only.</p>
 <p>Diagnostics: the log now records, for each video, the format received, its resolution and whether hardware decoding worked.</p>

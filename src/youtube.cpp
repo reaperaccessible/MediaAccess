@@ -10,6 +10,7 @@
 #include "database.h"    // v2.61 (Phase 3b) — YouTube channel subscriptions
 #include "mediaaccess/actions.h"  // v2.30 — Shortcut / ActionCategory (in-dialog download keys)
 #include "mediaaccess/keymap.h"   // v2.30 — GetActiveKeyMap().FindCommandFor
+#include "mediaaccess/ytdlp_updater.h"  // v2.72 — GetYtdlpPath, wait for a running update
 #include <wininet.h>
 #include <commctrl.h>
 #include <windowsx.h>    // GET_X_LPARAM / GET_Y_LPARAM (context-menu positioning)
@@ -243,8 +244,9 @@ static const wchar_t* const kTranscodeAudioExts[] = {
 
 // Check if yt-dlp is available
 static bool IsYtdlpAvailable() {
-    if (g_ytdlpPath.empty()) return false;
-    return PathFileExistsW(g_ytdlpPath.c_str()) != FALSE;
+    const std::wstring path = GetYtdlpPath();
+    if (path.empty()) return false;
+    return PathFileExistsW(path.c_str()) != FALSE;
 }
 
 // Check if API key is available
@@ -682,6 +684,11 @@ std::wstring RunYtdlp(const std::wstring& args,
     if (exitCode)  *exitCode = YTDLP_EXIT_LAUNCH_FAILED;
     if (stderrOut) stderrOut->clear();
 
+    // v2.72 — background safety net: a worker that was not gated at its UI
+    // entry point (captions, subscriptions, cache refresh) waits silently for
+    // a running yt-dlp update instead of launching the old build.
+    YtdlpWaitSilentlyIfUpdating();
+
     if (!IsYtdlpAvailable()) return L"";
 
     // v2.62 — do NOT request metadata in French (no "youtube:lang=fr"). YouTube
@@ -691,7 +698,7 @@ std::wstring RunYtdlp(const std::wstring& args,
     // sorting by view count). Using yt-dlp's default (English) parses view counts
     // correctly. Trade-off accepted: a few channels that auto-translate their
     // titles may show the English title again.
-    std::wstring cmdLine = L"\"" + g_ytdlpPath + L"\" " + args;
+    std::wstring cmdLine = L"\"" + GetYtdlpPath() + L"\" " + args;
 
     SECURITY_ATTRIBUTES sa;
     sa.nLength = sizeof(sa);
@@ -852,6 +859,16 @@ static const char* ClassifyYtdlpFailure(int exitCode, const std::wstring& stderr
         has(L"premieres in") || has(L"will begin in") ||
         has(L"this live stream recording is not available")) {
         return "This is a live stream and is not supported";
+    }
+    // v2.72 — YouTube's anti-bot check ("Sign in to confirm you're not a
+    // bot", with a straight or a typographic apostrophe) is about the
+    // connection, not the video: it used to be reported as "private".
+    if (has(L"not a bot")) {
+        return "YouTube is asking for an anti-bot check on this connection. Try again later.";
+    }
+    // v2.72 — age-restricted video ("Sign in to confirm your age").
+    if (has(L"confirm your age") || has(L"age-restricted") || has(L"age restricted")) {
+        return "This video is for adults only";
     }
     // Private / members-only / sign-in-required videos.
     if (has(L"private video") || has(L"members-only") ||
@@ -1114,7 +1131,7 @@ static bool SearchWithYtdlp(const std::wstring& query,
         args = L"--flat-playlist --dump-json --quiet --no-warnings \""
              + std::wstring(prefix) + SanitizeForCommandLine(query) + L"\"";
     }
-    YT_DBG((L"[YT] Running: " + g_ytdlpPath + L" " + args + L"\n").c_str());
+    YT_DBG((L"[YT] Running: " + GetYtdlpPath() + L" " + args + L"\n").c_str());
     int exitCode = 0;
     std::wstring stderrText;
     std::wstring output = RunYtdlp(args, YTDLP_QUERY_TIMEOUT_MS, &exitCode, &stderrText);
@@ -2888,6 +2905,10 @@ bool YouTubePlayById(const std::wstring& videoId) {
         return false;
     }
 
+    // v2.72 — video mode, hybrid and the blocking fallback all run yt-dlp:
+    // wait here for a running update (dropped if a wait is already up).
+    if (!YtdlpWaitIfUpdating()) return false;
+
     // v2.28 — remember which YouTube video is now playing (covers all branches
     // below: video mode, cache hit, hybrid, blocking). g_nowPlayingItem was set by
     // the caller's SetNowPlaying(SourceType::YouTube,...) just before this, so it
@@ -3342,6 +3363,8 @@ void YouTubeOnSearchDone(LPARAM lParam) {
 // Spawn the background search/playlist worker. Snapshots all request state on
 // the UI thread, announces "Searching…" immediately, returns at once.
 static void StartSearchAsync(YtSearchRequest* req) {
+    // v2.72 — never search with a yt-dlp that is being replaced.
+    if (!YtdlpWaitIfUpdating()) { delete req; return; }
     if (g_ytSearching.exchange(true)) {
         // One already running — ignore the second trigger (double-Enter).
         delete req;
@@ -3570,6 +3593,8 @@ static DWORD WINAPI LoadMoreThreadProc(LPVOID arg) {
 static void TriggerAutoLoadMore(HWND hwnd, int selection) {
     if (g_ytLoadingMore.load()) return;
     if (g_ytNextPageToken.empty()) return;
+    if (!YtdlpWaitIfUpdating(hwnd)) return;   // v2.72
+    if (g_ytLoadingMore.load() || g_ytNextPageToken.empty()) return;  // changed while waiting
 
     g_ytLoadingMore.store(true);
     Speak(Ts("Loading more"));
@@ -3789,6 +3814,7 @@ void AnnounceStatus(HWND hwndParent, const std::wstring& text) {
 // clipped), the options path via AnnounceStatus (focus-proof) because a modal
 // just closed and would otherwise clip the speech.
 static void StartDownloadAsync(YtDownloadRequest* req) {
+    if (!YtdlpWaitIfUpdating()) { delete req; return; }   // v2.72
     if (g_ytDownloading.exchange(true)) {
         // One already running — don't corrupt state with a parallel transfer.
         Speak(Ts("A download is already in progress"));
@@ -3959,6 +3985,7 @@ static void PlaySelected(HWND hwnd) {
         }
         return;
     }
+    if (YtdlpWaitShown()) return;   // v2.72 — ignored during a YouTube wait
     // v1.60 — preset YouTube channel + video title BEFORE the engine
     // pipeline so the window shows it even before mpv/yt-dlp finishes
     // resolving the stream. The (still-empty) item gets refreshed later
@@ -4155,6 +4182,8 @@ static void DownloadAllResults(HWND hwnd) {
     }
     if (pressed != ID_AUDIO && pressed != ID_VIDEO) return;  // Cancel
     bool videoMode = (pressed == ID_VIDEO);
+    if (!YtdlpWaitIfUpdating(hwnd)) return;   // v2.72
+    if (g_ytBatchActive.load()) return;       // started while waiting
 
     YtBatchRequest* req = new YtBatchRequest;
     req->items = std::move(items);
@@ -4631,6 +4660,9 @@ void YouTubeOnFormatsReady(LPARAM lParam) {
 // "Download with options..." — query formats in the BACKGROUND, then (via
 // WM_YT_FORMATS_READY) show the picker and download. Never blocks the UI.
 static void DownloadSelectedWithOptions(HWND hwnd) {
+    // v2.72 — wait BEFORE reading the selection: g_ytResults may change
+    // while the wait window is up.
+    if (!YtdlpWaitIfUpdating(hwnd)) return;
     if (g_ytBatchActive.load()) {
         Speak(Ts("A download is already in progress"));
         return;
@@ -4795,6 +4827,7 @@ void YouTubeOnDescReady(LPARAM lParam) {
 
 // Launcher — kick off the background description fetch for the selected result.
 static void CopyDescriptionOfSelected(HWND hwnd) {
+    if (!YtdlpWaitIfUpdating(hwnd)) return;   // v2.72 — before reading g_ytResults
     HWND hList = GetDlgItem(hwnd, IDC_YT_RESULTS);
     int sel = static_cast<int>(SendMessageW(hList, LB_GETCURSEL, 0, 0));
     if (sel < 0 || sel >= static_cast<int>(g_ytResults.size())) {

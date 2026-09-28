@@ -115,6 +115,11 @@ REM DLLs are loaded from lib subfolder via SetDllDirectory, no copy needed
 
 REM Build distribution zip
 echo Building distribution...
+REM v2.72 - ship the current yt-dlp nightly (size, SHA-256 and version checked).
+REM Non-fatal: offline, the installer keeps the previous lib\yt-dlp.exe.
+powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0scripts\update_bundled_ytdlp.ps1"
+if errorlevel 1 echo WARNING: lib\yt-dlp.exe was not refreshed, the installer ships the previous copy.
+
 call "%~dp0dist.bat"
 
 REM Build installer if Inno Setup is available

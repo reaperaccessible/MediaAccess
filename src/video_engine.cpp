@@ -13,6 +13,7 @@
 #include "mediaaccess/utils.h"
 #include "mediaaccess/translations.h"
 #include "mediaaccess/logger.h"
+#include "mediaaccess/ytdlp_updater.h"  // v2.72 — GetYtdlpPath
 #include "mpv/client.h"
 #include "resource.h"
 
@@ -483,6 +484,30 @@ bool IsMPVAvailable()
     return cached == 1;
 }
 
+/* v2.72 — tell mpv's ytdl_hook where yt-dlp lives (GetYtdlpPath: the local
+ * %LOCALAPPDATA% copy kept current by ytdlp_updater.cpp, else the bundled
+ * lib copy) so it never relies on PATH. At init this is an option; later
+ * (MPVRefreshYtdlPath) a property — mpv 0.41's ytdl_hook watches script-opts
+ * and re-reads ytdl_path on the next load. */
+static void ApplyYtdlPathOption(bool running)
+{
+    std::string utf8Path = WideToUtf8(GetYtdlpPath());
+    if (utf8Path.empty() || !g_mpv) return;
+    /* mpv treats backslashes as escape characters inside script-opts
+     * values; forward slashes work fine on Windows for file paths. */
+    for (auto& c : utf8Path) if (c == 0x5C) c = '/';
+    std::string scriptOpts = "ytdl_hook-ytdl_path=" + utf8Path;
+    if (running) fn_mpv_set_property_string(g_mpv, "script-opts", scriptOpts.c_str());
+    else         fn_mpv_set_option_string(g_mpv, "script-opts", scriptOpts.c_str());
+}
+
+void MPVRefreshYtdlPath()
+{
+    if (!g_mpv) return;   // InitMPV applies it when mpv starts
+    ApplyYtdlPathOption(true);
+    LogF("YTDLP", "mpv ytdl_path refreshed");
+}
+
 bool InitMPV(HWND parentHwnd)
 {
     if (g_mpv) return true;
@@ -528,25 +553,8 @@ bool InitMPV(HWND parentHwnd)
         if (!fmt.empty()) fn_mpv_set_option_string(g_mpv, "ytdl-format", fmt.c_str());
     }
 
-    /* Tell mpv's ytdl_hook where our bundled yt-dlp.exe lives so it does not
-     * rely on PATH lookup. g_ytdlpPath is populated by settings.cpp auto-
-     * detection (prefers the auto-updated %LOCALAPPDATA% copy if present,
-     * otherwise falls back to the bundled <install>\lib\yt-dlp.exe). */
-    if (!g_ytdlpPath.empty()) {
-        int len = WideCharToMultiByte(CP_UTF8, 0, g_ytdlpPath.c_str(), -1,
-                                      nullptr, 0, nullptr, nullptr);
-        if (len > 1) {
-            std::string utf8Path(len - 1, '\0');
-            WideCharToMultiByte(CP_UTF8, 0, g_ytdlpPath.c_str(), -1,
-                                &utf8Path[0], len, nullptr, nullptr);
-            /* mpv treats backslashes as escape characters inside script-opts
-             * values; forward slashes work fine on Windows for file paths. */
-            for (auto& c : utf8Path) if (c == '\\') c = '/';
-
-            std::string scriptOpts = "ytdl_hook-ytdl_path=" + utf8Path;
-            fn_mpv_set_option_string(g_mpv, "script-opts", scriptOpts.c_str());
-        }
-    }
+    /* Tell mpv's ytdl_hook where yt-dlp lives (see ApplyYtdlPathOption). */
+    ApplyYtdlPathOption(false);
 
     /* Network cache settings for smoother streaming (especially livestreams
      * and long YouTube videos). */

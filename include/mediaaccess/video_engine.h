@@ -34,6 +34,8 @@ bool MPVLoadURLWithOptions(const wchar_t* url, const char* fileOptions);
 // ytdl hook re-reads it on every load, so a change applies from the next video.
 std::string YtFormatForQuality(int quality);
 void MPVApplyYouTubeQuality();
+// v2.72 — push the current yt-dlp path into mpv (after the updater changed it).
+void MPVRefreshYtdlPath();
 void MPVPlay();
 void MPVPause();
 void MPVStop();

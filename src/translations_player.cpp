@@ -1061,6 +1061,28 @@ void RegisterPlayerTranslations() {
     AddTranslation("en", "This video is private", L"This video is private");
     AddTranslation("fr", "This video is private", L"Cette vidéo est privée");
 
+    // v2.72 — anti-bot check and age gate, no longer reported as "private".
+    AddTranslation("en", "YouTube is asking for an anti-bot check on this connection. Try again later.",
+                   L"YouTube is asking for an anti-bot check on this connection. Try again later.");
+    AddTranslation("fr", "YouTube is asking for an anti-bot check on this connection. Try again later.",
+                   L"YouTube demande une vérification anti-robots pour cette connexion. Réessayez plus tard.");
+    AddTranslation("en", "This video is for adults only", L"This video is for adults only");
+    AddTranslation("fr", "This video is for adults only", L"Cette vidéo est réservée aux adultes");
+
+    // v2.72 — yt-dlp nightly updater: mandatory wait window.
+    AddTranslation("en", "YouTube update", L"YouTube update");
+    AddTranslation("fr", "YouTube update", L"Mise à jour de YouTube");
+    AddTranslation("en", "Please wait, a mandatory YouTube update is in progress",
+                   L"Please wait, a mandatory YouTube update is in progress");
+    AddTranslation("fr", "Please wait, a mandatory YouTube update is in progress",
+                   L"Veuillez patienter, une mise à jour obligatoire de YouTube est en cours");
+    AddTranslation("en", "Installing the update", L"Installing the update");
+    AddTranslation("fr", "Installing the update", L"Installation de la mise à jour");
+    AddTranslation("en", "The YouTube update could not finish; the current version is used",
+                   L"The YouTube update could not finish; the current version is used");
+    AddTranslation("fr", "The YouTube update could not finish; the current version is used",
+                   L"La mise à jour de YouTube n'a pas pu se terminer ; la version actuelle est utilisée");
+
     AddTranslation("en", "This video is unavailable", L"This video is unavailable");
     AddTranslation("fr", "This video is unavailable", L"Cette vidéo n'est pas disponible");
 

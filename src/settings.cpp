@@ -12,6 +12,7 @@
 #include "translations.h"
 #include "resource.h"
 #include "mediaaccess/cue_sheet.h"  // v2.34 — cross-restart cue restore
+#include "mediaaccess/ytdlp_updater.h"  // v2.72 — nightly yt-dlp updater
 #include <cstdio>
 #include <shlobj.h>
 #include <shlwapi.h>  // PathFileExistsW
@@ -205,7 +206,7 @@ void LoadSettings() {
     // bundled-first, it must also teach the updater to overwrite the BUNDLED copy
     // (needs elevation) or add a freshness comparison — out of scope here.
     wchar_t ytBuf[512] = {0};
-    g_ytdlpPath.clear();
+    std::wstring ytdlpPath;
     wchar_t exePath[MAX_PATH];
     GetModuleFileNameW(nullptr, exePath, MAX_PATH);
     wchar_t* lastSlash = wcsrchr(exePath, L'\\');
@@ -217,6 +218,10 @@ void LoadSettings() {
     SHGetFolderPathW(nullptr, CSIDL_LOCAL_APPDATA, nullptr, 0, localAppData);
     std::wstring localCopy = std::wstring(localAppData) + L"\\MediaAccess\\yt-dlp.exe";
 
+    // v2.72 — repair a half-done swap, install a verified pending build, and
+    // seed the local copy from lib\ so the path never changes at run time.
+    YtdlpPrepareAtStartup(appDir);
+
     std::wstring candidates[] = {
         localCopy,
         appDir + L"lib\\yt-dlp.exe",
@@ -224,11 +229,11 @@ void LoadSettings() {
     };
     for (const auto& candidate : candidates) {
         if (PathFileExistsW(candidate.c_str())) {
-            g_ytdlpPath = candidate;
+            ytdlpPath = candidate;
             break;
         }
     }
-    if (g_ytdlpPath.empty()) {
+    if (ytdlpPath.empty()) {
         // SECURITY: enable safe-search before the PATH fallback so the current
         // working directory is searched AFTER the system dirs, closing the
         // binary-planting hole where a malicious "yt-dlp.exe" in the launch
@@ -238,9 +243,10 @@ void LoadSettings() {
                           BASE_SEARCH_PATH_PERMANENT);
         wchar_t found[MAX_PATH] = {0};
         if (SearchPathW(nullptr, L"yt-dlp.exe", L".exe", MAX_PATH, found, nullptr) > 0) {
-            g_ytdlpPath = found;
+            ytdlpPath = found;
         }
     }
+    SetYtdlpPath(ytdlpPath);
 
     GetPrivateProfileStringW(L"YouTube", L"ApiKey", L"", ytBuf, 512, g_configPath.c_str());
     g_ytApiKey = ytBuf;

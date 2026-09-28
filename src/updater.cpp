@@ -1,4 +1,5 @@
 #include "updater.h"
+#include "mediaaccess/ytdlp_updater.h"  // v2.72
 #include "version.h"
 #include "globals.h"
 #include "accessibility.h"
@@ -637,6 +638,10 @@ void ApplyUpdate() {
         // then ExitProcess guarantees the process is gone even if a nested
         // message loop would otherwise swallow the quit.
         UpdateLog("ApplyUpdate: installer launched, closing app now");
+        // v2.72 — the MediaAccess update wins over a running yt-dlp update:
+        // abort it (an unverified download is deleted) so WM_CLOSE exits now
+        // instead of deferring.
+        YtdlpAbortAndWait(5000);
         SendMessageW(g_hwnd, WM_CLOSE, 0, 0);
         UpdateLog("ApplyUpdate: cleanup done, ExitProcess");
         ExitProcess(0);
@@ -688,6 +693,7 @@ void ApplyUpdate() {
                 T("Update Error"), MB_OK | MB_ICONERROR);
             return;
         }
+        YtdlpAbortAndWait(5000);   // v2.72 — see above: never defer this exit
         PostMessageW(g_hwnd, WM_CLOSE, 0, 0);
     }
 }

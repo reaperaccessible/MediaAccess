@@ -1,4 +1,5 @@
 #include "ui_internal.h"
+#include "mediaaccess/ytdlp_updater.h"  // v2.72
 #include "video_engine.h"
 #include "mediaaccess/translations.h"
 #include "mediaaccess/wasapi_loopback.h"  // v1.94 — system-capture state for status bar
@@ -964,14 +965,16 @@ void ShowOpenURLDialog() {
 // messages refer only to "the YouTube extractor".
 void ShowTestYouTubePlayback() {
     std::wstring msg;
-    if (g_ytdlpPath.empty() || !PathFileExistsW(g_ytdlpPath.c_str())) {
+    YtdlpWaitIfUpdating(g_hwnd);   // v2.72 — test the up-to-date extractor
+    const std::wstring ytdlpPath = GetYtdlpPath();
+    if (ytdlpPath.empty() || !PathFileExistsW(ytdlpPath.c_str())) {
         msg = T("The YouTube extractor was not found. Please reinstall MediaAccess.");
         MessageBoxW(g_hwnd, msg.c_str(), T("Test YouTube playback"), MB_ICONWARNING | MB_OK);
         return;
     }
 
     // Run the extractor with --version to confirm it works
-    std::wstring cmd = L"\"" + g_ytdlpPath + L"\" --version";
+    std::wstring cmd = L"\"" + ytdlpPath + L"\" --version";
 
     SECURITY_ATTRIBUTES sa = { sizeof(sa), nullptr, TRUE };
     HANDLE hRead = nullptr, hWrite = nullptr;
@@ -1253,6 +1256,7 @@ static void PlayHistoryEntry(HWND dlg, int sel) {
         return;
     }
     if (e.sourceType == static_cast<int>(SourceType::YouTube)) {
+        if (YtdlpWaitShown()) return;   // v2.72 — ignored during a YouTube wait
         SetNowPlaying(SourceType::YouTube, L"YouTube", e.title);
         EndDialog(dlg, IDOK);
         YouTubePlayById(e.source);

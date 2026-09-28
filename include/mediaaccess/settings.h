@@ -35,8 +35,4 @@ void UpdateRecentFilesMenu(HMENU hMenu);
 bool GetHwdecEnabled();
 const std::wstring& GetVideoOutput();
 
-// Silently update yt-dlp.exe to %LOCALAPPDATA% on a background thread.
-// No UI; failures are silent (bundled fallback still works).
-void LaunchYtdlpUpdateCheck();
-
 #endif // MEDIAACCESS_SETTINGS_H

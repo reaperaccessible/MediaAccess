@@ -748,7 +748,7 @@
 <p>Il n'y a <strong>pas de rattrapage</strong> : quand vous vous abonnez, la vidéo la plus récente de la chaîne sert de point de départ, de sorte que seules les vidéos publiées <em>ensuite</em> comptent comme « nouvelles ». Le compteur augmente jusqu'à ce que vous ouvriez la chaîne, ce qui le remet à zéro.</p>
 
 <h3>Quand ça échoue</h3>
-<p>Certaines vidéos ne peuvent pas être lues ou téléchargées (privées, réservées aux membres, supprimées, ou directs en cours). Dans ces cas, MediaAccess annonce la raison précise à voix haute (par exemple « Cette vidéo est privée » ou « Cette vidéo est indisponible ») et n'ouvre pas la liste des formats — ce n'est pas une panne de l'application. En cas de problème persistant, utilisez <strong>Aide → Tester la lecture YouTube</strong>.</p>
+<p>Certaines vidéos ne peuvent pas être lues ou téléchargées (privées, réservées aux membres, supprimées, ou directs en cours). Dans ces cas, MediaAccess annonce la raison précise à voix haute (par exemple « Cette vidéo est privée » ou « Cette vidéo est indisponible ») et n'ouvre pas la liste des formats — ce n'est pas une panne de l'application. Si YouTube demande une vérification anti-robots pour votre connexion, MediaAccess l'annonce aussi (« YouTube demande une vérification anti-robots pour cette connexion. Réessayez plus tard. ») : la vidéo n'est pas en cause, réessayez un peu plus tard. Une vidéo réservée aux adultes est annoncée comme telle. En cas de problème persistant, utilisez <strong>Aide → Tester la lecture YouTube</strong>.</p>
 
 <h3>Mode audio / vidéo</h3>
 <p>Par défaut MediaAccess lit YouTube en mode audio seul (pour avoir tous les effets BASS comme tempo et hauteur). Pour voir la vidéo et afficher les sous-titres, cochez « Lire les vidéos YouTube en mode vidéo (active les sous-titres) » dans <strong>Options &rarr; YouTube</strong>. Le changement prend effet à la prochaine lecture YouTube. La définition de l'image se règle au même endroit, avec « Qualité vidéo YouTube » (1080p au maximum par défaut) : si vous avez le son mais pas d'image, c'est ce réglage qu'il faut vérifier.</p>
@@ -762,6 +762,12 @@
 
 <h3>Tester la lecture YouTube</h3>
 <p><strong>Aide → Tester la lecture YouTube</strong> ouvre un diagnostic qui confirme que l'extracteur YouTube et le moteur vidéo fonctionnent, et indique l'emplacement du fichier journal. Utile en cas de problème.</p>
+
+<h3>Mise à jour automatique de l'extracteur YouTube</h3>
+<p>YouTube change souvent, et l'extracteur qui permet à MediaAccess de lire YouTube doit suivre. MediaAccess vérifie donc à chaque lancement, puis toutes les 12 heures s'il reste ouvert (et au réveil de l'ordinateur), si une nouvelle version de l'extracteur existe, et l'installe en arrière-plan. Rien ne vous est demandé et le reste de MediaAccess demeure utilisable pendant ce temps.</p>
+<p>Une nouvelle version n'est installée qu'après vérification complète du fichier téléchargé. Au moindre problème (téléchargement interrompu, fichier altéré), l'ancienne version reste en place et MediaAccess réessaie plus tard.</p>
+<p>Si vous utilisez YouTube pendant une mise à jour (recherche, lecture, téléchargement…), la fenêtre « Veuillez patienter, une mise à jour obligatoire de YouTube est en cours » apparaît. Elle ne peut pas être fermée : toute touche (hors Maj, Ctrl et Alt seules), Échap compris, annonce l'avancement, et elle se ferme d'elle-même dès la fin de la mise à jour, habituellement en quelques secondes. Votre action se fait ensuite avec la nouvelle version. Si la mise à jour n'a pas fini au bout de 90 secondes, la fenêtre se ferme, MediaAccess l'annonce et continue avec la version actuelle.</p>
+<p>Si vous fermez MediaAccess pendant une mise à jour, sa fenêtre disparaît tout de suite, mais il termine la mise à jour en silence avant de se fermer (2 minutes au plus). Si vous le rouvrez entre-temps, la fenêtre revient simplement. L'arrêt de Windows n'est jamais bloqué.</p>
 </section>
 
 <section id="radio" aria-labelledby="radio-h">

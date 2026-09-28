@@ -1,4 +1,5 @@
 #include "player.h"
+#include "mediaaccess/ytdlp_updater.h"  // v2.72
 #include "globals.h"
 #include "utils.h"
 #include "accessibility.h"
@@ -488,6 +489,8 @@ bool LoadURL(const wchar_t* url, bool silentOnFail, const char* mpvFileOptions) 
         if (urlStr.find(L"youtube.com/watch") != std::wstring::npos ||
             urlStr.find(L"youtu.be/") != std::wstring::npos ||
             urlStr.find(L"youtube.com/playlist") != std::wstring::npos) {
+            // v2.72 — mpv's ytdl hook runs yt-dlp: wait for a running update.
+            if (!YtdlpWaitIfUpdating()) return false;
             return LoadVideoURL(url, mpvFileOptions);
         }
     }
@@ -2510,6 +2513,10 @@ void ApplyNowPlayingForCurrentTrack() {
 
 // g_isBusy gate prevents re-entrancy from rapid Next/Prev presses.
 void PlayTrack(int index, bool autoPlay) {
+    // v2.72 — a track change arriving while a YouTube wait is on screen (Next
+    // key, end of track) is ignored: treating the gate's refusal as a load
+    // failure would skip playlist items one after another.
+    if (YtdlpWaitShown()) return;
     if (g_isBusy) return;  // Prevent re-entrancy
     if (index < 0 || index >= static_cast<int>(g_playlist.size())) {
         return;

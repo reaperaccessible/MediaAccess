@@ -67,6 +67,7 @@
 #include "mediaaccess/book_tts_edge.h"       // v2.48 — read books aloud (Edge neural voice)
 #include "mediaaccess/edge_tts_client.h"    // EdgeListVoices (startup prewarm)
 #include "utils.h"                           // WideToUtf8
+#include "mediaaccess/ytdlp_updater.h"      // v2.72 — nightly yt-dlp updater, deferred exit
 #include <utility>  // for std::pair
 #include <thread>   // background subtitle-cue extraction + voice prewarm
 #include <atomic>
@@ -664,11 +665,62 @@ void ParseCommandLine() {
     }
 }
 
+// v2.72 — deferred exit while a yt-dlp update is downloading or installing
+// (Lee: the update must always finish). Every exit path goes through
+// RequestAppExit: the window, the tray icon and the global hotkeys disappear at
+// once, playback is paused, and the window is destroyed (settings saved in
+// WM_DESTROY as usual) when WM_YTDLP_UPDATE_DONE arrives, or after 2 minutes.
+// A mere API check is not worth waiting for: it is aborted and the app exits.
+static bool g_exitDeferred = false;
+static bool g_exitDeferredHadTray = false;
+
+static void RequestAppExit(HWND hwnd) {
+    if (g_exitDeferred) return;
+    // A YouTube wait loop is on the stack: never destroy under it. End the
+    // wait; the gate drops its action and posts WM_CLOSE again once unwound.
+    if (YtdlpWaitShown()) { YtdlpEndWaitForExit(); return; }
+    if (!YtdlpInstallRunning() || YtdlpAbortRequested()) {
+        if (YtdlpUpdateBusy()) YtdlpAbortAndWait(0);   // only a check (or already aborting)
+        DestroyWindow(hwnd);
+        return;
+    }
+    g_exitDeferred = true;
+    Log("YTDLP", std::string("exit deferred until the update ends"));
+    if (g_activeEngine == PlaybackEngine::MPV) {
+        if (MPVIsPlaying() && !MPVIsPaused()) MPVPause();
+    } else if (g_fxStream && BASS_ChannelIsActive(g_fxStream) == BASS_ACTIVE_PLAYING) {
+        BASS_ChannelPause(g_fxStream);
+    }
+    HWND yt = GetYouTubeDialog();
+    if (yt && IsWindowVisible(yt)) ShowWindow(yt, SW_HIDE);
+    g_exitDeferredHadTray = g_trayIconVisible;
+    RemoveTrayIcon();
+    UnregisterGlobalHotkeys();
+    ShowWindow(hwnd, SW_HIDE);
+    SetTimer(hwnd, IDT_YTDLP_EXIT_CAP, 120000, nullptr);
+}
+
+// A relaunch (or "Open with") during a deferred exit: the user wants the app.
+static void CancelDeferredExit(HWND hwnd) {
+    if (!g_exitDeferred) return;
+    g_exitDeferred = false;
+    KillTimer(hwnd, IDT_YTDLP_EXIT_CAP);
+    Log("YTDLP", std::string("deferred exit cancelled by a relaunch"));
+    RegisterGlobalHotkeys();
+    if (g_exitDeferredHadTray) CreateTrayIcon(hwnd);
+    ShowWindow(hwnd, SW_SHOW);
+    ForceForegroundWindow(hwnd);
+}
+
 // Window procedure
 LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
     switch (msg) {
         case WM_CREATE: {
             g_hwnd = hwnd;
+            // v2.72 — start the yt-dlp check FIRST, before anything below can
+            // play a YouTube item from the command line: from here on every
+            // YouTube action waits for the check (and for any update it finds).
+            LaunchYtdlpUpdateCheck();
             HINSTANCE hInstance = reinterpret_cast<HINSTANCE>(GetWindowLongPtrW(hwnd, GWLP_HINSTANCE));
 
             INITCOMMONCONTROLSEX icc = {sizeof(icc), ICC_BAR_CLASSES};
@@ -753,8 +805,9 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
             // Check for updates on startup (runs in background thread)
             CheckForUpdatesOnStartup();
 
-            // Silently keep yt-dlp.exe up to date (background thread).
-            LaunchYtdlpUpdateCheck();
+            // v2.72 — the yt-dlp check started at the top of WM_CREATE;
+            // hourly ticks recheck once 12 h have passed.
+            SetTimer(hwnd, IDT_YTDLP_RECHECK, 60 * 60 * 1000, nullptr);
 
             // v2.61 (Phase 3b) — check YouTube channel subscriptions for new
             // uploads (background thread; silent when there are none/no subs).
@@ -1076,6 +1129,22 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
                 // v1.85 — end of the startup batch-open coalescing window.
                 KillTimer(hwnd, IDT_STARTUP_OVER);
                 g_startupBatchOpen = false;
+            } else if (wParam == IDT_YTDLP_RECHECK) {
+                // v2.72 — hourly tick: recheck yt-dlp once 12 h have passed.
+                YtdlpMaybeRecheck(false);
+                return 0;
+            } else if (wParam == IDT_YTDLP_EXIT_CAP) {
+                // v2.72 — a deferred exit never waits more than 2 minutes.
+                KillTimer(hwnd, IDT_YTDLP_EXIT_CAP);
+                Log("YTDLP", std::string("deferred exit: 2-minute cap reached"));
+                YtdlpAbortAndWait(5000);
+                if (YtdlpWaitShown()) {   // never destroy under a wait loop
+                    g_exitDeferred = false;
+                    YtdlpEndWaitForExit();
+                    return 0;
+                }
+                DestroyWindow(hwnd);
+                return 0;
             } else if (wParam == IDT_DEVICE_REROUTE) {
                 // v2.32 — the audio-device-change notification burst has
                 // settled; perform the actual reroute now.
@@ -1403,6 +1472,16 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
             // drop late deliveries silently rather than touch a half-freed
             // BASS state.
             if (g_isShuttingDown) return TRUE;
+            // v2.72 — a relaunch during a deferred exit (yt-dlp update still
+            // running) brings the app back, unless it is a /quit.
+            if (g_exitDeferred) {
+                bool isQuit = false;
+                if (cds && cds->dwData == 4 && cds->lpData && cds->cbData > 0) {
+                    CliCommand q;
+                    isQuit = DecodeCliPayload(cds->lpData, cds->cbData, q) && q.verb == CliVerb::Quit;
+                }
+                if (!isQuit) CancelDeferredExit(hwnd);
+            }
             // v1.63 — dwData == 4: CLI switch ("verb\0param\0" UTF-16).
             if (cds && cds->dwData == 4 && cds->lpData && cds->cbData > 0) {
                 CliCommand cmd;
@@ -1563,7 +1642,9 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
                     ShowYtSubscriptionsDialog(hwnd);
                     break;
                 case IDM_FILE_EXIT:
-                    PostQuitMessage(0);
+                    // v2.72 — through DestroyWindow (WM_DESTROY saves the
+                    // settings), deferred while a yt-dlp update runs.
+                    RequestAppExit(hwnd);
                     break;
                 case IDM_FILE_HIDE_TRAY:
                     HideToTray(hwnd);
@@ -2008,7 +2089,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
                     RestoreFromTray(hwnd);
                     break;
                 case IDM_TRAY_EXIT:
-                    DestroyWindow(hwnd);
+                    RequestAppExit(hwnd);   // v2.72 — deferred during a yt-dlp update
                     break;
                 // Effect controls
                 case IDM_EFFECT_PREV:
@@ -2238,6 +2319,25 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
             }
             return 0;
 
+        case WM_CLOSE:
+            // v2.72 — Alt+F4, /quit: one exit path, deferred during a yt-dlp update.
+            RequestAppExit(hwnd);
+            return 0;
+
+        case WM_POWERBROADCAST:
+            // v2.72 — back from sleep: check yt-dlp again.
+            if (wParam == PBT_APMRESUMEAUTOMATIC) YtdlpMaybeRecheck(true);
+            return TRUE;
+
+        case WM_QUERYENDSESSION:
+            return TRUE;   // v2.72 — never block a Windows shutdown
+
+        case WM_ENDSESSION:
+            // v2.72 — Windows is ending the session: stop a running yt-dlp
+            // update (the file swap itself is never cut; startup repairs the rest).
+            if (wParam) YtdlpAbortAndWait(2000);
+            return 0;
+
         case WM_DESTROY:
             // v1.63 — mark shutdown so WM_COPYDATA dwData=4 (CLI deliveries)
             // arriving after this point are dropped before they touch BASS.
@@ -2268,6 +2368,8 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
             KillTimer(hwnd, IDT_SCHEDULER);
             KillTimer(hwnd, IDT_SCHED_DURATION);
             KillTimer(hwnd, IDT_DEVICE_REROUTE);  // v2.32 — cancel pending reroute
+            KillTimer(hwnd, IDT_YTDLP_RECHECK);   // v2.72
+            KillTimer(hwnd, IDT_YTDLP_EXIT_CAP);  // v2.72
             KillTimer(hwnd, IDT_SUBTITLE_FADE);   // cancel any subtitle duck fade
             // v2.32 — stop the device watcher BEFORE FreeBass so no late
             // PostMessage can hit a dead window / torn-down BASS state.
@@ -2284,6 +2386,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
             YouTubeCleanup();  // Clean up temp files
             CloseDatabase();
             FreeMPV();  // Free video engine before BASS
+            YtdlpAbortAndWait(1500);  // v2.72 — worker must not log after FreeLogger
             FreeLogger();
             FreeBass();
             // After BASS is released, any cache file that was open as the
@@ -2306,6 +2409,23 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
     // reroute via a short one-shot timer.
     if (msg == WM_AUDIO_DEVICE_CHANGED) {
         SetTimer(hwnd, IDT_DEVICE_REROUTE, 600, nullptr);
+        return 0;
+    }
+
+    // v2.72 — a yt-dlp update run ended. Refresh mpv's ytdl_path when the
+    // path changed, and finish a deferred exit.
+    if (msg == WM_YTDLP_UPDATE_DONE) {
+        if (wParam) MPVRefreshYtdlPath();
+        if (g_exitDeferred) {
+            KillTimer(hwnd, IDT_YTDLP_EXIT_CAP);
+            Log("YTDLP", std::string("deferred exit: update ended, closing"));
+            if (YtdlpWaitShown()) {   // never destroy under a wait loop
+                g_exitDeferred = false;
+                YtdlpEndWaitForExit();
+            } else {
+                DestroyWindow(hwnd);
+            }
+        }
         return 0;
     }
 
@@ -2524,6 +2644,7 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLi
     // language and immediately calls SetLanguage() so any UI built afterwards
     // uses the correct language.
     InitTranslations();
+    YtdlpInit();   // v2.72 — records the UI thread; LoadSettings prepares yt-dlp
     LoadSettings();
     // Initialize COM for SAPI (TTS) and any other COM-using helpers. Tolerate
     // RPC_E_CHANGED_MODE if some other component already initialized it with

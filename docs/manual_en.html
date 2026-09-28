@@ -747,7 +747,7 @@
 <p>There is <strong>no backlog</strong>: when you subscribe, the channel's current newest upload is taken as the starting point, so only videos posted <em>afterwards</em> count as "new". The count keeps building up until you open the channel, which clears it.</p>
 
 <h3>When it fails</h3>
-<p>Some videos cannot be played or downloaded (private, members-only, removed videos, or ongoing live streams). In those cases MediaAccess speaks the specific reason (for example "This video is private" or "This video is unavailable") and does not open the format list — this is not an app failure. If a problem persists, use <strong>Help → Test YouTube playback</strong>.</p>
+<p>Some videos cannot be played or downloaded (private, members-only, removed videos, or ongoing live streams). In those cases MediaAccess speaks the specific reason (for example "This video is private" or "This video is unavailable") and does not open the format list — this is not an app failure. If YouTube asks for an anti-bot check on your connection, MediaAccess says so too ("YouTube is asking for an anti-bot check on this connection. Try again later."): the video itself is fine, try again a little later. An age-restricted video is announced as such. If a problem persists, use <strong>Help → Test YouTube playback</strong>.</p>
 
 <h3>Audio / video mode</h3>
 <p>By default MediaAccess plays YouTube in audio-only mode (so all BASS effects like tempo and pitch are available). To watch the video and show subtitles, tick "Play YouTube videos as video (enables subtitles)" in <strong>Options &rarr; YouTube</strong>. The change takes effect on the next YouTube playback. The picture resolution is set in the same place, with "YouTube video quality" (1080p maximum by default): if you get sound but no picture, that is the setting to check.</p>
@@ -761,6 +761,12 @@
 
 <h3>Test YouTube playback</h3>
 <p><strong>Help → Test YouTube playback</strong> opens a diagnostic dialog confirming that the YouTube extractor and the video engine are functional, plus the location of the log file. Useful when troubleshooting.</p>
+
+<h3>Automatic update of the YouTube extractor</h3>
+<p>YouTube changes often, and the extractor that lets MediaAccess play YouTube has to keep up. MediaAccess therefore checks at every launch, then every 12 hours while it stays open (and when the computer wakes up), whether a new version of the extractor exists, and installs it in the background. Nothing is asked of you and the rest of MediaAccess stays usable meanwhile.</p>
+<p>A new version is installed only after the downloaded file has been fully checked. At the slightest problem (interrupted download, altered file), the previous version stays in place and MediaAccess tries again later.</p>
+<p>If you use YouTube during an update (search, playback, download…), the window "Please wait, a mandatory YouTube update is in progress" appears. It cannot be closed: any key (other than Shift, Ctrl or Alt alone), Escape included, announces the progress, and it closes by itself as soon as the update is done, usually within a few seconds. Your action then runs with the new version. If the update has not finished after 90 seconds, the window closes, MediaAccess says so and carries on with the current version.</p>
+<p>If you close MediaAccess during an update, its window disappears at once, but it finishes the update silently before exiting (2 minutes at most). If you reopen it meanwhile, the window simply comes back. Windows shutdown is never blocked.</p>
 </section>
 
 <section id="radio" aria-labelledby="radio-h">
