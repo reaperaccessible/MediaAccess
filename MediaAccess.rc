@@ -9,8 +9,8 @@ IDI_APPICON ICON "MediaAccess.ico"
 // ASCII only (rc.exe mojibake risk). FILEVERSION is hardcoded: bump it each
 // release to match include/mediaaccess/version.h (build_new.bat passes no /D to rc).
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION    2,72,0,0
- PRODUCTVERSION 2,72,0,0
+ FILEVERSION    2,73,0,0
+ PRODUCTVERSION 2,73,0,0
  FILEFLAGSMASK  0x3fL
  FILEFLAGS      0x0L
  FILEOS         VOS__WINDOWS32
@@ -23,12 +23,12 @@ BEGIN
     BEGIN
       VALUE "CompanyName",      "ReaperAccessible"
       VALUE "FileDescription",  "MediaAccess - accessible audio and video player"
-      VALUE "FileVersion",      "2.72"
+      VALUE "FileVersion",      "2.73"
       VALUE "InternalName",     "MediaAccess"
       VALUE "LegalCopyright",   "Copyright (C) 2026 ReaperAccessible. GPL-3.0."
       VALUE "OriginalFilename", "MediaAccess.exe"
       VALUE "ProductName",      "MediaAccess"
-      VALUE "ProductVersion",   "2.72"
+      VALUE "ProductVersion",   "2.73"
     END
   END
   BLOCK "VarFileInfo"
@@ -320,13 +320,15 @@ BEGIN
     LTEXT           "&Download folder (empty = default):", IDC_LABEL_YT_DOWNLOAD_PATH, 17, 167, 200, 10
     EDITTEXT        IDC_YT_DOWNLOAD_PATH, 17, 180, 205, 14, ES_AUTOHSCROLL
     PUSHBUTTON      "Bro&wse...", IDC_YT_DOWNLOAD_PATH_BROWSE, 225, 179, 50, 14
-    AUTOCHECKBOX    "Play YouTube videos as video (enables subtitles)", IDC_YT_VIDEO_MODE, 17, 200, 260, 10
-    AUTOCHECKBOX    "Read YouTube auto-generated captions", IDC_YT_FETCH_CAPTIONS, 17, 216, 260, 10
-    LTEXT           "Preferred caption language:", IDC_LABEL_YT_CAPTION_LANG, 17, 232, 230, 10
-    COMBOBOX        IDC_YT_CAPTION_LANG, 17, 245, 120, 200, CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
-    AUTOCHECKBOX    "Autoplay &next result when a video ends", IDC_YT_AUTOPLAY_NEXT, 17, 265, 260, 10
-    LTEXT           "YouTube &video quality:", IDC_LABEL_YT_VIDEO_QUALITY, 17, 284, 110, 10
-    COMBOBOX        IDC_YT_VIDEO_QUALITY, 130, 282, 150, 80, CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    AUTOCHECKBOX    "Play YouTube as audio only, without the &picture", IDC_YT_VIDEO_MODE, 17, 197, 305, 10
+    LTEXT           "From the YouTube window: starts faster, uses less data, and lets you use tempo, pitch and effects. Uncheck it to see the video picture.", IDC_LABEL_YT_AUDIO_ONLY_HELP, 17, 209, 305, 26
+    AUTOCHECKBOX    "Read YouTube &subtitles aloud", IDC_YT_FETCH_CAPTIONS, 17, 237, 305, 10
+    AUTOCHECKBOX    "Sh&ow YouTube subtitles on the picture", IDC_YT_CAPTIONS_SHOW, 17, 250, 305, 10
+    LTEXT           "Preferred caption language:", IDC_LABEL_YT_CAPTION_LANG, 17, 265, 110, 10
+    COMBOBOX        IDC_YT_CAPTION_LANG, 130, 263, 120, 200, CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    AUTOCHECKBOX    "Autoplay &next result when a video ends", IDC_YT_AUTOPLAY_NEXT, 17, 280, 305, 10
+    LTEXT           "YouTube &video quality:", IDC_LABEL_YT_VIDEO_QUALITY, 17, 296, 110, 10
+    COMBOBOX        IDC_YT_VIDEO_QUALITY, 130, 294, 150, 80, CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
 
     // SoundTouch tab controls (shown when tab 9 selected)
     LTEXT           "SoundTouch settings (changes apply on next file load):", IDC_LABEL_SOUNDTOUCH_DESCRIPTION, 17, 30, 220, 10

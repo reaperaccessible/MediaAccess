@@ -173,7 +173,7 @@ void RefreshSubtitleEdge() {
     bool ytCap = !s_ytCaptionVtt.empty() && GetCurrentYtVideoId() == s_ytCaptionVideoId;
     bool wantVideoEdge = g_speakSubtitles && g_subtitleUseEdgeVoice &&
                          g_activeEngine == PlaybackEngine::MPV && IsMPVInitialized() && !ytCap;
-    bool wantYt = g_speakSubtitles && ytCap;   // YouTube captions: either engine/reader
+    bool wantYt = g_ytCaptionsSpeak && ytCap;  // v2.73 — YouTube: its own "read aloud" box
     bool want = wantVideoEdge || wantYt;
     std::wstring media = CurrentMediaPath();
     long ff = wantVideoEdge ? MPVGetActiveSubtitleFfIndex() : -1;
@@ -1194,9 +1194,27 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
                 // already reads it (Edge clip or cue-crossing emit), and the .vtt
                 // is also loaded into mpv for the picture/seek — without this guard
                 // mpv's sub-text would speak each line a SECOND time (double-read).
-                if (g_speakSubtitles && !s_subSourceIsYtCaption &&
-                    (!g_subtitleUseEdgeVoice || s_subEdgeFailed))
-                    SpeakW(text, true);
+                // v2.73 — decide by the SOURCE playing, not by that flag: during a
+                // YouTube video only our scheduler reads (it follows "Read YouTube
+                // subtitles aloud"); lines merely shown on the picture are never
+                // spoken, and a local video is never silenced by a flag left over
+                // from the previous YouTube video.
+                bool speakLine = GetCurrentYtVideoId().empty() && g_speakSubtitles &&
+                                 (!g_subtitleUseEdgeVoice || s_subEdgeFailed);
+                if (speakLine) SpeakW(text, true);
+                // v2.73 — diagnostic, once per media: a subtitle line is on the
+                // picture (sub-text follows the displayed track), and whether this
+                // live path read it.
+                {
+                    static std::wstring s_subLogKey;
+                    std::wstring key = GetCurrentYtVideoId().empty() ? CurrentMediaPath()
+                                                                     : GetCurrentYtVideoId();
+                    if (key != s_subLogKey) {
+                        s_subLogKey = key;
+                        Log("SUBS", std::wstring(L"first subtitle line on the picture; read by the live path: ") +
+                                    (speakLine ? L"yes" : L"no"));
+                    }
+                }
                 free(text);
             }
             return 0;
@@ -1218,9 +1236,11 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
                 // v2.52 — a result is current if it is the latest request and its
                 // source still matches: a YouTube caption result matches by videoId
                 // (either engine), a normal result by media path + Edge method.
-                bool current = (r->gen == s_subPrepGen.load()) && g_speakSubtitles &&
-                    ( (!r->isYt && g_subtitleUseEdgeVoice && r->media == CurrentMediaPath()) ||
-                      ( r->isYt && r->ytVideoId == GetCurrentYtVideoId()) );
+                // v2.73 — YouTube results follow the YouTube "read aloud" box;
+                // local media still follow "Speak subtitles".
+                bool current = (r->gen == s_subPrepGen.load()) &&
+                    ( (!r->isYt && g_speakSubtitles && g_subtitleUseEdgeVoice && r->media == CurrentMediaPath()) ||
+                      ( r->isYt && g_ytCaptionsSpeak && r->ytVideoId == GetCurrentYtVideoId()) );
                 if (current && !r->cues.empty()) {
                     // YouTube captions with the screen-reader (non-Edge) method run
                     // live-only (no synthesis worker); everything else uses Edge.
@@ -1280,8 +1300,9 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
             // videoId, which is unchanged for a language switch on the same video).
             if (s_subEdgeActive) { mediaaccess::SubStop(); SubtitleVolumeRestoreNow(); s_subEdgeActive = false; }
             // In video mode, also hand the file to mpv so the picture shows subs
-            // and the "1 subtitle" seek unit works.
-            if (g_activeEngine == PlaybackEngine::MPV && IsMPVInitialized())
+            // and the "1 subtitle" seek unit works — v2.73: only when "Show
+            // YouTube subtitles on the picture" is checked.
+            if (g_ytCaptionsShow && g_activeEngine == PlaybackEngine::MPV && IsMPVInitialized())
                 MPVLoadExternalSubtitle(s_ytCaptionVtt.c_str());
             RefreshSubtitleEdge();   // starts the reader (Edge or live screen reader)
             return 0;
@@ -1895,6 +1916,20 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
                     // v1.81 — Toggle g_speakSubtitles. When ON, every new
                     // sub-text line spoken by libmpv is routed to the screen
                     // reader via WM_SPEAK_SUBTITLE. Requested by user Spring.
+                    // v2.73 — during a YouTube video the key toggles the
+                    // YouTube "read aloud" box (Options > YouTube); local
+                    // media keep "Speak subtitles".
+                    if (!GetCurrentYtVideoId().empty()) {
+                        g_ytCaptionsSpeak = !g_ytCaptionsSpeak;
+                        Speak(g_ytCaptionsSpeak ? Ts("Subtitle speech on")
+                                                : Ts("Subtitle speech off"));
+                        bool haveCap = !s_ytCaptionVtt.empty() &&
+                                       s_ytCaptionVideoId == GetCurrentYtVideoId();
+                        if (g_ytCaptionsSpeak && !haveCap) YouTubeRefreshCaptionsForCurrent();
+                        RefreshSubtitleEdge();
+                        SaveSettings();
+                        break;
+                    }
                     g_speakSubtitles = !g_speakSubtitles;
                     Speak(g_speakSubtitles ? Ts("Subtitle speech on")
                                            : Ts("Subtitle speech off"));

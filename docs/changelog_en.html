@@ -8,6 +8,10 @@
 </head>
 <body>
 <h1>MediaAccess - Changelog</h1>
+<h2>Version 2.73</h2>
+<p>Clearer Options → YouTube: the old "Play YouTube videos as video (enables subtitles)" box mixed two things. It becomes "<strong>Play YouTube as audio only, without the picture</strong>", with its explanation (faster start, less data, tempo, pitch and effects available; uncheck it to see the picture), also read by the screen reader on the box. Everyone keeps their setting: if you were seeing the picture, the new box is unchecked. On a new installation it is checked: audio only by default, as before.</p>
+<p>YouTube subtitles: two independent boxes, "<strong>Read YouTube subtitles aloud</strong>" and "<strong>Show YouTube subtitles on the picture</strong>". You can have them by voice, on the picture, or both, without going through "Speak subtitles". During a YouTube video, the "Toggle speak subtitles" action (Tools → Actions) turns their reading on or off. Your previous settings carry over.</p>
+<p>Fix: subtitles (sometimes in another language, German for instance) appeared on their own on some YouTube videos. They now appear only when "Show YouTube subtitles on the picture" is checked.</p>
 <h2>Version 2.72</h2>
 <p>YouTube: the YouTube extractor is now always up to date. MediaAccess now follows its most recent version, published almost every day, instead of the stable one, which could lag several weeks behind YouTube's changes. It checks at every launch, then every 12 hours while it stays open, and when the computer wakes up.</p>
 <p>YouTube: a new version of the extractor is installed only after the file has been fully checked (size, published checksum, start-up). Fix: an interrupted download could previously be installed as is and break YouTube until the next version.</p>

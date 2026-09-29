@@ -14,6 +14,9 @@
 #include <set>
 #include <cmath>
 #include <thread>                          // off-UI-thread voice preview synthesis
+#include <initguid.h>                      // v2.73 — defines the oleacc GUIDs below in this file
+#include <oleacc.h>                        // v2.73 — IAccPropServices (accessible description)
+#pragma comment(lib, "oleacc.lib")
 
 // Dialog-private message: a background voice-preview synthesis finished.
 // lParam = std::vector<unsigned char>* MP3 (heap, owned here) or nullptr on failure.
@@ -293,7 +296,8 @@ void ShowTabControls(HWND hwnd, int tab) {
     int youtubeCtrls[] = {IDC_YT_APIKEY, IDC_YT_CLEAR_ON_EXIT, IDC_YT_CLEAR_NOW, IDC_YT_CACHE_LIMIT, IDC_LABEL_YT_LIMIT,
                           IDC_YT_DOWNLOAD_PATH, IDC_YT_DOWNLOAD_PATH_BROWSE, IDC_LABEL_YT_DOWNLOAD_PATH,
                           IDC_LABEL_YOUTUBE_API_KEY, IDC_LABEL_YOUTUBE_API_HELP, IDC_LABEL_YOUTUBE_API_NOTE,
-                          IDC_YT_VIDEO_MODE, IDC_YT_FETCH_CAPTIONS, IDC_YT_CAPTION_LANG, IDC_LABEL_YT_CAPTION_LANG,
+                          IDC_YT_VIDEO_MODE, IDC_LABEL_YT_AUDIO_ONLY_HELP, IDC_YT_FETCH_CAPTIONS, IDC_YT_CAPTIONS_SHOW,
+                          IDC_YT_CAPTION_LANG, IDC_LABEL_YT_CAPTION_LANG,
                           IDC_YT_AUTOPLAY_NEXT, IDC_LABEL_YT_VIDEO_QUALITY, IDC_YT_VIDEO_QUALITY};
     // SoundTouch tab controls (tab 9)
     int soundtouchCtrls[] = {IDC_ST_AA_FILTER, IDC_ST_AA_LENGTH, IDC_ST_QUICK_ALGO, IDC_ST_SEQUENCE,
@@ -453,6 +457,28 @@ static LRESULT CALLBACK OptionsGetMsgHook(int code, WPARAM wParam, LPARAM lParam
 }
 
 // Options dialog procedure
+// v2.73 — accessible description of a control (read by NVDA after its name and
+// state, shown in braille) through Dynamic Annotation. COM is initialised on
+// the UI thread in wWinMain. Cleared in WM_DESTROY.
+static void SetAccessibleDescription(HWND ctl, const wchar_t* text) {
+    if (!ctl || !text) return;
+    IAccPropServices* svc = nullptr;
+    if (FAILED(CoCreateInstance(CLSID_AccPropServices, nullptr, CLSCTX_INPROC_SERVER,
+                                IID_PPV_ARGS(&svc))) || !svc) return;
+    svc->SetHwndPropStr(ctl, OBJID_CLIENT, CHILDID_SELF, PROPID_ACC_DESCRIPTION, text);
+    svc->Release();
+}
+
+static void ClearAccessibleDescription(HWND ctl) {
+    if (!ctl) return;
+    IAccPropServices* svc = nullptr;
+    if (FAILED(CoCreateInstance(CLSID_AccPropServices, nullptr, CLSCTX_INPROC_SERVER,
+                                IID_PPV_ARGS(&svc))) || !svc) return;
+    MSAAPROPID props[] = { PROPID_ACC_DESCRIPTION };
+    svc->ClearHwndProps(ctl, OBJID_CLIENT, CHILDID_SELF, props, 1);
+    svc->Release();
+}
+
 INT_PTR CALLBACK OptionsDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
     switch (msg) {
         case WM_INITDIALOG: {
@@ -811,9 +837,11 @@ INT_PTR CALLBACK OptionsDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
             // Initialize YouTube tab (yt-dlp path is bundled/auto-detected, no UI)
             SetDlgItemTextW(hwnd, IDC_YT_APIKEY, g_ytApiKey.c_str());
             CheckDlgButton(hwnd, IDC_YT_CLEAR_ON_EXIT, g_clearYtCacheOnExit ? BST_CHECKED : BST_UNCHECKED);
-            CheckDlgButton(hwnd, IDC_YT_VIDEO_MODE, GetYouTubeVideoMode() ? BST_CHECKED : BST_UNCHECKED);
-            // v2.52 — YouTube auto-captions
-            CheckDlgButton(hwnd, IDC_YT_FETCH_CAPTIONS, g_ytFetchCaptions ? BST_CHECKED : BST_UNCHECKED);
+            // v2.73 — the box now reads "audio only": checked = NOT video mode.
+            CheckDlgButton(hwnd, IDC_YT_VIDEO_MODE, GetYouTubeVideoMode() ? BST_UNCHECKED : BST_CHECKED);
+            // v2.73 — YouTube subtitles: read aloud / shown on the picture
+            CheckDlgButton(hwnd, IDC_YT_FETCH_CAPTIONS, g_ytCaptionsSpeak ? BST_CHECKED : BST_UNCHECKED);
+            CheckDlgButton(hwnd, IDC_YT_CAPTIONS_SHOW, g_ytCaptionsShow ? BST_CHECKED : BST_UNCHECKED);
             // v2.61 — YouTube autoplay next result
             CheckDlgButton(hwnd, IDC_YT_AUTOPLAY_NEXT, g_ytAutoplayNext ? BST_CHECKED : BST_UNCHECKED);
             // v2.71 — YouTube video quality (streaming). Order = kYtQualities.
@@ -1048,6 +1076,11 @@ INT_PTR CALLBACK OptionsDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
 
             // Localize dialog controls now that all combo items are populated
             LocalizeDialog(hwnd);
+            // v2.73 — the explanation under "audio only" becomes the box's
+            // accessible description, so NVDA reads it (and braille shows it)
+            // when the box gets the focus; a static text next to it is not read.
+            SetAccessibleDescription(GetDlgItem(hwnd, IDC_YT_VIDEO_MODE),
+                T("From the YouTube window: starts faster, uses less data, and lets you use tempo, pitch and effects. Uncheck it to see the video picture."));
 
             // Show only playback tab controls initially
             ShowTabControls(hwnd, 0);
@@ -1069,6 +1102,7 @@ INT_PTR CALLBACK OptionsDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
         }
 
         case WM_DESTROY: {
+            ClearAccessibleDescription(GetDlgItem(hwnd, IDC_YT_VIDEO_MODE));   // v2.73
             if (s_optionsMsgHook) {
                 UnhookWindowsHookEx(s_optionsMsgHook);
                 s_optionsMsgHook = nullptr;
@@ -1360,7 +1394,8 @@ INT_PTR CALLBACK OptionsDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
                         g_ytApiKey = buf;
                     }
                     g_clearYtCacheOnExit = (IsDlgButtonChecked(hwnd, IDC_YT_CLEAR_ON_EXIT) == BST_CHECKED);
-                    SetYouTubeVideoMode(IsDlgButtonChecked(hwnd, IDC_YT_VIDEO_MODE) == BST_CHECKED);
+                    // v2.73 — "audio only" box: checked = NOT video mode.
+                    SetYouTubeVideoMode(IsDlgButtonChecked(hwnd, IDC_YT_VIDEO_MODE) != BST_CHECKED);
                     // v2.61 — YouTube autoplay next result (persisted by SaveSettings below)
                     g_ytAutoplayNext = (IsDlgButtonChecked(hwnd, IDC_YT_AUTOPLAY_NEXT) == BST_CHECKED);
                     // v2.71 — YouTube video quality: applied to mpv at once, so
@@ -1378,13 +1413,22 @@ INT_PTR CALLBACK OptionsDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
                         // v2.52 — capture old caption settings to detect a change and
                         // apply it immediately to the currently-playing YouTube video.
                         std::wstring oldCapLang = g_ytCaptionLang;
-                        bool oldFetch = g_ytFetchCaptions;
-                        g_ytFetchCaptions = (IsDlgButtonChecked(hwnd, IDC_YT_FETCH_CAPTIONS) == BST_CHECKED);
+                        bool oldSpeak = g_ytCaptionsSpeak, oldShow = g_ytCaptionsShow;
+                        g_ytCaptionsSpeak = (IsDlgButtonChecked(hwnd, IDC_YT_FETCH_CAPTIONS) == BST_CHECKED);
+                        g_ytCaptionsShow  = (IsDlgButtonChecked(hwnd, IDC_YT_CAPTIONS_SHOW) == BST_CHECKED);
                         int sel = (int)SendMessageW(GetDlgItem(hwnd, IDC_YT_CAPTION_LANG), CB_GETCURSEL, 0, 0);
                         if (sel >= 0 && sel < kCaptionLangCount) g_ytCaptionLang = kCaptionLangs[sel].code;
-                        if (g_ytFetchCaptions &&
-                            (g_ytCaptionLang != oldCapLang || g_ytFetchCaptions != oldFetch)) {
-                            YouTubeRefreshCaptionsForCurrent();  // re-fetch + switch now
+                        // v2.73 — picture box unchecked while a YouTube video plays:
+                        // take the subtitles off the picture now.
+                        if (oldShow && !g_ytCaptionsShow && !GetCurrentYtVideoId().empty())
+                            MPVHideSubtitles();
+                        // Re-fetch + switch now when the language changed or a box
+                        // was turned on (the reader itself follows RefreshSubtitleEdge
+                        // further down, which also stops it when "read aloud" is off).
+                        if ((g_ytCaptionsSpeak || g_ytCaptionsShow) &&
+                            (g_ytCaptionLang != oldCapLang ||
+                             (g_ytCaptionsSpeak && !oldSpeak) || (g_ytCaptionsShow && !oldShow))) {
+                            YouTubeRefreshCaptionsForCurrent();
                         }
                     }
                     {

@@ -88,7 +88,8 @@ extern double g_loopEnd;
 extern bool   g_loopEnabled;
 
 // v2.52 — YouTube automatic-caption settings + audio-mode subtitle duck.
-extern bool g_ytFetchCaptions;          // fetch & read YouTube auto-captions (default off)
+extern bool g_ytCaptionsSpeak;          // v2.73 — read YouTube subtitles aloud (default off)
+extern bool g_ytCaptionsShow;           // v2.73 — show YouTube subtitles on the picture (default off)
 extern bool g_ytAutoplayNext;           // v2.61 — autoplay next result when a YouTube video ends (default off)
 extern int  g_ytVideoQuality;           // v2.71 — max stream height (1080/720/480), 0 = best available
 extern std::wstring g_ytCaptionLang;    // preferred caption language code; empty = original

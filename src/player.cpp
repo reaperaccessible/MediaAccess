@@ -1105,7 +1105,13 @@ static bool LoadVideoURL(const wchar_t* url, const char* mpvFileOptions) {
     } else {
         std::string fmt = YtFormatForQuality(g_ytVideoQuality);
         perFile = "ytdl-format=%" + std::to_string(fmt.size()) + "%" + fmt;
+        // v2.73 — "Show YouTube subtitles on the picture" unchecked: nothing on
+        // the picture. mpv's ytdl hook adds every author subtitle track and
+        // sid=auto + subs-fallback would pick one (German subtitles nobody
+        // asked for). Per file, so local videos keep sid=auto.
+        if (!g_ytCaptionsShow) perFile += ",sid=no";
     }
+    LogF("VIDEO", "loadfile options: %s", perFile.c_str());
     if (!MPVLoadURLWithOptions(url, perFile.c_str())) {
         Speak(Ts("Failed to load video URL"));
         g_isLoading = false;

@@ -426,8 +426,17 @@ void LoadSettings() {
     g_clearYtCacheOnExit = GetPrivateProfileIntW(L"YouTube", L"ClearCacheOnExit", 0, g_configPath.c_str()) != 0;
     g_ytCacheLimitMB = GetPrivateProfileIntW(L"YouTube", L"CacheLimitMB", 0, g_configPath.c_str());
     if (g_ytCacheLimitMB < 0) g_ytCacheLimitMB = 0;
-    // v2.52 — YouTube automatic captions
-    g_ytFetchCaptions = GetPrivateProfileIntW(L"YouTube", L"FetchCaptions", 0, g_configPath.c_str()) != 0;
+    // v2.73 — YouTube subtitles: read aloud / shown on the picture. Before
+    // 2.73 one box (FetchCaptions) did both, and reading also needed "Speak
+    // subtitles": derive the two new values from those when absent, so nobody
+    // loses their setting.
+    {
+        int speak = GetPrivateProfileIntW(L"YouTube", L"CaptionsSpeak", -1, g_configPath.c_str());
+        int show  = GetPrivateProfileIntW(L"YouTube", L"CaptionsShow", -1, g_configPath.c_str());
+        bool legacy = GetPrivateProfileIntW(L"YouTube", L"FetchCaptions", 0, g_configPath.c_str()) != 0;
+        g_ytCaptionsSpeak = (speak >= 0) ? (speak != 0) : (legacy && g_speakSubtitles);
+        g_ytCaptionsShow  = (show  >= 0) ? (show  != 0) : legacy;
+    }
     // v2.61 — YouTube autoplay next result (default off)
     g_ytAutoplayNext = GetPrivateProfileIntW(L"YouTube", L"AutoplayNext", 0, g_configPath.c_str()) != 0;
     // v2.71 — YouTube video quality (max stream height, 0 = best). Unknown -> 1080.
@@ -897,8 +906,9 @@ void SaveSettings() {
     // YouTube video mode
     WritePrivateProfileStringW(L"YouTube", L"VideoMode", GetYouTubeVideoMode() ? L"1" : L"0", g_configPath.c_str());
     WritePrivateProfileStringW(L"YouTube", L"ClearCacheOnExit", g_clearYtCacheOnExit ? L"1" : L"0", g_configPath.c_str());
-    // v2.52 — YouTube automatic captions
-    WritePrivateProfileStringW(L"YouTube", L"FetchCaptions", g_ytFetchCaptions ? L"1" : L"0", g_configPath.c_str());
+    // v2.73 — YouTube subtitles (FetchCaptions is no longer written)
+    WritePrivateProfileStringW(L"YouTube", L"CaptionsSpeak", g_ytCaptionsSpeak ? L"1" : L"0", g_configPath.c_str());
+    WritePrivateProfileStringW(L"YouTube", L"CaptionsShow", g_ytCaptionsShow ? L"1" : L"0", g_configPath.c_str());
     // v2.61 — YouTube autoplay next result
     WritePrivateProfileStringW(L"YouTube", L"AutoplayNext", g_ytAutoplayNext ? L"1" : L"0", g_configPath.c_str());
     WritePrivateProfileStringW(L"YouTube", L"VideoQuality",

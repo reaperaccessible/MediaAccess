@@ -512,11 +512,15 @@ void RegisterRcTranslations() {
     AddTranslation("fr", "Brows&e...", L"Parco&urir...");
     AddTranslation("en", "Select playlists folder", L"Select playlists folder");
     AddTranslation("fr", "Select playlists folder", L"Choisir le dossier des listes de lecture");
-    AddTranslation("en", "Play YouTube videos as video (enables subtitles)", L"Play YouTube videos as video (enables subtitles)");
-    AddTranslation("fr", "Play YouTube videos as video (enables subtitles)", L"Lire les vidéos YouTube en mode vidéo (active les sous-titres)");
-    // v2.52 — YouTube automatic captions
-    AddTranslation("en", "Read YouTube auto-generated captions", L"Read YouTube auto-generated captions");
-    AddTranslation("fr", "Read YouTube auto-generated captions", L"Lire les sous-titres générés automatiquement par YouTube");
+    // v2.73 — "audio only" and the two YouTube subtitle boxes (voice / picture)
+    AddTranslation("en", "Play YouTube as audio only, without the &picture", L"Play YouTube as audio only, without the &picture");
+    AddTranslation("fr", "Play YouTube as audio only, without the &picture", L"Lire YouTube en audio seul, sans l'&image");
+    AddTranslation("en", "From the YouTube window: starts faster, uses less data, and lets you use tempo, pitch and effects. Uncheck it to see the video picture.", L"From the YouTube window: starts faster, uses less data, and lets you use tempo, pitch and effects. Uncheck it to see the video picture.");
+    AddTranslation("fr", "From the YouTube window: starts faster, uses less data, and lets you use tempo, pitch and effects. Uncheck it to see the video picture.", L"Depuis la fenêtre YouTube : démarre plus vite, consomme moins de données et permet le tempo, la hauteur et les effets. Décochez pour voir l'image de la vidéo.");
+    AddTranslation("en", "Read YouTube &subtitles aloud", L"Read YouTube &subtitles aloud");
+    AddTranslation("fr", "Read YouTube &subtitles aloud", L"Lire les &sous-titres YouTube à voix haute");
+    AddTranslation("en", "Sh&ow YouTube subtitles on the picture", L"Sh&ow YouTube subtitles on the picture");
+    AddTranslation("fr", "Sh&ow YouTube subtitles on the picture", L"A&fficher les sous-titres YouTube sur l'image");
     AddTranslation("en", "Preferred caption language:", L"Preferred caption language:");
     AddTranslation("fr", "Preferred caption language:", L"Langue de sous-titres préférée :");
     // v2.61 — YouTube autoplay next result (Options checkbox + spoken cues)

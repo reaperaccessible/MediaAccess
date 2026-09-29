@@ -1054,12 +1054,21 @@ void MPVCycleSubtitles()
     }
 }
 
+/* v2.73 — "Show YouTube subtitles on the picture" was unchecked while a video
+ * plays: deselect the subtitle track silently. */
+void MPVHideSubtitles()
+{
+    if (!g_mpv) return;
+    fn_mpv_set_property_string(g_mpv, "sid", "no");
+}
+
 bool MPVLoadExternalSubtitle(const wchar_t* path)
 {
     if (!g_mpv) return false;
     std::string utf8 = WideToUtf8(std::wstring(path));
     const char* cmd[] = {"sub-add", utf8.c_str(), nullptr};
     int err = fn_mpv_command(g_mpv, cmd);
+    LogF("VIDEO", "subtitle file added (%s)", err == 0 ? "ok" : "failed");   // v2.73 diagnostic
     if (err == 0)
         Speak(Ts("Subtitle loaded"));
     else

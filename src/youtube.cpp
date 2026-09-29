@@ -1622,7 +1622,7 @@ static DWORD WINAPI CaptionFetchThread(LPVOID p) {
 
 // Kick an async caption fetch for the just-started video. No-op if disabled.
 static void KickCaptionFetch(const std::wstring& videoId) {
-    if (!g_ytFetchCaptions) return;
+    if (!g_ytCaptionsSpeak && !g_ytCaptionsShow) return;   // v2.73 — either box fetches
     int gen = ++g_ytCaptionGen;
     CaptionFetchArg* a = new CaptionFetchArg{gen, videoId, g_ytCaptionLang};
     HANDLE t = CreateThread(nullptr, 0, CaptionFetchThread, a, 0, nullptr);
@@ -2985,7 +2985,10 @@ bool YouTubePlayById(const std::wstring& videoId) {
         // when this file ends, so the global quality setting stays intact.
         if (YouTubeGetVideoURL(videoId, rawUrl) &&
             LoadURL(rawUrl.c_str(), /*silentOnFail=*/true,
-                    "ytdl-format=bestaudio/best,vid=no"))
+                    // v2.73 — sid=no: no picture here, so no subtitle track
+                    // either (mpv's ytdl hook would otherwise pick an author
+                    // track); the caption reader works from its own file.
+                    "ytdl-format=bestaudio/best,vid=no,sid=no"))
         {
             // LoadURL routed to libmpv showed the video window — hide it,
             // we're audio-only here. Reset main window to audio size too.
