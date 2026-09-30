@@ -2,6 +2,7 @@
 #include "globals.h"
 #include "accessibility.h"
 #include "translations.h"
+#include "mediaaccess/notify_sounds.h"  // v2.74 — download-finished sounds
 #include <wininet.h>
 #include <cstdio>
 
@@ -316,6 +317,8 @@ void DownloadManager::ProcessCompletion(int id, bool success) {
     // Speak progress when all downloads complete. All literals route
     // through Ts() so French users hear the announcement in French.
     if (allDone && batchTotal > 0) {
+        // v2.74 — one sound when the whole podcast queue is done.
+        PlayDownloadSound(batchTotal == 1 ? success : batchFailed == 0);
         char msg[160];
         if (batchTotal == 1) {
             // Single download

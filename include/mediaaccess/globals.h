@@ -250,6 +250,9 @@ extern std::wstring g_ytDownloadPath; // v1.71 — Permanent-download destinatio
 // Downloads settings
 extern std::wstring g_downloadPath;      // Output directory for podcast downloads
 extern bool g_downloadOrganizeByFeed;    // Organize downloads into folders by feed title
+extern bool g_downloadSoundOnFinish;     // v2.74 — play a sound when a download finishes
+extern std::wstring g_downloadSoundSuccess;  // v2.74 — empty = built-in sound
+extern std::wstring g_downloadSoundFailure;  // v2.74 — empty = built-in sound
 
 // Recording settings
 extern std::wstring g_recordPath;       // Output directory for recordings

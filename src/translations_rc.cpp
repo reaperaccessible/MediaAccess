@@ -512,6 +512,37 @@ void RegisterRcTranslations() {
     AddTranslation("fr", "Brows&e...", L"Parco&urir...");
     AddTranslation("en", "Select playlists folder", L"Select playlists folder");
     AddTranslation("fr", "Select playlists folder", L"Choisir le dossier des listes de lecture");
+    // v2.74 — download-finished sounds (Options > Downloads)
+    AddTranslation("en", "This sound file cannot be played; the built-in sound is used instead.", L"This sound file cannot be played; the built-in sound is used instead.");
+    AddTranslation("fr", "This sound file cannot be played; the built-in sound is used instead.", L"Ce fichier son ne peut pas être lu ; le son intégré est utilisé à sa place.");
+    AddTranslation("en", "Download settings (podcasts) and download sounds (podcasts and YouTube).", L"Download settings (podcasts) and download sounds (podcasts and YouTube).");
+    AddTranslation("fr", "Download settings (podcasts) and download sounds (podcasts and YouTube).", L"Réglages des téléchargements (podcasts) et sons de fin de téléchargement (podcasts et YouTube).");
+    AddTranslation("en", "Play a &sound when a download finishes", L"Play a &sound when a download finishes");
+    AddTranslation("fr", "Play a &sound when a download finishes", L"Jouer un &son à la fin d'un téléchargement");
+    AddTranslation("en", "Success sound", L"Success sound");
+    AddTranslation("fr", "Success sound", L"Son de réussite");
+    AddTranslation("en", "Success sound file:", L"Success sound file:");
+    AddTranslation("fr", "Success sound file:", L"Fichier du son de réussite :");
+    AddTranslation("en", "Browse for success sound...", L"Browse for success sound...");
+    AddTranslation("fr", "Browse for success sound...", L"Parcourir pour le son de réussite...");
+    AddTranslation("en", "Play success sound", L"Play success sound");
+    AddTranslation("fr", "Play success sound", L"Écouter le son de réussite");
+    AddTranslation("en", "Default success sound", L"Default success sound");
+    AddTranslation("fr", "Default success sound", L"Son de réussite par défaut");
+    AddTranslation("en", "Failure sound", L"Failure sound");
+    AddTranslation("fr", "Failure sound", L"Son d'échec");
+    AddTranslation("en", "Failure sound file:", L"Failure sound file:");
+    AddTranslation("fr", "Failure sound file:", L"Fichier du son d'échec :");
+    AddTranslation("en", "Browse for failure sound...", L"Browse for failure sound...");
+    AddTranslation("fr", "Browse for failure sound...", L"Parcourir pour le son d'échec...");
+    AddTranslation("en", "Play failure sound", L"Play failure sound");
+    AddTranslation("fr", "Play failure sound", L"Écouter le son d'échec");
+    AddTranslation("en", "Default failure sound", L"Default failure sound");
+    AddTranslation("fr", "Default failure sound", L"Son d'échec par défaut");
+    AddTranslation("en", "(built-in sound)", L"(built-in sound)");
+    AddTranslation("fr", "(built-in sound)", L"(son intégré)");
+    AddTranslation("en", "Select a sound file", L"Select a sound file");
+    AddTranslation("fr", "Select a sound file", L"Choisir un fichier son");
     // v2.73 — "audio only" and the two YouTube subtitle boxes (voice / picture)
     AddTranslation("en", "Play YouTube as audio only, without the &picture", L"Play YouTube as audio only, without the &picture");
     AddTranslation("fr", "Play YouTube as audio only, without the &picture", L"Lire YouTube en audio seul, sans l'&image");

@@ -707,6 +707,20 @@
 #define IDC_DOWNLOAD_PATH       980
 #define IDC_DOWNLOAD_BROWSE     981
 #define IDC_DOWNLOAD_ORGANIZE   982
+// v2.74 — download-finished sounds (Downloads tab)
+#define IDC_DL_SOUND_ENABLE     983
+#define IDC_DL_SOUND_OK_GROUP   984
+#define IDC_DL_SOUND_OK_PATH    985
+#define IDC_DL_SOUND_OK_BROWSE  986
+#define IDC_DL_SOUND_OK_PLAY    987
+#define IDC_DL_SOUND_OK_DEFAULT 988
+#define IDC_DL_SOUND_KO_GROUP   989
+#define IDC_DL_SOUND_KO_PATH    1022
+#define IDC_DL_SOUND_KO_BROWSE  1023
+#define IDC_DL_SOUND_KO_PLAY    1024
+#define IDC_DL_SOUND_KO_DEFAULT 1025
+#define IDC_LABEL_DL_SOUND_OK   1026
+#define IDC_LABEL_DL_SOUND_KO   1027
 
 // Song history dialog
 #define IDM_VIEW_SONG_HISTORY   990

@@ -427,6 +427,10 @@ std::wstring g_ytDownloadPath; // v1.71 — empty means fall back to the histori
 // Downloads settings
 std::wstring g_downloadPath;             // Output directory for podcast downloads
 bool g_downloadOrganizeByFeed = false;   // Organize downloads into folders by feed title
+// v2.74 — download-finished sounds (off by default; empty path = built-in sound)
+bool g_downloadSoundOnFinish = false;
+std::wstring g_downloadSoundSuccess;
+std::wstring g_downloadSoundFailure;
 
 // Recording settings
 std::wstring g_recordPath;                          // Output directory

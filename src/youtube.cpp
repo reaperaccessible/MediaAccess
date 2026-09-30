@@ -11,6 +11,7 @@
 #include "mediaaccess/actions.h"  // v2.30 — Shortcut / ActionCategory (in-dialog download keys)
 #include "mediaaccess/keymap.h"   // v2.30 — GetActiveKeyMap().FindCommandFor
 #include "mediaaccess/ytdlp_updater.h"  // v2.72 — GetYtdlpPath, wait for a running update
+#include "mediaaccess/notify_sounds.h"  // v2.74 — download-finished sounds
 #include <wininet.h>
 #include <commctrl.h>
 #include <windowsx.h>    // GET_X_LPARAM / GET_Y_LPARAM (context-menu positioning)
@@ -3845,6 +3846,10 @@ void YouTubeOnDownloadDone(LPARAM lParam) {
     // Build the single completion message and decide its assertiveness:
     // success = polite (interrupt=false, queues behind any read in progress);
     // failure = assertive (interrupt=true) since an error matters more.
+    // v2.74 — the sound goes first and at once, before the deferred-speech
+    // early return below (and before res is freed).
+    PlayDownloadSound(res->success);
+
     std::wstring msg;
     bool assertive;
     if (res->success) {
@@ -4223,6 +4228,8 @@ void YouTubeOnBatchDone(LPARAM lParam) {
     g_ytBatchActive.store(false);
     YtSetDownloadAllLabel(false);
     if (!res) return;
+    // v2.74 — one sound for the whole batch, none when the user cancelled it.
+    if (!res->cancelled) PlayDownloadSound(res->fail == 0);
     std::wstring msg;
     if (res->cancelled) {
         msg = FormatCount(T("Downloads cancelled. %d done."), res->ok);

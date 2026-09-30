@@ -10,6 +10,7 @@
 #include "mediaaccess/wasapi_loopback.h"   // v1.94 — system loopback device list
 #include "mediaaccess/edge_tts_client.h"   // Edge voice list + preview synthesis
 #include "mediaaccess/subtitle_scheduler.h" // v2.52 — SubSetVoiceVolume
+#include "mediaaccess/notify_sounds.h"      // v2.74 — download-finished sounds
 #include "bass.h"                          // preview playback
 #include <set>
 #include <cmath>
@@ -194,6 +195,44 @@ static void BookEdgeFillLangAndVoices(HWND hwnd, const std::wstring& selectShort
     BookEdgePopulateVoices(hwnd, langSel == 0 ? L"" : curLoc, selectShortName);
 }
 
+// v2.74 — download-finished sounds. The real paths live here while the dialog
+// is open (empty = built-in sound); the read-only fields only DISPLAY them, and
+// show a translated "(built-in sound)" when empty, which must never be read
+// back as a path.
+static std::wstring s_dlSoundOk, s_dlSoundKo;
+
+static void DlSoundShowPath(HWND hwnd, bool success) {
+    const std::wstring& p = success ? s_dlSoundOk : s_dlSoundKo;
+    SetDlgItemTextW(hwnd, success ? IDC_DL_SOUND_OK_PATH : IDC_DL_SOUND_KO_PATH,
+                    p.empty() ? T("(built-in sound)") : p.c_str());
+}
+
+// Grey out the sound controls when "Play a sound when a download finishes" is off.
+static void DlSoundEnableControls(HWND hwnd, bool enable) {
+    const int ids[] = { IDC_DL_SOUND_OK_GROUP, IDC_LABEL_DL_SOUND_OK, IDC_DL_SOUND_OK_PATH,
+                        IDC_DL_SOUND_OK_BROWSE, IDC_DL_SOUND_OK_PLAY, IDC_DL_SOUND_OK_DEFAULT,
+                        IDC_DL_SOUND_KO_GROUP, IDC_LABEL_DL_SOUND_KO, IDC_DL_SOUND_KO_PATH,
+                        IDC_DL_SOUND_KO_BROWSE, IDC_DL_SOUND_KO_PLAY, IDC_DL_SOUND_KO_DEFAULT };
+    for (int id : ids) EnableWindow(GetDlgItem(hwnd, id), enable);
+}
+
+static void DlSoundBrowse(HWND hwnd, bool success) {
+    wchar_t filePath[MAX_PATH] = {0};
+    std::wstring& cur = success ? s_dlSoundOk : s_dlSoundKo;
+    if (!cur.empty()) wcsncpy_s(filePath, cur.c_str(), _TRUNCATE);
+    OPENFILENAMEW ofn = {sizeof(ofn)};
+    ofn.hwndOwner = hwnd;
+    ofn.lpstrFilter = L"Audio (*.wav;*.mp3;*.ogg;*.flac;*.m4a)\0*.wav;*.mp3;*.ogg;*.flac;*.m4a\0All Files (*.*)\0*.*\0";
+    ofn.lpstrFile = filePath;
+    ofn.nMaxFile = MAX_PATH;
+    ofn.lpstrTitle = T("Select a sound file");
+    ofn.Flags = OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST | OFN_NOCHANGEDIR;
+    if (GetOpenFileNameW(&ofn)) {
+        cur = filePath;
+        DlSoundShowPath(hwnd, success);
+    }
+}
+
 // v2.48 — grey out the book Edge voice controls when the "neural voice" box is
 // off, so a screen-reader user isn't offered controls that do nothing.
 static void BookEdgeEnableControls(HWND hwnd, bool enable) {
@@ -267,7 +306,13 @@ void ShowTabControls(HWND hwnd, int tab) {
                             IDC_REC_SOURCE, IDC_REC_SOURCE_LABEL, IDC_REC_SYSTEM_DEVICE, IDC_REC_SYSTEM_DEVICE_LABEL};  // v1.94
     // Downloads tab controls (tab 2)
     int downloadsCtrls[] = {IDC_DOWNLOAD_PATH, IDC_DOWNLOAD_BROWSE, IDC_DOWNLOAD_ORGANIZE,
-                            IDC_LABEL_DOWNLOADS_DESCRIPTION, IDC_LABEL_DOWNLOADS_FOLDER};
+                            IDC_LABEL_DOWNLOADS_DESCRIPTION, IDC_LABEL_DOWNLOADS_FOLDER,
+                            // v2.74 — download-finished sounds
+                            IDC_DL_SOUND_ENABLE,
+                            IDC_DL_SOUND_OK_GROUP, IDC_LABEL_DL_SOUND_OK, IDC_DL_SOUND_OK_PATH,
+                            IDC_DL_SOUND_OK_BROWSE, IDC_DL_SOUND_OK_PLAY, IDC_DL_SOUND_OK_DEFAULT,
+                            IDC_DL_SOUND_KO_GROUP, IDC_LABEL_DL_SOUND_KO, IDC_DL_SOUND_KO_PATH,
+                            IDC_DL_SOUND_KO_BROWSE, IDC_DL_SOUND_KO_PLAY, IDC_DL_SOUND_KO_DEFAULT};
     // Speech tab controls (tab 3)
     int speechCtrls[] = {IDC_SPEECH_TRACKCHANGE, IDC_SPEECH_VOLUME, IDC_SPEECH_EFFECT, IDC_SPEECH_YT_HYBRID,
                          IDC_SPEECH_SEEK_POSITION, IDC_SPEAK_SUBTITLES,
@@ -666,6 +711,13 @@ INT_PTR CALLBACK OptionsDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
             // Set download path and organize checkbox
             SetDlgItemTextW(hwnd, IDC_DOWNLOAD_PATH, g_downloadPath.c_str());
             CheckDlgButton(hwnd, IDC_DOWNLOAD_ORGANIZE, g_downloadOrganizeByFeed ? BST_CHECKED : BST_UNCHECKED);
+            // v2.74 — download-finished sounds
+            CheckDlgButton(hwnd, IDC_DL_SOUND_ENABLE, g_downloadSoundOnFinish ? BST_CHECKED : BST_UNCHECKED);
+            s_dlSoundOk = g_downloadSoundSuccess;
+            s_dlSoundKo = g_downloadSoundFailure;
+            DlSoundShowPath(hwnd, true);
+            DlSoundShowPath(hwnd, false);
+            DlSoundEnableControls(hwnd, g_downloadSoundOnFinish);
 
             // Populate volume step combo box
             {
@@ -1201,6 +1253,10 @@ INT_PTR CALLBACK OptionsDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
                         GetDlgItemTextW(hwnd, IDC_DOWNLOAD_PATH, dlPath, MAX_PATH);
                         g_downloadPath = dlPath;
                         g_downloadOrganizeByFeed = (IsDlgButtonChecked(hwnd, IDC_DOWNLOAD_ORGANIZE) == BST_CHECKED);
+                        // v2.74 — download-finished sounds (paths from the statics, never the fields)
+                        g_downloadSoundOnFinish = (IsDlgButtonChecked(hwnd, IDC_DL_SOUND_ENABLE) == BST_CHECKED);
+                        g_downloadSoundSuccess = s_dlSoundOk;
+                        g_downloadSoundFailure = s_dlSoundKo;
                     }
 
                     // Get volume step setting
@@ -1833,6 +1889,36 @@ INT_PTR CALLBACK OptionsDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
                         if (!PostMessageW(dlg, WM_SUB_PREVIEW_READY, 0, (LPARAM)mp3) && mp3)
                             delete mp3;
                     }).detach();
+                    return TRUE;
+                }
+
+                // v2.74 — download-finished sounds
+                case IDC_DL_SOUND_ENABLE:
+                    if (HIWORD(wParam) != BN_CLICKED) break;
+                    DlSoundEnableControls(hwnd,
+                        IsDlgButtonChecked(hwnd, IDC_DL_SOUND_ENABLE) == BST_CHECKED);
+                    return TRUE;
+                case IDC_DL_SOUND_OK_BROWSE:
+                case IDC_DL_SOUND_KO_BROWSE:
+                    if (HIWORD(wParam) != BN_CLICKED) break;
+                    DlSoundBrowse(hwnd, LOWORD(wParam) == IDC_DL_SOUND_OK_BROWSE);
+                    return TRUE;
+                case IDC_DL_SOUND_OK_PLAY:
+                case IDC_DL_SOUND_KO_PLAY: {
+                    // Plays the sound being edited, whether saved or not.
+                    if (HIWORD(wParam) != BN_CLICKED) break;
+                    bool ok = (LOWORD(wParam) == IDC_DL_SOUND_OK_PLAY);
+                    if (!PlayNotifySoundFile(ok ? s_dlSoundOk : s_dlSoundKo, ok))
+                        Speak(Ts("This sound file cannot be played; the built-in sound is used instead."));
+                    return TRUE;
+                }
+                case IDC_DL_SOUND_OK_DEFAULT:
+                case IDC_DL_SOUND_KO_DEFAULT: {
+                    if (HIWORD(wParam) != BN_CLICKED) break;
+                    bool ok = (LOWORD(wParam) == IDC_DL_SOUND_OK_DEFAULT);
+                    (ok ? s_dlSoundOk : s_dlSoundKo).clear();
+                    DlSoundShowPath(hwnd, ok);
+                    Speak(Ts("(built-in sound)"));
                     return TRUE;
                 }
 

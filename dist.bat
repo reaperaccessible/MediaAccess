@@ -35,6 +35,12 @@ copy /y "MediaAccess.exe" "dist_temp\"
 mkdir "dist_temp\docs"
 xcopy /y /e "docs\*" "dist_temp\docs\" >nul
 
+REM v2.74 - built-in download-finished sounds
+if exist "sounds\*.wav" (
+    mkdir "dist_temp\sounds"
+    copy /y "sounds\*.wav" "dist_temp\sounds\" >nul
+)
+
 REM Copy regional default keymaps (USA, FR-CA, FR-FR)
 if exist "KeyMaps\*.MediaAccessKeyMap" (
     mkdir "dist_temp\KeyMaps"

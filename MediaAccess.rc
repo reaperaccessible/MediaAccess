@@ -9,8 +9,8 @@ IDI_APPICON ICON "MediaAccess.ico"
 // ASCII only (rc.exe mojibake risk). FILEVERSION is hardcoded: bump it each
 // release to match include/mediaaccess/version.h (build_new.bat passes no /D to rc).
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION    2,73,0,0
- PRODUCTVERSION 2,73,0,0
+ FILEVERSION    2,74,0,0
+ PRODUCTVERSION 2,74,0,0
  FILEFLAGSMASK  0x3fL
  FILEFLAGS      0x0L
  FILEOS         VOS__WINDOWS32
@@ -23,12 +23,12 @@ BEGIN
     BEGIN
       VALUE "CompanyName",      "ReaperAccessible"
       VALUE "FileDescription",  "MediaAccess - accessible audio and video player"
-      VALUE "FileVersion",      "2.73"
+      VALUE "FileVersion",      "2.74"
       VALUE "InternalName",     "MediaAccess"
       VALUE "LegalCopyright",   "Copyright (C) 2026 ReaperAccessible. GPL-3.0."
       VALUE "OriginalFilename", "MediaAccess.exe"
       VALUE "ProductName",      "MediaAccess"
-      VALUE "ProductVersion",   "2.73"
+      VALUE "ProductVersion",   "2.74"
     END
   END
   BLOCK "VarFileInfo"
@@ -218,11 +218,26 @@ BEGIN
     COMBOBOX        IDC_REC_SYSTEM_DEVICE, 90, 163, 188, 120, CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
 
     // Downloads tab controls (shown when tab 2 selected)
-    LTEXT           "Configure podcast episode download settings.", IDC_LABEL_DOWNLOADS_DESCRIPTION, 17, 30, 290, 10
-    LTEXT           "&Downloads folder:", IDC_LABEL_DOWNLOADS_FOLDER, 17, 50, 115, 10
-    EDITTEXT        IDC_DOWNLOAD_PATH, 17, 62, 205, 14, ES_AUTOHSCROLL | ES_READONLY
-    PUSHBUTTON      "&Browse...", IDC_DOWNLOAD_BROWSE, 225, 61, 50, 14
-    AUTOCHECKBOX    "&Organize downloads into folders by feed title", IDC_DOWNLOAD_ORGANIZE, 17, 82, 260, 10
+    LTEXT           "Download settings (podcasts) and download sounds (podcasts and YouTube).", IDC_LABEL_DOWNLOADS_DESCRIPTION, 17, 30, 305, 20
+    LTEXT           "&Downloads folder:", IDC_LABEL_DOWNLOADS_FOLDER, 17, 60, 115, 10
+    EDITTEXT        IDC_DOWNLOAD_PATH, 17, 72, 205, 14, ES_AUTOHSCROLL | ES_READONLY
+    PUSHBUTTON      "&Browse...", IDC_DOWNLOAD_BROWSE, 225, 71, 50, 14
+    AUTOCHECKBOX    "&Organize downloads into folders by feed title", IDC_DOWNLOAD_ORGANIZE, 17, 92, 260, 10
+    // v2.74 — download-finished sounds; every button has its own name
+    // (a screen reader reads only a button's name)
+    AUTOCHECKBOX    "Play a &sound when a download finishes", IDC_DL_SOUND_ENABLE, 17, 112, 260, 10
+    GROUPBOX        "Success sound", IDC_DL_SOUND_OK_GROUP, 17, 128, 305, 78
+    LTEXT           "Success sound file:", IDC_LABEL_DL_SOUND_OK, 25, 141, 200, 10
+    EDITTEXT        IDC_DL_SOUND_OK_PATH, 25, 153, 290, 14, ES_AUTOHSCROLL | ES_READONLY
+    PUSHBUTTON      "Browse for success sound...", IDC_DL_SOUND_OK_BROWSE, 25, 171, 150, 14
+    PUSHBUTTON      "Play success sound", IDC_DL_SOUND_OK_PLAY, 25, 189, 140, 14
+    PUSHBUTTON      "Default success sound", IDC_DL_SOUND_OK_DEFAULT, 170, 189, 145, 14
+    GROUPBOX        "Failure sound", IDC_DL_SOUND_KO_GROUP, 17, 212, 305, 78
+    LTEXT           "Failure sound file:", IDC_LABEL_DL_SOUND_KO, 25, 225, 200, 10
+    EDITTEXT        IDC_DL_SOUND_KO_PATH, 25, 237, 290, 14, ES_AUTOHSCROLL | ES_READONLY
+    PUSHBUTTON      "Browse for failure sound...", IDC_DL_SOUND_KO_BROWSE, 25, 255, 150, 14
+    PUSHBUTTON      "Play failure sound", IDC_DL_SOUND_KO_PLAY, 25, 273, 140, 14
+    PUSHBUTTON      "Default failure sound", IDC_DL_SOUND_KO_DEFAULT, 170, 273, 145, 14
 
     // Speech tab controls (shown when tab 3 selected)
     LTEXT           "Configure speech feedback for various events.", IDC_LABEL_SPEECH_DESCRIPTION, 17, 30, 230, 10

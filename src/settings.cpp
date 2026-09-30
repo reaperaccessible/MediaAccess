@@ -284,6 +284,15 @@ void LoadSettings() {
     GetPrivateProfileStringW(L"Downloads", L"Path", L"", dlBuf, 512, g_configPath.c_str());
     g_downloadPath = dlBuf;
     g_downloadOrganizeByFeed = GetPrivateProfileIntW(L"Downloads", L"OrganizeByFeed", 0, g_configPath.c_str()) != 0;
+    // v2.74 — download-finished sounds
+    g_downloadSoundOnFinish = GetPrivateProfileIntW(L"Downloads", L"SoundOnFinish", 0, g_configPath.c_str()) != 0;
+    {
+        wchar_t sb[MAX_PATH] = {0};
+        GetPrivateProfileStringW(L"Downloads", L"SoundSuccess", L"", sb, MAX_PATH, g_configPath.c_str());
+        g_downloadSoundSuccess = sb;
+        GetPrivateProfileStringW(L"Downloads", L"SoundFailure", L"", sb, MAX_PATH, g_configPath.c_str());
+        g_downloadSoundFailure = sb;
+    }
 
     // Load recording settings
     wchar_t recBuf[512] = {0};
@@ -711,6 +720,10 @@ void SaveSettings() {
     // Save downloads settings
     WritePrivateProfileStringW(L"Downloads", L"Path", g_downloadPath.c_str(), g_configPath.c_str());
     WritePrivateProfileStringW(L"Downloads", L"OrganizeByFeed", g_downloadOrganizeByFeed ? L"1" : L"0", g_configPath.c_str());
+    // v2.74 — download-finished sounds
+    WritePrivateProfileStringW(L"Downloads", L"SoundOnFinish", g_downloadSoundOnFinish ? L"1" : L"0", g_configPath.c_str());
+    WritePrivateProfileStringW(L"Downloads", L"SoundSuccess", g_downloadSoundSuccess.c_str(), g_configPath.c_str());
+    WritePrivateProfileStringW(L"Downloads", L"SoundFailure", g_downloadSoundFailure.c_str(), g_configPath.c_str());
 
     // Save recording settings
     WritePrivateProfileStringW(L"Recording", L"Path", g_recordPath.c_str(), g_configPath.c_str());

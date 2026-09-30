@@ -145,6 +145,8 @@ Source: "{#SourceDir}\docs\manual_en.html"; DestDir: "{app}\docs"; Flags: ignore
 ; regenerates these on first run if missing, so this entry is safe to skip
 ; when building from a fresh tree before the binaries have run once.
 Source: "{#SourceDir}\KeyMaps\*.MediaAccessKeyMap"; DestDir: "{app}\KeyMaps"; Flags: ignoreversion skipifsourcedoesntexist
+; v2.74 - built-in download-finished sounds
+Source: "{#SourceDir}\sounds\*.wav"; DestDir: "{app}\sounds"; Flags: ignoreversion
 ; Create installed marker file
 Source: "{#SourceDir}\MediaAccess.exe"; DestDir: "{app}"; AfterInstall: CreateInstalledMarker; Flags: ignoreversion
 
