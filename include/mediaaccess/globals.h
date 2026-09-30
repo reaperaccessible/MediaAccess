@@ -120,6 +120,8 @@ extern int g_historyLimit;       // v2.11 — max play-history entries (1..50, d
 extern bool g_bringToFront;
 extern bool g_minimizeToTray;
 extern bool g_loadFolder;
+extern std::wstring g_lastOpenFolder;   // v2.75 — folder of the last file opened with Open
+extern std::wstring g_lastAddFolder;    // v2.75 — last folder chosen with Add Folder
 extern float g_volumeStep;                 // Volume change per keypress (default 0.02 = 2%)
 extern bool g_showTitleInWindow;           // Show track name in window title (default true)
 extern bool g_playlistFollowPlayback;      // Auto-select current track in playlist dialog

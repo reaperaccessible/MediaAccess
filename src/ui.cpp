@@ -447,6 +447,16 @@ void UnregisterAllFileTypes() {
     }
 }
 
+// v2.75 (issue #17) — is a remembered folder worth handing to a dialog? A
+// local folder must still exist (USB stick removed -> usual behaviour). A
+// network path (\\server\share) is not tested: an unreachable server would
+// block here for the network timeout, silently; the dialog copes by itself.
+static bool UsableStartFolder(const std::wstring& f) {
+    if (f.empty()) return false;
+    if (f.size() > 1 && f[0] == L'\\' && f[1] == L'\\') return true;
+    return PathIsDirectoryW(f.c_str()) != FALSE;
+}
+
 // Show the file-open dialog and play the chosen file(s). Handles three
 // selection modes: a single playlist file (parsed), a single audio/video
 // file (optionally expanded to its containing folder when g_loadFolder is
@@ -470,6 +480,11 @@ void ShowOpenDialog() {
                       L"All Files (*.*)\0*.*\0";
     ofn.nFilterIndex = 1;
     ofn.Flags = OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST | OFN_ALLOWMULTISELECT | OFN_EXPLORER;
+    // v2.75 (issue #17) — start in the folder of the last file opened, kept
+    // across runs. A folder that no longer exists (USB stick removed) is
+    // skipped: Windows then picks its usual starting folder.
+    if (UsableStartFolder(g_lastOpenFolder))
+        ofn.lpstrInitialDir = g_lastOpenFolder.c_str();
 
     if (GetOpenFileNameW(&ofn)) {
         g_playlist.clear();
@@ -479,6 +494,19 @@ void ShowOpenDialog() {
         wchar_t* p = szFile;
         std::wstring dir = p;
         p += wcslen(p) + 1;
+
+        // v2.75 — remember the folder: the first string is the folder itself
+        // for a multi-selection, the full file path for a single file.
+        if (*p) {
+            g_lastOpenFolder = dir;
+        } else {
+            // PathRemoveFileSpecW keeps the root's backslash: D:\x.mp3 gives
+            // D:\ , not D: (which would mean D's current folder).
+            std::vector<wchar_t> folder(dir.begin(), dir.end());
+            folder.push_back(L'\0');
+            if (PathRemoveFileSpecW(folder.data())) g_lastOpenFolder = folder.data();
+        }
+        SaveSettings();
 
         int startIndex = 0;
         if (*p == 0) {
@@ -579,17 +607,36 @@ void AddFilesFromFolder(const std::wstring& folder, std::vector<std::wstring>& f
     AddFilesFromFolderRecursive(folder, files, 0, includeVideo);
 }
 
+// v2.75 (issue #17) — when the folder browser opens, expand the tree down to
+// the last folder chosen and put the cursor on it, so a neighbouring folder is
+// one arrow away instead of a walk down from the top. lpData = the path.
+static int CALLBACK AddFolderBrowseProc(HWND hwnd, UINT msg, LPARAM, LPARAM lpData) {
+    if (msg == BFFM_INITIALIZED && lpData) {
+        SendMessageW(hwnd, BFFM_SETEXPANDED, TRUE, lpData);
+        SendMessageW(hwnd, BFFM_SETSELECTIONW, TRUE, lpData);
+    }
+    return 0;
+}
+
 // Show folder browser dialog and add all audio files
 void ShowAddFolderDialog() {
     BROWSEINFOW bi = {0};
     bi.hwndOwner = g_hwnd;
     bi.lpszTitle = T("Select folder to add to playlist");
     bi.ulFlags = BIF_RETURNONLYFSDIRS | BIF_NEWDIALOGSTYLE | BIF_NONEWFOLDERBUTTON;
+    // v2.75 — start on the last folder chosen, if it still exists.
+    std::wstring start = g_lastAddFolder;
+    if (UsableStartFolder(start)) {
+        bi.lpfn = AddFolderBrowseProc;
+        bi.lParam = reinterpret_cast<LPARAM>(start.c_str());
+    }
 
     PIDLIST_ABSOLUTE pidl = SHBrowseForFolderW(&bi);
     if (pidl) {
         wchar_t folderPath[MAX_PATH];
         if (SHGetPathFromIDListW(pidl, folderPath)) {
+            g_lastAddFolder = folderPath;   // v2.75 — next time, start here
+            SaveSettings();
             // Collect all audio files recursively
             std::vector<std::wstring> newFiles;
             AddFilesFromFolder(folderPath, newFiles);

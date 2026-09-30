@@ -113,6 +113,9 @@ int g_historyLimit = 50;         // v2.11 — default 50 (also the hard maximum)
 bool g_bringToFront = true;
 bool g_minimizeToTray = true;
 bool g_loadFolder = false;
+// v2.75 (issue #17) — where Open and Add Folder start next time (kept across runs)
+std::wstring g_lastOpenFolder;
+std::wstring g_lastAddFolder;
 float g_volumeStep = 0.02f;  // Volume change per keypress (default 2%)
 bool g_showTitleInWindow = true;  // Show track name in window title (default true)
 bool g_playlistFollowPlayback = true;  // Auto-select current track in playlist dialog (default true)
