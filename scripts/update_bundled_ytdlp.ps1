@@ -53,7 +53,11 @@ try {
         $parts = $line.Trim() -split '\s+', 2
         if ($parts.Count -eq 2 -and $parts[1].TrimStart('*') -eq 'yt-dlp.exe') { $expected = $parts[0].ToLower() }
     }
-    $actual = (Get-FileHash -Algorithm SHA256 -Path $tmp).Hash.ToLower()
+    # .NET directly: Get-FileHash is missing when this runs under Windows PowerShell
+    # started from PowerShell 7 (PSModulePath points at the 7.x modules).
+    $sha = [System.Security.Cryptography.SHA256]::Create()
+    $fs = [System.IO.File]::OpenRead($tmp)
+    try { $actual = ([BitConverter]::ToString($sha.ComputeHash($fs)) -replace '-', '').ToLower() } finally { $fs.Close(); $sha.Dispose() }
     if (-not $expected -or $actual -ne $expected) { throw "SHA-256 check failed ($actual, expected $expected)" }
 
     $ver = (& $tmp --version 2>$null | Out-String).Trim()
