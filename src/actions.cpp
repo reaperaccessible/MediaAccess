@@ -881,6 +881,39 @@ static const Action g_actions[] = {
       "Speak sleep-timer remaining",  "Annoncer le temps restant de la minuterie",
       { VK_F8, true,  false, false } },       // Ctrl+F8
 
+
+    // ========================================================================
+    // CATEGORY: Playlist — v2.76 (Nicolas): active while the Playlist manager
+    // (Ctrl+P) has the focus. That window is modal, so the Main shortcuts never
+    // reach it. No default keys; the user assigns them in Tools > Actions
+    // (Ctrl / Ctrl+Shift + letter or digit, or F1-F12 except F2 and F10).
+    // Kept LAST: ActionByCommandId returns the first action with a command id,
+    // and the menus must keep showing the Main shortcuts.
+    // ========================================================================
+    { "PL_SPEAK_ELAPSED", IDM_PLAY_ELAPSED, ActionCategory::Playlist,
+      "Speak elapsed time", "Annoncer le temps écoulé", {} },
+    { "PL_SPEAK_REMAINING", IDM_PLAY_REMAINING, ActionCategory::Playlist,
+      "Speak remaining time", "Annoncer le temps restant", {} },
+    { "PL_SPEAK_TOTAL", IDM_PLAY_TOTAL, ActionCategory::Playlist,
+      "Speak total duration of the track", "Annoncer la durée totale du morceau", {} },
+    { "PL_LIST_TOTAL", IDM_PL_LIST_TOTAL, ActionCategory::Playlist,
+      "Announce total duration of this list", "Annoncer la durée totale de cette liste", {} },
+    { "PL_NOW_PLAYING", IDM_PLAY_NOWPLAYING, ActionCategory::Playlist,
+      "Announce what is playing", "Annoncer ce qui joue", {} },
+    { "PL_PLAY_PAUSE", IDM_PLAY_PLAYPAUSE, ActionCategory::Playlist,
+      "Play / Pause", "Lecture / Pause", {} },
+    { "PL_STOP", IDM_PLAY_STOP, ActionCategory::Playlist,
+      "Stop", "Arrêt", {} },
+    { "PL_NEXT", IDM_PLAY_NEXT, ActionCategory::Playlist,
+      "Next track", "Morceau suivant", {} },
+    { "PL_PREV", IDM_PLAY_PREV, ActionCategory::Playlist,
+      "Previous track", "Morceau précédent", {} },
+    { "PL_VOL_UP", IDM_PLAY_VOLUP, ActionCategory::Playlist,
+      "Volume up", "Monter le volume", {} },
+    { "PL_VOL_DOWN", IDM_PLAY_VOLDOWN, ActionCategory::Playlist,
+      "Volume down", "Baisser le volume", {} },
+    { "PL_MUTE", IDM_PLAY_MUTE, ActionCategory::Playlist,
+      "Mute", "Sourdine", {} },
     // ========================================================================
     // CATEGORY: Radio — placeholder for future actions
     // CATEGORY: YouTube — placeholder for future actions
@@ -949,6 +982,7 @@ std::string CategoryDisplayName(ActionCategory cat)
         case ActionCategory::YouTube: return fr ? "YouTube"    : "YouTube";
         case ActionCategory::Global:  return fr ? "Globale"    : "Global";
         case ActionCategory::Books:   return fr ? "Livres"     : "Books";
+        case ActionCategory::Playlist: return fr ? "Gestionnaire de listes de lecture" : "Playlist manager";
         default:                      return "";
     }
 }

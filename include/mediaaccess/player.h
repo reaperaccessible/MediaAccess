@@ -103,6 +103,12 @@ bool IsMpvOnlyAudioFile(const std::wstring& path);
 // probes each file on a worker thread, then announces on the UI thread).
 void SpeakPlaylistTotalAsync();
 void OnPlaylistTotalDone(LPARAM lParam);  // WM_PLAYLIST_TOTAL_DONE handler
+// v2.76 — media duration, shared session cache (path + size + date). Measure on
+// worker threads only; the cached lookup is cheap and thread-safe.
+bool CachedMediaDuration(const std::wstring& path, double& seconds);
+bool CachedMediaDurationQuick(const std::wstring& path, double& seconds);   // UI thread: no disk access
+double MeasureMediaDuration(const std::wstring& path, const std::wstring& ffprobe);
+std::wstring BundledFfprobePath();
 
 // Tag reading functions (speak ID3/metadata tags)
 void SpeakTagTitle();

@@ -254,7 +254,7 @@
   <li>Drag and drop a file on the window, or use "Open with" from Explorer if MediaAccess is registered for the file type (checkbox in <strong>Options → Playback</strong>).</li>
   <li>Use the <strong>MediaAccess submenu</strong> in Explorer's context menu, on one or more files <em>or on a folder</em> — see below.</li>
 </ul>
-<p>MediaAccess remembers where you were, even after it is closed. <strong>Open</strong> starts in the folder of the last file opened. <strong>Add Folder</strong> opens the tree already expanded on the last folder chosen, with the cursor on it: a neighbouring folder is one arrow away. If that folder no longer exists (a USB stick removed, for instance), the window opens as usual.</p>
+<p>MediaAccess remembers where you were, even after it is closed. <strong>Open</strong> starts in the folder of the last file opened. <strong>Add Folder</strong> opens in the folder that holds the last folder chosen: all its subfolders are listed, the cursor is on the last folder chosen, and its name is already in the "Folder" field. A neighbouring folder is therefore one arrow away. To add it, choose it and activate the "Select Folder" button; Enter on a folder of the list goes into that folder. If the last folder no longer exists (a USB stick removed, for instance), the window opens as usual.</p>
 
 <h3>The MediaAccess submenu in Windows Explorer</h3>
 <p>In Explorer, a <strong>MediaAccess</strong> submenu offers two commands:</p>
@@ -581,7 +581,7 @@
 <h3>Two areas: saved playlists, then tracks</h3>
 <p>The window opens on the <strong>Saved playlists</strong> drop-down list. Pick a playlist with <kbd>↑</kbd> / <kbd>↓</kbd>, then press <kbd>Tab</kbd> to reach the tracks it holds. Picking a playlist leaves playback alone: the current track keeps playing until you start a track with <kbd>Enter</kbd>. Only then does the chosen playlist become the playing one.</p>
 <p>In the drop-down list, each entry reads as its name first. <kbd>→</kbd> gives the number of tracks (always current, even before saving), <kbd>→</kbd> again gives the file location; <kbd>←</kbd> walks back. <kbd>F2</kbd> renames the playlist: the file is renamed on disk and the entry follows.</p>
-<p>A saved playlist can live anywhere on the computer; it stays offered as long as its file exists. M3U, M3U8 and PLS are accepted.</p>
+<p>A saved playlist can live anywhere on the computer; it stays offered as long as its file exists. M3U, M3U8 and PLS are accepted, including playlists made by other players such as VLC (tracks written as <code>file:///</code> addresses) and tracks stored in a network folder.</p>
 
 <table>
 <caption>Keys in the playlist manager</caption>
@@ -591,7 +591,7 @@
 <tr><td><kbd>Space</kbd></td><td>Play / pause, from anywhere in the window (see the option below)</td></tr>
 <tr><td><kbd>Ctrl</kbd>+<kbd>S</kbd></td><td>Save: writes the shown playlist straight back to its file, or asks for a name if it has none yet</td></tr>
 <tr><td><kbd>F2</kbd></td><td>Rename the playlist chosen in the drop-down list</td></tr>
-<tr><td><kbd>→</kbd> / <kbd>←</kbd></td><td>In the drop-down list: number of tracks, then file location</td></tr>
+<tr><td><kbd>→</kbd> / <kbd>←</kbd></td><td>In the drop-down list: number of tracks, then file location. In the track list: seek forward or back in the playing track, as in the main window (with the chosen movement unit; with the "tracks" unit, it changes track)</td></tr>
 <tr><td><kbd>Delete</kbd></td><td>Remove the selected tracks from the shown playlist</td></tr>
 <tr><td><kbd>Ctrl</kbd>+<kbd>A</kbd></td><td>Select all</td></tr>
 <tr><td><kbd>Ctrl</kbd>+<kbd>V</kbd></td><td>Paste: audio files into the tracks, or a playlist file (M3U, M3U8, PLS) which joins the saved playlists</td></tr>
@@ -599,6 +599,8 @@
 <tr><td><kbd>Esc</kbd></td><td>Close the window</td></tr>
 </tbody>
 </table>
+<p>Each track announces its duration at the end of its line, for example "3. My track.mp3, 3 min 25 s". The window opens at once: durations are measured in the background and appear as they come, without interrupting the screen reader; MediaAccess then remembers them until it is closed. A radio, a podcast or a YouTube video has no duration.</p>
+<p><strong>Shortcuts for the manager.</strong> The "Playlist manager" category of <strong>Tools → Actions</strong> lets you assign shortcuts that work only in this window: announce elapsed time, remaining time, the track's duration, the total duration of the list shown, what is playing; play / pause, stop, next or previous track; volume up or down, mute. No shortcut is assigned by default. So as not to get in the window's way, only <kbd>Ctrl</kbd> or <kbd>Ctrl</kbd>+<kbd>Shift</kbd> with a letter or a digit, and the function keys (except <kbd>F2</kbd> and <kbd>F10</kbd>) are accepted; <kbd>Ctrl</kbd>+<kbd>S</kbd>, <kbd>Ctrl</kbd>+<kbd>A</kbd> and <kbd>Ctrl</kbd>+<kbd>V</kbd> remain the window's own, and a shortcut that is already global is refused.</p>
 <p>Reaching the edge of a list is never silent: <kbd>↑</kbd> on the first line announces "First," followed by the line, <kbd>↓</kbd> on the last line announces "Last,".</p>
 
 <h3>Buttons</h3>

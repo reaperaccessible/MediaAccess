@@ -1,6 +1,10 @@
 #include "ui_internal.h"
 #include "mediaaccess/translations.h"
 #include "mediaaccess/youtube.h"   // v2.69 — YouTubeGetDownloadRoot for the playlists folder
+#include "mediaaccess/keymap.h"    // v2.76 — Playlist-manager action category
+#include "mediaaccess/actions.h"
+#include <atomic>
+#include <thread>
 
 // Forward declaration for GetFilesFromClipboard (defined in ui.cpp)
 extern std::vector<std::wstring> GetFilesFromClipboard();
@@ -62,20 +66,146 @@ static void FillPlaylistCombo(HWND hCombo) {
     }
 }
 
+// v2.76 (Nicolas) — short duration for a list line: "3 min 25 s", "1 h 2 min",
+// "45 s". Terse on purpose: it is read on every line.
+static std::wstring FormatDurationShort(double seconds) {
+    int t = (int)seconds;   // truncated, like the time shown while playing
+    int h = t / 3600, m = (t % 3600) / 60, sec = t % 60;
+    std::wstring out;
+    if (h > 0) out += std::to_wstring(h) + L" h";
+    if (m > 0) out += (out.empty() ? L"" : L" ") + std::to_wstring(m) + L" min";
+    if (sec > 0 || out.empty()) out += (out.empty() ? L"" : L" ") + std::to_wstring(sec) + L" s";
+    return out;
+}
+
+// v2.76 — text of line i: "N. file.ext", plus ", 3 min 25 s" once the duration
+// is known (never for an address: radio, podcast, YouTube).
+static std::wstring PlaylistLineText(size_t i) {
+    const std::vector<std::wstring>& shown = ShownList();
+    std::wstring filename = shown[i];
+    size_t pos = filename.find_last_of(L"\\/");
+    if (pos != std::wstring::npos) filename = filename.substr(pos + 1);
+    std::wstring line = std::to_wstring(i + 1) + L". " + filename;
+    double seconds = 0.0;
+    if (!IsURL(shown[i].c_str()) && CachedMediaDurationQuick(shown[i], seconds) && seconds > 0.0)
+        line += L", " + FormatDurationShort(seconds);
+    return line;
+}
+
+// v2.76 — background measurement of the shown list. One worker at a time; a
+// new list (or closing the window) bumps the generation and the old worker
+// stops at its next file. Results go to the shared cache, keyed by path, so
+// reordering, deleting or pasting tracks never invalidates them. The worker
+// posts a data-less WM_PLAYLIST_DURATIONS to the main window, which relays it
+// to this window if it is still open.
+static std::atomic<int> g_durationGen{0};
+static std::atomic<bool> g_durationWorkerRunning{false};
+static std::wstring g_durationWorkerList;   // which shown list the worker measures
+
+// Starts the worker when the SHOWN list changed (another saved list, the live
+// list) or when none is running. Reordering, deleting or pasting in the same
+// list does not restart it: results are cached by path, and whatever is still
+// unknown when it ends starts a new pass (see WM_PLAYLIST_DURATIONS).
+static void StartDurationWorker() {
+    std::wstring listKey = g_shownIsLive ? std::wstring(L"*live*") : g_shownSourcePath;
+    if (g_durationWorkerRunning.load() && listKey == g_durationWorkerList) return;
+    std::vector<std::wstring> snapshot;
+    for (const auto& path : ShownList()) {
+        // Every local track: the worker checks size and date (a re-recorded
+        // jingle is measured again) and skips the rest instantly from the cache.
+        if (IsURL(path.c_str())) continue;
+        snapshot.push_back(path);
+    }
+    int gen = ++g_durationGen;            // an older worker stops at its next file
+    g_durationWorkerList = listKey;
+    if (snapshot.empty()) return;
+    g_durationWorkerRunning.store(true);
+    std::thread([snapshot, gen]() {
+        const std::wstring ffprobe = BundledFfprobePath();
+        ULONGLONG lastPost = GetTickCount64();
+        int sincePost = 0;
+        for (const auto& path : snapshot) {
+            if (gen != g_durationGen.load() || g_isShuttingDown) {
+                if (gen == g_durationGen.load()) g_durationWorkerRunning.store(false);
+                return;
+            }
+            MeasureMediaDuration(path, ffprobe);   // checks size / date, may hit the cache
+            if (++sincePost >= 20 || GetTickCount64() - lastPost >= 300) {
+                if (gen == g_durationGen.load() && !g_isShuttingDown)
+                    PostMessageW(g_hwnd, WM_PLAYLIST_DURATIONS, 0, 0);
+                sincePost = 0;
+                lastPost = GetTickCount64();
+            }
+        }
+        if (gen == g_durationGen.load()) {
+            g_durationWorkerRunning.store(false);
+            if (!g_isShuttingDown) PostMessageW(g_hwnd, WM_PLAYLIST_DURATIONS, 0, 0);
+        }
+    }).detach();
+}
+
+// True when some local track of the shown list has no known duration yet.
+static bool ShownListHasUnmeasured() {
+    for (const auto& path : ShownList()) {
+        double sec = 0.0;
+        if (!IsURL(path.c_str()) && !CachedMediaDurationQuick(path, sec)) return true;
+    }
+    return false;
+}
+
+// v2.76 — write the known durations into the list WITHOUT making the screen
+// reader speak: the line under the caret is never rewritten while the list has
+// the focus (it is done once the caret leaves it, or the list loses the focus);
+// other lines are replaced in place, their selection restored, and the caret,
+// anchor and top line are put back only if they actually moved.
+static void ApplyPlaylistDurations(HWND hList) {
+    if (!hList) return;
+    int count = (int)SendMessageW(hList, LB_GETCOUNT, 0, 0);
+    if (count != (int)ShownList().size()) return;   // a rebuild is on its way
+    bool focused = (GetFocus() == hList);
+    int caret  = (int)SendMessageW(hList, LB_GETCARETINDEX, 0, 0);
+    int anchor = (int)SendMessageW(hList, LB_GETANCHORINDEX, 0, 0);
+    int top    = (int)SendMessageW(hList, LB_GETTOPINDEX, 0, 0);
+    bool changed = false;
+    for (int i = 0; i < count; i++) {
+        // While the list has the focus, neither the caret line nor a selected
+        // line is rewritten: restoring a selection raises selection events.
+        // They are written when the caret leaves them or the focus leaves the list.
+        if (focused && (i == caret || SendMessageW(hList, LB_GETSEL, i, 0) > 0)) continue;
+        std::wstring want = PlaylistLineText((size_t)i);
+        int len = (int)SendMessageW(hList, LB_GETTEXTLEN, i, 0);
+        std::wstring have(len > 0 ? len + 1 : 1, L'\0');
+        if (len > 0) SendMessageW(hList, LB_GETTEXT, i, reinterpret_cast<LPARAM>(&have[0]));
+        have.resize(wcslen(have.c_str()));
+        if (have == want) continue;
+        if (!changed) { SendMessageW(hList, WM_SETREDRAW, FALSE, 0); changed = true; }
+        bool sel = SendMessageW(hList, LB_GETSEL, i, 0) > 0;
+        SendMessageW(hList, LB_DELETESTRING, i, 0);
+        SendMessageW(hList, LB_INSERTSTRING, i, reinterpret_cast<LPARAM>(want.c_str()));
+        // LB_SELITEMRANGE, not LB_SETSEL: in an extended-selection list,
+        // LB_SETSEL also moves the caret and the anchor (focus events).
+        if (sel) SendMessageW(hList, LB_SELITEMRANGE, TRUE, MAKELPARAM(i, i));
+    }
+    if (!changed) return;
+    if ((int)SendMessageW(hList, LB_GETANCHORINDEX, 0, 0) != anchor)
+        SendMessageW(hList, LB_SETANCHORINDEX, anchor, 0);
+    if ((int)SendMessageW(hList, LB_GETCARETINDEX, 0, 0) != caret)
+        SendMessageW(hList, LB_SETCARETINDEX, caret, FALSE);
+    if ((int)SendMessageW(hList, LB_GETTOPINDEX, 0, 0) != top)
+        SendMessageW(hList, LB_SETTOPINDEX, top, 0);
+    SendMessageW(hList, WM_SETREDRAW, TRUE, 0);
+    InvalidateRect(hList, nullptr, TRUE);
+}
+
 // Helper to rebuild playlist listbox
 static void RebuildPlaylistList(HWND hList, int selectIndex = -1) {
     SendMessageW(hList, LB_RESETCONTENT, 0, 0);
     const std::vector<std::wstring>& shown = ShownList();
     for (size_t i = 0; i < shown.size(); i++) {
-        std::wstring filename = shown[i];
-        size_t pos = filename.find_last_of(L"\\/");
-        if (pos != std::wstring::npos) {
-            filename = filename.substr(pos + 1);
-        }
-        wchar_t buf[512];
-        swprintf(buf, 512, L"%d. %s", (int)(i + 1), filename.c_str());
-        SendMessageW(hList, LB_ADDSTRING, 0, reinterpret_cast<LPARAM>(buf));
+        std::wstring line = PlaylistLineText(i);   // v2.76 — with its duration if known
+        SendMessageW(hList, LB_ADDSTRING, 0, reinterpret_cast<LPARAM>(line.c_str()));
     }
+    StartDurationWorker();   // v2.76 — measure what the cache does not know yet
     if (selectIndex >= 0 && selectIndex < (int)shown.size()) {
         // v2.69 — LBS_EXTENDEDSEL: LB_SETCURSEL is not supported here and was
         // failing silently, so the caret never came back to selectIndex after a
@@ -127,9 +257,54 @@ static bool SpaceIsPlayPause(UINT msg, WPARAM wParam) {
     return true;
 }
 
+// v2.76 (Nicolas) — "Playlist manager" action category: shortcuts the user
+// assigns in Tools > Actions, active while this window has the focus (it is
+// modal, so the main window's shortcuts never reach it). Only safe chords are
+// accepted (the Actions dialog enforces the same rule): Ctrl or Ctrl+Shift +
+// letter / digit, or F1-F12 except F2 and F10. Alt+letter would press this
+// window's buttons, Shift+letter would move the list by initial.
+static bool s_plSwallowChar = false;
+
+bool mediaaccess::IsPlaylistShortcutAllowed(const mediaaccess::Shortcut& sc) {
+    if (sc.alt || sc.win) return false;
+    bool fkey = sc.vk >= VK_F1 && sc.vk <= VK_F12 && sc.vk != VK_F2 && sc.vk != VK_F10;
+    if (fkey) return true;
+    bool alnum = (sc.vk >= 'A' && sc.vk <= 'Z') || (sc.vk >= '0' && sc.vk <= '9');
+    if (!alnum || !sc.ctrl) return false;
+    // This window's own Ctrl shortcuts stay its own.
+    if (!sc.shift && (sc.vk == 'S' || sc.vk == 'A' || sc.vk == 'V')) return false;
+    return true;
+}
+
+static void SpeakShownListTotal();
+
+static bool TryPlaylistAction(UINT msg, WPARAM wParam) {
+    if ((msg == WM_CHAR || msg == WM_SYSCHAR) && s_plSwallowChar) {
+        s_plSwallowChar = false;   // the character of a key we already used
+        return true;
+    }
+    if (msg != WM_KEYDOWN && msg != WM_SYSKEYDOWN) return false;
+    s_plSwallowChar = false;   // only the key just pressed may leave a character
+    mediaaccess::Shortcut sc;
+    sc.vk    = (UINT)wParam;
+    sc.ctrl  = (GetKeyState(VK_CONTROL) & 0x8000) != 0;
+    sc.shift = (GetKeyState(VK_SHIFT)   & 0x8000) != 0;
+    sc.alt   = (GetKeyState(VK_MENU)    & 0x8000) != 0;
+    sc.win   = ((GetKeyState(VK_LWIN) & 0x8000) != 0) || ((GetKeyState(VK_RWIN) & 0x8000) != 0);
+    if (!mediaaccess::IsPlaylistShortcutAllowed(sc)) return false;
+    int cmd = mediaaccess::GetActiveKeyMap().FindCommandFor(sc, mediaaccess::ActionCategory::Playlist);
+    if (cmd == 0) return false;
+    // Only Ctrl+letter makes a (control) character: swallow that one, nothing else.
+    s_plSwallowChar = sc.ctrl && sc.vk >= 'A' && sc.vk <= 'Z';
+    if (cmd == IDM_PL_LIST_TOTAL) SpeakShownListTotal();
+    else SendMessageW(g_hwnd, WM_COMMAND, MAKEWPARAM(cmd, 0), 0);
+    return true;
+}
+
 // Buttons need the same treatment, so they get a small subclass of their own.
 static WNDPROC g_btnOrigProc = nullptr;
 static LRESULT CALLBACK PlaylistButtonProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
+    if (TryPlaylistAction(msg, wParam)) return 0;   // v2.76
     if (SaveShortcut(msg, wParam)) {   // v2.69
         HWND dlg = GetParent(hwnd);
         SavePlaylistQuick(dlg, GetDlgItem(dlg, IDC_PLAYLIST_COMBO));
@@ -307,6 +482,42 @@ static void PastePlaylistsIntoCombo(HWND hList, HWND hCombo) {
 //                 adjusted so playback continues pointing at the same
 //                 file even after a move
 static LRESULT CALLBACK PlaylistListProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
+    if (TryPlaylistAction(msg, wParam)) return 0;   // v2.76
+    // v2.76 (Nicolas) — Left/Right seek in the playing track, exactly like the
+    // main window (same command, current movement unit; with the "tracks" unit
+    // it changes track, as there). A one-column list box would otherwise use
+    // them like Up/Down.
+    if (msg == WM_KEYDOWN && (wParam == VK_LEFT || wParam == VK_RIGHT) &&
+        !(GetKeyState(VK_CONTROL) & 0x8000) && !(GetKeyState(VK_SHIFT) & 0x8000) &&
+        !(GetKeyState(VK_MENU) & 0x8000)) {
+        SendMessageW(g_hwnd, WM_COMMAND,
+                     MAKEWPARAM(wParam == VK_LEFT ? IDM_PLAY_SEEKBACK : IDM_PLAY_SEEKFWD, 0), 0);
+        return 0;
+    }
+    // v2.76 — a line left behind or the focus going away: write the durations
+    // that were held back for the line under the caret.
+    if (msg == WM_KILLFOCUS) {
+        LRESULT r = CallWindowProcW(g_playlistOrigProc, hwnd, msg, wParam, lParam);
+        ApplyPlaylistDurations(hwnd);
+        return r;
+    }
+    if (msg == WM_KEYDOWN || msg == WM_LBUTTONDOWN) {
+        int before = (int)SendMessageW(hwnd, LB_GETCARETINDEX, 0, 0);
+        bool handledHere = false;
+        LRESULT r = 0;
+        // Keys this subclass handles itself are processed below as before.
+        if (msg == WM_LBUTTONDOWN || wParam == VK_UP || wParam == VK_DOWN ||
+            wParam == VK_PRIOR || wParam == VK_NEXT || wParam == VK_HOME || wParam == VK_END) {
+            if (!(msg == WM_KEYDOWN && AnnounceListEdge(hwnd, wParam))) {
+                r = CallWindowProcW(g_playlistOrigProc, hwnd, msg, wParam, lParam);
+            }
+            handledHere = true;
+        }
+        if (handledHere) {
+            if ((int)SendMessageW(hwnd, LB_GETCARETINDEX, 0, 0) != before) ApplyPlaylistDurations(hwnd);
+            return r;
+        }
+    }
     if (SaveShortcut(msg, wParam)) {   // v2.69
         HWND dlg = GetParent(hwnd);
         SavePlaylistQuick(dlg, GetDlgItem(dlg, IDC_PLAYLIST_COMBO));
@@ -531,6 +742,7 @@ static void RenameSelectedPlaylist(HWND hDlg, HWND hCombo) {
 // added to the list of saved playlists). A CBS_DROPDOWNLIST combo has no edit
 // field, so nothing would handle it otherwise.
 static LRESULT CALLBACK PlaylistComboProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
+    if (TryPlaylistAction(msg, wParam)) return 0;   // v2.76
     if (SaveShortcut(msg, wParam)) {   // v2.69
         HWND dlg = GetParent(hwnd);
         SavePlaylistQuick(dlg, GetDlgItem(dlg, IDC_PLAYLIST_COMBO));
@@ -555,6 +767,24 @@ static LRESULT CALLBACK PlaylistComboProc(HWND hwnd, UINT msg, WPARAM wParam, LP
         return 0;
     }
     return CallWindowProcW(g_comboOrigProc, hwnd, msg, wParam, lParam);
+}
+
+// v2.76 — "Announce total duration of this list" (Playlist manager category):
+// the list SHOWN here, which may not be the one playing, from the durations
+// already measured. Tracks not measured yet (or addresses) are counted apart.
+static void SpeakShownListTotal() {
+    const std::vector<std::wstring>& shown = ShownList();
+    if (shown.empty()) { Speak(Ts("The playlist is empty")); return; }
+    double total = 0.0;
+    int counted = 0, other = 0;
+    for (const auto& path : shown) {
+        double sec = 0.0;
+        if (!IsURL(path.c_str()) && CachedMediaDurationQuick(path, sec) && sec > 0.0) { total += sec; ++counted; }
+        else ++other;
+    }
+    std::wstring msg = std::to_wstring(counted) + L" " + T("tracks") + L", " + FormatTimeSpoken(total);
+    if (other > 0) msg += L" (" + std::to_wstring(other) + L" " + T("not measured") + L")";
+    SpeakW(msg);
 }
 
 // Playlist dialog procedure
@@ -685,6 +915,11 @@ static INT_PTR CALLBACK PlaylistDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPAR
             }
             return TRUE;
 
+        case WM_PLAYLIST_DURATIONS:   // v2.76 — new durations measured
+            ApplyPlaylistDurations(hList);
+            if (!g_durationWorkerRunning.load() && ShownListHasUnmeasured()) StartDurationWorker();
+            return TRUE;
+
         case WM_PLAYLIST_CONTENT_CHANGED:
             // v2.69 — the playlist itself was replaced while this window stayed
             // open (files opened from Explorer). Without this the window showed
@@ -713,6 +948,7 @@ static INT_PTR CALLBACK PlaylistDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPAR
                 SetWindowLongPtrW(hCombo, GWLP_WNDPROC, reinterpret_cast<LONG_PTR>(g_comboOrigProc));
                 g_comboOrigProc = nullptr;
             }
+            ++g_durationGen;   // v2.76 — stop measuring for this window
             // Browsing state is per-session: next open starts on the live list.
             g_shownIsLive = true;
             g_shownList.clear();

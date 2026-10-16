@@ -33,6 +33,7 @@ enum class ActionCategory {
     YouTube = 2,   // YouTube search dialog
     Global  = 3,   // System-wide hotkeys (active even when MediaAccess has no focus)
     Books   = 4,   // DAISY / EPUB reader actions
+    Playlist = 5,  // v2.76 — Playlist manager window (Ctrl+P), active while it has the focus
     Count
 };
 
@@ -93,6 +94,10 @@ std::string ActionDisplayName(const Action& a);
 
 // Get a human-readable category name in the current UI language.
 std::string CategoryDisplayName(ActionCategory cat);
+
+// v2.76 — the only chords accepted for the Playlist category (defined in
+// ui_playlist.cpp, shared with the Actions dialog).
+bool IsPlaylistShortcutAllowed(const Shortcut& sc);
 
 // =============================================================================
 // Shortcut formatting / parsing helpers

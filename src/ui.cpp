@@ -6,6 +6,7 @@
 #include "mediaaccess/youtube.h"          // v2.11 — YouTubePlayById for history replay
 #include "mediaaccess/cue_sheet.h"        // v2.34 — .cue sheet support
 #include <shlwapi.h>
+#include <shobjidl.h>   // v2.76 — IFileOpenDialog (Add Folder)
 #include <vector>
 
 // Constants
@@ -607,34 +608,150 @@ void AddFilesFromFolder(const std::wstring& folder, std::vector<std::wstring>& f
     AddFilesFromFolderRecursive(folder, files, 0, includeVideo);
 }
 
-// v2.75 (issue #17) — when the folder browser opens, expand the tree down to
-// the last folder chosen and put the cursor on it, so a neighbouring folder is
-// one arrow away instead of a walk down from the top. lpData = the path.
-static int CALLBACK AddFolderBrowseProc(HWND hwnd, UINT msg, LPARAM, LPARAM lpData) {
-    if (msg == BFFM_INITIALIZED && lpData) {
-        SendMessageW(hwnd, BFFM_SETEXPANDED, TRUE, lpData);
-        SendMessageW(hwnd, BFFM_SETSELECTIONW, TRUE, lpData);
+// v2.76 (issue #18) — Add Folder uses Windows' modern folder picker (the
+// Open-style window, FOS_PICKFOLDERS) instead of the old tree browser. Opened
+// directly on a deep folder, the old tree built only the path to it and then
+// treated the parent as already read: its other subfolders never showed up,
+// even after collapsing and expanding it (2.75, reported by MichalSuchy). The
+// modern picker opens IN THE PARENT of the last folder chosen, lists all of its
+// subfolders, and has the last folder's name already in the name field.
+// Returns the chosen folder, or an empty string if cancelled.
+// v2.76 — put the keyboard focus ON the last folder in the folder list (not in
+// the "Folder" name field, where Down only walks the auto-complete), selected,
+// so the screen reader names it and a neighbour is one arrow away. The view is
+// filled asynchronously after the folder change, so the selection is retried
+// on a short timer until the item exists (2 s at most).
+static IFileDialog* s_pickDlg = nullptr;
+static std::wstring s_pickSelect;
+static int s_pickTries = 0;
+static const UINT_PTR kPickTimer = 0x5EC7;
+
+static void CALLBACK PickSelectTimer(HWND hwnd, UINT, UINT_PTR id, DWORD) {
+    bool done = (++s_pickTries > 40) || !s_pickDlg;
+    if (!done) {
+        IServiceProvider* sp = nullptr;
+        IShellView* view = nullptr;
+        if (SUCCEEDED(s_pickDlg->QueryInterface(IID_PPV_ARGS(&sp))) && sp &&
+            SUCCEEDED(sp->QueryService(SID_SFolderView, IID_PPV_ARGS(&view))) && view) {
+            PIDLIST_ABSOLUTE pidl = nullptr;
+            if (SUCCEEDED(SHParseDisplayName(s_pickSelect.c_str(), nullptr, &pidl, 0, nullptr)) && pidl) {
+                if (SUCCEEDED(view->SelectItem(ILFindLastID(pidl),
+                        SVSI_SELECT | SVSI_FOCUSED | SVSI_ENSUREVISIBLE | SVSI_DESELECTOTHERS))) {
+                    view->UIActivate(SVUIA_ACTIVATE_FOCUS);
+                    HWND hView = nullptr;
+                    if (SUCCEEDED(view->GetWindow(&hView)) && hView) {
+                        // the list itself is the view's child (DirectUIHWND / SysListView32)
+                        HWND inner = GetWindow(hView, GW_CHILD);
+                        SetFocus(inner ? inner : hView);
+                    }
+                    done = true;
+                }
+                CoTaskMemFree(pidl);
+            }
+            view->Release();
+        }
+        if (sp) sp->Release();
     }
-    return 0;
+    if (done) KillTimer(hwnd, id);
+}
+
+class PickFolderEvents : public IFileDialogEvents {
+    LONG ref_ = 1;
+    bool started_ = false;
+public:
+    IFACEMETHODIMP QueryInterface(REFIID riid, void** ppv) override {
+        if (riid == IID_IUnknown || riid == __uuidof(IFileDialogEvents)) {
+            *ppv = static_cast<IFileDialogEvents*>(this); AddRef(); return S_OK;
+        }
+        *ppv = nullptr; return E_NOINTERFACE;
+    }
+    IFACEMETHODIMP_(ULONG) AddRef() override { return InterlockedIncrement(&ref_); }
+    IFACEMETHODIMP_(ULONG) Release() override {
+        LONG r = InterlockedDecrement(&ref_);
+        if (r == 0) delete this;
+        return r;
+    }
+    IFACEMETHODIMP OnFolderChange(IFileDialog* pfd) override {
+        if (started_ || s_pickSelect.empty()) return S_OK;
+        started_ = true;   // only the opening folder, not later navigation
+        IOleWindow* ow = nullptr;
+        HWND hDlg = nullptr;
+        if (SUCCEEDED(pfd->QueryInterface(IID_PPV_ARGS(&ow))) && ow) { ow->GetWindow(&hDlg); ow->Release(); }
+        if (hDlg) { s_pickTries = 0; SetTimer(hDlg, kPickTimer, 50, PickSelectTimer); }
+        return S_OK;
+    }
+    IFACEMETHODIMP OnFileOk(IFileDialog*) override { return S_OK; }
+    IFACEMETHODIMP OnFolderChanging(IFileDialog*, IShellItem*) override { return S_OK; }
+    IFACEMETHODIMP OnSelectionChange(IFileDialog*) override { return S_OK; }
+    IFACEMETHODIMP OnShareViolation(IFileDialog*, IShellItem*, FDE_SHAREVIOLATION_RESPONSE*) override { return S_OK; }
+    IFACEMETHODIMP OnTypeChange(IFileDialog*) override { return S_OK; }
+    IFACEMETHODIMP OnOverwrite(IFileDialog*, IShellItem*, FDE_OVERWRITE_RESPONSE*) override { return S_OK; }
+};
+
+static std::wstring PickFolderModern(const std::wstring& lastFolder) {
+    std::wstring chosen;
+    IFileOpenDialog* dlg = nullptr;
+    if (FAILED(CoCreateInstance(CLSID_FileOpenDialog, nullptr, CLSCTX_INPROC_SERVER,
+                                IID_PPV_ARGS(&dlg))) || !dlg)
+        return chosen;
+    DWORD opts = 0;
+    dlg->GetOptions(&opts);
+    dlg->SetOptions(opts | FOS_PICKFOLDERS | FOS_FORCEFILESYSTEM | FOS_PATHMUSTEXIST |
+                    FOS_NOCHANGEDIR);
+    dlg->SetTitle(T("Select folder to add to playlist"));
+
+    if (UsableStartFolder(lastFolder)) {
+        // Parent folder + the last folder's name; a drive root has no parent.
+        std::vector<wchar_t> parent(lastFolder.begin(), lastFolder.end());
+        parent.push_back(L'\0');
+        std::wstring leaf;
+        if (!PathIsRootW(lastFolder.c_str()) && PathRemoveFileSpecW(parent.data())) {
+            leaf = PathFindFileNameW(lastFolder.c_str());
+        } else {
+            parent.assign(lastFolder.begin(), lastFolder.end());
+            parent.push_back(L'\0');
+        }
+        IShellItem* folder = nullptr;
+        if (SUCCEEDED(SHCreateItemFromParsingName(parent.data(), nullptr,
+                                                  IID_PPV_ARGS(&folder))) && folder) {
+            dlg->SetFolder(folder);
+            folder->Release();
+            if (!leaf.empty()) {
+                dlg->SetFileName(leaf.c_str());
+                s_pickSelect = lastFolder;   // v2.76 — focus it in the list once shown
+            }
+        }
+    }
+
+    PickFolderEvents* events = new PickFolderEvents();
+    DWORD cookie = 0;
+    bool advised = SUCCEEDED(dlg->Advise(events, &cookie));
+    s_pickDlg = dlg;
+    HRESULT shown = dlg->Show(g_hwnd);
+    s_pickDlg = nullptr;
+    s_pickSelect.clear();
+    if (advised) dlg->Unadvise(cookie);
+    events->Release();
+    if (SUCCEEDED(shown)) {
+        IShellItem* item = nullptr;
+        if (SUCCEEDED(dlg->GetResult(&item)) && item) {
+            PWSTR path = nullptr;
+            if (SUCCEEDED(item->GetDisplayName(SIGDN_FILESYSPATH, &path)) && path) {
+                chosen = path;
+                CoTaskMemFree(path);
+            }
+            item->Release();
+        }
+    }
+    dlg->Release();
+    return chosen;
 }
 
 // Show folder browser dialog and add all audio files
 void ShowAddFolderDialog() {
-    BROWSEINFOW bi = {0};
-    bi.hwndOwner = g_hwnd;
-    bi.lpszTitle = T("Select folder to add to playlist");
-    bi.ulFlags = BIF_RETURNONLYFSDIRS | BIF_NEWDIALOGSTYLE | BIF_NONEWFOLDERBUTTON;
-    // v2.75 — start on the last folder chosen, if it still exists.
-    std::wstring start = g_lastAddFolder;
-    if (UsableStartFolder(start)) {
-        bi.lpfn = AddFolderBrowseProc;
-        bi.lParam = reinterpret_cast<LPARAM>(start.c_str());
-    }
-
-    PIDLIST_ABSOLUTE pidl = SHBrowseForFolderW(&bi);
-    if (pidl) {
-        wchar_t folderPath[MAX_PATH];
-        if (SHGetPathFromIDListW(pidl, folderPath)) {
+    std::wstring folderPath = PickFolderModern(g_lastAddFolder);
+    if (!folderPath.empty()) {
+        {
             g_lastAddFolder = folderPath;   // v2.75 — next time, start here
             SaveSettings();
             // Collect all audio files recursively
@@ -660,7 +777,6 @@ void ShowAddFolderDialog() {
                 Speak(Ts("No audio files found"));
             }
         }
-        CoTaskMemFree(pidl);
     }
 }
 
@@ -825,6 +941,68 @@ bool IsPlaylistFile(const std::wstring& path) {
     return (ext == L".m3u" || ext == L".m3u8" || ext == L".pls");
 }
 
+// v2.76 — turn one playlist line into a path MediaAccess can open.
+// - file:// URIs, as written by VLC and most players: file:///C:/My%20Music/a.mp3
+//   -> C:\My Music\a.mp3 ; file://server/share/a.mp3 -> \\server\share\a.mp3.
+//   %XX escapes are UTF-8 bytes (accents included).
+// - other URLs (http, https, ftp, rtsp...): kept as they are.
+// - absolute Windows paths (C:\..., \\server\share\...): kept.
+// - anything else is relative to the playlist's folder.
+static std::wstring PercentDecodeUtf8(const std::wstring& in) {
+    std::string bytes = WideToUtf8(in);
+    std::string out;
+    out.reserve(bytes.size());
+    for (size_t i = 0; i < bytes.size(); ++i) {
+        if (bytes[i] == '%' && i + 2 < bytes.size() &&
+            isxdigit((unsigned char)bytes[i + 1]) && isxdigit((unsigned char)bytes[i + 2])) {
+            char hex[3] = { bytes[i + 1], bytes[i + 2], 0 };
+            out += (char)strtol(hex, nullptr, 16);
+            i += 2;
+        } else {
+            out += bytes[i];
+        }
+    }
+    int n = MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, out.c_str(), (int)out.size(), nullptr, 0);
+    UINT cp = CP_UTF8;
+    if (n <= 0) { cp = CP_ACP; n = MultiByteToWideChar(CP_ACP, 0, out.c_str(), (int)out.size(), nullptr, 0); }
+    if (n <= 0) return in;
+    std::wstring w(n, L'\0');
+    MultiByteToWideChar(cp, 0, out.c_str(), (int)out.size(), &w[0], n);
+    return w;
+}
+
+static std::wstring PlaylistEntryToPath(const std::wstring& entry, const std::wstring& baseDir) {
+    if (_wcsnicmp(entry.c_str(), L"file:", 5) == 0) {
+        std::wstring rest = entry.substr(5);
+        std::wstring path;
+        if (rest.compare(0, 3, L"///") == 0) {
+            path = rest.substr(3);                        // file:///C:/x -> C:/x
+        } else if (rest.compare(0, 2, L"//") == 0) {
+            std::wstring hostPath = rest.substr(2);       // file://host/share/x
+            if (_wcsnicmp(hostPath.c_str(), L"localhost/", 10) == 0)
+                path = hostPath.substr(10);               // file://localhost/C:/x
+            else
+                path = L"//" + hostPath;                  // UNC
+        } else {
+            path = rest;                                  // file:C:/x (rare)
+        }
+        path = PercentDecodeUtf8(path);
+        for (auto& ch : path) if (ch == L'/') ch = L'\\';
+        return path;
+    }
+    if (entry.find(L"://") != std::wstring::npos) return entry;     // http, ftp, rtsp...
+    if (entry.length() > 2 && entry[1] == L':') return entry;       // C:\...
+    if (entry.length() > 1 && (entry[0] == L'\\' || entry[0] == L'/') &&
+        (entry[1] == L'\\' || entry[1] == L'/')) {                  // \\server\share
+        std::wstring unc = entry;
+        for (auto& ch : unc) if (ch == L'/') ch = L'\\';
+        return unc;
+    }
+    std::wstring rel = entry;
+    for (auto& ch : rel) if (ch == L'/') ch = L'\\';
+    return baseDir + rel;
+}
+
 // Parse M3U / M3U8 playlist file.
 // Format: plain-text, one entry per line; lines starting with '#' are
 // comments (#EXTM3U header, #EXTINF metadata) and are skipped. Auto-detects
@@ -887,17 +1065,8 @@ static std::vector<std::wstring> ParseM3U(const std::wstring& playlistPath) {
 
         if (entry.empty()) continue;
 
-        // Build full path
-        std::wstring fullPath;
-        if (_wcsnicmp(entry.c_str(), L"http://", 7) == 0 ||
-            _wcsnicmp(entry.c_str(), L"https://", 8) == 0 ||
-            _wcsnicmp(entry.c_str(), L"ftp://", 6) == 0 ||
-            (entry.length() > 2 && entry[1] == L':')) {
-            fullPath = entry;
-        } else {
-            // Relative path - prepend base directory
-            fullPath = baseDir + entry;
-        }
+        // Build full path (v2.76 — file:// URIs, UNC paths, see PlaylistEntryToPath)
+        std::wstring fullPath = PlaylistEntryToPath(entry, baseDir);
 
         // Check if it's a folder and expand it
         DWORD attrs = GetFileAttributesW(fullPath.c_str());
@@ -936,17 +1105,8 @@ static std::vector<std::wstring> ParsePLS(const std::wstring& playlistPath) {
         if (value[0] == L'\0') break;
 
         std::wstring entry = value;
-        std::wstring fullPath;
-        // Check if it's a URL or absolute path
-        if (_wcsnicmp(entry.c_str(), L"http://", 7) == 0 ||
-            _wcsnicmp(entry.c_str(), L"https://", 8) == 0 ||
-            _wcsnicmp(entry.c_str(), L"ftp://", 6) == 0 ||
-            (entry.length() > 2 && entry[1] == L':')) {
-            fullPath = entry;
-        } else {
-            // Relative path - prepend base directory
-            fullPath = baseDir + entry;
-        }
+        // v2.76 — file:// URIs, UNC paths, see PlaylistEntryToPath
+        std::wstring fullPath = PlaylistEntryToPath(entry, baseDir);
 
         // Check if it's a folder and expand it
         DWORD attrs = GetFileAttributesW(fullPath.c_str());

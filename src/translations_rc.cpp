@@ -1266,10 +1266,10 @@ void RegisterRcTranslations() {
     AddTranslation("en", "&Save...", L"&Save...");
     AddTranslation("fr", "&Save...", L"Enregi&strer...");
 
-    AddTranslation("en", "Alt+Up/Down: Move  |  Delete: Remove  |  Enter: Play  |  Ctrl+S: Save  |  F2: Rename  |  Esc: Close",
-                   L"Alt+Up/Down: Move  |  Delete: Remove  |  Enter: Play  |  Ctrl+S: Save  |  F2: Rename  |  Esc: Close");
-    AddTranslation("fr", "Alt+Up/Down: Move  |  Delete: Remove  |  Enter: Play  |  Ctrl+S: Save  |  F2: Rename  |  Esc: Close",
-                   L"Alt+Haut/Bas : Déplacer  |  Suppr : Retirer  |  Entrée : Lire  |  Ctrl+S : Enregistrer  |  F2 : Renommer  |  Échap : Fermer");
+    AddTranslation("en", "Left/Right: Seek  |  Alt+Up/Down: Move  |  Delete: Remove  |  Enter: Play  |  Ctrl+S: Save  |  F2: Rename  |  Esc: Close",
+                   L"Left/Right: Seek  |  Alt+Up/Down: Move  |  Delete: Remove  |  Enter: Play  |  Ctrl+S: Save  |  F2: Rename  |  Esc: Close");
+    AddTranslation("fr", "Left/Right: Seek  |  Alt+Up/Down: Move  |  Delete: Remove  |  Enter: Play  |  Ctrl+S: Save  |  F2: Rename  |  Esc: Close",
+                   L"Gauche/Droite : Se déplacer dans le morceau  |  Alt+Haut/Bas : Déplacer  |  Suppr : Retirer  |  Entrée : Lire  |  Ctrl+S : Enregistrer  |  F2 : Renommer  |  Échap : Fermer");
 
     // ===================================================================
     // DIALOG: IDD_TRACK_LIST - "Track list" (.cue sheet, v2.34)

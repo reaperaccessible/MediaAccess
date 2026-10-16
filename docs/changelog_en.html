@@ -8,6 +8,10 @@
 </head>
 <body>
 <h1>MediaAccess - Changelog</h1>
+<h2>Version 2.76</h2>
+<p>Playlist manager (Ctrl+P), requested by <strong>Nicolas</strong>: each track announces its duration at the end of its line (measured in the background, without interrupting the screen reader); the left and right arrows seek forward or back in the playing track, as in the main window; a new "Playlist manager" category in Tools → Actions lets you assign shortcuts that work only in this window (elapsed time, remaining time, track or list duration, playback, next track, volume…).</p>
+<p>Fix: MediaAccess could not read playlists made by VLC and most other players, which write each track as an address (<code>file:///…</code>, with "%20" in place of spaces): no track was found. These playlists now open normally, accented names included. Tracks stored in a network folder are also read correctly from a playlist. Reported by a user.</p>
+<p>Fix: since 2.75, <strong>File → Add Folder</strong> could show only one subfolder in the parent folder, the one chosen the previous time, without the others, even after collapsing and expanding the folder. The folder window is replaced by Windows' modern one, similar to the Open window: it opens in the parent folder, lists all its subfolders, and puts the cursor on the last folder chosen. To add it, activate the "Select Folder" button. Reported by <strong>MichalSuchy</strong>.</p>
 <h2>Version 2.75</h2>
 <p>Improvement: MediaAccess remembers where you were, even after it is closed. <strong>File → Open</strong> starts in the folder of the last file opened, and <strong>File → Add Folder</strong> opens the tree already expanded on the last folder chosen, with the cursor on it: a neighbouring folder is one arrow away, without walking down the whole tree. Suggested by <strong>MichalSuchy</strong>.</p>
 <h2>Version 2.74</h2>

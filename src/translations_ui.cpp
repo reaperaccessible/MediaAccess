@@ -604,6 +604,13 @@ void RegisterUiTranslations() {
     AddTranslation("fr", "Could not export keymap", L"Impossible d'exporter le keymap");
 
     // issue #12 — bare-key guard for YouTube download shortcuts.
+    // v2.76 — Playlist manager action category
+    AddTranslation("en", "not measured", L"not measured");
+    AddTranslation("fr", "not measured", L"non mesurées");
+    AddTranslation("en", "Playlist manager shortcuts must be Ctrl or Ctrl+Shift with a letter or a digit, or a function key (except F2 and F10). Ctrl+S, Ctrl+A and Ctrl+V are already used in that window.", L"Playlist manager shortcuts must be Ctrl or Ctrl+Shift with a letter or a digit, or a function key (except F2 and F10). Ctrl+S, Ctrl+A and Ctrl+V are already used in that window.");
+    AddTranslation("fr", "Playlist manager shortcuts must be Ctrl or Ctrl+Shift with a letter or a digit, or a function key (except F2 and F10). Ctrl+S, Ctrl+A and Ctrl+V are already used in that window.", L"Les raccourcis du gestionnaire de listes de lecture doivent être Ctrl ou Ctrl+Maj avec une lettre ou un chiffre, ou une touche de fonction (sauf F2 et F10). Ctrl+S, Ctrl+A et Ctrl+V sont déjà utilisés dans cette fenêtre.");
+    AddTranslation("en", "This shortcut is already a global shortcut and would never reach the playlist manager:", L"This shortcut is already a global shortcut and would never reach the playlist manager:");
+    AddTranslation("fr", "This shortcut is already a global shortcut and would never reach the playlist manager:", L"Ce raccourci est déjà un raccourci global et n'atteindrait jamais le gestionnaire de listes de lecture :");
     AddTranslation("en", "Invalid shortcut", L"Invalid shortcut");
     AddTranslation("fr", "Invalid shortcut", L"Raccourci invalide");
 

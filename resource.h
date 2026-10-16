@@ -149,6 +149,7 @@
 #define WM_YT_CAPTION_READY   (WM_USER + 20) // v2.52 — YouTube auto-caption fetch done (wParam=gen, lParam=std::wstring* vtt path or null)
 #define WM_YT_SUBS_CHECK_DONE (WM_USER + 21) // v2.61 (Phase 3b) — subscription new-video check finished (lParam=YtSubsCheckResult* heap)
 #define WM_PLAYLIST_CONTENT_CHANGED (WM_USER + 23) // v2.69 — playlist CONTENT replaced (Explorer open, paste): the manager must rebuild, not just move its caret
+#define WM_PLAYLIST_DURATIONS  (WM_USER + 25) // v2.76 — playlist manager: new track durations measured (no data; relayed to the manager)
 #define WM_PLAYLIST_TOTAL_DONE (WM_USER + 22) // v2.64 — playlist total-duration worker finished (lParam=PlaylistTotalResult* heap)
 
 // v2.52 — YouTube automatic-caption options (YouTube tab). 1760-1762 verified free.
@@ -360,6 +361,7 @@
 #define IDM_YT_CTX_SUBSCRIBE     783   // v2.61 (Phase 3b) — subscribe to the open channel (results context menu)
 #define IDM_YT_CTX_UNSUBSCRIBE   784   // v2.61 (Phase 3b) — unsubscribe from the open channel
 #define IDM_YT_CTX_DL_WAV        785   // v2.64 — download selected result as WAV 24-bit / 44.1 kHz
+#define IDM_PL_LIST_TOTAL        787   // v2.76 — Playlist manager: total duration of the SHOWN list (handled in the manager)
 #define IDM_YT_DL_PLAYING_WAV    786   // v2.64 — download the currently-playing video as WAV 24-bit (Global)
 
 // YouTube search filter dropdowns (IDD_YOUTUBE). 790-799 used.

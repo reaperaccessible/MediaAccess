@@ -234,6 +234,7 @@ bool SaveKeyMap(const std::wstring& path, const KeyMap& km, std::string* errorOu
         { ActionCategory::YouTube, "YouTube" },
         { ActionCategory::Global,  "Global"  },
         { ActionCategory::Books,   "Books"   },
+        { ActionCategory::Playlist, "Playlist" },   // v2.76
     };
     for (const CatRow& row : kCats) {
         std::vector<const Action*> acts = ActionsInCategory(row.cat);

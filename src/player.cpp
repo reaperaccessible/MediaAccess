@@ -2376,18 +2376,108 @@ static double ProbeDurationWithFfprobe(const std::wstring& ffprobe, const std::w
         CloseHandle(rd); CloseHandle(wr); return 0.0;
     }
     CloseHandle(wr);   // drop the parent's write end so the read below sees EOF
-    std::string out; char chunk[256]; DWORD got = 0;
-    while (ReadFile(rd, chunk, sizeof(chunk) - 1, &got, nullptr) && got > 0) {
+    // v2.76 — wait FIRST, bounded: the output is one number and fits in the pipe
+    // buffer, so ffprobe never blocks on it. Reading first (as before) could hang
+    // forever on a stuck ffprobe (unreachable network share) before the 10 s
+    // limit ever applied.
+    if (WaitForSingleObject(pi.hProcess, 10000) == WAIT_TIMEOUT) TerminateProcess(pi.hProcess, 1);
+    std::string out; char chunk[256]; DWORD got = 0, avail = 0;
+    while (PeekNamedPipe(rd, nullptr, 0, nullptr, &avail, nullptr) && avail > 0 &&
+           ReadFile(rd, chunk, sizeof(chunk) - 1, &got, nullptr) && got > 0) {
         chunk[got] = '\0';
         out += chunk;
         if (out.size() > 4096) break;   // the output is one number; bail on anything odd
     }
     CloseHandle(rd);
-    // Bound the wait so one pathological file can never stall the whole calculation.
-    if (WaitForSingleObject(pi.hProcess, 10000) == WAIT_TIMEOUT) TerminateProcess(pi.hProcess, 1);
     CloseHandle(pi.hThread); CloseHandle(pi.hProcess);
     try { return std::stod(out); } catch (...) { return 0.0; }  // "N/A"/empty -> 0
 }
+
+// v2.76 (Nicolas) — one measurement for every caller (playlist total, playlist
+// manager), and a session cache shared by both. Audio: BASS, the same call
+// playback uses (no PRESCAN: slow, and CBR / tagged VBR are exact without it);
+// video or anything BASS refuses: the bundled ffprobe. Worker threads only.
+// Returns 0 when the file cannot be measured.
+static double MeasureMediaDurationUncached(const std::wstring& path, const std::wstring& ffprobe) {
+    double seconds = 0.0;
+    HSTREAM s = BASS_StreamCreateFile(FALSE, path.c_str(), 0, 0,
+                                      BASS_STREAM_DECODE | BASS_UNICODE);
+    if (s) {
+        QWORD len = BASS_ChannelGetLength(s, BASS_POS_BYTE);
+        if (len != (QWORD)-1) seconds = BASS_ChannelBytes2Seconds(s, len);
+        BASS_StreamFree(s);
+    }
+    if (seconds <= 0.0) seconds = ProbeDurationWithFfprobe(ffprobe, path);
+    return seconds > 0.0 ? seconds : 0.0;
+}
+
+// Cache: path (case-insensitive) -> seconds, valid while the file's size and
+// modification time are unchanged (a jingle re-recorded under the same name is
+// measured again). Failures are cached too (0), so an unmeasurable video does
+// not start ffprobe at every opening.
+struct DurationCacheEntry { double seconds; ULONGLONG size; ULONGLONG mtime; };
+// On the heap and never freed: a detached measuring thread may still write to
+// it while the program exits, after static destructors have run.
+static std::map<std::wstring, DurationCacheEntry>& g_durationCache =
+    *new std::map<std::wstring, DurationCacheEntry>();
+static SRWLOCK g_durationCacheLock = SRWLOCK_INIT;
+
+static std::wstring DurationCacheKey(const std::wstring& path) {
+    std::wstring k = path;
+    for (auto& c : k) c = towlower(c);
+    return k;
+}
+
+static bool FileStamp(const std::wstring& path, ULONGLONG& size, ULONGLONG& mtime) {
+    WIN32_FILE_ATTRIBUTE_DATA fa;
+    if (!GetFileAttributesExW(path.c_str(), GetFileExInfoStandard, &fa)) return false;
+    size  = ((ULONGLONG)fa.nFileSizeHigh << 32) | fa.nFileSizeLow;
+    mtime = ((ULONGLONG)fa.ftLastWriteTime.dwHighDateTime << 32) | fa.ftLastWriteTime.dwLowDateTime;
+    return true;
+}
+
+// Cached duration of |path|: true when known (seconds may be 0 = not measurable).
+bool CachedMediaDuration(const std::wstring& path, double& seconds) {
+    ULONGLONG size = 0, mtime = 0;
+    if (!FileStamp(path, size, mtime)) return false;
+    bool found = false;
+    AcquireSRWLockShared(&g_durationCacheLock);
+    auto it = g_durationCache.find(DurationCacheKey(path));
+    if (it != g_durationCache.end() && it->second.size == size && it->second.mtime == mtime) {
+        seconds = it->second.seconds;
+        found = true;
+    }
+    ReleaseSRWLockShared(&g_durationCacheLock);
+    return found;
+}
+
+// UI-thread lookup: by path only, no file-system call (the size / date check is
+// done by the worker when it measures). True when a duration (or a failure, 0)
+// is known for this path.
+bool CachedMediaDurationQuick(const std::wstring& path, double& seconds) {
+    bool found = false;
+    AcquireSRWLockShared(&g_durationCacheLock);
+    auto it = g_durationCache.find(DurationCacheKey(path));
+    if (it != g_durationCache.end()) { seconds = it->second.seconds; found = true; }
+    ReleaseSRWLockShared(&g_durationCacheLock);
+    return found;
+}
+
+// Measure (or take from the cache) and remember. Worker threads only.
+double MeasureMediaDuration(const std::wstring& path, const std::wstring& ffprobe) {
+    double seconds = 0.0;
+    if (CachedMediaDuration(path, seconds)) return seconds;
+    seconds = MeasureMediaDurationUncached(path, ffprobe);
+    ULONGLONG size = 0, mtime = 0;
+    if (!g_isShuttingDown && FileStamp(path, size, mtime)) {
+        AcquireSRWLockExclusive(&g_durationCacheLock);
+        g_durationCache[DurationCacheKey(path)] = { seconds, size, mtime };
+        ReleaseSRWLockExclusive(&g_durationCacheLock);
+    }
+    return seconds;
+}
+
+std::wstring BundledFfprobePath() { return GetFfprobeLocation(); }
 
 static std::atomic<bool> g_playlistTotalComputing{false};
 struct PlaylistTotalJob    { std::vector<std::wstring> paths; };
@@ -2400,22 +2490,8 @@ static DWORD WINAPI PlaylistTotalThreadProc(LPVOID arg) {
     for (const auto& path : job->paths) {
         if (IsURL(path.c_str())) { ++res->skipped; continue; }  // radio/podcast/YouTube — no local length
 
-        // Audio: measure with BASS — the same call playback uses, so every format
-        // MediaAccess can play (incl. the plugin ones: FLAC, Opus, M4A, WMA, APE,
-        // ALAC, WavPack, DSD, MIDI) is measurable. No BASS_STREAM_PRESCAN: it reads
-        // each file end-to-end (slow over a whole library), and CBR + Xing/VBRI-
-        // tagged VBR still report an exact length without it.
-        double seconds = 0.0;
-        HSTREAM s = BASS_StreamCreateFile(FALSE, path.c_str(), 0, 0,
-                                          BASS_STREAM_DECODE | BASS_UNICODE);
-        if (s) {
-            QWORD len = BASS_ChannelGetLength(s, BASS_POS_BYTE);
-            if (len != (QWORD)-1) seconds = BASS_ChannelBytes2Seconds(s, len);
-            BASS_StreamFree(s);
-        }
-        // Video (or anything BASS refused): fall back to ffprobe. Only reached for
-        // non-BASS files, so a normal audio folder never pays the process cost.
-        if (seconds <= 0.0) seconds = ProbeDurationWithFfprobe(ffprobe, path);
+        // v2.76 — shared measurement + session cache (see MeasureMediaDuration).
+        double seconds = MeasureMediaDuration(path, ffprobe);
 
         if (seconds > 0.0) { res->totalSeconds += seconds; ++res->counted; }
         else ++res->skipped;

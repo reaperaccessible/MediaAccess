@@ -9,8 +9,8 @@ IDI_APPICON ICON "MediaAccess.ico"
 // ASCII only (rc.exe mojibake risk). FILEVERSION is hardcoded: bump it each
 // release to match include/mediaaccess/version.h (build_new.bat passes no /D to rc).
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION    2,75,0,0
- PRODUCTVERSION 2,75,0,0
+ FILEVERSION    2,76,0,0
+ PRODUCTVERSION 2,76,0,0
  FILEFLAGSMASK  0x3fL
  FILEFLAGS      0x0L
  FILEOS         VOS__WINDOWS32
@@ -23,12 +23,12 @@ BEGIN
     BEGIN
       VALUE "CompanyName",      "ReaperAccessible"
       VALUE "FileDescription",  "MediaAccess - accessible audio and video player"
-      VALUE "FileVersion",      "2.75"
+      VALUE "FileVersion",      "2.76"
       VALUE "InternalName",     "MediaAccess"
       VALUE "LegalCopyright",   "Copyright (C) 2026 ReaperAccessible. GPL-3.0."
       VALUE "OriginalFilename", "MediaAccess.exe"
       VALUE "ProductName",      "MediaAccess"
-      VALUE "ProductVersion",   "2.75"
+      VALUE "ProductVersion",   "2.76"
     END
   END
   BLOCK "VarFileInfo"
@@ -657,7 +657,7 @@ BEGIN
     LISTBOX         IDC_PLAYLIST_LIST, 7, 26, 336, 186, LBS_NOINTEGRALHEIGHT | LBS_EXTENDEDSEL | WS_VSCROLL | WS_TABSTOP
     PUSHBUTTON      "&Save...", IDC_PLAYLIST_SAVE, 7, 217, 50, 14
     PUSHBUTTON      "Remove trac&k", IDC_PLAYLIST_DEL_TRACK, 62, 217, 70, 14
-    LTEXT           "Alt+Up/Down: Move  |  Delete: Remove  |  Enter: Play  |  Ctrl+S: Save  |  F2: Rename  |  Esc: Close", -1, 138, 220, 205, 10
+    LTEXT           "Left/Right: Seek  |  Alt+Up/Down: Move  |  Delete: Remove  |  Enter: Play  |  Ctrl+S: Save  |  F2: Rename  |  Esc: Close", -1, 138, 220, 205, 10
 END
 
 // Track list dialog (.cue sheet) — v2.34

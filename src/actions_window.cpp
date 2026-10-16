@@ -279,6 +279,8 @@ static void PopulateCategoryCombo(HWND dlg)
         (LPARAM)U8ToW(CategoryDisplayName(ActionCategory::Global)).c_str());
     SendMessageW(combo, CB_ADDSTRING, 0,
         (LPARAM)U8ToW(CategoryDisplayName(ActionCategory::Books)).c_str());
+    SendMessageW(combo, CB_ADDSTRING, 0,   // v2.76
+        (LPARAM)U8ToW(CategoryDisplayName(ActionCategory::Playlist)).c_str());
     SendMessageW(combo, CB_SETCURSEL, (WPARAM)(int)s_state->currentCategory, 0);
 }
 
@@ -488,6 +490,32 @@ static bool ResolveConflictAndAssign(HWND dlg, const Action* target, const Short
         MessageBoxW(dlg, msg.c_str(), U8ToW(Ts("Invalid shortcut")).c_str(),
                     MB_OK | MB_ICONWARNING);
         return false;
+    }
+
+    // v2.76 — Playlist manager shortcuts: only safe chords (Ctrl or Ctrl+Shift +
+    // letter / digit, F1-F12 except F2 and F10, never Ctrl+S / A / V). Alt+letter
+    // would press the window's buttons and Shift+letter move the list by
+    // initial; Tab, arrows and Escape are the window's own.
+    if (target->category == ActionCategory::Playlist) {
+        if (!IsPlaylistShortcutAllowed(sc)) {
+            std::wstring msg = U8ToW(Ts(
+                "Playlist manager shortcuts must be Ctrl or Ctrl+Shift with a letter "
+                "or a digit, or a function key (except F2 and F10). Ctrl+S, Ctrl+A "
+                "and Ctrl+V are already used in that window."));
+            MessageBoxW(dlg, msg.c_str(), U8ToW(Ts("Invalid shortcut")).c_str(),
+                        MB_OK | MB_ICONWARNING);
+            return false;
+        }
+        // A Global shortcut is caught by Windows first and never reaches the window.
+        std::string globalId = GetActiveKeyMapMut().FindActionFor(sc, ActionCategory::Global);
+        if (!globalId.empty()) {
+            const Action* g = ActionByStringId(globalId);
+            std::string m = Ts("This shortcut is already a global shortcut and would never reach the playlist manager:") +
+                            (g ? std::string("\n  ") + ActionDisplayName(*g) : std::string());
+            MessageBoxW(dlg, U8ToW(m).c_str(), U8ToW(Ts("Invalid shortcut")).c_str(),
+                        MB_OK | MB_ICONWARNING);
+            return false;
+        }
     }
 
     // v1.75 — Same-category duplicates are forbidden by policy. The previous

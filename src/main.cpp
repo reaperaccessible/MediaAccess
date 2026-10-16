@@ -1382,6 +1382,10 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
             YouTubeOnSubsCheckDone(lParam);
             return 0;
 
+        case WM_PLAYLIST_DURATIONS:   // v2.76 — relay to an open playlist manager
+            if (g_playlistDlg) PostMessageW(g_playlistDlg, WM_PLAYLIST_DURATIONS, 0, 0);
+            return 0;
+
         case WM_PLAYLIST_TOTAL_DONE:  // v2.64 — playlist total-duration computed
             OnPlaylistTotalDone(lParam);
             return 0;

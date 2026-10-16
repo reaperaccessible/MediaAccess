@@ -254,7 +254,7 @@
   <li>Glisser-déposer un fichier sur la fenêtre, ou faire « Ouvrir avec » depuis l'Explorateur si MediaAccess est associé aux types de fichiers (case dans <strong>Options → Lecture</strong>).</li>
   <li>Utiliser le <strong>sous-menu MediaAccess</strong> du menu contextuel de l'Explorateur, sur un ou plusieurs fichiers <em>ou sur un dossier</em> — voir ci-dessous.</li>
 </ul>
-<p>MediaAccess se souvient de l'endroit où vous étiez, même après sa fermeture. <strong>Ouvrir</strong> démarre dans le dossier du dernier fichier ouvert. <strong>Ajouter un dossier</strong> ouvre l'arborescence déjà dépliée sur le dernier dossier choisi, avec le curseur dessus : un dossier voisin est à une flèche. Si ce dossier n'existe plus (clé USB retirée, par exemple), la fenêtre s'ouvre comme d'habitude.</p>
+<p>MediaAccess se souvient de l'endroit où vous étiez, même après sa fermeture. <strong>Ouvrir</strong> démarre dans le dossier du dernier fichier ouvert. <strong>Ajouter un dossier</strong> s'ouvre dans le dossier qui contient le dernier dossier choisi : tous ses sous-dossiers sont listés, le curseur est sur le dernier dossier choisi, et son nom est déjà inscrit dans le champ « Dossier ». Un dossier voisin est donc à une flèche. Pour l'ajouter, choisissez-le puis activez le bouton « Sélectionner un dossier » ; la touche Entrée sur un dossier de la liste, elle, entre dans ce dossier. Si le dernier dossier n'existe plus (clé USB retirée, par exemple), la fenêtre s'ouvre comme d'habitude.</p>
 
 <h3>Le sous-menu MediaAccess dans l'Explorateur Windows</h3>
 <p>Dans l'Explorateur, un sous-menu <strong>MediaAccess</strong> propose deux commandes :</p>
@@ -582,7 +582,7 @@
 <h3>Deux zones : les listes enregistrées, puis les pistes</h3>
 <p>La fenêtre s'ouvre sur la liste déroulante <strong>Listes enregistrées</strong>. Choisissez-y une liste avec <kbd>↑</kbd> / <kbd>↓</kbd>, puis faites <kbd>Tab</kbd> pour passer aux pistes qu'elle contient. Choisir une liste ne touche pas à ce qui joue : le titre en cours continue jusqu'à ce que vous lanciez une piste avec <kbd>Entrée</kbd>. À ce moment seulement, la liste choisie devient la liste en lecture.</p>
 <p>Dans la liste déroulante, chaque entrée se présente d'abord par son nom. <kbd>→</kbd> donne le nombre de pistes (toujours à jour, même avant d'enregistrer), <kbd>→</kbd> une seconde fois donne l'emplacement du fichier ; <kbd>←</kbd> revient en arrière. <kbd>F2</kbd> renomme la liste : le fichier est renommé sur le disque et l'entrée suit.</p>
-<p>Une liste enregistrée peut se trouver n'importe où sur l'ordinateur ; elle reste proposée tant que son fichier existe. Les formats M3U, M3U8 et PLS sont acceptés.</p>
+<p>Une liste enregistrée peut se trouver n'importe où sur l'ordinateur ; elle reste proposée tant que son fichier existe. Les formats M3U, M3U8 et PLS sont acceptés, y compris les listes créées par d'autres lecteurs comme VLC (morceaux notés sous forme d'adresse <code>file:///</code>) et les morceaux placés sur un dossier réseau.</p>
 
 <table>
 <caption>Touches dans le gestionnaire</caption>
@@ -592,7 +592,7 @@
 <tr><td><kbd>Espace</kbd></td><td>Lecture / pause, depuis n'importe quel endroit de la fenêtre (voir l'option ci-dessous)</td></tr>
 <tr><td><kbd>Ctrl</kbd>+<kbd>S</kbd></td><td>Enregistrer : réécrit directement le fichier de la liste affichée, ou demande un nom s'il n'y en a pas encore</td></tr>
 <tr><td><kbd>F2</kbd></td><td>Renommer la liste choisie dans la liste déroulante</td></tr>
-<tr><td><kbd>→</kbd> / <kbd>←</kbd></td><td>Dans la liste déroulante : nombre de pistes, puis emplacement du fichier</td></tr>
+<tr><td><kbd>→</kbd> / <kbd>←</kbd></td><td>Dans la liste déroulante : nombre de pistes, puis emplacement du fichier. Dans la liste des pistes : avancer ou reculer dans le morceau en cours, comme dans la fenêtre principale (avec l'unité de déplacement choisie ; avec l'unité « pistes », on change de morceau)</td></tr>
 <tr><td><kbd>Suppr</kbd></td><td>Retirer les pistes sélectionnées de la liste affichée</td></tr>
 <tr><td><kbd>Ctrl</kbd>+<kbd>A</kbd></td><td>Tout sélectionner</td></tr>
 <tr><td><kbd>Ctrl</kbd>+<kbd>V</kbd></td><td>Coller : des fichiers audio dans les pistes, ou un fichier de liste (M3U, M3U8, PLS) qui s'ajoute aux listes enregistrées</td></tr>
@@ -600,6 +600,8 @@
 <tr><td><kbd>Échap</kbd></td><td>Fermer la fenêtre</td></tr>
 </tbody>
 </table>
+<p>Chaque piste annonce sa durée à la fin de sa ligne, par exemple «&nbsp;3. Mon morceau.mp3, 3 min 25 s&nbsp;». La fenêtre s'ouvre tout de suite : les durées sont calculées en arrière-plan et s'ajoutent au fur et à mesure, sans interrompre la lecture du lecteur d'écran ; MediaAccess s'en souvient ensuite jusqu'à sa fermeture. Une radio, un podcast ou une vidéo YouTube n'ont pas de durée.</p>
+<p><strong>Raccourcis propres au gestionnaire.</strong> La catégorie «&nbsp;Gestionnaire de listes de lecture&nbsp;» de <strong>Outils → Actions</strong> permet d'assigner des raccourcis qui n'agissent que dans cette fenêtre : annoncer le temps écoulé, le temps restant, la durée du morceau, la durée totale de la liste affichée, ce qui joue ; lecture / pause, arrêt, morceau suivant ou précédent ; monter ou baisser le volume, sourdine. Aucun raccourci n'est assigné d'office. Pour ne pas gêner la fenêtre, seuls sont acceptés <kbd>Ctrl</kbd> ou <kbd>Ctrl</kbd>+<kbd>Maj</kbd> avec une lettre ou un chiffre, et les touches de fonction (sauf <kbd>F2</kbd> et <kbd>F10</kbd>) ; <kbd>Ctrl</kbd>+<kbd>S</kbd>, <kbd>Ctrl</kbd>+<kbd>A</kbd> et <kbd>Ctrl</kbd>+<kbd>V</kbd> restent ceux de la fenêtre, et un raccourci déjà global est refusé.</p>
 <p>Arriver au bord d'une liste n'est jamais muet : <kbd>↑</kbd> sur la première ligne annonce «&nbsp;Premier,&nbsp;» suivi de la ligne, <kbd>↓</kbd> sur la dernière annonce «&nbsp;Dernier,&nbsp;».</p>
 
 <h3>Boutons</h3>
