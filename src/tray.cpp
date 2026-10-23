@@ -68,12 +68,19 @@ void HideToTray(HWND hwnd) {
     ShowWindow(hwnd, SW_HIDE);
 }
 
+HWND ActiveWindowFor(HWND hwnd) {
+    HWND popup = GetLastActivePopup(hwnd);
+    if (popup && popup != hwnd && IsWindowVisible(popup) && IsWindowEnabled(popup))
+        return popup;
+    return hwnd;
+}
+
 void RestoreFromTray(HWND hwnd) {
     ShowWindow(hwnd, SW_SHOW);
-    SetForegroundWindow(hwnd);
     if (IsIconic(hwnd)) {
         ShowWindow(hwnd, SW_RESTORE);
     }
+    SetForegroundWindow(ActiveWindowFor(hwnd));
 }
 
 void ToggleWindow(HWND hwnd) {

@@ -826,6 +826,78 @@ static const UINT WM_PODCAST_EPS_BACK = WM_APP + 21;
 static int g_lastDescCaret = -1;
 static WNDPROC g_origPodcastEpsProc = nullptr;
 
+// v2.77 — copy links, like Ctrl+C on a radio station. Subscriptions and search
+// results copy the podcast's feed link; the episodes list copies the link of
+// each selected episode, one per line (the focused one when none is selected).
+static bool PodcastCopyText(HWND owner, const std::wstring& text) {
+    if (!OpenClipboard(owner)) return false;
+    EmptyClipboard();
+    bool ok = false;
+    HGLOBAL hMem = GlobalAlloc(GMEM_MOVEABLE, (text.size() + 1) * sizeof(wchar_t));
+    if (hMem) {
+        wchar_t* pMem = static_cast<wchar_t*>(GlobalLock(hMem));
+        if (pMem) {
+            memcpy(pMem, text.c_str(), (text.size() + 1) * sizeof(wchar_t));
+            GlobalUnlock(hMem);
+            if (SetClipboardData(CF_UNICODETEXT, hMem)) ok = true;
+        }
+        if (!ok) GlobalFree(hMem);
+    }
+    CloseClipboard();
+    return ok;
+}
+
+static void CopyPodcastLink(HWND hList) {
+    HWND dlg = GetParent(hList);
+    int id = GetDlgCtrlID(hList);
+    if (id == IDC_PODCAST_EPISODES) {
+        std::vector<int> rows;
+        int n = static_cast<int>(SendMessageW(hList, LB_GETSELCOUNT, 0, 0));
+        if (n > 0) {
+            rows.resize(n);
+            n = static_cast<int>(SendMessageW(hList, LB_GETSELITEMS, n, reinterpret_cast<LPARAM>(rows.data())));
+            rows.resize(n > 0 ? n : 0);
+        }
+        if (rows.empty()) rows.push_back(static_cast<int>(SendMessageW(hList, LB_GETCARETINDEX, 0, 0)));
+        std::wstring text;
+        int copied = 0;
+        for (int r : rows) {
+            if (r < 0 || r >= static_cast<int>(g_podcastEpisodes.size())) continue;
+            const std::wstring& u = g_podcastEpisodes[r].audioUrl;
+            if (u.empty()) continue;
+            if (copied) text += L"\r\n";
+            text += u;
+            ++copied;
+        }
+        if (!copied) return;
+        if (!PodcastCopyText(dlg, text)) return;
+        if (copied == 1) {
+            Speak(Ts("Episode link copied"));
+        } else {
+            char buf[64];
+            snprintf(buf, sizeof(buf), Ts("%d links copied").c_str(), copied);
+            Speak(buf);
+        }
+        return;
+    }
+    // Tabbing into the list puts the focus on a row without selecting it:
+    // copy the focused row then.
+    int sel = static_cast<int>(SendMessageW(hList, LB_GETCURSEL, 0, 0));
+    if (sel < 0) sel = static_cast<int>(SendMessageW(hList, LB_GETCARETINDEX, 0, 0));
+    const std::wstring* url = nullptr;
+    if (id == IDC_PODCAST_SUBS_LIST && sel >= 0 && sel < static_cast<int>(g_podcastSubs.size()))
+        url = &g_podcastSubs[sel].feedUrl;
+    else if (id == IDC_PODCAST_SEARCH_LIST && sel >= 0 && sel < static_cast<int>(g_podcastSearchResults.size()))
+        url = &g_podcastSearchResults[sel].feedUrl;
+    if (!url || url->empty()) return;
+    if (PodcastCopyText(dlg, *url)) Speak(Ts("Podcast link copied"));
+}
+
+static bool IsCtrlOnly() {
+    return (GetKeyState(VK_CONTROL) & 0x8000) && !(GetKeyState(VK_SHIFT) & 0x8000) &&
+           !(GetKeyState(VK_MENU) & 0x8000);
+}
+
 // Helper: post a deferred description update if the caret moved.
 static void NotifyEpsCaretMoved(HWND hwnd) {
     int caret = static_cast<int>(SendMessageW(hwnd, LB_GETCARETINDEX, 0, 0));
@@ -860,6 +932,10 @@ static LRESULT CALLBACK PodcastEpsListSubclassProc(HWND hwnd, UINT msg, WPARAM w
             }
             return 0;
         }
+        if (wParam == 'C' && IsCtrlOnly()) {
+            CopyPodcastLink(hwnd);
+            return 0;
+        }
         if (!ctrl && !shift && wParam == VK_BACK) {
             // Backspace: ask the dialog to leave the search-episode sub-view.
             // Harmless no-op when browsing a real subscription's episodes.
@@ -877,6 +953,9 @@ static LRESULT CALLBACK PodcastEpsListSubclassProc(HWND hwnd, UINT msg, WPARAM w
             }
             return 0;
         }
+    } else if (msg == WM_CHAR && wParam == 3) {
+        // Ctrl+C's ETX character would feed the prefix search and move the caret.
+        return 0;
     }
     LRESULT result = CallWindowProcW(g_origPodcastEpsProc, hwnd, msg, wParam, lParam);
     if (msg == WM_KEYDOWN || msg == WM_LBUTTONDOWN || msg == WM_LBUTTONUP) {
@@ -1160,7 +1239,12 @@ static LRESULT CALLBACK PodcastSubsListSubclassProc(HWND hwnd, UINT msg, WPARAM 
                     SpeakW(name + T(" moved below ") + g_podcastSubs[newSel - 1].name);
             }
             return 0;
+        } else if (wParam == 'C' && IsCtrlOnly()) {
+            CopyPodcastLink(hwnd);
+            return 0;
         }
+    } else if (msg == WM_CHAR && wParam == 3) {
+        return 0;   // Ctrl+C's ETX: keep the prefix search from moving the selection
     } else if (msg == WM_GETDLGCODE) {
         MSG* pmsg = reinterpret_cast<MSG*>(lParam);
         if (pmsg && pmsg->wParam == VK_DELETE) {
@@ -1173,6 +1257,48 @@ static LRESULT CALLBACK PodcastSubsListSubclassProc(HWND hwnd, UINT msg, WPARAM 
         return CallWindowProcW(g_origPodcastSubsListProc, hwnd, msg, wParam, lParam);
     }
     return CallWindowProcW(g_origPodcastSubsListProc, hwnd, msg, wParam, lParam);
+}
+
+// v2.77 — search results list: Ctrl+C copies the podcast's feed link.
+static WNDPROC g_origPodcastSearchListProc = nullptr;
+
+static LRESULT CALLBACK PodcastSearchListSubclassProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
+    if (msg == WM_KEYDOWN && wParam == 'C' && IsCtrlOnly()) {
+        CopyPodcastLink(hwnd);
+        return 0;
+    }
+    if (msg == WM_CHAR && wParam == 3) return 0;
+    return CallWindowProcW(g_origPodcastSearchListProc, hwnd, msg, wParam, lParam);
+}
+
+// v2.77 — context menu (Applications key, Shift+F10, right click) on the
+// three lists, with the same copy command as Ctrl+C.
+static void ShowPodcastContextMenu(HWND hwnd, HWND hList, LPARAM lParam) {
+    int id = GetDlgCtrlID(hList);
+    int x = static_cast<short>(LOWORD(lParam)), y = static_cast<short>(HIWORD(lParam));
+    if (lParam == static_cast<LPARAM>(-1)) {   // keyboard: anchor at the focused row
+        int row = static_cast<int>(SendMessageW(hList, LB_GETCARETINDEX, 0, 0));
+        RECT rc;
+        if (row >= 0 && SendMessageW(hList, LB_GETITEMRECT, row, reinterpret_cast<LPARAM>(&rc)) != LB_ERR) {
+            POINT pt = { rc.left, rc.bottom }; ClientToScreen(hList, &pt); x = pt.x; y = pt.y;
+        } else {
+            RECT wr; GetWindowRect(hList, &wr); x = wr.left; y = wr.top;
+        }
+    } else if (id != IDC_PODCAST_EPISODES) {   // mouse: select the row under the cursor
+        POINT pt = { x, y }; ScreenToClient(hList, &pt);
+        DWORD idx = static_cast<DWORD>(SendMessageW(hList, LB_ITEMFROMPOINT, 0, MAKELPARAM(pt.x, pt.y)));
+        if (HIWORD(idx) == 0) SendMessageW(hList, LB_SETCURSEL, LOWORD(idx), 0);
+    }
+    bool haveRow = SendMessageW(hList, LB_GETCOUNT, 0, 0) > 0;
+    std::wstring label = id == IDC_PODCAST_EPISODES ? T("&Copy episode link") : T("&Copy podcast link");
+    label += L"\tCtrl+C";
+    HMENU root = CreatePopupMenu();
+    AppendMenuW(root, haveRow ? MF_STRING : (MF_STRING | MF_GRAYED), 1, label.c_str());
+    SetForegroundWindow(hwnd);  // MSDN TrackPopupMenu idiom (dismiss on focus loss)
+    int cmd = static_cast<int>(TrackPopupMenu(root, TPM_RETURNCMD | TPM_LEFTALIGN | TPM_TOPALIGN | TPM_RIGHTBUTTON,
+                                              x, y, 0, hwnd, nullptr));
+    DestroyMenu(root);
+    if (cmd == 1 && haveRow) CopyPodcastLink(hList);
 }
 
 // ---------------------------------------------------------------------------
@@ -1242,6 +1368,10 @@ static INT_PTR CALLBACK PodcastDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARA
             HWND hEpsList = GetDlgItem(hwnd, IDC_PODCAST_EPISODES);
             g_origPodcastEpsProc = reinterpret_cast<WNDPROC>(
                 SetWindowLongPtrW(hEpsList, GWLP_WNDPROC, reinterpret_cast<LONG_PTR>(PodcastEpsListSubclassProc)));
+
+            HWND hSearchList = GetDlgItem(hwnd, IDC_PODCAST_SEARCH_LIST);
+            g_origPodcastSearchListProc = reinterpret_cast<WNDPROC>(
+                SetWindowLongPtrW(hSearchList, GWLP_WNDPROC, reinterpret_cast<LONG_PTR>(PodcastSearchListSubclassProc)));
 
             // Load subscriptions
             RefreshPodcastSubsList(hwnd);
@@ -1803,6 +1933,17 @@ static INT_PTR CALLBACK PodcastDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARA
                     return TRUE;
             }
             break;
+
+        case WM_CONTEXTMENU: {
+            HWND src = reinterpret_cast<HWND>(wParam);
+            if (src == GetDlgItem(hwnd, IDC_PODCAST_SUBS_LIST) ||
+                src == GetDlgItem(hwnd, IDC_PODCAST_EPISODES) ||
+                src == GetDlgItem(hwnd, IDC_PODCAST_SEARCH_LIST)) {
+                ShowPodcastContextMenu(hwnd, src, lParam);
+                return TRUE;
+            }
+            break;
+        }
 
         case WM_NOTIFY: {
             NMHDR* pnmh = reinterpret_cast<NMHDR*>(lParam);

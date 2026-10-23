@@ -771,6 +771,17 @@ void RegisterPlayerTranslations() {
     AddTranslation("fr", "Link copied", L"Lien copié");
     AddTranslation("en", "No stream link", L"No stream link");
     AddTranslation("fr", "No stream link", L"Aucun lien de flux");
+    // v2.77 — podcast links (Ctrl+C and context menu in the Podcasts window)
+    AddTranslation("en", "&Copy podcast link", L"&Copy podcast link");
+    AddTranslation("fr", "&Copy podcast link", L"&Copier le lien du podcast");
+    AddTranslation("en", "&Copy episode link", L"&Copy episode link");
+    AddTranslation("fr", "&Copy episode link", L"&Copier le lien de l'épisode");
+    AddTranslation("en", "Podcast link copied", L"Podcast link copied");
+    AddTranslation("fr", "Podcast link copied", L"Lien du podcast copié");
+    AddTranslation("en", "Episode link copied", L"Episode link copied");
+    AddTranslation("fr", "Episode link copied", L"Lien de l'épisode copié");
+    AddTranslation("en", "%d links copied", L"%d links copied");
+    AddTranslation("fr", "%d links copied", L"%d liens copiés");
     // v2.26 — YouTube results context menu copy actions ("Link copied" reused from above)
     AddTranslation("en", "Copy &link", L"Copy &link");
     AddTranslation("fr", "Copy &link", L"Copier le &lien");

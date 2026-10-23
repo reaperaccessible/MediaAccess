@@ -1057,16 +1057,21 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
                     // one the user is working in (radio cart wall). Pulling the
                     // main window forward would steal the focus mid-show, so
                     // raise the playlist instead.
+                    // v2.77 — an open modal (update offer, message box) must
+                    // take the foreground, not the window it disables: Lee
+                    // opened files from Explorer while the update offer was
+                    // up and the disabled main window took the keyboard, so
+                    // nothing, not even Alt+F4, worked any more.
                     if (g_bringToFront && g_playlistDlg) {
-                        SetForegroundWindow(g_playlistDlg);
+                        SetForegroundWindow(ActiveWindowFor(g_playlistDlg));
                     } else if (g_bringToFront) {
                         if (!IsWindowVisible(hwnd)) {
                             RestoreFromTray(hwnd);
                         } else {
-                            SetForegroundWindow(hwnd);
                             if (IsIconic(hwnd)) {
                                 ShowWindow(hwnd, SW_RESTORE);
                             }
+                            SetForegroundWindow(ActiveWindowFor(hwnd));
                         }
                     }
                 }
@@ -2502,9 +2507,12 @@ static void ForceForegroundWindow(HWND hwnd) {
 
     if (IsIconic(hwnd)) ShowWindow(hwnd, SW_RESTORE);
     ShowWindow(hwnd, SW_SHOW);
-    BringWindowToTop(hwnd);
-    SetForegroundWindow(hwnd);
-    SetFocus(hwnd);
+    // v2.77 — an open modal takes the foreground, not the disabled main
+    // window (see ActiveWindowFor); the dialog restores its own focus.
+    HWND target = ActiveWindowFor(hwnd);
+    BringWindowToTop(target);
+    SetForegroundWindow(target);
+    if (target == hwnd) SetFocus(hwnd);
 
     SystemParametersInfoW(SPI_SETFOREGROUNDLOCKTIMEOUT, 0,
                           (PVOID)(UINT_PTR)lockTimeout, SPIF_SENDCHANGE);

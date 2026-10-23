@@ -8,6 +8,9 @@
 </head>
 <body>
 <h1>MediaAccess - Changelog</h1>
+<h2>Version 2.77</h2>
+<p>New: in the Podcasts window (Ctrl+Shift+P), <kbd>Ctrl</kbd>+<kbd>C</kbd> copies a link, as for a radio station. In the subscriptions list or the search results, it is the podcast's link (the address of its feed); in the episodes list, the episode's link, or those of all selected episodes, one per line. The same command is in the context menu of these lists (Applications key). Suggested by <strong>Gilles</strong>.</p>
+<p>Fix: MediaAccess could stop responding to the keyboard, even to Alt+F4, when one of its windows was open (for example the update offer) and a file was opened from Explorer: the blocked main window took the focus instead. The open window now gets the focus, also when MediaAccess is launched again or brought back from the notification area.</p>
 <h2>Version 2.76</h2>
 <p>Playlist manager (Ctrl+P), requested by <strong>Nicolas</strong>: each track announces its duration at the end of its line (measured in the background, without interrupting the screen reader); the left and right arrows seek forward or back in the playing track, as in the main window; a new "Playlist manager" category in Tools → Actions lets you assign shortcuts that work only in this window (elapsed time, remaining time, track or list duration, playback, next track, volume…).</p>
 <p>Fix: MediaAccess could not read playlists made by VLC and most other players, which write each track as an address (<code>file:///…</code>, with "%20" in place of spaces): no track was found. These playlists now open normally, accented names included. Tracks stored in a network folder are also read correctly from a playlist. Reported by a user.</p>
