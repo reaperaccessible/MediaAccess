@@ -72,6 +72,7 @@ struct RipOptions {
     std::wstring folderTpl = kDefaultFolderTpl, fileTpl = kDefaultFileTpl;
     bool embedCover = true, saveFolderJpg = true, writeCue = true, writeM3u = true, ejectWhenDone = false;
     bool secure = false, verify = true, writeLog = true;
+    bool writeGain = true;   // ReplayGain in the files (Lee, 2026-11-23: on by default)
 };
 RipOptions g_opts;
 
@@ -460,6 +461,7 @@ void ShowOptionsChecks(HWND opt, const RipOptions& o) {
     SendDlgItemMessageW(opt, IDC_CDOPT_MODE, CB_SETCURSEL, o.secure ? 1 : 0, 0);
     CheckDlgButton(opt, IDC_CDOPT_VERIFY, o.verify ? BST_CHECKED : BST_UNCHECKED);
     CheckDlgButton(opt, IDC_CDOPT_LOG, o.writeLog ? BST_CHECKED : BST_UNCHECKED);
+    CheckDlgButton(opt, IDC_CDOPT_GAIN, o.writeGain ? BST_CHECKED : BST_UNCHECKED);
 }
 
 const DiscDrive* SelectedDrive(HWND dlg);
@@ -569,6 +571,7 @@ INT_PTR CALLBACK OptionsDlgProc(HWND opt, UINT msg, WPARAM wParam, LPARAM lParam
                     o.secure = SendDlgItemMessageW(opt, IDC_CDOPT_MODE, CB_GETCURSEL, 0, 0) == 1;
                     o.verify = IsDlgButtonChecked(opt, IDC_CDOPT_VERIFY) == BST_CHECKED;
                     o.writeLog = IsDlgButtonChecked(opt, IDC_CDOPT_LOG) == BST_CHECKED;
+                    o.writeGain = IsDlgButtonChecked(opt, IDC_CDOPT_GAIN) == BST_CHECKED;
                     {   // a typed offset is remembered for this drive model
                         std::wstring text = GetText(opt, IDC_CDOPT_OFFSET);
                         const DiscDrive* d = SelectedDrive(g_cdDialog);
@@ -934,6 +937,7 @@ void LoadRipSettings(HWND dlg) {
     g_opts.secure = GetPrivateProfileIntW(L"CdRip", L"Mode", 0, g_configPath.c_str()) == 1;
     g_opts.verify = IniBool(L"VerifyAccurateRip", true);
     g_opts.writeLog = IniBool(L"WriteLog", true);
+    g_opts.writeGain = IniBool(L"WriteGain", true);
 }
 
 void SaveRipSettings(HWND dlg) {
@@ -952,6 +956,7 @@ void SaveRipSettings(HWND dlg) {
     IniWrite(L"Mode", g_opts.secure ? L"1" : L"0");
     IniWrite(L"VerifyAccurateRip", g_opts.verify ? L"1" : L"0");
     IniWrite(L"WriteLog", g_opts.writeLog ? L"1" : L"0");
+    IniWrite(L"WriteGain", g_opts.writeGain ? L"1" : L"0");
 }
 
 void InitRipControls(HWND dlg) {
@@ -1126,6 +1131,7 @@ void OnStart(HWND dlg, bool secureOverride = false) {
     job.secure = g_opts.secure || secureOverride;
     job.verify = g_opts.verify;
     job.writeLog = g_opts.writeLog;
+    job.writeGain = g_opts.writeGain;
     job.discId = Utf8ToWide(g_lookup.discId);
     SaveRipSettings(dlg);
 

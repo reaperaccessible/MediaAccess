@@ -11,6 +11,8 @@
 #include "bassenc_flac.h"
 #include "bassenc_mp3.h"
 #include "bassenc_ogg.h"
+#include "loudness.h"
+#include <cmath>
 #include <atomic>
 #include <mutex>
 #include <thread>
@@ -98,7 +100,22 @@ std::wstring Q(const std::wstring& v) {
     return out + L"\"";
 }
 
-std::wstring BuildOptions(const RipJob& job, const RipTrack& t, const std::wstring& coverPath) {
+// Volume gains of a track (ReplayGain 2.0: reference -18 LUFS).
+struct GainTags {
+    bool   has = false;
+    double trackLufs = 0, trackPeak = 0, albumLufs = 0, albumPeak = 0;
+};
+
+std::wstring Num(const wchar_t* fmt, double v) {
+    wchar_t b[64];
+    _snwprintf_s(b, _countof(b), _TRUNCATE, fmt, v);
+    std::wstring s = b;
+    for (wchar_t& c : s) if (c == L',') c = L'.';   // always a dot, whatever the locale
+    return s;
+}
+
+std::wstring BuildOptions(const RipJob& job, const RipTrack& t, const std::wstring& coverPath,
+                          const GainTags& g = GainTags()) {
     int count = 0;
     const Quality* q = Qualities(job.format, &count);
     int qi = (job.quality >= 0 && job.quality < count) ? job.quality : 0;
@@ -122,6 +139,12 @@ std::wstring BuildOptions(const RipJob& job, const RipTrack& t, const std::wstri
             if (!m.releaseMbid.empty()) add(L"-T", L"MUSICBRAINZ_ALBUMID=" + m.releaseMbid);
             if (!m.releaseGroupMbid.empty()) add(L"-T", L"MUSICBRAINZ_RELEASEGROUPID=" + m.releaseGroupMbid);
             if (!t.recordingMbid.empty()) add(L"-T", L"MUSICBRAINZ_TRACKID=" + t.recordingMbid);
+            if (g.has) {
+                add(L"-T", L"REPLAYGAIN_TRACK_GAIN=" + Num(L"%.2f dB", -18.0 - g.trackLufs));
+                add(L"-T", L"REPLAYGAIN_TRACK_PEAK=" + Num(L"%.6f", g.trackPeak));
+                add(L"-T", L"REPLAYGAIN_ALBUM_GAIN=" + Num(L"%.2f dB", -18.0 - g.albumLufs));
+                add(L"-T", L"REPLAYGAIN_ALBUM_PEAK=" + Num(L"%.6f", g.albumPeak));
+            }
             add(L"--picture", coverPath);
             break;
         case RipFormat::MP3:
@@ -133,6 +156,12 @@ std::wstring BuildOptions(const RipJob& job, const RipTrack& t, const std::wstri
             if (m.compilation) add(L"--tv", L"TCMP=1");
             if (!m.releaseMbid.empty()) add(L"--tv", L"TXXX=MusicBrainz Album Id=" + m.releaseMbid);
             if (!t.recordingMbid.empty()) add(L"--tv", L"TXXX=MusicBrainz Track Id=" + t.recordingMbid);
+            if (g.has) {
+                add(L"--tv", L"TXXX=REPLAYGAIN_TRACK_GAIN=" + Num(L"%.2f dB", -18.0 - g.trackLufs));
+                add(L"--tv", L"TXXX=REPLAYGAIN_TRACK_PEAK=" + Num(L"%.6f", g.trackPeak));
+                add(L"--tv", L"TXXX=REPLAYGAIN_ALBUM_GAIN=" + Num(L"%.2f dB", -18.0 - g.albumLufs));
+                add(L"--tv", L"TXXX=REPLAYGAIN_ALBUM_PEAK=" + Num(L"%.6f", g.albumPeak));
+            }
             add(L"--ti", coverPath);
             break;
         case RipFormat::OGG:
@@ -145,6 +174,12 @@ std::wstring BuildOptions(const RipJob& job, const RipTrack& t, const std::wstri
             if (m.compilation) add(L"-c", L"COMPILATION=1");
             if (!m.releaseMbid.empty()) add(L"-c", L"MUSICBRAINZ_ALBUMID=" + m.releaseMbid);
             if (!t.recordingMbid.empty()) add(L"-c", L"MUSICBRAINZ_TRACKID=" + t.recordingMbid);
+            if (g.has) {
+                add(L"-c", L"REPLAYGAIN_TRACK_GAIN=" + Num(L"%.2f dB", -18.0 - g.trackLufs));
+                add(L"-c", L"REPLAYGAIN_TRACK_PEAK=" + Num(L"%.6f", g.trackPeak));
+                add(L"-c", L"REPLAYGAIN_ALBUM_GAIN=" + Num(L"%.2f dB", -18.0 - g.albumLufs));
+                add(L"-c", L"REPLAYGAIN_ALBUM_PEAK=" + Num(L"%.6f", g.albumPeak));
+            }
             add(L"--picture", coverPath);
             break;
         case RipFormat::OPUS:
@@ -157,6 +192,12 @@ std::wstring BuildOptions(const RipJob& job, const RipTrack& t, const std::wstri
             if (m.compilation) add(L"--comment", L"COMPILATION=1");
             if (!m.releaseMbid.empty()) add(L"--comment", L"MUSICBRAINZ_ALBUMID=" + m.releaseMbid);
             if (!t.recordingMbid.empty()) add(L"--comment", L"MUSICBRAINZ_TRACKID=" + t.recordingMbid);
+            if (g.has) {
+                // Opus: R128 gains, Q7.8 dB relative to -23 LUFS (RFC 7845).
+                auto q78 = [](double lufs) { return std::to_wstring(static_cast<int>(lround((-23.0 - lufs) * 256.0))); };
+                add(L"--comment", L"R128_TRACK_GAIN=" + q78(g.trackLufs));
+                add(L"--comment", L"R128_ALBUM_GAIN=" + q78(g.albumLufs));
+            }
             add(L"--picture", coverPath);
             break;
         default:
@@ -190,10 +231,11 @@ std::wstring FmtInt(const wchar_t* fmt, int n) {
 
 // Starts the encoder that writes `path` from the decoding stream.
 HENCODE StartEncoder(HSTREAM s, const RipJob& job, const RipTrack& t,
-                     const std::wstring& path, const std::wstring& coverPath) {
+                     const std::wstring& path, const std::wstring& coverPath,
+                     const GainTags& gain = GainTags()) {
     const DWORD flags = BASS_ENCODE_AUTOFREE | BASS_UNICODE;
     if (job.format == RipFormat::WAV) return BASS_Encode_StartPCMFile(s, flags, path.c_str());
-    std::wstring opts = BuildOptions(job, t, coverPath);
+    std::wstring opts = BuildOptions(job, t, coverPath, gain);
     switch (job.format) {
         case RipFormat::FLAC: return BASS_Encode_FLAC_StartFile(s, opts.c_str(), flags, path.c_str());
         case RipFormat::MP3:  return BASS_Encode_MP3_StartFile(s, opts.c_str(), flags, path.c_str());
@@ -215,7 +257,14 @@ struct TrackOutcome {
     ArCrc    ar;
     ArTrackResult arResult;
     bool     written = false;
+    // Gain written (job.writeGain): the PCM waits in pcmTemp until the album
+    // is read; its loudness was measured on the way.
+    std::wstring pcmTemp;
+    bool     measured = false;
+    double   lufs = 0, peak = 0, seconds = 0;
 };
+
+bool Deferred(const RipJob& job) { return job.writeGain && job.format != RipFormat::WAV; }
 
 void SetProgress(size_t pos, double trackFrac, double secondsBefore, double trackSeconds,
                  double secondsTotal, ULONGLONG startTick) {
@@ -332,7 +381,22 @@ TrackResult RipOneTrack(const basscd::Api* cd, const RipJob& job, const RipTrack
         }
     }
 
-    if (!StartEncoder(source, job, t, partPath, coverPath)) {
+    const bool deferred = Deferred(job);
+    HANDLE pcmFile = INVALID_HANDLE_VALUE;
+    mediaaccess::LoudnessMeter meter;
+    std::vector<float> fbuf;
+    const std::wstring pcmPath = finalPath + L".pcm.part";
+    if (deferred) {
+        pcmFile = CreateFileW(pcmPath.c_str(), GENERIC_WRITE, 0, nullptr, CREATE_ALWAYS,
+                              FILE_ATTRIBUTE_TEMPORARY, nullptr);
+        if (pcmFile == INVALID_HANDLE_VALUE) {
+            LogF("CDRIP", "cannot create %ls: %lu", pcmPath.c_str(), GetLastError());
+            BASS_StreamFree(source);
+            PostError(notify, Fmt(T("Cannot write to the folder %ls. Choose another folder."), job.folder));
+            return TrackResult::Failed;
+        }
+        meter.Begin(44100, 2);
+    } else if (!StartEncoder(source, job, t, partPath, coverPath)) {
         int err = BASS_ErrorGetCode();
         LogF("CDRIP", "encoder start failed for %ls: error %d", partPath.c_str(), err);
         BASS_StreamFree(source);
@@ -364,8 +428,21 @@ TrackResult RipOneTrack(const basscd::Api* cd, const RipJob& job, const RipTrack
             }
             break;
         }
+        if (deferred) {
+            DWORD wrote = 0;
+            if (!WriteFile(pcmFile, buf, got, &wrote, nullptr) || wrote != got) {
+                LogF("CDRIP", "write failed %ls: %lu", pcmPath.c_str(), GetLastError());
+                PostError(notify, Fmt(T("Writing to %ls failed. The disk may be full."), job.folder));
+                result = TrackResult::Failed;
+                break;
+            }
+            const short* pcm16 = reinterpret_cast<const short*>(buf);
+            fbuf.resize(got / 2);
+            for (size_t k = 0; k < fbuf.size(); ++k) fbuf[k] = pcm16[k] / 32768.0f;
+            meter.Add(fbuf.data(), fbuf.size() / 2);
+        }
         // The encoder stops by itself when it cannot write (disk full...).
-        if (!BASS_Encode_IsActive(source)) {
+        if (!deferred && !BASS_Encode_IsActive(source)) {
             LogF("CDRIP", "encoder stopped while writing %ls", partPath.c_str());
             PostError(notify, Fmt(T("Writing to %ls failed. The disk may be full."), job.folder));
             result = TrackResult::Failed;
@@ -380,6 +457,20 @@ TrackResult RipOneTrack(const basscd::Api* cd, const RipJob& job, const RipTrack
         }
     }
 
+    if (deferred) {
+        CloseHandle(pcmFile);
+        BASS_StreamFree(source);
+        if (result != TrackResult::Done) {
+            DeleteFileW(pcmPath.c_str());
+            return result;
+        }
+        out.crcCopy = crc;
+        out.ar = acc.Result();
+        out.pcmTemp = pcmPath;
+        out.measured = meter.Result(out.lufs, out.peak, out.seconds);
+        LogF("CDRIP", "track %d read, %.2f LUFS, peak %.4f", t.index, out.lufs, out.peak);
+        return TrackResult::Done;   // encoded once the album is read
+    }
     BASS_Encode_Stop(source);   // flushes and closes the file
     BASS_StreamFree(source);
     if (result != TrackResult::Done) {
@@ -550,6 +641,49 @@ void WriteLog(const RipJob& job, const std::wstring& path, const std::wstring& o
     WriteUtf8(path, L, true);
 }
 
+// Second pass (job.writeGain): a track kept as PCM is encoded with its gains,
+// through a push stream, as the Secure mode does. False on a failure (said).
+bool EncodeDeferred(const RipJob& job, const RipTrack& t, TrackOutcome& out,
+                    const std::wstring& coverPath, const GainTags& gain, HWND notify) {
+    std::wstring finalPath = job.folder + L"\\" + t.fileName + RipFormatExtension(job.format);
+    std::wstring partPath = finalPath + L".part";
+    HANDLE f = CreateFileW(out.pcmTemp.c_str(), GENERIC_READ, FILE_SHARE_READ, nullptr, OPEN_EXISTING,
+                           FILE_FLAG_SEQUENTIAL_SCAN, nullptr);
+    HSTREAM source = (f != INVALID_HANDLE_VALUE)
+        ? BASS_StreamCreate(44100, 2, BASS_STREAM_DECODE, STREAMPROC_PUSH, nullptr) : 0;
+    bool ok = source && StartEncoder(source, job, t, partPath, coverPath, gain);
+    static BYTE buf[588 * 4 * 75];
+    while (ok) {
+        DWORD read = 0;
+        if (!ReadFile(f, buf, sizeof(buf), &read, nullptr)) { ok = false; break; }
+        if (read) BASS_StreamPutData(source, buf, read);
+        else BASS_StreamPutData(source, nullptr, BASS_STREAMPROC_END);
+        for (;;) {   // pull what was pushed through the encoder
+            DWORD got = BASS_ChannelGetData(source, buf, sizeof(buf));
+            if (got == static_cast<DWORD>(-1) || got == 0) break;
+        }
+        if (!BASS_Encode_IsActive(source)) { ok = false; break; }
+        if (!read) break;
+    }
+    if (source) {
+        BASS_Encode_Stop(source);
+        BASS_StreamFree(source);
+    }
+    if (f != INVALID_HANDLE_VALUE) CloseHandle(f);
+    DeleteFileW(out.pcmTemp.c_str());
+    out.pcmTemp.clear();
+    if (ok && !MoveFileExW(partPath.c_str(), finalPath.c_str(), MOVEFILE_REPLACE_EXISTING)) ok = false;
+    if (!ok) {
+        LogF("CDRIP", "encoding failed for %ls: error %d", partPath.c_str(), BASS_ErrorGetCode());
+        DeleteFileW(partPath.c_str());
+        PostError(notify, Fmt(T("Writing to %ls failed. The disk may be full."), job.folder));
+        return false;
+    }
+    out.written = true;
+    LogF("CDRIP", "track %d written: %ls", t.index, finalPath.c_str());
+    return true;
+}
+
 void Worker(RipJob job, HWND notify) {
     const basscd::Api* cd = basscd::Get();
     std::vector<const RipTrack*> written;
@@ -642,6 +776,43 @@ void Worker(RipJob job, HWND notify) {
         BASS_SetConfig(BASS_CONFIG_CD_SKIPERROR, TRUE);
         BASS_SetConfig(BASS_CONFIG_CD_RETRY, 2);
         cd->Release(job.drive.bassIndex);
+        if (Deferred(job)) {
+            // The album gain: energy average of the tracks read, by duration;
+            // its peak: the highest. Then each track is encoded with its gains
+            // (also the tracks read before a stop: they are kept, as always).
+            double energy = 0, seconds = 0, albumPeak = 0;
+            for (size_t i = 0; i < outcomes.size(); ++i) {
+                const TrackOutcome& o = outcomes[i];
+                if (o.pcmTemp.empty() || !o.measured || o.seconds <= 0) continue;
+                energy += o.seconds * pow(10.0, o.lufs / 10.0);
+                seconds += o.seconds;
+                albumPeak = (std::max)(albumPeak, o.peak);
+            }
+            const double albumLufs = seconds > 0 ? 10.0 * log10(energy / seconds) : 0.0;
+            std::vector<const RipTrack*> encoded;
+            for (size_t i = 0; i < job.tracks.size(); ++i) {
+                TrackOutcome& o = outcomes[i];
+                if (o.pcmTemp.empty()) continue;
+                GainTags g;
+                g.has = o.measured && seconds > 0;
+                g.trackLufs = o.lufs;
+                g.trackPeak = o.peak;
+                g.albumLufs = albumLufs;
+                g.albumPeak = albumPeak;
+                if (EncodeDeferred(job, job.tracks[i], o, tempCover, g, notify)) {
+                    encoded.push_back(&job.tracks[i]);
+                } else {
+                    stopped = true;
+                    for (size_t k = i + 1; k < outcomes.size(); ++k) {   // nothing half done is left
+                        if (!outcomes[k].pcmTemp.empty()) DeleteFileW(outcomes[k].pcmTemp.c_str());
+                        outcomes[k].pcmTemp.clear();
+                    }
+                    break;
+                }
+            }
+            written = encoded;
+            LogF("CDRIP", "album gain %.2f dB over %.0f s", -18.0 - albumLufs, seconds);
+        }
         WriteLists(job, written);   // the tracks written, even after a stop
         if (job.writeLog && !written.empty() && !job.listName.empty()) {
             summary->logPath = job.folder + L"\\" + job.listName + L".log";

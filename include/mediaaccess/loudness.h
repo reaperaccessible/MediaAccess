@@ -23,6 +23,23 @@ struct LoudnessInfo {
     std::string album;      // album tag (UTF-8), to group album gains
 };
 
+// The same measure fed in pieces (CD extraction: the PCM as it is read).
+class LoudnessMeter {
+public:
+    void Begin(unsigned freq, int chans);
+    void Add(const float* interleaved, size_t frames);
+    // false: nothing above the gates (silence) or nothing fed.
+    bool Result(double& lufs, double& peak, double& seconds) const;
+private:
+    struct Biquad { double b0 = 1, b1 = 0, b2 = 0, a1 = 0, a2 = 0, x1 = 0, x2 = 0, y1 = 0, y2 = 0; };
+    unsigned m_freq = 0;
+    int m_chans = 0;
+    std::vector<Biquad> m_shelf, m_hp;
+    std::vector<double> m_weight, m_sub;
+    double m_acc = 0.0, m_peak = 0.0;
+    size_t m_accFrames = 0, m_frames = 0;
+};
+
 // Whole-file measure on the calling thread (a worker). `cancel` may be null.
 LoudnessInfo MeasureLoudness(const std::wstring& path, const volatile bool* cancel);
 

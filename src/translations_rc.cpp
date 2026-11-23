@@ -1186,6 +1186,8 @@ void RegisterRcTranslations() {
     AddTranslation("fr", "&Verify with AccurateRip", L"&Vérifier avec AccurateRip");
     AddTranslation("en", "Write a &log", L"Write a &log");
     AddTranslation("fr", "Write a &log", L"Écrire un journa&l");
+    AddTranslation("en", "Write the volume &gain into the files (ReplayGain)", L"Write the volume &gain into the files (ReplayGain)");
+    AddTranslation("fr", "Write the volume &gain into the files (ReplayGain)", L"Écrire le &gain du volume dans les fichiers (ReplayGain)");
     AddTranslation("en", "&Defaults", L"&Defaults");
     AddTranslation("fr", "&Defaults", L"Valeurs &par défaut");
 

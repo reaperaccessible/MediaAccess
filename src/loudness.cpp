@@ -140,6 +140,74 @@ void SaveAlbumGains() {
 
 } // namespace
 
+void LoudnessMeter::Begin(unsigned freq, int chans) {
+    m_freq = freq;
+    m_chans = chans;
+    // BS.1770 channel weights: L, R, C = 1, LFE = 0, surrounds = 1.41. A mono
+    // file is heard on both speakers: counted twice.
+    m_weight.assign(chans, 1.0);
+    if (chans == 1) m_weight[0] = 2.0;
+    if (chans >= 6) { m_weight[3] = 0.0; m_weight[4] = 1.41; m_weight[5] = 1.41; }
+    m_shelf.assign(chans, Biquad());
+    m_hp.assign(chans, Biquad());
+    for (int c = 0; c < chans; ++c) {
+        ::mediaaccess::Biquad s, h;
+        KWeighting(freq, s, h);
+        m_shelf[c] = { s.b0, s.b1, s.b2, s.a1, s.a2 };
+        m_hp[c] = { h.b0, h.b1, h.b2, h.a1, h.a2 };
+    }
+    m_sub.clear();
+    m_acc = m_peak = 0.0;
+    m_accFrames = m_frames = 0;
+}
+
+void LoudnessMeter::Add(const float* x, size_t frames) {
+    if (!m_chans || !m_freq) return;
+    const size_t subFrames = m_freq / 10;   // 100 ms
+    auto run = [](Biquad& q, double v) {
+        double y = q.b0 * v + q.b1 * q.x1 + q.b2 * q.x2 - q.a1 * q.y1 - q.a2 * q.y2;
+        q.x2 = q.x1; q.x1 = v; q.y2 = q.y1; q.y1 = y;
+        return y;
+    };
+    for (size_t f = 0; f < frames; ++f) {
+        double e = 0.0;
+        for (int c = 0; c < m_chans; ++c) {
+            double v = x[f * m_chans + c];
+            double av = fabs(v);
+            if (av > m_peak) m_peak = av;
+            double y = run(m_hp[c], run(m_shelf[c], v));
+            e += m_weight[c] * y * y;
+        }
+        m_acc += e;
+        if (++m_accFrames == subFrames) {
+            m_sub.push_back(m_acc / subFrames);
+            m_acc = 0.0;
+            m_accFrames = 0;
+        }
+    }
+    m_frames += frames;
+}
+
+bool LoudnessMeter::Result(double& lufs, double& peak, double& seconds) const {
+    seconds = m_freq ? static_cast<double>(m_frames) / m_freq : 0.0;
+    peak = m_peak;
+    // 400 ms blocks every 100 ms, then the two gates.
+    std::vector<double> blocks;
+    for (size_t i = 0; i + 4 <= m_sub.size(); ++i)
+        blocks.push_back((m_sub[i] + m_sub[i + 1] + m_sub[i + 2] + m_sub[i + 3]) / 4.0);
+    auto lufsOf = [](double e) { return -0.691 + 10.0 * log10(e > 1e-20 ? e : 1e-20); };
+    double sum = 0.0;
+    size_t n = 0;
+    for (double b : blocks) if (lufsOf(b) > -70.0) { sum += b; ++n; }
+    if (!n) return false;                              // silence: nothing to say
+    double relGate = lufsOf(sum / n) - 10.0;
+    sum = 0.0; n = 0;
+    for (double b : blocks) if (lufsOf(b) > -70.0 && lufsOf(b) > relGate) { sum += b; ++n; }
+    if (!n) return false;
+    lufs = lufsOf(sum / n);
+    return true;
+}
+
 LoudnessInfo MeasureLoudness(const std::wstring& path, const volatile bool* cancel) {
     LoudnessInfo out;
     HSTREAM h = BASS_StreamCreateFile(FALSE, path.c_str(), 0, 0,
@@ -150,60 +218,17 @@ LoudnessInfo MeasureLoudness(const std::wstring& path, const volatile bool* canc
     if (!ci.freq || !ci.chans) { BASS_StreamFree(h); return out; }
     out.album = StreamAlbumTag(h);
     const int ch = static_cast<int>(ci.chans);
-    // BS.1770 channel weights: L, R, C = 1, LFE = 0, surrounds = 1.41. A mono
-    // file is heard on both speakers: counted twice.
-    std::vector<double> weight(ch, 1.0);
-    if (ch == 1) weight[0] = 2.0;
-    if (ch >= 6) { weight[3] = 0.0; weight[4] = 1.41; weight[5] = 1.41; }
-    std::vector<Biquad> shelf(ch), hp(ch);
-    for (int c = 0; c < ch; ++c) KWeighting(ci.freq, shelf[c], hp[c]);
-
-    const size_t subFrames = ci.freq / 10;            // 100 ms
-    std::vector<double> subEnergy;                     // weighted mean square per 100 ms
+    LoudnessMeter meter;
+    meter.Begin(ci.freq, ch);
     std::vector<float> buf(4096 * ch);
-    double acc = 0.0, peak = 0.0;
-    size_t accFrames = 0, totalFrames = 0;
     for (;;) {
         if (cancel && *cancel) { BASS_StreamFree(h); return out; }
         DWORD got = BASS_ChannelGetData(h, buf.data(), static_cast<DWORD>(buf.size() * sizeof(float)) | BASS_DATA_FLOAT);
         if (got == (DWORD)-1 || got == 0) break;
-        size_t frames = got / sizeof(float) / ch;
-        for (size_t f = 0; f < frames; ++f) {
-            double e = 0.0;
-            for (int c = 0; c < ch; ++c) {
-                double x = buf[f * ch + c];
-                double ax = fabs(x);
-                if (ax > peak) peak = ax;
-                double y = hp[c].Run(shelf[c].Run(x));
-                e += weight[c] * y * y;
-            }
-            acc += e;
-            if (++accFrames == subFrames) {
-                subEnergy.push_back(acc / subFrames);
-                acc = 0.0;
-                accFrames = 0;
-            }
-        }
-        totalFrames += frames;
+        meter.Add(buf.data(), got / sizeof(float) / ch);
     }
     BASS_StreamFree(h);
-    out.seconds = static_cast<double>(totalFrames) / ci.freq;
-    out.peak = peak;
-    // 400 ms blocks every 100 ms, then the two gates.
-    std::vector<double> blocks;
-    for (size_t i = 0; i + 4 <= subEnergy.size(); ++i)
-        blocks.push_back((subEnergy[i] + subEnergy[i + 1] + subEnergy[i + 2] + subEnergy[i + 3]) / 4.0);
-    auto lufsOf = [](double e) { return -0.691 + 10.0 * log10(e > 1e-20 ? e : 1e-20); };
-    double sum = 0.0;
-    size_t n = 0;
-    for (double b : blocks) if (lufsOf(b) > -70.0) { sum += b; ++n; }
-    if (!n) return out;                                // silence: nothing to say
-    double relGate = lufsOf(sum / n) - 10.0;
-    sum = 0.0; n = 0;
-    for (double b : blocks) if (lufsOf(b) > -70.0 && lufsOf(b) > relGate) { sum += b; ++n; }
-    if (!n) return out;
-    out.lufs = lufsOf(sum / n);
-    out.ok = true;
+    out.ok = meter.Result(out.lufs, out.peak, out.seconds);
     return out;
 }
 

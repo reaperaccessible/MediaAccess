@@ -189,6 +189,7 @@
 #define IDC_CDOPT_DETECT         2080
 #define IDC_CDOPT_VERIFY         2081
 #define IDC_CDOPT_LOG            2082
+#define IDC_CDOPT_GAIN           2083   // crossfade phase 5 — ReplayGain written into the files
 
 #define IDM_EFFECT_PRESETS  238
 

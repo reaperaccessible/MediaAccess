@@ -51,6 +51,11 @@ struct RipJob {
     bool secure = false;                    // two reads compared, blocks re-read (plan 4.3)
     bool verify = true;                     // AccurateRip
     bool writeLog = true;
+    // ReplayGain (R128 for Opus) written into the files (not WAV): each track
+    // is first kept as PCM in a temporary file while its volume is measured;
+    // once the album is read, the tracks are encoded with their track and
+    // album gains (the album gain needs every track).
+    bool writeGain = true;
     bool offsetKnown = false;               // readOffset given; else saved / AccurateRip list / 0
     int  readOffset = 0;                    // samples, for BASS_CD_SetOffset
     std::wstring discId;                    // MusicBrainz disc ID, for the log
