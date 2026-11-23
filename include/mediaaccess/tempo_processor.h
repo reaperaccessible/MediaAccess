@@ -64,6 +64,39 @@ public:
     virtual void SetLoopRegion(double startSec, double endSec, bool enabled) {
         (void)startSec; (void)endSec; (void)enabled;
     }
+
+    // Crossfade, phase 1 — local files play through a BASSmix decode mixer
+    // placed in front of the processor. The processor's source is then the
+    // MIXER (endless, no length, cannot seek), and the song being played is a
+    // separate decode channel plugged into it. When a song stream is set, the
+    // position, length, seek and A-B loop calls above all refer to THAT song
+    // (through the BASS_Mixer_Channel* calls), never to the mixer. 0 (the
+    // default) keeps the classic behaviour, where the source IS the media
+    // (internet streams).
+    void SetSongStream(HSTREAM song) { m_song = song; ClearSourceEnd(); }
+    HSTREAM GetSongStream() const { return m_song; }
+
+    // Start a new song in the existing chain at `seconds`: discards everything
+    // the processor holds from the previous song. Defaults to SetPosition;
+    // Signalsmith also re-primes its latency like a fresh Initialize does.
+    virtual void StartSong(double seconds) { SetPosition(seconds); }
+
+    // The mixer never ends (BASS_MIXER_NONSTOP), so the end of a song is first
+    // seen at DECODE time, well before it is heard (tempo and playback buffers).
+    // MarkSourceEnd() is called from the song's mixtime END sync, on the audio
+    // thread, while the processor is pulling the mixer: it must not lock. It
+    // records where, in the processor's own output, the song's last sample
+    // lies. SourceEndHeard() (UI thread) tells when playback has reached that
+    // point, i.e. when the song has really been heard to the end. A seek
+    // (SetPosition) clears the mark.
+    virtual void MarkSourceEnd() {}
+    virtual bool SourceEndHeard() const { return false; }
+    bool SourceEndMarked() const { return m_endMarked; }
+    void ClearSourceEnd() { m_endMarked = false; }
+
+protected:
+    HSTREAM m_song = 0;
+    volatile bool m_endMarked = false;
 };
 
 // Factory function to create a tempo processor

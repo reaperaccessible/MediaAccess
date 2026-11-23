@@ -27,6 +27,7 @@ static void TeardownMpvBeforeLoad();
 #include "bassenc_ogg.h"
 #include "bassenc_flac.h"
 #include "tempo_processor.h"
+#include "bassmix.h"
 #include <ctime>
 #include <atomic>   // v2.64 — playlist-total re-entrancy guard
 #include <shlobj.h>
@@ -41,6 +42,98 @@ static std::string GetMetadataTag(HSTREAM stream, const char* tagName);
 static std::string GetStreamTitle(HSTREAM stream);
 static std::string GetTrimmedTag(const char* data, size_t maxLen);
 static std::string GetStationName(HSTREAM stream);  // v1.60 — used by AnnounceStreamMetadata
+
+// =============================================================================
+// Crossfade, phase 1 — the song mixer (docs/PLAN_FONDU_ENCHAINE.md, section 5).
+//
+// A local file played by BASS no longer feeds the tempo processor directly:
+//
+//   song (decode) -> BASSmix mixer (decode, NONSTOP, POSEX, stereo, device
+//   rate) -> tempo processor -> g_fxStream (effects, volume, recording, device)
+//
+// The chain (mixer, processor, g_fxStream, its effects and an encoder on it)
+// is built once and survives from one local song to the next; at each song
+// only the song stream is opened and plugged into the mixer. No crossfade yet:
+// a song change still stops the output, clears every buffer and starts the
+// new song fresh, exactly as before, so nothing is heard differently.
+//
+// Ownership: s_song is ours (freed by us, never automatically). The mixer is
+// owned like the old source stream was: by g_fxStream through
+// BASS_FX_FREESOURCE for SoundTouch, by us through g_stream for Speedy and
+// Signalsmith. g_sourceStream is the song (tags, bitrate, chapters).
+// Internet streams, videos and mpv keep their own path (s_mixerChain false).
+// =============================================================================
+struct ChainSignature {
+    DWORD freq = 0;
+    int algo = -1;
+    bool stAA = false, stQuick = false, stPreventClick = false;
+    int stAALen = 0, stSeq = 0, stSeek = 0, stOverlap = 0;
+    bool speedyNonlinear = false;
+    int ssPreset = 0, ssTonality = 0;
+    bool operator==(const ChainSignature& o) const {
+        return freq == o.freq && algo == o.algo && stAA == o.stAA && stQuick == o.stQuick &&
+               stPreventClick == o.stPreventClick && stAALen == o.stAALen && stSeq == o.stSeq &&
+               stSeek == o.stSeek && stOverlap == o.stOverlap &&
+               speedyNonlinear == o.speedyNonlinear && ssPreset == o.ssPreset &&
+               ssTonality == o.ssTonality;
+    }
+};
+
+static HSTREAM s_song = 0;            // current song in the mixer
+static HSTREAM s_mixer = 0;           // the mixer at the head of the chain
+static bool s_mixerChain = false;     // g_fxStream is the song-mixer chain
+static ChainSignature s_chainSig;     // settings the chain was built with
+
+// Everything the processor reads only when it is created: a change of any of
+// them rebuilds the chain at the next song, as every song did before.
+static ChainSignature CurrentChainSignature() {
+    ChainSignature s;
+    BASS_INFO bi = {};
+    s.freq = (BASS_GetInfo(&bi) && bi.freq) ? bi.freq : 48000;
+    s.algo = static_cast<int>(GetCurrentAlgorithm());
+    s.stAA = g_stAntiAliasFilter; s.stQuick = g_stQuickAlgorithm;
+    s.stPreventClick = g_stPreventClick; s.stAALen = g_stAAFilterLength;
+    s.stSeq = g_stSequenceMs; s.stSeek = g_stSeekWindowMs; s.stOverlap = g_stOverlapMs;
+    s.speedyNonlinear = g_speedyNonlinear;
+    s.ssPreset = g_ssPreset; s.ssTonality = g_ssTonalityLimit;
+    return s;
+}
+
+// Call AFTER g_fxStream (and g_stream) have been freed by any teardown. Frees
+// the song and forgets the chain. An encoder on the freed chain died with it
+// (BASS_ENCODE_AUTOFREE): clear the recording flags so they do not lie.
+static void ReleaseSongMixer() {
+    bool wasChain = s_mixerChain;
+    if (s_song) {
+        if (g_sourceStream == s_song) g_sourceStream = 0;
+        BASS_StreamFree(s_song);
+        s_song = 0;
+    }
+    s_mixer = 0;
+    s_mixerChain = false;
+    if (g_hwnd) KillTimer(g_hwnd, IDT_SONG_END);
+    if (wasChain && g_isRecording && g_encoder &&
+        BASS_Encode_IsActive(g_encoder) == BASS_ACTIVE_STOPPED) {
+        g_encoder = 0;
+        g_isRecording = false;
+        g_recordPaused = false;
+    }
+}
+
+// Mixtime END sync of a song (BASS thread): the song's last sample has just
+// left the mixer, but the tempo and playback buffers still hold it. Mark that
+// point in the processor and let the UI thread wait until it is heard.
+static void CALLBACK OnSongDecodeEnd(HSYNC, DWORD channel, DWORD, void* user) {
+    auto* processor = static_cast<TempoProcessor*>(user);
+    if (processor) processor->MarkSourceEnd();
+    PostMessage(g_hwnd, WM_SONG_DECODE_END, static_cast<WPARAM>(channel), 0);
+}
+
+// Tag source: the song on the mixer chain, else the classic choice.
+static HSTREAM TagSourceStream() {
+    if (s_song) return s_song;
+    return g_stream ? g_stream : g_fxStream;
+}
 
 // Global SoundFont handle for MIDI playback
 static HSOUNDFONT g_hSoundFont = 0;
@@ -245,13 +338,19 @@ void SelectAudioDevice(int deviceIndex) {
     std::wstring deviceName = GetDeviceName(deviceIndex);
 
     // Try to reinitialize BASS with the new device
+    const bool wasRecording = g_isRecording;
     if (ReinitBass(deviceIndex)) {
         g_selectedDevice = deviceIndex;
         g_selectedDeviceName = deviceName;
         SaveSettings();
 
-        // Announce the change
+        // Announce the change (one message; a recording of the output ends
+        // with the rebuilt chain, said in the same breath)
         std::string msg = Ts("Switched to ") + WideToUtf8(deviceName);
+        if (wasRecording && !g_isRecording) {
+            msg += ", ";
+            msg += Ts("Recording stopped");
+        }
         Speak(msg.c_str());
     } else {
         Speak(Ts("Failed to switch audio device"));
@@ -444,6 +543,7 @@ void FreeBass() {
         BASS_StreamFree(g_stream);
         g_stream = 0;
     }
+    ReleaseSongMixer();
     g_sourceStream = 0;
     g_currentBitrate = 0;
     g_currentSourcePath.clear();  // issue #15 — no source after a full teardown
@@ -527,6 +627,7 @@ bool LoadURL(const wchar_t* url, bool silentOnFail, const char* mpvFileOptions) 
         BASS_StreamFree(g_stream);
         g_stream = 0;
     }
+    ReleaseSongMixer();   // crossfade phase 1 — a local song chain ends here
 
     // Convert URL to UTF-8 for BASS
     std::string urlUtf8 = WideToUtf8(url);
@@ -1006,6 +1107,7 @@ static bool PrepareForMpvLoad() {
         g_fxStream = 0;
     }
     if (g_stream) { BASS_StreamFree(g_stream); g_stream = 0; }
+    ReleaseSongMixer();   // crossfade phase 1
     g_sourceStream = 0;
     FreeTempoProcessor();
 
@@ -1384,47 +1486,89 @@ bool LoadFile(const wchar_t* path) {
     // — two media playing simultaneously, which is exactly what we don't want.
     TeardownMpvBeforeLoad();
 
-    // Free existing streams safely
-    if (g_fxStream) {
-        // Remove sync first to prevent callbacks during cleanup
-        if (g_endSync) {
-            BASS_ChannelRemoveSync(g_fxStream, g_endSync);
-            g_endSync = 0;
-        }
-        // Remove DSP effects before freeing stream
+    // Crossfade, phase 1 — reuse the song-mixer chain when it is already
+    // playing local files with the same processor settings; otherwise build
+    // it anew, exactly as every file used to rebuild everything.
+    TempoAlgorithm algo = static_cast<TempoAlgorithm>(g_tempoAlgorithm);
+    SetCurrentAlgorithm(algo);
+    const ChainSignature sig = CurrentChainSignature();
+    const bool reuse = s_mixerChain && g_fxStream && s_mixer &&
+                       g_activeEngine == PlaybackEngine::BASS && sig == s_chainSig;
+
+    if (reuse) {
+        // What the classic teardown did, minus the chain itself: stop the
+        // output (clears its buffer), drop the effects (re-applied below, so
+        // they start fresh as before), let the old song go. An encoder on
+        // g_fxStream stays: the recording goes on across songs.
+        BASS_ChannelStop(g_fxStream);
         RemoveDSPEffects();
-        // Stop playback before freeing
+        GetTempoProcessor()->SetSongStream(0);
+        if (s_song) {
+            if (g_sourceStream == s_song) g_sourceStream = 0;
+            BASS_StreamFree(s_song);   // also removes it from the mixer
+            s_song = 0;
+        }
+        KillTimer(g_hwnd, IDT_SONG_END);
+    } else {
+        // Free existing streams safely
+        if (g_fxStream) {
+            // Remove sync first to prevent callbacks during cleanup
+            if (g_endSync) {
+                BASS_ChannelRemoveSync(g_fxStream, g_endSync);
+                g_endSync = 0;
+            }
+            // Remove DSP effects before freeing stream
+            RemoveDSPEffects();
+            // Stop playback before freeing
+            BASS_ChannelStop(g_fxStream);
+            BASS_StreamFree(g_fxStream);
+            g_fxStream = 0;
+        }
+        if (g_stream) {
+            BASS_StreamFree(g_stream);
+            g_stream = 0;
+        }
+        ReleaseSongMixer();
+    }
+
+    // Tear the reused chain down when the new song cannot join it, so a
+    // failure leaves nothing loaded, as before.
+    auto dropChain = [&]() {
+        if (!reuse) return;
+        RemoveDSPEffects();
         BASS_ChannelStop(g_fxStream);
         BASS_StreamFree(g_fxStream);
         g_fxStream = 0;
-    }
-    if (g_stream) {
-        BASS_StreamFree(g_stream);
-        g_stream = 0;
-    }
+        if (g_stream) { BASS_StreamFree(g_stream); g_stream = 0; }
+        ReleaseSongMixer();
+        FreeTempoProcessor();
+    };
 
     // Decode stream: BASS_MIDI_StreamCreateFile is only used when the user
     // wants sinc interpolation (Options → MIDI), which the generic
     // BASS_StreamCreateFile path can't request. Otherwise generic handles
     // every format including MIDI (lower CPU, lower quality).
+    HSTREAM song = 0;
     if (IsMidiFile(path) && g_midiSincInterp) {
         DWORD flags = BASS_UNICODE | BASS_STREAM_DECODE | BASS_SAMPLE_FLOAT | BASS_MIDI_SINCINTER;
-        g_stream = BASS_MIDI_StreamCreateFile(FALSE, path, 0, 0, flags, 0);
+        song = BASS_MIDI_StreamCreateFile(FALSE, path, 0, 0, flags, 0);
         // Apply SoundFont to this specific stream if loaded
-        if (g_stream && g_hSoundFont) {
+        if (song && g_hSoundFont) {
             BASS_MIDI_FONT font;
             font.font = g_hSoundFont;
             font.preset = -1;
             font.bank = 0;
-            BASS_MIDI_StreamSetFonts(g_stream, &font, 1);
+            BASS_MIDI_StreamSetFonts(song, &font, 1);
         }
     } else if (mediaaccess::IsCdaFile(path)) {
         // v2.78 — a track of an audio CD ("E:\Track01.cda"): BASSCD reads it.
-        g_stream = mediaaccess::OpenCdaStream(path, BASS_STREAM_DECODE | BASS_SAMPLE_FLOAT);
+        song = mediaaccess::OpenCdaStream(path, BASS_STREAM_DECODE | BASS_SAMPLE_FLOAT);
     } else {
-        g_stream = BASS_StreamCreateFile(FALSE, path, 0, 0, BASS_UNICODE | BASS_STREAM_DECODE | BASS_SAMPLE_FLOAT);
+        song = BASS_StreamCreateFile(FALSE, path, 0, 0, BASS_UNICODE | BASS_STREAM_DECODE | BASS_SAMPLE_FLOAT);
     }
-    if (!g_stream) {
+    if (!song) {
+        int openError = BASS_ErrorGetCode();
+        dropChain();
         g_isLoading = false;
         // v1.76 — Defensive fallback for ambiguous MP4 containers. The moov
         // probe above tries to route MP4s with video to MPV proactively,
@@ -1434,12 +1578,12 @@ bool LoadFile(const wchar_t* path) {
         // — it can usually play what BASS cannot.
         if (IsAmbiguousMp4Ext(path) && IsMPVAvailable()) {
             LogF("LoadFile", "BASS rejected .mp4 (error %d), trying MPV fallback: %ls",
-                 BASS_ErrorGetCode(), path);
+                 openError, path);
             return LoadVideoFile(path);
         }
         // Only show error if this is the only file in the playlist
         if (g_playlist.size() <= 1) {
-            int error = BASS_ErrorGetCode();
+            int error = openError;
             const wchar_t* errorMsg;
             switch (error) {
                 case BASS_ERROR_FILEOPEN: errorMsg = T("Could not open the file."); break;
@@ -1460,94 +1604,146 @@ bool LoadFile(const wchar_t* path) {
         return false;
     }
 
-    // Get original sample frequency for rate control
-    BASS_CHANNELINFO info;
-    BASS_ChannelGetInfo(g_stream, &info);
-    g_originalFreq = static_cast<float>(info.freq);
-
-    // Store source stream for VBR bitrate queries (not freed separately - owned by tempo processor)
-    g_sourceStream = g_stream;
-
-    // Capture initial bitrate
+    // Capture initial bitrate (of the song itself)
     float bitrate = 0;
-    BASS_ChannelGetAttribute(g_stream, BASS_ATTRIB_BITRATE, &bitrate);
+    BASS_ChannelGetAttribute(song, BASS_ATTRIB_BITRATE, &bitrate);
     g_currentBitrate = static_cast<int>(bitrate);
 
-    // Set up tempo processor based on selected algorithm
-    TempoAlgorithm algo = static_cast<TempoAlgorithm>(g_tempoAlgorithm);
-    SetCurrentAlgorithm(algo);
+    // The mixer is stereo: a file with more channels is folded down to
+    // stereo inside it (this also keeps convolution and spatial audio, set
+    // up on g_fxStream's format, stable). No ramp-in, so the first samples
+    // are played as they were before.
+    BASS_CHANNELINFO info = {};
+    BASS_ChannelGetInfo(song, &info);
+    // A CD track is read asynchronously by BASSCD, which hands over nothing
+    // for a while after a seek or a slow read. A NONSTOP mixer would fill
+    // that wait with silence (heard and recorded as a gap); LIMIT makes the
+    // mixer wait for the drive instead, as the tempo stream did when it read
+    // the CD directly.
+    const DWORD addFlags = BASS_MIXER_CHAN_NORAMPIN |
+                           (info.chans > 2 ? BASS_MIXER_CHAN_DOWNMIX : 0) |
+                           (mediaaccess::IsCdaFile(path) ? BASS_MIXER_CHAN_LIMIT : 0);
 
-    // Create or reinitialize tempo processor
-    FreeTempoProcessor();
     TempoProcessor* processor = GetTempoProcessor();
-
-    // Restore tempo/pitch settings to processor before initializing
-    // Note: Rate is handled via BASS_ATTRIB_FREQ below, not through tempo processor
-    processor->SetTempo(g_tempo);
-    processor->SetPitch(g_pitch);
-
-    // Initialize processor — this creates g_fxStream, which is what the rest
-    // of the app (DSP, recording, position queries) operates on. For
-    // SoundTouch this wraps g_stream via BASS_FX_FREESOURCE; for
-    // Speedy/Signalsmith it's a fresh BASS_StreamCreate fed from g_stream.
-    g_fxStream = processor->Initialize(g_stream, g_originalFreq);
-    if (!g_fxStream) {
-        // Algorithm init failure (rare — usually a build without USE_SPEEDY
-        // or USE_SIGNALSMITH). Fall back to SoundTouch which always compiles.
-        if (algo != TempoAlgorithm::SoundTouch) {
-            FreeTempoProcessor();
-            SetCurrentAlgorithm(TempoAlgorithm::SoundTouch);
-            processor = GetTempoProcessor();
-            processor->SetTempo(g_tempo);
-            processor->SetPitch(g_pitch);
-            g_fxStream = processor->Initialize(g_stream, g_originalFreq);
-        }
-
-        if (!g_fxStream) {
-            BASS_StreamFree(g_stream);
-            g_stream = 0;
+    if (!reuse) {
+        // The position history must reach back over the tempo and playback
+        // buffers at the fastest speed (tempo +100 % and rate x2).
+        DWORD posexMs = static_cast<DWORD>(g_bufferSize) * 5 + 1000;
+        if (posexMs < 2000) posexMs = 2000;
+        BASS_SetConfig(BASS_CONFIG_MIXER_POSEX, posexMs);
+        s_mixer = BASS_Mixer_StreamCreate(sig.freq, 2,
+            BASS_STREAM_DECODE | BASS_SAMPLE_FLOAT | BASS_MIXER_NONSTOP | BASS_MIXER_POSEX);
+        if (!s_mixer || !BASS_Mixer_StreamAddChannel(s_mixer, song, addFlags)) {
+            LogF("LoadFile", "song mixer failed (error %d)", BASS_ErrorGetCode());
+            if (s_mixer) { BASS_StreamFree(s_mixer); s_mixer = 0; }
+            BASS_StreamFree(song);
             g_isLoading = false;
             if (g_playlist.size() <= 1) {
                 MessageBoxW(GetMessageBoxOwner(), T("Failed to create tempo stream."), APP_NAME, MB_ICONERROR);
             }
             return false;
         }
+
+        // Rate control works on the mixer's fixed rate.
+        g_originalFreq = static_cast<float>(sig.freq);
+
+        // Create or reinitialize tempo processor
+        FreeTempoProcessor();
+        processor = GetTempoProcessor();
+
+        // Restore tempo/pitch settings to processor before initializing
+        // Note: Rate is handled via BASS_ATTRIB_FREQ below, not through tempo processor
+        processor->SetTempo(g_tempo);
+        processor->SetPitch(g_pitch);
+        processor->SetSongStream(song);
+
+        // Initialize processor — this creates g_fxStream, which is what the rest
+        // of the app (DSP, recording, position queries) operates on. Its source
+        // is the mixer: for SoundTouch BASS_FX takes it over (FREESOURCE); for
+        // Speedy/Signalsmith it's a fresh BASS_StreamCreate pulling from it.
+        g_fxStream = processor->Initialize(s_mixer, g_originalFreq);
+        if (!g_fxStream) {
+            // Algorithm init failure (rare — usually a build without USE_SPEEDY
+            // or USE_SIGNALSMITH). Fall back to SoundTouch which always compiles.
+            if (algo != TempoAlgorithm::SoundTouch) {
+                FreeTempoProcessor();
+                SetCurrentAlgorithm(TempoAlgorithm::SoundTouch);
+                processor = GetTempoProcessor();
+                processor->SetTempo(g_tempo);
+                processor->SetPitch(g_pitch);
+                processor->SetSongStream(song);
+                g_fxStream = processor->Initialize(s_mixer, g_originalFreq);
+            }
+
+            if (!g_fxStream) {
+                FreeTempoProcessor();
+                BASS_StreamFree(s_mixer);
+                s_mixer = 0;
+                BASS_StreamFree(song);
+                g_isLoading = false;
+                if (g_playlist.size() <= 1) {
+                    MessageBoxW(GetMessageBoxOwner(), T("Failed to create tempo stream."), APP_NAME, MB_ICONERROR);
+                }
+                return false;
+            }
+        }
+
+        // For SoundTouch, the mixer is now owned by g_fxStream via
+        // BASS_FX_FREESOURCE: g_stream stays 0 so no cleanup double-frees it.
+        // Speedy/Signalsmith pull from it in their own StreamProc and do not
+        // own it: g_stream holds it, and every teardown frees it.
+        g_stream = (processor->GetAlgorithm() == TempoAlgorithm::SoundTouch) ? 0 : s_mixer;
+
+        // Rate is handled separately from tempo (which lives in the processor):
+        // it just scales the playback frequency, affecting both speed and pitch.
+        // Cheap and lossless, runs on the BASS sample-rate converter.
+        if (g_rate != 1.0f) {
+            BASS_ChannelSetAttribute(g_fxStream, BASS_ATTRIB_FREQ, g_originalFreq * g_rate);
+        }
+
+        // g_fxStream never ends (NONSTOP mixer): the end of each song comes
+        // from the song's own sync below.
+        g_endSync = 0;
+        s_mixerChain = true;
+        s_chainSig = CurrentChainSignature();   // after a possible fallback
+    } else {
+        if (!BASS_Mixer_StreamAddChannel(s_mixer, song, addFlags)) {
+            LogF("LoadFile", "song mixer add failed (error %d)", BASS_ErrorGetCode());
+            BASS_StreamFree(song);
+            dropChain();
+            g_isLoading = false;
+            if (g_playlist.size() <= 1) {
+                MessageBoxW(GetMessageBoxOwner(), T("Failed to create tempo stream."), APP_NAME, MB_ICONERROR);
+            }
+            return false;
+        }
+        processor->SetSongStream(song);
     }
 
-    // For SoundTouch, g_stream is now owned by g_fxStream via BASS_FX_FREESOURCE;
-    // null our copy so FreeBass/LoadFile cleanup doesn't double-free it.
-    // Speedy/Signalsmith keep g_stream alive separately (they pull from it
-    // in their own StreamProc), so we leave it set in those cases.
-    if (processor->GetAlgorithm() == TempoAlgorithm::SoundTouch) {
-        g_stream = 0;
-    }
+    s_song = song;
+    // The song is the stream for tags, bitrate (VBR) and chapters.
+    g_sourceStream = song;
 
-    // Rate is handled separately from tempo (which lives in the processor):
-    // it just scales the playback frequency, affecting both speed and pitch.
-    // Cheap and lossless, runs on the BASS sample-rate converter.
-    if (g_rate != 1.0f) {
-        BASS_ChannelSetAttribute(g_fxStream, BASS_ATTRIB_FREQ, g_originalFreq * g_rate);
-    }
+    // End of the song, seen when it leaves the mixer; OnSongDecodeEnd then
+    // waits until it is heard before advancing, like the old BASS_SYNC_END.
+    BASS_Mixer_ChannelSetSync(song, BASS_SYNC_END | BASS_SYNC_MIXTIME, 0,
+                              OnSongDecodeEnd, processor);
 
     ApplyDSPEffects();
 
-    // Set up end sync for auto-advance on output stream
-    g_endSync = BASS_ChannelSetSync(g_fxStream, BASS_SYNC_END, 0, OnTrackEnd, nullptr);
-
     // Restore saved position for this file (if any)
     double savedPos = LoadFilePosition(path);
-    if (savedPos > 0) {
+    if (reuse) {
+        processor->StartSong(savedPos > 0 ? savedPos : 0.0);
+    } else if (savedPos > 0) {
         processor->SetPosition(savedPos);
     }
 
     // Start playback on output stream
     BASS_ChannelPlay(g_fxStream, FALSE);
 
-    // Parse chapters from the ORIGINAL decoder stream. BASS_FX tempo
-    // wrappers (used by the SoundTouch algorithm) don't expose ID3v2 /
-    // Vorbis tag blocks, so calling ParseChapters on g_fxStream returns
-    // nothing. g_sourceStream always holds the original decoder handle
-    // regardless of which tempo algorithm wrapped it.
+    // Parse chapters from the song's own decoder stream (the tempo stream and
+    // the mixer do not expose ID3v2 / Vorbis tag blocks).
     ParseChapters(g_sourceStream);
 
     // Engine state: BASS active, hide video window if it was visible
@@ -1588,6 +1784,28 @@ void CALLBACK OnTrackEnd(HSYNC handle, DWORD channel, DWORD data, void* user) {
     }
 }
 
+// Crossfade phase 1 — WM_SONG_DECODE_END (UI thread). The song has left the
+// mixer; its end is still in the tempo and playback buffers. Poll briefly
+// until it has been heard, then advance exactly as the old BASS_SYNC_END did
+// (so the end of a list, or "auto-advance off", never cuts the last notes).
+void HandleSongDecodeEnd(WPARAM songStream) {
+    if (!s_mixerChain || !g_fxStream || static_cast<HSTREAM>(songStream) != s_song) return;
+    SetTimer(g_hwnd, IDT_SONG_END, 15, nullptr);
+}
+
+// IDT_SONG_END tick (UI thread).
+void PollSongEnd() {
+    TempoProcessor* processor = (s_mixerChain && g_fxStream) ? GetTempoProcessor() : nullptr;
+    if (!processor || !processor->SourceEndMarked()) {   // gone, seeked or restarted
+        KillTimer(g_hwnd, IDT_SONG_END);
+        return;
+    }
+    if (!processor->SourceEndHeard()) return;   // still sounding (or paused)
+    KillTimer(g_hwnd, IDT_SONG_END);
+    processor->ClearSourceEnd();
+    OnTrackEnd(0, 0, 0, nullptr);
+}
+
 // BASS_SYNC_META callback. Fires when internet radio stations send a new
 // ICY StreamTitle (typically a new song). Runs on a BASS thread so we
 // route through the message loop to do the actual announce/UI update.
@@ -1598,7 +1816,7 @@ void CALLBACK OnMetaChange(HSYNC handle, DWORD channel, DWORD data, void* user) 
 
 // Called from main thread when metadata changes - announces new stream track
 void AnnounceStreamMetadata() {
-    HSTREAM stream = g_stream ? g_stream : g_fxStream;
+    HSTREAM stream = TagSourceStream();
     if (!stream) return;
 
     std::string streamTitle = GetStreamTitle(stream);
@@ -1721,6 +1939,7 @@ void FreeCurrentStream() {
         BASS_StreamFree(g_stream);
         g_stream = 0;
     }
+    ReleaseSongMixer();   // crossfade phase 1
     g_sourceStream = 0;
     g_isLiveStream = false;
     g_currentBitrate = 0;
@@ -2661,7 +2880,7 @@ void PlayTrack(int index, bool autoPlay) {
     // Announce track change if setting is enabled
     if (loadedSuccessfully && g_speechTrackChange) {
         // For streams, announce the stream title; for files, announce title or filename
-        HSTREAM stream = g_stream ? g_stream : g_fxStream;
+        HSTREAM stream = TagSourceStream();
         if (stream) {
             std::string streamTitle = GetStreamTitle(stream);
             if (!streamTitle.empty()) {
@@ -2777,6 +2996,17 @@ void PrevTrack() {
 // the previous play/pause state. Falls back to the default device if the
 // requested one fails.
 bool ReinitBass(int device) {
+    // Crossfade phase 1 — the chain is rebuilt, so a recording of MediaAccess's
+    // output (encoder on g_fxStream) ends here: finalize it properly instead of
+    // letting it die with the stream while g_isRecording stays true. Silent:
+    // the caller says it ("Recording stopped"), once, with its own message.
+    if (g_isRecording && g_encoder) {
+        BASS_Encode_Stop(g_encoder);
+        g_encoder = 0;
+        g_isRecording = false;
+        g_recordPaused = false;
+    }
+
     // Save current state
     bool wasPlaying = g_fxStream && (BASS_ChannelIsActive(g_fxStream) == BASS_ACTIVE_PLAYING);
     bool wasPaused = g_fxStream && (BASS_ChannelIsActive(g_fxStream) == BASS_ACTIVE_PAUSED);
@@ -2809,6 +3039,7 @@ bool ReinitBass(int device) {
             BASS_StreamFree(g_stream);
             g_stream = 0;
         }
+        ReleaseSongMixer();   // crossfade phase 1
     }
 
     BASS_Free();
@@ -3510,7 +3741,8 @@ static int GetStreamBitrate(HSTREAM stream) {
 // to g_fxStream, which works for SoundTouch where g_fxStream actually IS
 // the decoder stream wrapped by tempo, and BASS forwards tag access through.
 static HSTREAM GetTagStream() {
-    return g_stream ? g_stream : g_fxStream;
+    // Crossfade phase 1: on the song-mixer chain, the song itself.
+    return TagSourceStream();
 }
 
 // Helper to speak UTF-8 text with proper Unicode support

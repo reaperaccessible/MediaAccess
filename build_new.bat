@@ -104,8 +104,8 @@ cl /nologo /W3 /O2 /MT /EHsc /utf-8 /DUNICODE /D_UNICODE /DNOMINMAX %COMMIT_FLAG
    /I"." /I"include" /I"include\mediaaccess" /I"deps\miniz" /I"deps" %SPEEDY_INC% %SIGNALSMITH_INC% %STEAMAUDIO_INC% ^
    %SOURCES% MediaAccess.res ^
    /Fe:MediaAccess.exe ^
-   /link /LIBPATH:"lib" /MANIFEST:EMBED /MANIFESTINPUT:MediaAccess.manifest /DELAYLOAD:bass.dll /DELAYLOAD:bass_fx.dll /DELAYLOAD:bass_aac.dll /DELAYLOAD:bassmidi.dll /DELAYLOAD:bassenc.dll /DELAYLOAD:bassenc_mp3.dll /DELAYLOAD:bassenc_ogg.dll /DELAYLOAD:bassenc_flac.dll /DELAYLOAD:basswasapi.dll ^
-   bass.lib bass_fx.lib bass_aac.lib bassmidi.lib bassenc.lib bassenc_mp3.lib bassenc_ogg.lib bassenc_flac.lib basswasapi.lib %SPEECH_LIBS% user32.lib gdi32.lib comctl32.lib comdlg32.lib shell32.lib shlwapi.lib advapi32.lib ole32.lib oleaut32.lib avrt.lib delayimp.lib winhttp.lib bcrypt.lib rpcrt4.lib
+   /link /LIBPATH:"lib" /MANIFEST:EMBED /MANIFESTINPUT:MediaAccess.manifest /DELAYLOAD:bass.dll /DELAYLOAD:bass_fx.dll /DELAYLOAD:bass_aac.dll /DELAYLOAD:bassmidi.dll /DELAYLOAD:bassenc.dll /DELAYLOAD:bassenc_mp3.dll /DELAYLOAD:bassenc_ogg.dll /DELAYLOAD:bassenc_flac.dll /DELAYLOAD:basswasapi.dll /DELAYLOAD:bassmix.dll ^
+   bass.lib bass_fx.lib bass_aac.lib bassmidi.lib bassenc.lib bassenc_mp3.lib bassenc_ogg.lib bassenc_flac.lib basswasapi.lib bassmix.lib %SPEECH_LIBS% user32.lib gdi32.lib comctl32.lib comdlg32.lib shell32.lib shlwapi.lib advapi32.lib ole32.lib oleaut32.lib avrt.lib delayimp.lib winhttp.lib bcrypt.lib rpcrt4.lib
 
 if errorlevel 1 goto :error
 

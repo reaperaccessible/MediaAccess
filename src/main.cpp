@@ -989,6 +989,10 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
             //                              video after FULLSCREEN_CURSOR_HIDE_MS
             //                              of mouse inactivity.
             //   IDT_SLEEP_TIMER          — sleep-timer 1s tick.
+            if (wParam == IDT_SONG_END) {   // crossfade phase 1 — local song heard to its end?
+                PollSongEnd();
+                return 0;
+            }
             if (wParam == IDT_UPDATE_TITLE) {
                 // v1.94 — if a system capture self-stopped because its device was
                 // lost, announce it once (NVDA) on the UI thread.
@@ -1322,6 +1326,10 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
             RefreshSubtitleEdge();   // starts the reader (Edge or live screen reader)
             return 0;
         }
+
+        case WM_SONG_DECODE_END:   // crossfade phase 1
+            HandleSongDecodeEnd(wParam);
+            return 0;
 
         case WM_META_CHANGED:
             AnnounceStreamMetadata();
@@ -2428,6 +2436,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
             KillTimer(hwnd, IDT_YTDLP_RECHECK);   // v2.72
             KillTimer(hwnd, IDT_YTDLP_EXIT_CAP);  // v2.72
             KillTimer(hwnd, IDT_SUBTITLE_FADE);   // cancel any subtitle duck fade
+            KillTimer(hwnd, IDT_SONG_END);        // crossfade phase 1
             // v2.32 — stop the device watcher BEFORE FreeBass so no late
             // PostMessage can hit a dead window / torn-down BASS state.
             StopAudioDeviceWatch();

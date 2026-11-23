@@ -1,6 +1,7 @@
 #include "tempo_processor.h"
 #include "globals.h"
 #include "bass_fx.h"
+#include "bassmix.h"
 #include <cmath>
 #include <memory>
 #include <vector>
@@ -22,6 +23,31 @@ extern "C" {
 // Global algorithm preference
 static TempoAlgorithm g_algorithm = TempoAlgorithm::SoundTouch;
 static std::unique_ptr<TempoProcessor> g_tempoProcessor;
+
+// ============================================================================
+// Song-in-mixer helpers (crossfade, phase 1). The song is a decode channel
+// plugged into the BASSmix mixer that feeds the processor; its timeline is
+// queried and moved through the mixer, never with the plain channel calls.
+// ============================================================================
+static double SongLengthSec(HSTREAM song) {
+    QWORD len = BASS_ChannelGetLength(song, BASS_POS_BYTE);
+    if (len == (QWORD)-1) return 0.0;
+    return BASS_ChannelBytes2Seconds(song, len);
+}
+
+// Decode position: what the mixer has already taken from the song.
+static double SongDecodeSec(HSTREAM song) {
+    QWORD pos = BASS_Mixer_ChannelGetPosition(song, BASS_POS_BYTE);
+    if (pos == (QWORD)-1) return 0.0;
+    return BASS_ChannelBytes2Seconds(song, pos);
+}
+
+// MIXER_RESET drops whatever the mixer had buffered from the old position.
+static void SongSeek(HSTREAM song, double seconds) {
+    if (seconds < 0) seconds = 0;
+    QWORD b = BASS_ChannelSeconds2Bytes(song, seconds);
+    BASS_Mixer_ChannelSetPosition(song, b, BASS_POS_BYTE | BASS_POS_MIXER_RESET);
+}
 
 // Algorithm metadata
 const char* GetAlgorithmName(TempoAlgorithm algo) {
@@ -74,11 +100,24 @@ private:
     // BASS_FX pulls from) seeks back to the loop start. Source-timebase, so it
     // stays sample-accurate regardless of tempo/pitch/freq on the fx stream.
     HSYNC  m_loopSync = 0;
+    DWORD  m_loopSyncChan = 0;   // channel the loop sync was set on (source or song)
     double m_loopStartSec = -1.0;
+
+    // Song mode: mixer position (bytes, mixer units) at which the song's last
+    // sample left the mixer. The tempo stream reports its position in the same
+    // units (its source's timeline), so it is heard once fx position >= mark.
+    volatile QWORD m_endMark = 0;
 
     static void CALLBACK LoopSyncProc(HSYNC, DWORD, DWORD, void* user) {
         auto* self = static_cast<SoundTouchProcessor*>(user);
         if (!self || !self->m_sourceStream) return;
+        if (self->m_song) {
+            // Song mode: a mixtime sync on the song, inside the mixer. Moving
+            // the song here is allowed and stays sample-accurate.
+            QWORD startB = BASS_ChannelSeconds2Bytes(self->m_song, self->m_loopStartSec);
+            BASS_Mixer_ChannelSetPosition(self->m_song, startB, BASS_POS_BYTE);
+            return;
+        }
         QWORD startB = BASS_ChannelSeconds2Bytes(self->m_sourceStream, self->m_loopStartSec);
         // Plain seek of the source the tempo engine pulls from; NO BASS_POS_FLUSH
         // (BASS_FX PREVENT_CLICK handles the seam; flushing the source mid-pull
@@ -159,6 +198,7 @@ public:
 
     double GetLength() const override {
         if (!m_fxStream) return 0.0;
+        if (m_song) return SongLengthSec(m_song);
         QWORD bytes = BASS_ChannelGetLength(m_fxStream, BASS_POS_BYTE);
         if (bytes == (QWORD)-1) return 0.0;
         return BASS_ChannelBytes2Seconds(m_fxStream, bytes);
@@ -166,6 +206,25 @@ public:
 
     double GetPosition() const override {
         if (!m_fxStream) return 0.0;
+        if (m_song) {
+            // The tempo stream's position is the AUDIBLE point of its source's
+            // timeline (the mixer's); the mixer's own position is how far it
+            // has decoded. The gap is what sits in the tempo and playback
+            // buffers. BASS_MIXER_POSEX keeps a history of the song positions,
+            // so asking "where was the song that far back" gives the song
+            // position being heard — the same thing the classic path reports.
+            QWORD mixB = BASS_ChannelGetPosition(m_sourceStream, BASS_POS_BYTE);
+            QWORD fxB = BASS_ChannelGetPosition(m_fxStream, BASS_POS_BYTE);
+            DWORD delay = 0;
+            if (mixB != (QWORD)-1 && fxB != (QWORD)-1) {
+                double gap = BASS_ChannelBytes2Seconds(m_sourceStream, mixB) -
+                             BASS_ChannelBytes2Seconds(m_fxStream, fxB);
+                if (gap > 0) delay = (DWORD)BASS_ChannelSeconds2Bytes(m_sourceStream, gap);
+            }
+            QWORD songB = BASS_Mixer_ChannelGetPositionEx(m_song, BASS_POS_BYTE, delay);
+            if (songB == (QWORD)-1) return 0.0;   // song not reached the speakers yet
+            return BASS_ChannelBytes2Seconds(m_song, songB);
+        }
         QWORD bytes = BASS_ChannelGetPosition(m_fxStream, BASS_POS_BYTE);
         if (bytes == (QWORD)-1) return 0.0;
         return BASS_ChannelBytes2Seconds(m_fxStream, bytes);
@@ -173,6 +232,20 @@ public:
 
     void SetPosition(double seconds) override {
         if (!m_fxStream) return;
+        if (m_song) {
+            ClearSourceEnd();
+            // Move the song inside the mixer, then flush the tempo stream:
+            // BASS_FX refuses to move a mixer source to an arbitrary position
+            // (BASS_ERROR_POSITION) but accepts 0, which resets the mixer's
+            // position counter and clears SoundTouch, the effects and the
+            // playback buffer — exactly what the classic FLUSH seek did. The
+            // channel lock keeps the update thread from pulling in between.
+            BASS_ChannelLock(m_fxStream, TRUE);
+            SongSeek(m_song, seconds);
+            BASS_ChannelSetPosition(m_fxStream, 0, BASS_POS_BYTE | BASS_POS_FLUSH);
+            BASS_ChannelLock(m_fxStream, FALSE);
+            return;
+        }
         QWORD bytes = BASS_ChannelSeconds2Bytes(m_fxStream, seconds);
         BASS_ChannelSetPosition(m_fxStream, bytes, BASS_POS_BYTE | BASS_POS_FLUSH);
     }
@@ -183,14 +256,40 @@ public:
 
     void SetLoopRegion(double startSec, double endSec, bool enabled) override {
         if (m_loopSync) {
-            BASS_ChannelRemoveSync(m_sourceStream, m_loopSync);
+            if (m_loopSyncChan == m_song && m_song)
+                BASS_Mixer_ChannelRemoveSync(m_loopSyncChan, m_loopSync);
+            else
+                BASS_ChannelRemoveSync(m_loopSyncChan, m_loopSync);
             m_loopSync = 0;
+            m_loopSyncChan = 0;
         }
         if (!enabled || startSec < 0 || endSec < 0 || !m_sourceStream) return;
         m_loopStartSec = startSec;
+        if (m_song) {
+            QWORD endB = BASS_ChannelSeconds2Bytes(m_song, endSec);
+            m_loopSync = BASS_Mixer_ChannelSetSync(m_song,
+                BASS_SYNC_POS | BASS_SYNC_MIXTIME, endB, LoopSyncProc, this);
+            m_loopSyncChan = m_song;
+            return;
+        }
         QWORD endB = BASS_ChannelSeconds2Bytes(m_sourceStream, endSec);
         m_loopSync = BASS_ChannelSetSync(m_sourceStream,
             BASS_SYNC_POS | BASS_SYNC_MIXTIME, endB, LoopSyncProc, this);
+        m_loopSyncChan = m_sourceStream;
+    }
+
+    void MarkSourceEnd() override {
+        if (!m_sourceStream) return;
+        m_endMark = BASS_ChannelGetPosition(m_sourceStream, BASS_POS_BYTE);
+        m_endMarked = (m_endMark != (QWORD)-1);
+    }
+
+    bool SourceEndHeard() const override {
+        if (!m_endMarked || !m_fxStream) return false;
+        QWORD fxB = BASS_ChannelGetPosition(m_fxStream, BASS_POS_BYTE);
+        if (fxB == (QWORD)-1) return false;
+        return BASS_ChannelBytes2Seconds(m_fxStream, fxB) >=
+               BASS_ChannelBytes2Seconds(m_sourceStream, m_endMark);
     }
 };
 
@@ -232,6 +331,21 @@ private:
     double m_loopStartSec = -1.0;
     double m_loopEndSec   = -1.0;
 
+    // Crossfade, phase 1 — end-of-song detection in song mode. m_delivered
+    // counts every byte handed to BASS by StreamProc; m_endMark is the value it
+    // will have once the song's last processed sample has been handed over.
+    // Played bytes = delivered - what BASS still holds in the playback buffer.
+    QWORD m_delivered = 0;            // guarded by m_mutex
+    volatile bool m_markPending = false;
+    volatile QWORD m_endMark = 0;
+
+    void TakeEndMark() {   // under m_mutex (StreamProc), after pushing a block
+        if (!m_markPending) return;
+        m_markPending = false;
+        m_endMark = m_delivered + m_outputQueue.size() * sizeof(float);
+        m_endMarked = true;
+    }
+
     mutable std::mutex m_mutex;
 
     // Buffers
@@ -266,7 +380,29 @@ private:
         // leaks, then seek the source back to loopStart. Clamp the read so a
         // block never overshoots loopEnd (sample-exact wrap point).
         const size_t frameBytes = m_channels * sizeof(float);
-        if (m_loopEnabled && m_loopEndSec > 0.0) {
+        if (m_loopEnabled && m_loopEndSec > 0.0 && m_song) {
+            // Song mode: the loop is on the song's timeline, the read on the
+            // mixer's (same rate, so seconds convert 1:1).
+            double cur = SongDecodeSec(m_song);
+            if (cur >= m_loopEndSec) {
+                sonicDestroyStream(m_sonicStream);
+                m_sonicStream = sonicCreateStream(static_cast<int>(m_sampleRate), m_channels);
+                if (m_sonicStream && m_nonlinearEnabled) {
+                    sonicEnableNonlinearSpeedup(m_sonicStream, 1.0f);
+                }
+                UpdateSonicParams();
+                m_outputQueue.clear();
+                SongSeek(m_song, m_loopStartSec);
+                cur = m_loopStartSec;
+            }
+            if (m_loopEndSec > cur) {
+                QWORD untilB = BASS_ChannelSeconds2Bytes(m_sourceStream, m_loopEndSec - cur);
+                if (untilB < bytesNeeded) {
+                    bytesNeeded = (DWORD)(untilB - (untilB % frameBytes));
+                }
+                if (bytesNeeded == 0) return true;  // wrap handled next call
+            }
+        } else if (m_loopEnabled && m_loopEndSec > 0.0) {
             QWORD curB = BASS_ChannelGetPosition(m_sourceStream, BASS_POS_BYTE);
             QWORD endB = BASS_ChannelSeconds2Bytes(m_sourceStream, m_loopEndSec);
             if (curB != (QWORD)-1 && curB >= endB) {
@@ -296,6 +432,9 @@ private:
         DWORD bytesRead = BASS_ChannelGetData(m_sourceStream, m_decodeBuffer.data(),
             bytesNeeded | BASS_DATA_FLOAT);
 
+        // Song mode: the mixer never ends; nothing now only means the song
+        // is waiting for its data (a CD read): output silence, never "ended".
+        if (m_song && bytesRead == 0) return false;
         if (bytesRead == (DWORD)-1 || bytesRead == 0) {
             m_sourceEnded = true;
             sonicFlushStream(m_sonicStream);
@@ -324,6 +463,7 @@ private:
             }
         }
 
+        TakeEndMark();
         return true;
     }
 
@@ -350,6 +490,7 @@ private:
                     outBuf[samplesWritten++] = proc->m_outputQueue.front();
                     proc->m_outputQueue.pop_front();
                 }
+                proc->m_delivered += canCopy * sizeof(float);
             } else if (!proc->m_sourceEnded) {
                 if (!proc->ProcessMoreAudio()) {
                     if (proc->m_outputQueue.empty()) break;
@@ -359,6 +500,7 @@ private:
             }
         }
 
+        proc->m_delivered += (samplesNeeded - samplesWritten) * sizeof(float);
         while (samplesWritten < samplesNeeded) {
             outBuf[samplesWritten++] = 0.0f;
         }
@@ -479,6 +621,7 @@ public:
     double GetLength() const override {
         std::lock_guard<std::mutex> lock(m_mutex);
         if (!m_sourceStream) return 0.0;
+        if (m_song) return SongLengthSec(m_song);
         QWORD bytes = BASS_ChannelGetLength(m_sourceStream, BASS_POS_BYTE);
         if (bytes == (QWORD)-1) return 0.0;
         return BASS_ChannelBytes2Seconds(m_sourceStream, bytes);
@@ -487,17 +630,40 @@ public:
     double GetPosition() const override {
         std::lock_guard<std::mutex> lock(m_mutex);
         if (!m_sourceStream) return 0.0;
+        // Song mode: the song's DECODE position, as the classic path reports
+        // the source's decode position for this algorithm.
+        if (m_song) return SongDecodeSec(m_song);
         QWORD bytes = BASS_ChannelGetPosition(m_sourceStream, BASS_POS_BYTE);
         if (bytes == (QWORD)-1) return 0.0;
         return BASS_ChannelBytes2Seconds(m_sourceStream, bytes);
+    }
+
+    void MarkSourceEnd() override { m_markPending = true; }   // audio thread, under m_mutex
+
+    bool SourceEndHeard() const override {
+        if (!m_endMarked || !m_outputStream) return false;
+        QWORD delivered;
+        {
+            std::lock_guard<std::mutex> lock(m_mutex);
+            delivered = m_delivered;
+        }
+        DWORD buffered = BASS_ChannelGetData(m_outputStream, nullptr, BASS_DATA_AVAILABLE);
+        if (buffered == (DWORD)-1) buffered = 0;
+        return delivered >= buffered && delivered - buffered >= m_endMark;
     }
 
     void SetPosition(double seconds) override {
         std::lock_guard<std::mutex> lock(m_mutex);
         if (!m_sourceStream || !m_sonicStream) return;
 
-        QWORD bytes = BASS_ChannelSeconds2Bytes(m_sourceStream, seconds);
-        BASS_ChannelSetPosition(m_sourceStream, bytes, BASS_POS_BYTE | BASS_POS_FLUSH);
+        if (m_song) {
+            ClearSourceEnd();
+            m_markPending = false;
+            SongSeek(m_song, seconds);
+        } else {
+            QWORD bytes = BASS_ChannelSeconds2Bytes(m_sourceStream, seconds);
+            BASS_ChannelSetPosition(m_sourceStream, bytes, BASS_POS_BYTE | BASS_POS_FLUSH);
+        }
 
         // Sonic has no documented "flush state" entry point — destroy and
         // recreate is the cleanest way to discard internal frame state
@@ -573,6 +739,21 @@ private:
     double m_loopStartSec = -1.0;
     double m_loopEndSec   = -1.0;
 
+    // Crossfade, phase 1 — end-of-song detection in song mode. m_delivered
+    // counts every byte handed to BASS by StreamProc; m_endMark is the value it
+    // will have once the song's last processed sample has been handed over.
+    // Played bytes = delivered - what BASS still holds in the playback buffer.
+    QWORD m_delivered = 0;            // guarded by m_mutex
+    volatile bool m_markPending = false;
+    volatile QWORD m_endMark = 0;
+
+    void TakeEndMark() {   // under m_mutex (StreamProc), after pushing a block
+        if (!m_markPending) return;
+        m_markPending = false;
+        m_endMark = m_delivered + m_outputQueue.size() * sizeof(float);
+        m_endMarked = true;
+    }
+
     mutable std::mutex m_mutex;
 
     // Buffers
@@ -600,7 +781,24 @@ private:
         // audio leaks, then seek the source back to loopStart. Clamp the read
         // so a block never overshoots loopEnd (sample-exact wrap point).
         const size_t frameBytes = m_channels * sizeof(float);
-        if (m_loopEnabled && m_loopEndSec > 0.0) {
+        if (m_loopEnabled && m_loopEndSec > 0.0 && m_song) {
+            // Song mode: loop on the song's timeline, read on the mixer's.
+            double cur = SongDecodeSec(m_song);
+            if (cur >= m_loopEndSec) {
+                m_stretcher.reset();
+                m_stretcher.setTransposeSemitones(m_pitch);
+                m_outputQueue.clear();
+                SongSeek(m_song, m_loopStartSec);
+                cur = m_loopStartSec;
+            }
+            if (m_loopEndSec > cur) {
+                QWORD untilB = BASS_ChannelSeconds2Bytes(m_sourceStream, m_loopEndSec - cur);
+                if (untilB < bytesNeeded) {
+                    bytesNeeded = (DWORD)(untilB - (untilB % frameBytes));
+                }
+                if (bytesNeeded == 0) return true;  // wrap handled next call
+            }
+        } else if (m_loopEnabled && m_loopEndSec > 0.0) {
             QWORD curB = BASS_ChannelGetPosition(m_sourceStream, BASS_POS_BYTE);
             QWORD endB = BASS_ChannelSeconds2Bytes(m_sourceStream, m_loopEndSec);
             if (curB != (QWORD)-1 && curB >= endB) {
@@ -625,6 +823,9 @@ private:
         DWORD bytesRead = BASS_ChannelGetData(m_sourceStream, m_decodeBuffer.data(),
             bytesNeeded | BASS_DATA_FLOAT);
 
+        // Song mode: the mixer never ends; nothing now only means the song
+        // is waiting for its data (a CD read): output silence, never "ended".
+        if (m_song && bytesRead == 0) return false;
         if (bytesRead == (DWORD)-1 || bytesRead == 0) {
             m_sourceEnded = true;
             return false;
@@ -665,7 +866,32 @@ private:
             }
         }
 
+        TakeEndMark();
         return true;
+    }
+
+    // Push `latency` source samples through process() and discard the output,
+    // so the first audible sample lines up with the start of the source.
+    // Under m_mutex (or before the output stream exists).
+    void PrimeLatency() {
+        int latencySamples = m_stretcher.inputLatency() + m_stretcher.outputLatency();
+        if (latencySamples <= 0 || m_channels <= 0) return;
+        std::vector<float> primeBuffer(latencySamples * m_channels, 0.0f);
+        DWORD bytesRead = BASS_ChannelGetData(m_sourceStream, primeBuffer.data(),
+            latencySamples * m_channels * sizeof(float) | BASS_DATA_FLOAT);
+        if (bytesRead == 0 || bytesRead == (DWORD)-1) return;
+        size_t primeSamples = bytesRead / sizeof(float) / m_channels;
+        for (int ch = 0; ch < m_channels; ch++) {
+            m_channelIn[ch].resize(primeSamples);
+            for (size_t i = 0; i < primeSamples; i++) {
+                m_channelIn[ch][i] = primeBuffer[i * m_channels + ch];
+            }
+            m_inputChannels[ch] = m_channelIn[ch].data();
+            m_channelOut[ch].resize(primeSamples);
+            m_outputChannels[ch] = m_channelOut[ch].data();
+        }
+        m_stretcher.process(m_inputChannels.data(), (int)primeSamples,
+                            m_outputChannels.data(), (int)primeSamples);
     }
 
     static DWORD CALLBACK StreamProc(HSTREAM handle, void* buffer, DWORD length, void* user) {
@@ -686,6 +912,7 @@ private:
                     outBuf[samplesWritten++] = proc->m_outputQueue.front();
                     proc->m_outputQueue.pop_front();
                 }
+                proc->m_delivered += canCopy * sizeof(float);
             } else if (!proc->m_sourceEnded) {
                 if (!proc->ProcessMoreAudio()) {
                     if (proc->m_outputQueue.empty()) {
@@ -702,6 +929,7 @@ private:
         }
 
         // Zero remaining buffer if we couldn't fill it
+        proc->m_delivered += (samplesNeeded - samplesWritten) * sizeof(float);
         while (samplesWritten < samplesNeeded) {
             outBuf[samplesWritten++] = 0.0f;
         }
@@ -861,6 +1089,7 @@ public:
     double GetLength() const override {
         std::lock_guard<std::mutex> lock(m_mutex);
         if (!m_sourceStream) return 0.0;
+        if (m_song) return SongLengthSec(m_song);
         QWORD len = BASS_ChannelGetLength(m_sourceStream, BASS_POS_BYTE);
         return BASS_ChannelBytes2Seconds(m_sourceStream, len);
     }
@@ -868,22 +1097,54 @@ public:
     double GetPosition() const override {
         std::lock_guard<std::mutex> lock(m_mutex);
         if (!m_sourceStream) return 0.0;
+        if (m_song) return SongDecodeSec(m_song);   // decode position, as classic
         QWORD pos = BASS_ChannelGetPosition(m_sourceStream, BASS_POS_BYTE);
         return BASS_ChannelBytes2Seconds(m_sourceStream, pos);
+    }
+
+    void MarkSourceEnd() override { m_markPending = true; }   // audio thread, under m_mutex
+
+    bool SourceEndHeard() const override {
+        if (!m_endMarked || !m_outputStream) return false;
+        QWORD delivered;
+        {
+            std::lock_guard<std::mutex> lock(m_mutex);
+            delivered = m_delivered;
+        }
+        DWORD buffered = BASS_ChannelGetData(m_outputStream, nullptr, BASS_DATA_AVAILABLE);
+        if (buffered == (DWORD)-1) buffered = 0;
+        return delivered >= buffered && delivered - buffered >= m_endMark;
     }
 
     void SetPosition(double seconds) override {
         std::lock_guard<std::mutex> lock(m_mutex);
         if (!m_sourceStream) return;
 
-        QWORD pos = BASS_ChannelSeconds2Bytes(m_sourceStream, seconds);
-        BASS_ChannelSetPosition(m_sourceStream, pos, BASS_POS_BYTE);
+        if (m_song) {
+            ClearSourceEnd();
+            m_markPending = false;
+            SongSeek(m_song, seconds);
+        } else {
+            QWORD pos = BASS_ChannelSeconds2Bytes(m_sourceStream, seconds);
+            BASS_ChannelSetPosition(m_sourceStream, pos, BASS_POS_BYTE);
+        }
 
         // Reset stretcher and clear output
         m_stretcher.reset();
         m_stretcher.setTransposeSemitones(m_pitch);
         m_outputQueue.clear();
         m_sourceEnded = false;
+    }
+
+    // A new song in the running chain: like a fresh Initialize, a song that
+    // starts from 0 is primed so it is not heard late (a resumed position is
+    // not primed, exactly as Initialize + SetPosition(saved) behaved).
+    void StartSong(double seconds) override {
+        SetPosition(seconds);
+        if (seconds <= 0.0) {
+            std::lock_guard<std::mutex> lock(m_mutex);
+            PrimeLatency();
+        }
     }
 
     HSTREAM GetSourceStream() const override {

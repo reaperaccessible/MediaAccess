@@ -201,6 +201,7 @@
 #define IDT_DEVICE_REROUTE  407   // v2.32 — one-shot: coalesce audio-device-change burst before reroute
 #define IDT_SUBTITLE_FADE   408   // smooth duck fade of the mpv video volume while a subtitle is spoken
 #define IDT_BATCH_ENQUEUE   409   // v2.64 — one-shot: coalesce an Explorer "Add to queue" burst (409, not 406: taken)
+#define IDT_SONG_END        413   // crossfade phase 1 — short poll from a song's decode end until it is heard (410-412 taken)
 
 // Custom messages
 #define WM_SPEAK            (WM_USER + 1)
@@ -226,6 +227,7 @@
 #define WM_PLAYLIST_CONTENT_CHANGED (WM_USER + 23) // v2.69 — playlist CONTENT replaced (Explorer open, paste): the manager must rebuild, not just move its caret
 #define WM_PLAYLIST_DURATIONS  (WM_USER + 25) // v2.76 — playlist manager: new track durations measured (no data; relayed to the manager)
 #define WM_PLAYLIST_TOTAL_DONE (WM_USER + 22) // v2.64 — playlist total-duration worker finished (lParam=PlaylistTotalResult* heap)
+#define WM_SONG_DECODE_END     (WM_USER + 26) // crossfade phase 1 — a local song left the mixer (wParam=song stream); wait until it is heard
 
 // v2.52 — YouTube automatic-caption options (YouTube tab). 1760-1762 verified free.
 #define IDC_YT_FETCH_CAPTIONS    1760

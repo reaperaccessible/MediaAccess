@@ -1292,7 +1292,11 @@ INT_PTR CALLBACK OptionsDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
 
                     // Apply device change if needed
                     if (newDevice != g_selectedDevice) {
+                        // Crossfade phase 1 — the rebuilt chain ends a recording
+                        // of the output: say so once, as the R key does.
+                        const bool wasRecording = g_isRecording;
                         ReinitBass(newDevice);
+                        if (wasRecording && !g_isRecording) Speak(Ts("Recording stopped"));
                     }
 
                     // Apply amplify setting

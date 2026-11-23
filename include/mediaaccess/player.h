@@ -81,6 +81,8 @@ void ApplyNowPlayingForCurrentTrack();
 
 // Track end callback
 void CALLBACK OnTrackEnd(HSYNC handle, DWORD channel, DWORD data, void* user);
+void HandleSongDecodeEnd(WPARAM songStream);  // crossfade phase 1 — WM_SONG_DECODE_END
+void PollSongEnd();                          // crossfade phase 1 — IDT_SONG_END tick
 
 // Stream metadata change callback (for internet radio)
 void CALLBACK OnMetaChange(HSYNC handle, DWORD channel, DWORD data, void* user);
