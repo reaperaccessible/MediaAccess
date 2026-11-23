@@ -32,6 +32,9 @@ struct Api {
     HSTREAM     (WINAPI *StreamCreate)(DWORD drive, DWORD track, DWORD flags);
     BOOL        (WINAPI *SetSpeed)(DWORD drive, DWORD speed);
     BOOL        (WINAPI *SetOffset)(DWORD drive, int offset);   // read offset, in samples
+    // Crossfade, phase 4: CD tracks one after another on the same stream.
+    DWORD       (WINAPI *StreamGetTrack)(HSTREAM handle);            // LOWORD track, HIWORD drive
+    BOOL        (WINAPI *StreamSetTrack)(HSTREAM handle, DWORD track);
 };
 
 // Loads basscd.dll once. Returns nullptr when it cannot be loaded; LastError()

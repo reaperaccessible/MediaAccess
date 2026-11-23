@@ -377,7 +377,8 @@ void ShowTabControls(HWND hwnd, int tab) {
     int crossfadeCtrls[] = {IDC_LABEL_XF_DESCRIPTION, IDC_XF_ENABLE,
                             IDC_LABEL_XF_SECONDS, IDC_XF_SECONDS,
                             IDC_LABEL_XF_SHAPE, IDC_XF_SHAPE,
-                            IDC_XF_SKIP_SILENCE, IDC_LABEL_XF_SILENCE, IDC_XF_SILENCE};
+                            IDC_XF_SKIP_SILENCE, IDC_LABEL_XF_SILENCE, IDC_XF_SILENCE,
+                            IDC_XF_ALBUM};
 
 
 
@@ -1141,6 +1142,7 @@ INT_PTR CALLBACK OptionsDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
                     SendMessageW(hSil, CB_ADDSTRING, 0, (LPARAM)buf);
                 }
                 SendMessageW(hSil, CB_SETCURSEL, (-40 - g_crossfadeSilenceDb) / 5, 0);
+                CheckDlgButton(hwnd, IDC_XF_ALBUM, g_crossfadeAlbumGapless ? BST_CHECKED : BST_UNCHECKED);
             }
 
             // Initialize MIDI tab controls
@@ -1685,6 +1687,7 @@ INT_PTR CALLBACK OptionsDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
                         g_crossfadeSkipSilence = (IsDlgButtonChecked(hwnd, IDC_XF_SKIP_SILENCE) == BST_CHECKED);
                         int si = (int)SendMessageW(GetDlgItem(hwnd, IDC_XF_SILENCE), CB_GETCURSEL, 0, 0);
                         if (si >= 0 && si <= 6) g_crossfadeSilenceDb = -40 - 5 * si;
+                        g_crossfadeAlbumGapless = (IsDlgButtonChecked(hwnd, IDC_XF_ALBUM) == BST_CHECKED);
                         CrossfadeMaintain();
                     }
 

@@ -882,6 +882,10 @@ void RegisterRcTranslations() {
     AddTranslation("fr", "S&kip the silence between songs", L"Sauter le &silence entre les chansons");
     AddTranslation("en", "Silence &threshold:", L"Silence &threshold:");
     AddTranslation("fr", "Silence &threshold:", L"Seuil du sile&nce :");
+    AddTranslation("en", "No crossfade between the tracks of the same &album",
+                   L"No crossfade between the tracks of the same &album");
+    AddTranslation("fr", "No crossfade between the tracks of the same &album",
+                   L"Pas de fondu enchaîné entre les pistes d'un même &album");
 
     AddTranslation("en", "MIDI playback settings (BASSMIDI):", L"MIDI playback settings (BASSMIDI):");
     AddTranslation("fr", "MIDI playback settings (BASSMIDI):",

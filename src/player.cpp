@@ -15,6 +15,7 @@
 #include "mediaaccess/wasapi_loopback.h"  // v1.94 — system-audio (loopback) recording
 #include "mediaaccess/audio_device_watcher.h"  // v2.32 — auto-follow default output device
 #include "mediaaccess/disc_drives.h"  // v2.78 — audio CD tracks (.cda)
+#include "mediaaccess/basscd_loader.h" // crossfade phase 4 — CD track joins
 
 // Forward declaration so LoadURL (earlier in the file) can call it.
 static void TeardownMpvBeforeLoad();
@@ -91,6 +92,17 @@ static std::atomic<DWORD> s_xfNext{0};      // next song, open and paused in the
 static std::atomic<bool>  s_xfArmed{false}; // the fade-start sync may fire
 static std::atomic<DWORD> s_xfFadingOut{0}; // song going out (set by the sync)
 static std::atomic<int>   s_silenceWorkers{0}; // silence measures running (phase 3)
+// Phase 4 — joins without a fade nor a gap, at the very end of the song:
+static std::atomic<bool>  s_xfGapArmed{false};  // continuous album: next song unpaused at the end
+static std::atomic<DWORD> s_xfGapSong{0};
+static std::atomic<bool>  s_xfCdArmed{false};   // CD: same stream goes on to the next track
+static std::atomic<DWORD> s_xfCdSong{0};
+static std::atomic<int>   s_xfCdTrack{-1};      // zero-based track for BASS_CD_StreamSetTrack
+static std::atomic<bool>  s_xfCdJoined{false};  // the join happened; the UI has not caught up yet
+static HSYNC              s_xfGapSync = 0;      // continuous album: the join is set up 0.25 s before the end
+static std::atomic<bool>  s_xfNextDetached{false};  // next song kept out of the mixer until the join
+static DWORD              s_xfNextAddFlags = 0;     // its mixer flags (without PAUSE)
+static HSTREAM            s_xfGapSyncSong = 0;
 static void CrossfadeDropAll();
 static void PostCrossfadeMaintain();
 
@@ -135,6 +147,29 @@ static void ReleaseSongMixer() {
 // left the mixer, but the tempo and playback buffers still hold it. Mark that
 // point in the processor and let the UI thread wait until it is heard.
 static void CALLBACK OnSongDecodeEnd(HSYNC, DWORD channel, DWORD, void* user) {
+    // Crossfade, phase 4: a join with no gap, right at this last sample.
+    if (s_xfCdArmed.load() && channel == s_xfCdSong.load() && s_xfCdArmed.exchange(false)) {
+        const mediaaccess::basscd::Api* cd = mediaaccess::basscd::Get();
+        int track = s_xfCdTrack.load();
+        if (cd && track >= 0 && cd->StreamSetTrack(channel, static_cast<DWORD>(track))) {
+            s_xfCdJoined.store(true);
+            PostMessage(g_hwnd, WM_CROSSFADE_CD_JOIN, static_cast<WPARAM>(channel), 0);
+            return;
+        }
+    }
+    if (s_xfGapArmed.load() && channel == s_xfGapSong.load() && s_xfGapArmed.exchange(false)) {
+        DWORD next = s_xfNext.load();
+        if (next) {
+            if (s_xfNextDetached.exchange(false))
+                BASS_Mixer_StreamAddChannel(s_mixer, next, s_xfNextAddFlags);
+            else
+                BASS_Mixer_ChannelFlags(next, 0, BASS_MIXER_CHAN_PAUSE);
+            s_xfFadingOut.store(channel);
+            PostMessage(g_hwnd, WM_CROSSFADE_START, (WPARAM)next, (LPARAM)channel);
+            PostMessage(g_hwnd, WM_CROSSFADE_OUT_DONE, static_cast<WPARAM>(channel), 0);
+            return;
+        }
+    }
     // Crossfade: the song that faded out is only let go, never "ended".
     if (channel == s_xfFadingOut.load()) {
         PostMessage(g_hwnd, WM_CROSSFADE_OUT_DONE, static_cast<WPARAM>(channel), 0);
@@ -1975,6 +2010,33 @@ void HandleCrossfadeSilence(LPARAM lParam) {
     CrossfadeMaintain();
 }
 
+// Continuous album (phase 4), mixtime sync 0.25 s before the end of the song:
+// the next song gets a start delay of exactly what is left of this one, in
+// mixer samples, and is unpaused. BASSmix then starts it on the very sample
+// after the last one of this song (an unpause in the END sync itself came
+// 32 samples late: the end is only seen once a mixing block is done).
+static void CALLBACK OnGaplessSetup(HSYNC, DWORD channel, DWORD, void*) {
+    if (!s_xfGapArmed.load() || channel != s_xfGapSong.load() || !s_xfGapArmed.exchange(false)) return;
+    DWORD next = s_xfNext.load();
+    if (!next) return;
+    QWORD pos = BASS_Mixer_ChannelGetPosition(channel, BASS_POS_BYTE);
+    QWORD len = BASS_ChannelGetLength(channel, BASS_POS_BYTE);
+    QWORD delay = 0;
+    if (pos != (QWORD)-1 && len != (QWORD)-1 && len > pos)
+        delay = BASS_ChannelSeconds2Bytes(s_mixer, BASS_ChannelBytes2Seconds(channel, len - pos));
+    // The next song joins the mixer only now, starting `delay` mixer bytes
+    // from here: a source that waited PAUSED in the mixer lost its first 16
+    // samples when unpaused (measured), which a join without a gap hears.
+    if (s_xfNextDetached.exchange(false)) {
+        BASS_Mixer_StreamAddChannelEx(s_mixer, next, s_xfNextAddFlags, delay, 0);
+    } else {
+        BASS_Mixer_ChannelSetPosition(next, delay, BASS_POS_MIXER_DELAY);
+        BASS_Mixer_ChannelFlags(next, 0, BASS_MIXER_CHAN_PAUSE);
+    }
+    s_xfFadingOut.store(channel);   // its END then only lets it go
+    PostMessage(g_hwnd, WM_CROSSFADE_START, (WPARAM)next, (LPARAM)channel);
+}
+
 // Mixtime sync at the end of the music of the song going out: the rest is
 // silence at zero volume; let it go now rather than at the end of the file.
 static void CALLBACK OnCrossfadeMusicEnd(HSYNC, DWORD channel, DWORD, void*) {
@@ -2040,6 +2102,11 @@ static void CALLBACK OnCrossfadeStart(HSYNC, DWORD channel, DWORD, void*) {
 
 static void CrossfadeRemoveSync() {
     s_xfArmed.store(false);
+    s_xfGapArmed.store(false);
+    s_xfCdArmed.store(false);
+    if (s_xfGapSync && s_xfGapSyncSong) BASS_Mixer_ChannelRemoveSync(s_xfGapSyncSong, s_xfGapSync);
+    s_xfGapSync = 0;
+    s_xfGapSyncSong = 0;
     if (s_xfSync && s_xfSyncSong) BASS_Mixer_ChannelRemoveSync(s_xfSyncSong, s_xfSync);
     if (s_xfEndSync && s_xfEndSyncSong) BASS_Mixer_ChannelRemoveSync(s_xfEndSyncSong, s_xfEndSync);
     s_xfSync = 0;
@@ -2057,6 +2124,7 @@ static void CrossfadeFreeNext() {
     CrossfadeRemoveSync();
     DWORD next = s_xfNext.exchange(0);
     if (next) BASS_StreamFree(next);   // also takes it out of the mixer
+    s_xfNextDetached.store(false);
 }
 
 static void CrossfadeForgetDecision() {
@@ -2080,6 +2148,7 @@ static void CrossfadeFinishNow() {
 
 // Everything about crossfades goes: a new song is loaded, or the chain ends.
 static void CrossfadeDropAll() {
+    s_xfCdJoined.store(false);
     CrossfadeFreeNext();
     CrossfadeFinishNow();
     CrossfadeForgetDecision();
@@ -2115,8 +2184,9 @@ static bool CrossfadeFileAllowed(const std::wstring& path) {
     return true;
 }
 
-// The current song may fade out into another one.
-static bool CrossfadeCurrentAllowed() {
+// The current song may fade out into another one (or, a CD track, go on to
+// the next track with no gap: allowCd).
+static bool CrossfadeCurrentAllowed(bool allowCd = false) {
     if (!g_crossfadeEnabled || !s_mixerChain || !g_fxStream || !s_song) return false;
     if (g_activeEngine != PlaybackEngine::BASS || g_isLiveStream) return false;
     if (!g_autoAdvance || g_repeatMode == 1 || g_loopEnabled) return false;
@@ -2124,7 +2194,50 @@ static bool CrossfadeCurrentAllowed() {
     if (g_currentTrack < 0 || g_currentTrack >= static_cast<int>(g_playlist.size())) return false;
     // Started from the playlist (not a YouTube cache file loaded directly).
     if (_wcsicmp(g_playlist[g_currentTrack].c_str(), g_currentSourcePath.c_str()) != 0) return false;
+    if (allowCd && mediaaccess::IsCdaFile(g_currentSourcePath.c_str())) return true;
     return CrossfadeFileAllowed(g_currentSourcePath);
+}
+
+// "E:\Track07.cda" -> drive letter and zero-based track, or false.
+static bool CdaDriveTrack(const std::wstring& path, wchar_t& letter, int& track) {
+    if (!mediaaccess::IsCdaFile(path.c_str()) || path.size() < 2 || path[1] != L':') return false;
+    size_t slash = path.find_last_of(L"\\/");
+    std::wstring name = slash == std::wstring::npos ? path : path.substr(slash + 1);
+    int number = 0;
+    for (wchar_t c : name) {
+        if (c == L'.') break;
+        if (iswdigit(c)) number = number * 10 + (c - L'0');
+    }
+    if (number < 1) return false;
+    letter = static_cast<wchar_t>(towupper(path[0]));
+    track = number - 1;
+    return true;
+}
+
+// Album and track number from the tags of a song stream ("3/12" -> 3).
+static void SongAlbumTrack(HSTREAM s, std::string& album, int& track) {
+    album = GetMetadataTag(s, "ALBUM");
+    if (album.empty()) {
+        const TAG_ID3* id3 = (const TAG_ID3*)BASS_ChannelGetTags(s, BASS_TAG_ID3);
+        if (id3) album = GetTrimmedTag(id3->album, 30);
+    }
+    std::string t = GetMetadataTag(s, "TRACKNUMBER");
+    if (t.empty()) t = GetMetadataTag(s, "TRACK");
+    track = atoi(t.c_str());
+    if (track <= 0) {
+        const TAG_ID3* id3 = (const TAG_ID3*)BASS_ChannelGetTags(s, BASS_TAG_ID3);
+        if (id3 && id3->comment[28] == '\0' && id3->comment[29] != 0) track = (unsigned char)id3->comment[29];
+    }
+}
+
+// Two songs that follow each other in the same album (section 2.4).
+static bool SameAlbumConsecutive(HSTREAM a, HSTREAM b) {
+    std::string albumA, albumB;
+    int trackA = 0, trackB = 0;
+    SongAlbumTrack(a, albumA, trackA);
+    SongAlbumTrack(b, albumB, trackB);
+    return !albumA.empty() && _stricmp(albumA.c_str(), albumB.c_str()) == 0 &&
+           trackA > 0 && trackB == trackA + 1;
 }
 
 // The decided next index, or -1 (end of the list). Decided once, like
@@ -2203,6 +2316,30 @@ static void BuildCrossfadeNodes(QWORD lenBytes, int shape) {
 void CrossfadeMaintain() {
     s_xfMaintainPosted = false;
     if (s_xfFadingOut.load() && !s_xfOut) return;   // a fade is starting
+
+    // Phase 4 — a CD track never fades; the next track of the same disc goes
+    // on in the same stream, with no gap (BASSCD opens one stream per drive).
+    if (s_song && mediaaccess::IsCdaFile(g_currentSourcePath.c_str())) {
+        if (s_xfCdJoined.load()) return;   // the UI moves to the next track first
+        if (s_xfNext.load()) CrossfadeFreeNext();
+        wchar_t curDrive = 0, nextDrive = 0;
+        int curTrack = -1, nextTrack = -1;
+        int idx = CrossfadeCurrentAllowed(true) ? CrossfadeDecideNext() : -1;
+        bool join = idx >= 0 && idx != g_currentTrack &&
+                    CdaDriveTrack(g_currentSourcePath, curDrive, curTrack) &&
+                    CdaDriveTrack(s_xfPath, nextDrive, nextTrack) && curDrive == nextDrive;
+        if (!join) {
+            if (s_xfCdArmed.exchange(false)) LogF("Crossfade", "CD join dropped");
+            return;
+        }
+        if (s_xfCdArmed.load() && s_xfCdSong.load() == s_song && s_xfCdTrack.load() == nextTrack) return;
+        s_xfCdTrack.store(nextTrack);
+        s_xfCdSong.store(s_song);
+        s_xfCdArmed.store(true);
+        LogF("Crossfade", "planned: CD track %d -> %d, no gap", curTrack + 1, nextTrack + 1);
+        return;
+    }
+
     if (!CrossfadeCurrentAllowed()) {
         if (s_xfNext.load() || s_xfSync) {
             CrossfadeFreeNext();
@@ -2232,8 +2369,9 @@ void CrossfadeMaintain() {
         }
         BASS_CHANNELINFO info = {};
         BASS_ChannelGetInfo(h, &info);
-        const DWORD flags = BASS_MIXER_CHAN_PAUSE | BASS_MIXER_CHAN_NORAMPIN |
-                            (info.chans > 2 ? BASS_MIXER_CHAN_DOWNMIX : 0);
+        s_xfNextAddFlags = BASS_MIXER_CHAN_NORAMPIN | (info.chans > 2 ? BASS_MIXER_CHAN_DOWNMIX : 0);
+        s_xfNextDetached.store(false);
+        const DWORD flags = BASS_MIXER_CHAN_PAUSE | s_xfNextAddFlags;
         BOOL added;
         {
             OutputLock lock(g_fxStream);
@@ -2263,6 +2401,52 @@ void CrossfadeMaintain() {
         if (a && a->ok && a->musicEnd > 0.0 && a->musicEnd < lenCur) endCur = a->musicEnd;
         if (b && b->ok && b->musicStart < lenNext) startNext = b->musicStart;
     }
+    // Phase 4 — a continuous album: two tracks that follow each other in the
+    // same album, where the music does not stop at the end of the first nor
+    // wait at the start of the second, join with no fade and no gap. It
+    // needs both measures (a missing one means a normal fade, section 5).
+    auto decodedNow = [](HSTREAM s) { return SongDecodePos(s); };
+    bool gapless = false;
+    if (g_crossfadeAlbumGapless) {
+        const SilenceInfo* a = CrossfadeSilenceFor(g_currentSourcePath);
+        const SilenceInfo* b = CrossfadeSilenceFor(s_xfPath);
+        gapless = a && b && a->ok && b->ok && lenCur - a->musicEnd < 0.5 && b->musicStart < 0.5 &&
+                  SameAlbumConsecutive(s_song, s_xfNext.load());
+    }
+    if (gapless) {
+        if (s_xfGapArmed.load() && s_xfGapSong.load() == s_song) return;   // unchanged
+        OutputLock lock(g_fxStream);
+        CrossfadeRemoveSync();
+        // Out of the mixer until the join, at its first sample.
+        if (!s_xfNextDetached.load()) {
+            BASS_Mixer_ChannelRemove(s_xfNext.load());
+            BASS_ChannelSetPosition(s_xfNext.load(), 0, BASS_POS_BYTE);
+            s_xfNextDetached.store(true);
+        }
+        s_xfNextStartSec = 0.0;
+        s_xfGapSong.store(s_song);
+        s_xfGapArmed.store(true);
+        // The precise join, set up 0.25 s before the end; if the mixer is
+        // already past that point, the END sync joins (32 samples late).
+        QWORD lenB = BASS_ChannelGetLength(s_song, BASS_POS_BYTE);
+        QWORD setupB = BASS_ChannelSeconds2Bytes(s_song, lenCur - 0.25);
+        if (lenB != (QWORD)-1 && lenCur > 0.5 && decodedNow(s_song) < lenCur - 0.3) {
+            s_xfGapSync = BASS_Mixer_ChannelSetSync(s_song, BASS_SYNC_POS | BASS_SYNC_MIXTIME | BASS_SYNC_ONETIME,
+                                                   setupB, OnGaplessSetup, nullptr);
+            s_xfGapSyncSong = s_xfGapSync ? s_song : 0;
+        }
+        LogF("Crossfade", "planned: track %d -> %d, same album, no fade and no gap", g_currentTrack, s_xfIndex);
+        return;
+    }
+    if (s_xfGapArmed.load() || s_xfNextDetached.load()) {
+        OutputLock lock(g_fxStream);
+        CrossfadeRemoveSync();
+        if (s_xfNextDetached.exchange(false)) {
+            BASS_Mixer_StreamAddChannel(s_mixer, s_xfNext.load(), s_xfNextAddFlags | BASS_MIXER_CHAN_PAUSE);
+            s_xfNextStartSec = -1.0;   // placed again below
+        }
+    }
+
     if (startNext != s_xfNextStartSec) {   // the next song is paused: placing it is safe
         OutputLock lock(g_fxStream);
         BASS_Mixer_ChannelSetPosition(s_xfNext.load(), BASS_ChannelSeconds2Bytes(s_xfNext.load(), startNext),
@@ -2314,6 +2498,7 @@ void CrossfadeMaintain() {
 }
 
 static void AnnounceCurrentTrackChange();   // below, shared with PlayTrack
+static void CrossfadeTrackIsNow(int nextIndex);
 
 // WM_CROSSFADE_START (UI thread): the fade has begun. The song coming in is
 // now the current song, once, here: title, announcement, history, playlist.
@@ -2343,10 +2528,20 @@ void HandleCrossfadeStart(WPARAM nextSong, LPARAM outSong) {
         s_xfEndSync = 0;       // belongs to the song going out now
         s_xfEndSyncSong = 0;
         s_xfEndByte = 0;
+        s_xfGapSync = 0;
+        s_xfGapSyncSong = 0;
         GetTempoProcessor()->SetSongStream(s_song);
     }
-    KillTimer(g_hwnd, IDT_SONG_END);
     LogF("Crossfade", "fade from track %d into track %d", g_currentTrack, nextIndex);
+    BASS_Mixer_ChannelSetSync(s_song, BASS_SYNC_END | BASS_SYNC_MIXTIME, 0,
+                              OnSongDecodeEnd, GetTempoProcessor());
+    CrossfadeTrackIsNow(nextIndex);
+}
+
+// The decided next track is now the current one (a fade began, or a join):
+// the one place where the title, announcement, history and playlist move.
+static void CrossfadeTrackIsNow(int nextIndex) {
+    KillTimer(g_hwnd, IDT_SONG_END);
     CrossfadeForgetDecision();
     s_xfRejected.clear();
 
@@ -2356,8 +2551,6 @@ void HandleCrossfadeStart(WPARAM nextSong, LPARAM outSong) {
     BASS_ChannelGetAttribute(s_song, BASS_ATTRIB_BITRATE, &bitrate);
     g_currentBitrate = static_cast<int>(bitrate);
     g_currentSourcePath = g_playlist[nextIndex];
-    BASS_Mixer_ChannelSetSync(s_song, BASS_SYNC_END | BASS_SYNC_MIXTIME, 0,
-                              OnSongDecodeEnd, GetTempoProcessor());
     ParseChapters(g_sourceStream);
     g_loopStart = g_loopEnd = -1.0;
     g_loopEnabled = false;
@@ -2370,6 +2563,24 @@ void HandleCrossfadeStart(WPARAM nextSong, LPARAM outSong) {
     UpdateWindowTitle();
     UpdateStatusBar();
     CrossfadeMaintain();   // and the one after
+}
+
+// WM_CROSSFADE_CD_JOIN (UI thread): the CD stream went on to the next track.
+void HandleCrossfadeCdJoin(WPARAM stream) {
+    s_xfCdJoined.store(false);
+    if (!s_mixerChain || !g_fxStream || static_cast<HSTREAM>(stream) != s_song) return;
+    const int nextIndex = s_xfIndex;
+    if (nextIndex < 0 || nextIndex >= static_cast<int>(g_playlist.size())) return;
+    if (g_rememberPosMinutes > 0 && !g_currentSourcePath.empty()) {
+        // the track heard to its end: no position to come back to
+        SaveFilePositionDB(g_currentSourcePath, 0.0);
+    }
+    {
+        OutputLock lock(g_fxStream);
+        GetTempoProcessor()->SetSongStream(s_song);   // clears the end mark
+    }
+    LogF("Crossfade", "CD went on from track %d to track %d", g_currentTrack, nextIndex);
+    CrossfadeTrackIsNow(nextIndex);
 }
 
 // WM_CROSSFADE_OUT_DONE (UI thread): the song that faded out has left the mixer.

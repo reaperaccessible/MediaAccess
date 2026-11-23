@@ -433,6 +433,7 @@ BEGIN
     AUTOCHECKBOX    "S&kip the silence between songs", IDC_XF_SKIP_SILENCE, 17, 100, 250, 10
     LTEXT           "Silence &threshold:", IDC_LABEL_XF_SILENCE, 17, 118, 110, 10
     COMBOBOX        IDC_XF_SILENCE, 130, 116, 90, 200, CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    AUTOCHECKBOX    "No crossfade between the tracks of the same &album", IDC_XF_ALBUM, 17, 136, 290, 10
 
     DEFPUSHBUTTON   "OK", IDOK, 229, 332, 50, 14
     PUSHBUTTON      "Cancel", IDCANCEL, 283, 332, 50, 14

@@ -233,6 +233,7 @@
 #define WM_CROSSFADE_OUT_DONE  (WM_USER + 28) // crossfade — the outgoing song left the mixer (wParam=song): free it
 #define WM_CROSSFADE_MAINTAIN  (WM_USER + 29) // crossfade — plan (or re-plan) the next fade
 #define WM_CROSSFADE_SILENCE   (WM_USER + 30) // crossfade — a silence measure finished (lParam=heap result)
+#define WM_CROSSFADE_CD_JOIN   (WM_USER + 31) // crossfade — a CD stream went on to the next track (wParam=stream)
 
 // v2.52 — YouTube automatic-caption options (YouTube tab). 1760-1762 verified free.
 #define IDC_YT_FETCH_CAPTIONS    1760
@@ -246,6 +247,7 @@
 #define IDC_XF_SKIP_SILENCE      1786
 #define IDC_LABEL_XF_SILENCE     1787
 #define IDC_XF_SILENCE           1788
+#define IDC_XF_ALBUM             1789
 #define IDC_YT_CAPTION_LANG      1761
 #define IDC_LABEL_YT_CAPTION_LANG 1762
 #define IDC_YT_AUTOPLAY_NEXT     1766   // v2.61 — autoplay next result when a YouTube video ends

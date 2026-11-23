@@ -291,6 +291,7 @@ extern int  g_crossfadeSeconds;         // heard duration of the fade, 1-15 s (d
 extern int  g_crossfadeShape;           // 0 = smooth (equal power), 1 = linear
 extern bool g_crossfadeSkipSilence;     // fade from where the music really ends (default on)
 extern int  g_crossfadeSilenceDb;       // silence threshold, dBFS (-40 to -70, default -50)
+extern bool g_crossfadeAlbumGapless;    // no fade inside a continuous album: joined without a gap (default on)
 
 // Chapter support
 struct Chapter {
