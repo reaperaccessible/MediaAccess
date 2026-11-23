@@ -153,6 +153,10 @@ void SaveDriveOffset(const std::wstring& model, int offset, bool detected) {
     CdOffsetPut(WideToUtf8(model), offset, detected);
 }
 
+void ForgetDriveOffset(const std::wstring& model) {
+    CdOffsetDelete(WideToUtf8(model));
+}
+
 bool ListedDriveOffset(const std::wstring& vendorModel, int* offset) {
     static std::mutex m;
     static bool fetched = false;

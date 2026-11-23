@@ -549,6 +549,7 @@ INT_PTR CALLBACK OptionsDlgProc(HWND opt, UINT msg, WPARAM wParam, LPARAM lParam
                     return TRUE;
                 case IDC_CDOPT_DEFAULTS:
                     ShowOptionsChecks(opt, RipOptions());
+                    SetDlgItemTextW(opt, IDC_CDOPT_OFFSET, L"");   // automatic
                     UpdatePreview(opt);
                     return TRUE;
                 case IDC_CDOPT_DETECT:
@@ -577,6 +578,8 @@ INT_PTR CALLBACK OptionsDlgProc(HWND opt, UINT msg, WPARAM wParam, LPARAM lParam
                         long v = wcstol(text.c_str(), &end, 10);
                         if (d && !text.empty() && end && *end == 0 && v >= -5000 && v <= 5000 && (!had || v != saved)) {
                             mediaaccess::SaveDriveOffset(d->vendorModel, (int)v, false);
+                        } else if (d && text.empty() && had) {
+                            mediaaccess::ForgetDriveOffset(d->vendorModel);   // emptied: automatic again
                         }
                     }
                     g_opts = o;

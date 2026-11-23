@@ -201,6 +201,7 @@
     <li><a href="#radio">Internet radio</a></li>
     <li><a href="#podcasts">Podcasts</a></li>
     <li><a href="#recording">Recording</a></li>
+    <li><a href="#cd">Audio CD: playing and extracting</a></li>
     <li><a href="#midi">MIDI</a></li>
     <li><a href="#scheduler">Scheduler</a></li>
     <li><a href="#tray">System tray</a></li>
@@ -930,8 +931,100 @@
 </div>
 </section>
 
+<section id="cd" aria-labelledby="cd-h">
+<h2 id="cd-h">15. Audio CD: playing and extracting</h2>
+<p>MediaAccess plays audio CDs like any file, and can also extract them: it copies the tracks of the disc to WAV, FLAC, MP3, Ogg Vorbis or Opus files, with the album and track names, the cover, and a check that the copy is exact. You need a CD or DVD drive, built in or plugged in over USB.</p>
+
+<h3>Listening to a CD</h3>
+<p>Windows shows each track of an audio CD as a small file, <code>Track01.cda</code>, <code>Track02.cda</code>… in the drive (for example <code>E:\</code>). Open one of them with <kbd>Ctrl</kbd>+<kbd>O</kbd>, from File Explorer or from the command line: MediaAccess then loads <strong>every track of the disc</strong>, in order, and starts on the one you chose, like a CD player. <kbd>B</kbd> and <kbd>Z</kbd> go to the next or previous track; seeking, volume, effects and time announcements work as for a file.</p>
+
+<h3>The extraction window</h3>
+<p><strong>File → Extract audio CD</strong> (<kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>X</kbd>) opens the extraction window. Its title says at once what is in the drive, for example "Extract audio CD: drive E, 11 tracks, 48 minutes", and the focus lands on the first track. If no drive is connected, a message says so and the window does not open.</p>
+<p>The window does not block the rest of MediaAccess. <kbd>Escape</kbd> or <strong>Close</strong> only hides it: an extraction in progress goes on, and its announcements are still spoken. <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>X</kbd> brings it back as you left it.</p>
+<p>From top to bottom, with <kbd>Tab</kbd>:</p>
+<ul>
+  <li><strong>Drive</strong>: the drive to use, if you have several;</li>
+  <li><strong>Album</strong>, <strong>Album artist</strong>, <strong>Year</strong>, <strong>Genre</strong>, <strong>Disc</strong> and <strong>of</strong> (for a box set of several CDs), the <strong>Compilation (various artists)</strong> box;</li>
+  <li><strong>Tracks</strong>: the list of tracks, each with a check box and its length, for example "01 - Our House, 4:25, checked";</li>
+  <li><strong>Track title</strong> and <strong>Track artist</strong>: those of the track chosen in the list;</li>
+  <li><strong>Format</strong> and <strong>Quality</strong>;</li>
+  <li><strong>Output folder</strong> and <strong>Browse</strong>;</li>
+  <li>the <strong>Extract</strong>, <strong>Stop</strong>, <strong>Eject</strong>, <strong>Editions</strong> and <strong>Options</strong> buttons;</li>
+  <li><strong>Status</strong>: the last message, read-only.</li>
+</ul>
+<p>When you insert a CD while the window is open, MediaAccess says "CD inserted in drive E, 11 tracks", and if you are in the track list, the first track is chosen; the window then keeps Windows from offering its AutoPlay on top. <strong>Eject</strong> opens the tray ("Tray open") and the list empties; pressing it again closes the tray, except on slim or USB drives that cannot pull their tray in: MediaAccess then says "Close the tray by hand".</p>
+
+<h3>Album and track names</h3>
+<p>As soon as a CD is there, MediaAccess looks up its names, without blocking the window, in this order:</p>
+<ol>
+  <li>its own memory: a disc seen before gets back its edition and your corrections, even without the Internet;</li>
+  <li><strong>MusicBrainz</strong>, the large open database of records;</li>
+  <li>the <strong>CD-Text</strong> recorded on the disc, when there is one;</li>
+  <li><strong>GnuDB</strong>, as a fallback, when neither MusicBrainz nor the CD-Text knows the disc.</li>
+</ol>
+<p>MediaAccess says where the names come from, for example "Found on MusicBrainz: I Think of You, Gregory Charles, 2006", then the tracks take their titles. A disc nobody knows keeps "Track 1", "Track 2"…: MediaAccess says so, and you can name the tracks yourself.</p>
+<p>Every name can be corrected: the album fields, and for a track either the <strong>Track title</strong> and <strong>Track artist</strong> fields, or <kbd>F2</kbd> in the list, which lets you edit the title alone, without its number; <kbd>Enter</kbd> confirms, <kbd>Escape</kbd> cancels. Your corrections are kept for this disc. If the names arrive after you started correcting, your corrections stay: MediaAccess says so, and <kbd>Ctrl</kbd>+<kbd>M</kbd> still lets you take the names found.</p>
+<p>The same disc sometimes exists in several editions (countries, years, reissues). When they look alike, the first one is chosen and MediaAccess says so; when their tracks differ, the <strong>Editions of this disc</strong> window opens by itself. <kbd>Ctrl</kbd>+<kbd>M</kbd> or the <strong>Editions</strong> button opens it at any time: choose an edition and confirm with <kbd>Enter</kbd>. Its buttons:</p>
+<ul>
+  <li><strong>Open on MusicBrainz</strong>: the page of the chosen edition, in the browser;</li>
+  <li><strong>Search again</strong>: looks the disc up again without the memory (like <kbd>F5</kbd> in the extraction window);</li>
+  <li><strong>Submit this disc to MusicBrainz</strong>: the page where you add to MusicBrainz a disc it does not know.</li>
+</ul>
+
+<h3>Choosing the tracks, the format and the folder</h3>
+<p>Every track is checked; <kbd>Space</kbd> checks or unchecks the one in the list. The data tracks of an enhanced CD are never shown.</p>
+<p>Formats and qualities offered (the first quality of each list is the default):</p>
+<ul>
+  <li><strong>WAV</strong>: uncompressed, 16-bit, 44.1 kHz, as on the CD;</li>
+  <li><strong>FLAC</strong>: lossless, smaller than WAV; level 5 by default, 8 for the smallest files, 0 for the fastest;</li>
+  <li><strong>MP3</strong>: VBR V0, about 245 kbps, by default, then V2, V4 and constant bit rates from 320 to 128 kbps;</li>
+  <li><strong>Ogg Vorbis</strong>: quality 6, about 192 kbps, by default, from 4 to 10;</li>
+  <li><strong>Opus</strong>: 160 kbps by default, from 96 to 256 kbps.</li>
+</ul>
+<p>The <strong>Output folder</strong> is your Music folder by default; <strong>Browse</strong> picks another one. MediaAccess creates one folder per album in it, by default <code>Album artist\Album (year)</code>, and names the files <code>01 - Title</code>; a box set gives <code>1-01 - Title</code>, a compilation <code>01 - Artist - Title</code>. Characters Windows refuses in a name become dashes. These templates can be changed in the options.</p>
+<p>Each file gets its tags (title, artist, album, album artist, year, track and disc numbers, genre, ISRC, MusicBrainz identifiers) and, when MusicBrainz has one, the album cover, which is also saved next to the files as <code>folder.jpg</code>. A <code>.cue</code> file and an <code>.m3u8</code> playlist are written in the album folder; MediaAccess plays the <code>.cue</code> file back as an album.</p>
+
+<h3>Extracting</h3>
+<p><strong>Extract</strong> (<kbd>Ctrl</kbd>+<kbd>R</kbd>) copies the checked tracks. If files with the same names already exist, MediaAccess asks before replacing them. A CD track playing from the same drive is stopped: a drive reads one thing at a time.</p>
+<p>At the start of each track, MediaAccess says for example "Track 3 of 11: I Put My Trust in You". <kbd>Ctrl</kbd>+<kbd>I</kbd> gives the progress on demand: "Track 4 of 11, 63 %, total 31 %, about 4 minutes left". At the end, the download-finished sound plays and MediaAccess says the result, for example "Extraction done: 11 tracks, all accurate".</p>
+<p><strong>Stop</strong> (or <kbd>Ctrl</kbd>+<kbd>R</kbd> during an extraction) stops cleanly: each file is written under a temporary name and only gets its real name once complete, so a stop, a read error or a full disk never leave a truncated file. During an extraction, <strong>Eject</strong> is refused; quitting MediaAccess asks for confirmation, then stops the extraction cleanly.</p>
+
+<h3>Checking the copy: AccurateRip and Secure mode</h3>
+<p>A CD drive can misread a passage without reporting anything, especially on a scratched disc. MediaAccess detects it in two ways.</p>
+<p><strong>AccurateRip</strong> is a database where millions of people have recorded a fingerprint of each track of their CDs. MediaAccess computes the fingerprint of each extracted track and compares it: an <strong>accurate</strong> track is identical, bit for bit, to everyone else's; the log gives the confidence, that is how many people got the same one. The final result says "all accurate", or how many tracks are not confirmed, or "disc not in AccurateRip", or "not verified" without the Internet. The check never blocks the extraction.</p>
+<p>For the fingerprints to match, MediaAccess must know the <strong>read offset</strong> of your drive, a small lead or lag that depends on each model. It takes it by itself from AccurateRip's official list and remembers it. For a drive missing from the list, use <strong>Detect</strong> in the options, with a CD known to AccurateRip: detection takes about two minutes, you can keep working, and MediaAccess says the result, for example "Read offset detected: +96 samples, confirmed on two tracks".</p>
+<p><strong>Secure mode</strong> (in the options) reads each track twice and compares the two reads; a passage read differently is read again until two reads agree. It is slower. A passage that never agreed is reported as soon as the track ends, for example "Warning: track 7, 4 suspicious blocks". Fast mode, the default, reads once: when AccurateRip does not confirm some tracks, the end of the extraction offers <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>R</kbd>, which checks only those tracks and extracts them again in Secure mode.</p>
+<p>Each extraction writes a <strong>log</strong>, <code>Album.log</code>, in the album folder, in English as is customary: the drive, its offset, the mode, the format, and for each track its checksums and the AccurateRip result. <kbd>Ctrl</kbd>+<kbd>L</kbd> opens the log of the last extraction, <kbd>Ctrl</kbd>+<kbd>O</kbd> its folder.</p>
+
+<h3>Extraction options</h3>
+<p>The <strong>Options</strong> button opens:</p>
+<ul>
+  <li><strong>Folder name</strong> and <strong>File name</strong>: the templates, with <code>%albumartist%</code>, <code>%artist%</code>, <code>%album%</code>, <code>%year%</code>, <code>%track%</code>, <code>%tracktotal%</code>, <code>%title%</code>, <code>%disc%</code>, <code>%disctotal%</code>, <code>%genre%</code> and <code>%label%</code>; a backslash makes a sub-folder. The <strong>Preview</strong> field shows the result for the first track as you type, and the <strong>Names you can use</strong> field recalls the list;</li>
+  <li><strong>Embed the cover in the files</strong>, <strong>Save the cover as folder.jpg</strong>, <strong>Write a CUE sheet</strong>, <strong>Write an M3U8 playlist</strong>: checked by default;</li>
+  <li><strong>Eject the disc when done</strong>;</li>
+  <li><strong>Extraction mode</strong>: Fast or Secure;</li>
+  <li><strong>Drive read offset</strong>: the offset remembered for this drive, empty as long as none is known; type a number of samples to change it, or empty the field to go back to the automatic setting; <strong>Detect</strong> finds it with a CD known to AccurateRip;</li>
+  <li><strong>Verify with AccurateRip</strong> and <strong>Write a log</strong>: checked by default;</li>
+  <li><strong>Defaults</strong> puts all these settings back as they were.</li>
+</ul>
+
+<h3>Shortcuts of the extraction window</h3>
+<p>They can be changed in the Actions window (<kbd>F4</kbd>), category <strong>Audio CD extraction</strong>. The <kbd>Applications</kbd> key (or <kbd>Shift</kbd>+<kbd>F10</kbd>) on the track list opens a menu with these actions and their shortcuts.</p>
+<ul>
+  <li><kbd>Ctrl</kbd>+<kbd>R</kbd>: extract, or stop during an extraction;</li>
+  <li><kbd>Ctrl</kbd>+<kbd>I</kbd>: announce the progress;</li>
+  <li><kbd>F5</kbd>: look the disc up again;</li>
+  <li><kbd>Ctrl</kbd>+<kbd>M</kbd>: choose another edition;</li>
+  <li><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>R</kbd>: extract again the tracks not confirmed, in Secure mode;</li>
+  <li><kbd>Ctrl</kbd>+<kbd>L</kbd>: open the log of the last extraction;</li>
+  <li><kbd>Ctrl</kbd>+<kbd>O</kbd>: open the folder of the last extraction;</li>
+  <li><kbd>F2</kbd> in the list: edit the track title;</li>
+  <li><kbd>Space</kbd> in the list: check or uncheck the track.</li>
+</ul>
+</section>
+
 <section id="midi" aria-labelledby="midi-h">
-<h2 id="midi-h">15. MIDI</h2>
+<h2 id="midi-h">16. MIDI</h2>
 <p>Files <code>.mid</code>, <code>.midi</code>, <code>.rmi</code>, and <code>.kar</code> play via BASSMIDI.</p>
 
 <h3>SoundFont</h3>
@@ -946,7 +1039,7 @@
 </section>
 
 <section id="scheduler" aria-labelledby="scheduler-h">
-<h2 id="scheduler-h">16. Scheduler</h2>
+<h2 id="scheduler-h">17. Scheduler</h2>
 <p><kbd>Ctrl</kbd>+<kbd>S</kbd> or <strong>File → Schedule</strong> opens scheduled event management.</p>
 
 <h3>Create an event</h3>
@@ -976,7 +1069,7 @@
 </section>
 
 <section id="tray" aria-labelledby="tray-h">
-<h2 id="tray-h">17. System tray</h2>
+<h2 id="tray-h">18. System tray</h2>
 <p><kbd>Ctrl</kbd>+<kbd>H</kbd> or <strong>File → Hide to Tray</strong> hides MediaAccess and places an icon in the system tray.</p>
 
 <h3>Tray icon context menu</h3>
@@ -994,7 +1087,7 @@
 </section>
 
 <section id="hotkeys" aria-labelledby="hotkeys-h">
-<h2 id="hotkeys-h">18. Actions and keyboard shortcuts</h2>
+<h2 id="hotkeys-h">19. Actions and keyboard shortcuts</h2>
 <p>Every keyboard shortcut in MediaAccess can be remapped through a REAPER-style <strong>Actions</strong> window, opened with <kbd>F4</kbd> or via <strong>Tools → Actions</strong>.</p>
 
 <h3>Browsing and filtering</h3>
@@ -1002,8 +1095,11 @@
 <ul>
   <li><strong>Main</strong>: actions of the main window (playback, effects, navigation, etc.);</li>
   <li><strong>Radio</strong>: actions inside the radio browser;</li>
-  <li><strong>YouTube</strong>: actions inside the YouTube dialog;</li>
-  <li><strong>Global</strong>: system-wide shortcuts that work even when MediaAccess doesn't have focus (see below).</li>
+  <li><strong>YouTube</strong>: actions inside the YouTube window;</li>
+  <li><strong>Global</strong>: system-wide shortcuts that work even when MediaAccess doesn't have focus (see below);</li>
+  <li><strong>Books</strong>: actions of DAISY and EPUB book playback;</li>
+  <li><strong>Playlist manager</strong>: actions active while the playlist window has the focus;</li>
+  <li><strong>Audio CD extraction</strong>: actions of the extraction window (see <a href="#cd">section 15</a>).</li>
 </ul>
 <p>A live <strong>Filter</strong> field (substring match on action name or assigned shortcut) lets you locate an action quickly. The <strong>Find shortcut...</strong> button to the right of the filter opens a small dialog: press the combination you're curious about, then <kbd>Tab</kbd> to <strong>Search</strong> — focus jumps to the matching action in the current section.</p>
 
@@ -1024,7 +1120,7 @@
 </section>
 
 <section id="cli" aria-labelledby="cli-h">
-<h2 id="cli-h">19. Command line</h2>
+<h2 id="cli-h">20. Command line</h2>
 <p>MediaAccess accepts a set of switches on its command line, in the style of foobar2000's <em>Foorun</em> tool. When you launch <code>MediaAccess.exe</code> with one or more switches:</p>
 <ul>
   <li>if a MediaAccess instance is already running, the switch is relayed instantly to that instance (via <code>WM_COPYDATA</code>) and the second process exits silently without opening a window;</li>
@@ -1069,7 +1165,7 @@
 </section>
 
 <section id="slots" aria-labelledby="slots-h">
-<h2 id="slots-h">20. Audio slots</h2>
+<h2 id="slots-h">21. Audio slots</h2>
 <p><strong>Audio slots</strong> let you bookmark up to ten favorite output devices and switch between them with a single keystroke, without opening Options. Ideal for instant switching between your headphones, your speakers, your capture card, your USB interface, or a virtual loopback device.</p>
 <p>Each slot remembers a device <strong>by name</strong>, not by BASS index. You can unplug and replug your USB devices in a different order: the bindings remain valid as long as the name is recognized.</p>
 
@@ -1107,8 +1203,8 @@
 </section>
 
 <section id="options" aria-labelledby="options-h">
-<h2 id="options-h">21. Options reference</h2>
-<p><kbd>Ctrl</kbd>+<kbd>,</kbd> or <strong>Tools → Options</strong> opens preferences. Twelve tabs. (Keyboard shortcuts are no longer configured here: use <kbd>F4</kbd> or <strong>Tools → Actions</strong>, see <a href="#hotkeys">section 17</a>.)</p>
+<h2 id="options-h">22. Options reference</h2>
+<p><kbd>Ctrl</kbd>+<kbd>,</kbd> or <strong>Tools → Options</strong> opens preferences. Twelve tabs. (Keyboard shortcuts are no longer configured here: use <kbd>F4</kbd> or <strong>Tools → Actions</strong>, see <a href="#hotkeys">section 19</a>.)</p>
 <p>To move between tabs from the keyboard, use <kbd>Ctrl</kbd>+<kbd>Tab</kbd> (next tab) and <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Tab</kbd> (previous tab); navigation wraps from the last tab to the first and back, and the screen reader announces the new tab name.</p>
 
 <h3>Playback tab</h3>
@@ -1133,7 +1229,7 @@
 </ul>
 
 <h3>Recording tab</h3>
-<p>Output folder, filename template, format (WAV/MP3/OGG/FLAC), bitrate. See <a href="#recording">section 13</a>.</p>
+<p>Output folder, filename template, format (WAV/MP3/OGG/FLAC), bitrate. See <a href="#recording">section 14</a>.</p>
 
 <h3>Downloads tab</h3>
 <ul>
@@ -1150,14 +1246,14 @@
   <li><strong>Speak effect value when adjusted</strong> (on by default)</li>
   <li><strong>Announce YouTube effects activation</strong> (on by default) — when a YouTube video plays in hybrid mode, playback starts via libmpv (no effects) then swaps to BASS once the download completes. This announcement tells you when the BASS effects (tempo, pitch, EQ, etc.) become available. Uncheck if you find the announcement repetitive.</li>
   <li><strong>Announce position when seeking</strong> (off by default) — speaks the new time when you move through the track.</li>
-  <li><strong>Speak subtitles</strong> (off by default) — reads each subtitle line aloud as it appears. You can turn it on or off at any time during playback (takes effect immediately). See <a href="#video">section 5</a>. For YouTube videos, the "Read YouTube subtitles aloud" box (YouTube tab) decides.</li>
+  <li><strong>Speak subtitles</strong> (off by default) — reads each subtitle line aloud as it appears. You can turn it on or off at any time during playback (takes effect immediately). See <a href="#video">section 6</a>. For YouTube videos, the "Read YouTube subtitles aloud" box (YouTube tab) decides.</li>
   <li><strong>Read subtitles with a neural voice (Edge, online)</strong> — instead of the screen reader, uses a Microsoft Edge neural voice. Related settings: <strong>voice</strong> (with a <strong>Preview</strong> button), <strong>language filter</strong> and <strong>voice rate</strong>.</li>
   <li><strong>Audio volume while a subtitle is spoken</strong> — lowers the media sound (video or audio) while a subtitle is being read. 100% = no reduction, 0% = media muted during the voice.</li>
   <li><strong>Subtitle voice volume</strong> — sets the volume of the voice itself (50% to 150%), independently of the background sound. Useful if the voice covers the original too much: lower it instead of lowering the media.</li>
 </ul>
 
 <h3>Movement tab</h3>
-<p>Checkboxes to enable each movement unit: 1 s, 5 s, 10 s, 30 s, 1 min, 5 min, 10 min, 30 min, 1 h, 1 track, 5 tracks, 10 tracks, 1 chapter, 1 subtitle. By default, 5 s and 1 subtitle are enabled. The "1 subtitle" unit is only offered during video playback (see <a href="#video">section 5</a>).</p>
+<p>Checkboxes to enable each movement unit: 1 s, 5 s, 10 s, 30 s, 1 min, 5 min, 10 min, 30 min, 1 h, 1 track, 5 tracks, 10 tracks, 1 chapter, 1 subtitle. By default, 5 s and 1 subtitle are enabled. The "1 subtitle" unit is only offered during video playback (see <a href="#video">section 6</a>).</p>
 
 <h3>Effects tab</h3>
 <p>Checkboxes to add Volume, Pitch, Tempo, Rate to the effects slider, choice of rate step (0.01× or semitone), checkboxes to enable each DSP effect, reverb algorithm selection, and impulse response file path for convolution reverb.</p>
@@ -1209,11 +1305,11 @@
 </ul>
 
 <h3>MIDI tab</h3>
-<p>See <a href="#midi">section 14</a>.</p>
+<p>See <a href="#midi">section 16</a>.</p>
 </section>
 
 <section id="accessibility" aria-labelledby="accessibility-h">
-<h2 id="accessibility-h">22. Accessibility</h2>
+<h2 id="accessibility-h">23. Accessibility</h2>
 
 <h3>Supported screen readers</h3>
 <p>MediaAccess auto-detects the active screen reader:</p>
@@ -1264,7 +1360,7 @@
 </section>
 
 <section id="updates" aria-labelledby="updates-h">
-<h2 id="updates-h">23. Updates</h2>
+<h2 id="updates-h">24. Updates</h2>
 
 <h3>Automatic check</h3>
 <p>On startup, MediaAccess checks in the background for a new version on GitHub (option <strong>Options → Playback → Check for updates on startup</strong>, on by default).</p>
@@ -1281,7 +1377,7 @@
 </section>
 
 <section id="troubleshooting" aria-labelledby="troubleshooting-h">
-<h2 id="troubleshooting-h">24. Troubleshooting</h2>
+<h2 id="troubleshooting-h">25. Troubleshooting</h2>
 
 <h3>Log file</h3>
 <p>MediaAccess writes a log to:</p>
@@ -1320,7 +1416,7 @@
 </section>
 
 <section id="books" aria-labelledby="books-h">
-<h2 id="books-h">25. DAISY book playback</h2>
+<h2 id="books-h">26. DAISY book playback</h2>
 
 <p>MediaAccess includes a built-in reader for DAISY accessible audiobooks, comparable to dedicated apps such as Victor Reader or VoiceDream. Books can be opened individually or organized in a library, and all the usual MediaAccess transport, tempo, pitch, EQ, and announcement shortcuts apply during reading.</p>
 
@@ -1436,7 +1532,7 @@
 </section>
 
 <section id="sleep-timer" aria-labelledby="sleep-timer-h">
-<h2 id="sleep-timer-h">26. Sleep timer</h2>
+<h2 id="sleep-timer-h">27. Sleep timer</h2>
 
 <p>The sleep timer automatically stops playback after a duration you choose — useful for falling asleep to an audiobook, a podcast, a radio stream, or a movie without having to get back up to turn the sound off. It works with any active playback engine: BASS (audio), libmpv (video), the DAISY/EPUB book player, and the SAPI text-to-speech engine for text-only books.</p>
 
@@ -1457,7 +1553,7 @@
 </section>
 
 <section id="shortcuts" aria-labelledby="shortcuts-h">
-<h2 id="shortcuts-h">27. Keyboard shortcuts reference</h2>
+<h2 id="shortcuts-h">28. Keyboard shortcuts reference</h2>
 
 <h3>File</h3>
 <table>
@@ -1473,6 +1569,7 @@
 <tr><td><kbd>Ctrl</kbd>+<kbd>R</kbd></td><td>Radio</td></tr>
 <tr><td><kbd>Ctrl</kbd>+<kbd>D</kbd></td><td>Add stream to favorites</td></tr>
 <tr><td><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>P</kbd></td><td>Podcasts</td></tr>
+<tr><td><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>X</kbd></td><td>Extract audio CD</td></tr>
 <tr><td><kbd>Ctrl</kbd>+<kbd>S</kbd></td><td>Schedule</td></tr>
 <tr><td><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>H</kbd></td><td>Song history</td></tr>
 <tr><td><kbd>Ctrl</kbd>+<kbd>H</kbd></td><td>Hide to system tray</td></tr>
@@ -1575,6 +1672,23 @@
 <tr><td><kbd>9</kbd></td><td>Duration</td></tr>
 <tr><td><kbd>0</kbd></td><td>Filename</td></tr>
 <tr><td><kbd>Shift</kbd>+digit</td><td>Show the same tag in a window</td></tr>
+</tbody>
+</table>
+
+<h3>Audio CD extraction</h3>
+<table>
+<caption>Shortcuts of the extraction window</caption>
+<thead><tr><th>Shortcut</th><th>Action</th></tr></thead>
+<tbody>
+<tr><td><kbd>Ctrl</kbd>+<kbd>R</kbd></td><td>Extract / Stop</td></tr>
+<tr><td><kbd>Ctrl</kbd>+<kbd>I</kbd></td><td>Announce the progress</td></tr>
+<tr><td><kbd>F5</kbd></td><td>Look the disc up again</td></tr>
+<tr><td><kbd>Ctrl</kbd>+<kbd>M</kbd></td><td>Choose another edition</td></tr>
+<tr><td><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>R</kbd></td><td>Extract again the tracks not confirmed, in Secure mode</td></tr>
+<tr><td><kbd>Ctrl</kbd>+<kbd>L</kbd></td><td>Open the log of the last extraction</td></tr>
+<tr><td><kbd>Ctrl</kbd>+<kbd>O</kbd></td><td>Open the folder of the last extraction</td></tr>
+<tr><td><kbd>F2</kbd></td><td>Edit the track title (in the list)</td></tr>
+<tr><td><kbd>Space</kbd></td><td>Check or uncheck the track (in the list)</td></tr>
 </tbody>
 </table>
 

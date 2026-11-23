@@ -1569,6 +1569,17 @@ bool CdOffsetPut(const std::string& model, int offset, bool detected) {
     return rc == SQLITE_DONE;
 }
 
+bool CdOffsetDelete(const std::string& model) {
+    if (!g_db || model.empty()) return false;
+    sqlite3_stmt* st = nullptr;
+    if (sqlite3_prepare_v2(g_db, "DELETE FROM cd_drive_offsets WHERE drive_model=?;",
+                           -1, &st, nullptr) != SQLITE_OK) return false;
+    sqlite3_bind_text(st, 1, model.c_str(), -1, SQLITE_TRANSIENT);
+    int rc = sqlite3_step(st);
+    sqlite3_finalize(st);
+    return rc == SQLITE_DONE;
+}
+
 std::vector<std::wstring> GetBookLibraryFolders() {
     std::vector<std::wstring> out;
     if (!g_db) return out;

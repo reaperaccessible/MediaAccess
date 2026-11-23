@@ -201,6 +201,7 @@
     <li><a href="#radio">Radio internet</a></li>
     <li><a href="#podcasts">Podcasts</a></li>
     <li><a href="#enregistrement">Enregistrement</a></li>
+    <li><a href="#cd">CD audio : lecture et extraction</a></li>
     <li><a href="#midi">MIDI</a></li>
     <li><a href="#planificateur">Planificateur</a></li>
     <li><a href="#tray">Zone de notification</a></li>
@@ -931,8 +932,100 @@
 </div>
 </section>
 
+<section id="cd" aria-labelledby="cd-h">
+<h2 id="cd-h">15. CD audio : lecture et extraction</h2>
+<p>MediaAccess lit les CD audio comme n'importe quel fichier, et sait aussi les extraire : il copie les pistes du disque en fichiers WAV, FLAC, MP3, Ogg Vorbis ou Opus, avec les noms de l'album et des pistes, la pochette, et une vérification de l'exactitude de la copie. Il faut un lecteur de CD ou de DVD, intégré ou branché en USB.</p>
+
+<h3>Écouter un CD</h3>
+<p>Windows montre chaque piste d'un CD audio comme un petit fichier, <code>Track01.cda</code>, <code>Track02.cda</code>… dans le lecteur (par exemple <code>E:\</code>). Ouvrez l'une d'elles avec <kbd>Ctrl</kbd>+<kbd>O</kbd>, depuis l'Explorateur ou par la ligne de commande : MediaAccess charge alors <strong>toutes les pistes du disque</strong>, dans l'ordre, et commence par celle que vous avez choisie, comme un lecteur de CD. <kbd>B</kbd> et <kbd>Z</kbd> passent à la piste suivante ou précédente ; l'avance, le retour, le volume, les effets et les annonces du temps fonctionnent comme pour un fichier.</p>
+
+<h3>La fenêtre d'extraction</h3>
+<p><strong>Fichier → Extraire un CD audio</strong> (<kbd>Ctrl</kbd>+<kbd>Maj</kbd>+<kbd>X</kbd>) ouvre la fenêtre d'extraction. Son titre dit d'emblée ce qui est dans le lecteur, par exemple « Extraire un CD audio : lecteur E, 11 pistes, 48 minutes », et le focus arrive sur la première piste. Si aucun lecteur n'est branché, un message le dit et la fenêtre ne s'ouvre pas.</p>
+<p>La fenêtre ne bloque pas le reste de MediaAccess. <kbd>Échap</kbd> ou <strong>Fermer</strong> la cache seulement : une extraction en cours continue, et ses annonces restent dites. <kbd>Ctrl</kbd>+<kbd>Maj</kbd>+<kbd>X</kbd> la rouvre telle que vous l'avez laissée.</p>
+<p>De haut en bas, avec <kbd>Tab</kbd> :</p>
+<ul>
+  <li><strong>Lecteur</strong> : le lecteur à utiliser, si vous en avez plusieurs ;</li>
+  <li><strong>Album</strong>, <strong>Artiste de l'album</strong>, <strong>Année</strong>, <strong>Genre</strong>, <strong>Disque</strong> et <strong>sur</strong> (pour un coffret de plusieurs CD), la case <strong>Compilation (artistes variés)</strong> ;</li>
+  <li><strong>Pistes</strong> : la liste des pistes, chacune avec une case à cocher et sa durée, par exemple « 01 - Our House, 4:25, coché » ;</li>
+  <li><strong>Titre de la piste</strong> et <strong>Artiste de la piste</strong> : ceux de la piste choisie dans la liste ;</li>
+  <li><strong>Format</strong> et <strong>Qualité</strong> ;</li>
+  <li><strong>Dossier de sortie</strong> et <strong>Parcourir</strong> ;</li>
+  <li>les boutons <strong>Extraire</strong>, <strong>Arrêter</strong>, <strong>Éjecter</strong>, <strong>Éditions</strong> et <strong>Options</strong> ;</li>
+  <li><strong>État</strong> : le dernier message, en lecture seule.</li>
+</ul>
+<p>Quand vous insérez un CD pendant que la fenêtre est ouverte, MediaAccess dit « CD inséré dans le lecteur E, 11 pistes », et si vous êtes dans la liste des pistes, la première piste est choisie ; la fenêtre empêche alors Windows de proposer son exécution automatique par-dessus. <strong>Éjecter</strong> ouvre le tiroir (« Tiroir ouvert ») et la liste se vide ; un nouvel appui le referme, sauf sur les lecteurs fins ou USB qui ne savent pas rentrer leur tiroir : MediaAccess dit alors « Refermez le tiroir à la main ».</p>
+
+<h3>Les noms de l'album et des pistes</h3>
+<p>Dès qu'un CD est là, MediaAccess cherche ses noms, sans bloquer la fenêtre, dans cet ordre :</p>
+<ol>
+  <li>sa propre mémoire : un disque déjà vu retrouve son édition et vos corrections, même sans Internet ;</li>
+  <li><strong>MusicBrainz</strong>, la grande base libre des disques ;</li>
+  <li>le <strong>CD-Text</strong> gravé sur le disque, quand il y en a un ;</li>
+  <li><strong>GnuDB</strong>, en secours, quand ni MusicBrainz ni le CD-Text ne connaissent le disque.</li>
+</ol>
+<p>MediaAccess dit d'où viennent les noms, par exemple « Trouvé sur MusicBrainz : I Think of You, Gregory Charles, 2006 », puis les pistes prennent leurs titres. Un disque que personne ne connaît garde « Piste 1 », « Piste 2 »… : MediaAccess le dit, et vous pouvez nommer les pistes vous-même.</p>
+<p>Tous les noms se corrigent : les champs de l'album, et pour une piste soit les champs <strong>Titre de la piste</strong> et <strong>Artiste de la piste</strong>, soit <kbd>F2</kbd> dans la liste, qui permet de modifier le titre seul, sans son numéro ; <kbd>Entrée</kbd> valide, <kbd>Échap</kbd> annule. Vos corrections sont gardées pour ce disque. Si les noms arrivent alors que vous avez déjà commencé à corriger, vos corrections restent : MediaAccess le dit, et <kbd>Ctrl</kbd>+<kbd>M</kbd> permet toujours de prendre les noms trouvés.</p>
+<p>Un même disque existe parfois en plusieurs éditions (pays, années, rééditions). Quand elles se ressemblent, la première est choisie et MediaAccess le dit ; quand elles diffèrent par leurs pistes, la fenêtre <strong>Éditions de ce disque</strong> s'ouvre d'elle-même. <kbd>Ctrl</kbd>+<kbd>M</kbd> ou le bouton <strong>Éditions</strong> l'ouvre à tout moment : choisissez une édition et validez avec <kbd>Entrée</kbd>. Ses boutons :</p>
+<ul>
+  <li><strong>Ouvrir sur MusicBrainz</strong> : la page de l'édition choisie, dans le navigateur ;</li>
+  <li><strong>Chercher de nouveau</strong> : relance la recherche sans la mémoire (comme <kbd>F5</kbd> dans la fenêtre d'extraction) ;</li>
+  <li><strong>Soumettre ce disque à MusicBrainz</strong> : la page où ajouter à MusicBrainz un disque qu'il ne connaît pas.</li>
+</ul>
+
+<h3>Choisir les pistes, le format et le dossier</h3>
+<p>Toutes les pistes sont cochées ; <kbd>Espace</kbd> coche ou décoche celle de la liste. Les pistes de données d'un CD enrichi ne sont jamais montrées.</p>
+<p>Formats et qualités proposés (la première qualité de chaque liste est le réglage par défaut) :</p>
+<ul>
+  <li><strong>WAV</strong> : non compressé, 16 bits, 44,1 kHz, comme sur le CD ;</li>
+  <li><strong>FLAC</strong> : sans perte, plus petit que le WAV ; niveau 5 par défaut, 8 pour les fichiers les plus petits, 0 pour aller le plus vite ;</li>
+  <li><strong>MP3</strong> : VBR V0, environ 245 kbps, par défaut, puis V2, V4 et des débits fixes de 320 à 128 kbps ;</li>
+  <li><strong>Ogg Vorbis</strong> : qualité 6, environ 192 kbps, par défaut, de 4 à 10 ;</li>
+  <li><strong>Opus</strong> : 160 kbps par défaut, de 96 à 256 kbps.</li>
+</ul>
+<p>Le <strong>Dossier de sortie</strong> est par défaut votre dossier Musique ; <strong>Parcourir</strong> en choisit un autre. MediaAccess y crée un dossier par album, par défaut <code>Artiste de l'album\Album (année)</code>, et nomme les fichiers <code>01 - Titre</code> ; un coffret donne <code>1-01 - Titre</code>, une compilation <code>01 - Artiste - Titre</code>. Les caractères que Windows refuse dans un nom deviennent des tirets. Ces modèles se changent dans les options.</p>
+<p>Chaque fichier reçoit ses étiquettes (titre, artiste, album, artiste de l'album, année, numéros de piste et de disque, genre, ISRC, identifiants MusicBrainz) et, quand MusicBrainz en a une, la pochette de l'album, qui est aussi enregistrée à côté sous le nom <code>folder.jpg</code>. Un fichier <code>.cue</code> et une liste de lecture <code>.m3u8</code> sont écrits dans le dossier de l'album ; MediaAccess relit le fichier <code>.cue</code> comme un album.</p>
+
+<h3>Extraire</h3>
+<p><strong>Extraire</strong> (<kbd>Ctrl</kbd>+<kbd>R</kbd>) copie les pistes cochées. Si des fichiers du même nom existent déjà, MediaAccess demande avant de les remplacer. Un morceau de CD qui joue depuis le même lecteur est arrêté : un lecteur ne lit qu'une chose à la fois.</p>
+<p>Au début de chaque piste, MediaAccess dit par exemple « Piste 3 sur 11 : I Put My Trust in You ». <kbd>Ctrl</kbd>+<kbd>I</kbd> donne la progression à la demande : « Piste 4 sur 11, 63 %, total 31 %, environ 4 minutes restantes ». À la fin, le son de fin de téléchargement joue et MediaAccess dit le bilan, par exemple « Extraction terminée : 11 pistes, toutes exactes ».</p>
+<p><strong>Arrêter</strong> (ou <kbd>Ctrl</kbd>+<kbd>R</kbd> pendant l'extraction) s'arrête proprement : chaque fichier est écrit sous un nom provisoire et ne prend son vrai nom qu'une fois complet, si bien qu'un arrêt, une erreur de lecture ou un disque plein ne laissent jamais de fichier tronqué. Pendant une extraction, <strong>Éjecter</strong> est refusé ; quitter MediaAccess demande confirmation, puis arrête l'extraction proprement.</p>
+
+<h3>Vérifier la copie : AccurateRip et le mode Sécurisé</h3>
+<p>Un lecteur de CD peut mal lire un passage sans rien signaler, surtout sur un disque rayé. MediaAccess le détecte de deux façons.</p>
+<p><strong>AccurateRip</strong> est une base où des millions de personnes ont enregistré une empreinte de chaque piste de leurs CD. MediaAccess calcule l'empreinte de chaque piste extraite et la compare : une piste <strong>exacte</strong> est identique, au bit près, à celle des autres ; le journal donne la confiance, c'est-à-dire le nombre de personnes qui ont obtenu la même. Le bilan de fin dit « toutes exactes », ou le nombre de pistes non confirmées, ou « disque absent d'AccurateRip », ou « non vérifiée » sans Internet. La vérification ne bloque jamais l'extraction.</p>
+<p>Pour que les empreintes concordent, MediaAccess doit connaître le <strong>décalage de lecture</strong> de votre lecteur, une petite avance ou un petit retard propre à chaque modèle. Il le prend seul dans la liste officielle d'AccurateRip et le mémorise. Pour un lecteur absent de la liste, utilisez <strong>Détecter</strong> dans les options, avec un CD connu d'AccurateRip : la détection prend environ deux minutes, vous pouvez continuer à travailler, et MediaAccess dit le résultat, par exemple « Décalage de lecture détecté : +96 échantillons, confirmé sur deux pistes ».</p>
+<p>Le <strong>mode Sécurisé</strong> (dans les options) lit chaque piste deux fois et compare les deux lectures ; un passage lu différemment est relu jusqu'à ce que deux lectures concordent. Il est plus lent. Un passage qui n'a jamais concordé est signalé dès la fin de la piste, par exemple « Attention : piste 7, 4 blocs suspects ». Le mode Rapide, par défaut, lit une seule fois : quand AccurateRip ne confirme pas certaines pistes, la fin de l'extraction propose <kbd>Ctrl</kbd>+<kbd>Maj</kbd>+<kbd>R</kbd>, qui coche seulement ces pistes et les réextrait en mode Sécurisé.</p>
+<p>Chaque extraction écrit un <strong>journal</strong>, <code>Album.log</code>, dans le dossier de l'album, en anglais comme le veut l'usage : le lecteur, son décalage, le mode, le format, et pour chaque piste ses sommes de contrôle et le résultat d'AccurateRip. <kbd>Ctrl</kbd>+<kbd>L</kbd> ouvre le journal de la dernière extraction, <kbd>Ctrl</kbd>+<kbd>O</kbd> son dossier.</p>
+
+<h3>Les options d'extraction</h3>
+<p>Le bouton <strong>Options</strong> ouvre :</p>
+<ul>
+  <li><strong>Nom du dossier</strong> et <strong>Nom du fichier</strong> : les modèles, avec <code>%albumartist%</code>, <code>%artist%</code>, <code>%album%</code>, <code>%year%</code>, <code>%track%</code>, <code>%tracktotal%</code>, <code>%title%</code>, <code>%disc%</code>, <code>%disctotal%</code>, <code>%genre%</code> et <code>%label%</code> ; une barre oblique inverse crée un sous-dossier. Le champ <strong>Aperçu</strong> montre le résultat pour la première piste pendant que vous tapez, et le champ <strong>Noms utilisables</strong> rappelle la liste ;</li>
+  <li><strong>Intégrer la pochette aux fichiers</strong>, <strong>Enregistrer la pochette en folder.jpg</strong>, <strong>Écrire un fichier CUE</strong>, <strong>Écrire une liste de lecture M3U8</strong> : cochées par défaut ;</li>
+  <li><strong>Éjecter le disque à la fin</strong> ;</li>
+  <li><strong>Mode d'extraction</strong> : Rapide ou Sécurisé ;</li>
+  <li><strong>Décalage de lecture du lecteur</strong> : le décalage mémorisé pour ce lecteur, vide tant qu'aucun n'est connu ; tapez un nombre d'échantillons pour le changer, ou videz le champ pour revenir au réglage automatique ; <strong>Détecter</strong> le trouve avec un CD connu d'AccurateRip ;</li>
+  <li><strong>Vérifier avec AccurateRip</strong> et <strong>Écrire un journal</strong> : cochées par défaut ;</li>
+  <li><strong>Valeurs par défaut</strong> remet tous ces réglages comme à l'origine.</li>
+</ul>
+
+<h3>Raccourcis de la fenêtre d'extraction</h3>
+<p>Ils se changent dans la fenêtre Actions (<kbd>F4</kbd>), catégorie <strong>Extraction de CD audio</strong>. La touche <kbd>Applications</kbd> (ou <kbd>Maj</kbd>+<kbd>F10</kbd>) sur la liste des pistes ouvre un menu avec ces actions et leurs raccourcis.</p>
+<ul>
+  <li><kbd>Ctrl</kbd>+<kbd>R</kbd> : extraire, ou arrêter pendant une extraction ;</li>
+  <li><kbd>Ctrl</kbd>+<kbd>I</kbd> : annoncer la progression ;</li>
+  <li><kbd>F5</kbd> : chercher de nouveau le disque ;</li>
+  <li><kbd>Ctrl</kbd>+<kbd>M</kbd> : choisir une autre édition ;</li>
+  <li><kbd>Ctrl</kbd>+<kbd>Maj</kbd>+<kbd>R</kbd> : réextraire en mode sécurisé les pistes non confirmées ;</li>
+  <li><kbd>Ctrl</kbd>+<kbd>L</kbd> : ouvrir le journal de la dernière extraction ;</li>
+  <li><kbd>Ctrl</kbd>+<kbd>O</kbd> : ouvrir le dossier de la dernière extraction ;</li>
+  <li><kbd>F2</kbd> dans la liste : modifier le titre de la piste ;</li>
+  <li><kbd>Espace</kbd> dans la liste : cocher ou décocher la piste.</li>
+</ul>
+</section>
+
 <section id="midi" aria-labelledby="midi-h">
-<h2 id="midi-h">15. MIDI</h2>
+<h2 id="midi-h">16. MIDI</h2>
 <p>Les fichiers <code>.mid</code>, <code>.midi</code>, <code>.rmi</code> et <code>.kar</code> sont lus via BASSMIDI.</p>
 
 <h3>SoundFont</h3>
@@ -947,7 +1040,7 @@
 </section>
 
 <section id="planificateur" aria-labelledby="planificateur-h">
-<h2 id="planificateur-h">16. Planificateur</h2>
+<h2 id="planificateur-h">17. Planificateur</h2>
 <p><kbd>Ctrl</kbd>+<kbd>S</kbd> ou <strong>Fichier → Planificateur</strong> ouvre la gestion des événements planifiés.</p>
 
 <h3>Créer un événement</h3>
@@ -977,7 +1070,7 @@
 </section>
 
 <section id="tray" aria-labelledby="tray-h">
-<h2 id="tray-h">17. Zone de notification</h2>
+<h2 id="tray-h">18. Zone de notification</h2>
 <p><kbd>Ctrl</kbd>+<kbd>H</kbd> ou <strong>Fichier → Réduire dans la zone de notification</strong> cache MediaAccess et place une icône dans la zone de notification.</p>
 
 <h3>Menu contextuel de l'icône</h3>
@@ -995,7 +1088,7 @@
 </section>
 
 <section id="hotkeys" aria-labelledby="hotkeys-h">
-<h2 id="hotkeys-h">18. Actions et raccourcis</h2>
+<h2 id="hotkeys-h">19. Actions et raccourcis</h2>
 <p>MediaAccess permet de réassigner librement tous les raccourcis clavier via une fenêtre <strong>Actions</strong> de style REAPER, accessible par <kbd>F4</kbd> ou via <strong>Outils → Actions</strong>.</p>
 
 <h3>Parcourir et filtrer</h3>
@@ -1003,8 +1096,11 @@
 <ul>
   <li><strong>Principale</strong> : actions de la fenêtre principale (lecture, effets, navigation, etc.) ;</li>
   <li><strong>Radio</strong> : actions du navigateur de radio ;</li>
-  <li><strong>YouTube</strong> : actions du dialogue YouTube ;</li>
-  <li><strong>Globale</strong> : raccourcis système actifs même quand MediaAccess n'a pas le focus (voir plus bas).</li>
+  <li><strong>YouTube</strong> : actions de la fenêtre YouTube ;</li>
+  <li><strong>Globale</strong> : raccourcis système actifs même quand MediaAccess n'a pas le focus (voir plus bas) ;</li>
+  <li><strong>Livres</strong> : actions de la lecture des livres DAISY et EPUB ;</li>
+  <li><strong>Gestionnaire de listes de lecture</strong> : actions actives quand la fenêtre des listes de lecture a le focus ;</li>
+  <li><strong>Extraction de CD audio</strong> : actions de la fenêtre d'extraction (voir <a href="#cd">section 15</a>).</li>
 </ul>
 <p>Un champ <strong>Filtre</strong> en direct (correspondance partielle sur le nom d'action ou sur le raccourci) permet de retrouver rapidement une action. Le bouton <strong>Rechercher un raccourci...</strong>, à droite du filtre, ouvre une petite boîte : appuyez sur la combinaison de votre choix, puis <kbd>Tab</kbd> jusqu'à <strong>Rechercher</strong> — le focus saute sur l'action correspondante dans la section courante.</p>
 
@@ -1025,7 +1121,7 @@
 </section>
 
 <section id="cli" aria-labelledby="cli-h">
-<h2 id="cli-h">19. Ligne de commande</h2>
+<h2 id="cli-h">20. Ligne de commande</h2>
 <p>MediaAccess accepte un ensemble d'options sur sa ligne de commande, à la manière de l'outil <em>Foorun</em> de foobar2000. Quand vous lancez <code>MediaAccess.exe</code> avec une ou plusieurs options&nbsp;:</p>
 <ul>
   <li>si une instance de MediaAccess tourne déjà, l'option est transmise instantanément à cette instance (via <code>WM_COPYDATA</code>) et le second processus se termine sans afficher de fenêtre&nbsp;;</li>
@@ -1070,7 +1166,7 @@
 </section>
 
 <section id="slots" aria-labelledby="slots-h">
-<h2 id="slots-h">20. Slots audio</h2>
+<h2 id="slots-h">21. Slots audio</h2>
 <p>Les <strong>slots audio</strong> permettent d'enregistrer jusqu'à dix périphériques de sortie favoris et de basculer entre eux d'une simple frappe, sans passer par les Options. Idéal pour alterner instantanément entre votre casque, vos enceintes, votre carte de capture, votre interface USB ou un périphérique de loopback virtuel.</p>
 <p><strong>Changement automatique de périphérique :</strong> MediaAccess suit automatiquement le périphérique de sortie. Si le périphérique en cours disparaît (par exemple vous débranchez votre casque), ou si vous changez le périphérique par défaut de Windows pendant la lecture, le son bascule tout seul sur le bon périphérique au lieu de se figer — la position et l'état (lecture/pause) sont conservés, et MediaAccess annonce brièvement « Périphérique audio modifié ». Si vous aviez choisi un périphérique précis qui disparaît, MediaAccess bascule temporairement sur le périphérique par défaut puis revient au vôtre dès qu'il réapparaît ; si aucun périphérique n'est disponible, la lecture se met en pause avec une annonce. Ce comportement se règle via la case « Suivre automatiquement le périphérique audio par défaut » dans <strong>Options → Carte son</strong> (activée par défaut). La vidéo (MPV) suit le périphérique par défaut d'elle-même, et le basculement est différé pendant un enregistrement.</p>
 <p>Chaque slot mémorise un périphérique <strong>par son nom</strong>, et non par son index BASS. Vous pouvez donc débrancher puis rebrancher vos périphériques USB dans un autre ordre&nbsp;: les associations restent valides tant que le nom est reconnu.</p>
@@ -1104,8 +1200,8 @@
 </section>
 
 <section id="options" aria-labelledby="options-h">
-<h2 id="options-h">21. Options détaillées</h2>
-<p><kbd>Ctrl</kbd>+<kbd>,</kbd> ou <strong>Outils → Options</strong> ouvre les préférences. Douze onglets. (Les raccourcis clavier ne sont plus configurés ici : utilisez <kbd>F4</kbd> ou <strong>Outils → Actions</strong>, voir <a href="#hotkeys">section 17</a>.)</p>
+<h2 id="options-h">22. Options détaillées</h2>
+<p><kbd>Ctrl</kbd>+<kbd>,</kbd> ou <strong>Outils → Options</strong> ouvre les préférences. Douze onglets. (Les raccourcis clavier ne sont plus configurés ici : utilisez <kbd>F4</kbd> ou <strong>Outils → Actions</strong>, voir <a href="#hotkeys">section 19</a>.)</p>
 <p>Pour passer d'un onglet à l'autre au clavier, utilisez <kbd>Ctrl</kbd>+<kbd>Tab</kbd> (onglet suivant) et <kbd>Ctrl</kbd>+<kbd>Maj</kbd>+<kbd>Tab</kbd> (onglet précédent) ; la navigation boucle du dernier onglet au premier et inversement, et le lecteur d'écran annonce le nom du nouvel onglet.</p>
 
 <h3>Onglet Lecture</h3>
@@ -1130,7 +1226,7 @@
 </ul>
 
 <h3>Onglet Enregistrement</h3>
-<p>Dossier de sortie, modèle de nom de fichier, format (WAV/MP3/OGG/FLAC), débit. Voir <a href="#enregistrement">section 13</a>.</p>
+<p>Dossier de sortie, modèle de nom de fichier, format (WAV/MP3/OGG/FLAC), débit. Voir <a href="#enregistrement">section 14</a>.</p>
 
 <h3>Onglet Téléchargements</h3>
 <ul>
@@ -1147,14 +1243,14 @@
   <li><strong>Annoncer la valeur d'effet lors des ajustements</strong> (activé par défaut)</li>
   <li><strong>Annoncer l'activation des effets YouTube</strong> (activé par défaut) — quand une vidéo YouTube est lue en mode hybride, la lecture commence d'abord via libmpv (sans effets) puis bascule vers BASS dès que le téléchargement est terminé. Cette annonce vous indique le moment où les effets BASS (tempo, hauteur, EQ, etc.) deviennent disponibles. Décochez si vous trouvez l'annonce répétitive.</li>
   <li><strong>Annoncer la position lors d'un déplacement</strong> (désactivé par défaut) — énonce le nouveau temps quand vous vous déplacez dans la piste.</li>
-  <li><strong>Énoncer les sous-titres</strong> (désactivé par défaut) — lit chaque ligne de sous-titre à mesure qu'elle apparaît. Vous pouvez l'activer ou la désactiver à tout moment pendant la lecture (effet immédiat). Voir <a href="#video">section 5</a>. Pour les vidéos YouTube, c'est la case « Lire les sous-titres YouTube à voix haute » (onglet YouTube) qui décide.</li>
+  <li><strong>Énoncer les sous-titres</strong> (désactivé par défaut) — lit chaque ligne de sous-titre à mesure qu'elle apparaît. Vous pouvez l'activer ou la désactiver à tout moment pendant la lecture (effet immédiat). Voir <a href="#video">section 6</a>. Pour les vidéos YouTube, c'est la case « Lire les sous-titres YouTube à voix haute » (onglet YouTube) qui décide.</li>
   <li><strong>Lire les sous-titres avec une voix neuronale (Edge, en ligne)</strong> — au lieu du lecteur d'écran, utilise une voix neuronale Microsoft Edge. Réglages associés : <strong>voix</strong> (avec un bouton <strong>Aperçu</strong>), <strong>filtre de langue</strong> et <strong>débit de la voix</strong>.</li>
   <li><strong>Volume de l'audio pendant l'énoncé du sous-titre</strong> — baisse le son du média (vidéo ou audio) pendant qu'un sous-titre est lu. 100 % = aucune baisse, 0 % = média coupé pendant la voix.</li>
   <li><strong>Volume de la voix des sous-titres</strong> — règle le volume de la voix elle-même (50 % à 150 %), indépendamment du fond sonore. Pratique si la voix couvre trop l'original : baissez-la plutôt que de baisser le média.</li>
 </ul>
 
 <h3>Onglet Déplacement</h3>
-<p>Cases à cocher pour activer chaque unité de déplacement : 1 s, 5 s, 10 s, 30 s, 1 min, 5 min, 10 min, 30 min, 1 h, 1 piste, 5 pistes, 10 pistes, 1 chapitre, 1 sous-titre. Par défaut, 5 s et 1 sous-titre sont activées. L'unité « 1 sous-titre » n'est offerte que pendant la lecture vidéo (voir <a href="#video">section 5</a>).</p>
+<p>Cases à cocher pour activer chaque unité de déplacement : 1 s, 5 s, 10 s, 30 s, 1 min, 5 min, 10 min, 30 min, 1 h, 1 piste, 5 pistes, 10 pistes, 1 chapitre, 1 sous-titre. Par défaut, 5 s et 1 sous-titre sont activées. L'unité « 1 sous-titre » n'est offerte que pendant la lecture vidéo (voir <a href="#video">section 6</a>).</p>
 
 <h3>Onglet Effets</h3>
 <p>Cases pour ajouter Volume, Hauteur, Tempo, Vitesse au curseur d'effets, choix du pas de vitesse (0,01× ou demi-ton), cases pour activer chaque effet DSP, sélection de l'algorithme de réverbération, et chemin du fichier d'impulsion pour la réverbération à convolution.</p>
@@ -1206,11 +1302,11 @@
 </ul>
 
 <h3>Onglet MIDI</h3>
-<p>Voir <a href="#midi">section 14</a>.</p>
+<p>Voir <a href="#midi">section 16</a>.</p>
 </section>
 
 <section id="accessibilite" aria-labelledby="accessibilite-h">
-<h2 id="accessibilite-h">22. Accessibilité</h2>
+<h2 id="accessibilite-h">23. Accessibilité</h2>
 
 <h3>Lecteurs d'écran pris en charge</h3>
 <p>MediaAccess détecte automatiquement le lecteur d'écran actif :</p>
@@ -1261,7 +1357,7 @@
 </section>
 
 <section id="mises-a-jour" aria-labelledby="maj-h">
-<h2 id="maj-h">23. Mises à jour</h2>
+<h2 id="maj-h">24. Mises à jour</h2>
 
 <h3>Vérification automatique</h3>
 <p>Au démarrage, MediaAccess vérifie en arrière-plan s'il existe une nouvelle version sur GitHub (option <strong>Options → Lecture → Rechercher des mises à jour au démarrage</strong>, activée par défaut).</p>
@@ -1278,7 +1374,7 @@
 </section>
 
 <section id="depannage" aria-labelledby="depannage-h">
-<h2 id="depannage-h">24. Dépannage</h2>
+<h2 id="depannage-h">25. Dépannage</h2>
 
 <h3>Journal</h3>
 <p>MediaAccess écrit un journal dans :</p>
@@ -1317,7 +1413,7 @@
 </section>
 
 <section id="livres" aria-labelledby="livres-h">
-<h2 id="livres-h">25. Lecture de livres DAISY</h2>
+<h2 id="livres-h">26. Lecture de livres DAISY</h2>
 
 <p>MediaAccess intègre un lecteur de livres audio accessibles au format DAISY, comparable à des applications dédiées comme Victor Reader ou VoiceDream. Les livres peuvent être ouverts un à un ou organisés dans une bibliothèque, et tous les raccourcis habituels de transport, tempo, hauteur, égaliseur et annonces vocales s'appliquent pendant la lecture.</p>
 
@@ -1433,7 +1529,7 @@
 </section>
 
 <section id="minuterie" aria-labelledby="minuterie-h">
-<h2 id="minuterie-h">26. Minuterie de sommeil</h2>
+<h2 id="minuterie-h">27. Minuterie de sommeil</h2>
 
 <p>La minuterie de sommeil arrête automatiquement la lecture après une durée que vous choisissez — utile pour s'endormir sur un livre audio, un podcast, une radio ou un film sans avoir à se relever pour couper le son. Elle fonctionne avec n'importe quel moteur de lecture actif&nbsp;: BASS (audio), libmpv (vidéo), le lecteur de livres DAISY/EPUB et la synthèse vocale SAPI pour les livres en texte seul.</p>
 
@@ -1454,7 +1550,7 @@
 </section>
 
 <section id="raccourcis" aria-labelledby="raccourcis-h">
-<h2 id="raccourcis-h">27. Référence des raccourcis</h2>
+<h2 id="raccourcis-h">28. Référence des raccourcis</h2>
 
 <h3>Fichier</h3>
 <table>
@@ -1470,6 +1566,7 @@
 <tr><td><kbd>Ctrl</kbd>+<kbd>R</kbd></td><td>Radio</td></tr>
 <tr><td><kbd>Ctrl</kbd>+<kbd>D</kbd></td><td>Ajouter le flux aux favoris</td></tr>
 <tr><td><kbd>Ctrl</kbd>+<kbd>Maj</kbd>+<kbd>P</kbd></td><td>Podcasts</td></tr>
+<tr><td><kbd>Ctrl</kbd>+<kbd>Maj</kbd>+<kbd>X</kbd></td><td>Extraire un CD audio</td></tr>
 <tr><td><kbd>Ctrl</kbd>+<kbd>S</kbd></td><td>Planificateur</td></tr>
 <tr><td><kbd>Ctrl</kbd>+<kbd>Maj</kbd>+<kbd>H</kbd></td><td>Historique des morceaux</td></tr>
 <tr><td><kbd>Ctrl</kbd>+<kbd>H</kbd></td><td>Réduire dans la zone de notification</td></tr>
@@ -1573,6 +1670,23 @@
 <tr><td><kbd>9</kbd></td><td>Durée</td></tr>
 <tr><td><kbd>0</kbd></td><td>Nom de fichier</td></tr>
 <tr><td><kbd>Maj</kbd>+chiffre</td><td>Afficher la même étiquette dans une fenêtre</td></tr>
+</tbody>
+</table>
+
+<h3>Extraction de CD audio</h3>
+<table>
+<caption>Raccourcis de la fenêtre d'extraction</caption>
+<thead><tr><th>Raccourci</th><th>Action</th></tr></thead>
+<tbody>
+<tr><td><kbd>Ctrl</kbd>+<kbd>R</kbd></td><td>Extraire / Arrêter</td></tr>
+<tr><td><kbd>Ctrl</kbd>+<kbd>I</kbd></td><td>Annoncer la progression</td></tr>
+<tr><td><kbd>F5</kbd></td><td>Chercher de nouveau le disque</td></tr>
+<tr><td><kbd>Ctrl</kbd>+<kbd>M</kbd></td><td>Choisir une autre édition</td></tr>
+<tr><td><kbd>Ctrl</kbd>+<kbd>Maj</kbd>+<kbd>R</kbd></td><td>Réextraire en mode sécurisé les pistes non confirmées</td></tr>
+<tr><td><kbd>Ctrl</kbd>+<kbd>L</kbd></td><td>Ouvrir le journal de la dernière extraction</td></tr>
+<tr><td><kbd>Ctrl</kbd>+<kbd>O</kbd></td><td>Ouvrir le dossier de la dernière extraction</td></tr>
+<tr><td><kbd>F2</kbd></td><td>Modifier le titre de la piste (dans la liste)</td></tr>
+<tr><td><kbd>Espace</kbd></td><td>Cocher ou décocher la piste (dans la liste)</td></tr>
 </tbody>
 </table>
 

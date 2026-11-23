@@ -56,6 +56,7 @@ ArTrackResult MatchTrack(const std::vector<ArPressing>& db, int pos, const ArCrc
 // Saved for this drive model (detected or typed), else none.
 bool SavedDriveOffset(const std::wstring& model, int* offset, bool* detected);
 void SaveDriveOffset(const std::wstring& model, int offset, bool detected);
+void ForgetDriveOffset(const std::wstring& model);   // next extraction: official list again
 // AccurateRip's official list (DriveOffsets.bin, read once). Blocking.
 bool ListedDriveOffset(const std::wstring& vendorModel, int* offset);
 

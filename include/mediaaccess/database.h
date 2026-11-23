@@ -249,5 +249,6 @@ bool CdCachePut(const std::string& discId, const std::string& releaseMbid, const
 // v2.78 — read offset per drive model (vendor + product).
 bool CdOffsetGet(const std::string& model, int* offset, bool* detected);
 bool CdOffsetPut(const std::string& model, int offset, bool detected);
+bool CdOffsetDelete(const std::string& model);   // back to the automatic setting
 
 #endif // MEDIAACCESS_DATABASE_H
