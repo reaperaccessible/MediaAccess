@@ -2380,8 +2380,10 @@ static bool CrossfadeFileAllowed(const std::wstring& path) {
 
 // The current song may fade out into another one (or, a CD track, go on to
 // the next track with no gap: allowCd).
+// (Crossfade on or off: the joins with no gap are for everyone, Lee
+// 2026-11-23; only the fades themselves need the F key.)
 static bool CrossfadeCurrentAllowed(bool allowCd = false) {
-    if (!g_crossfadeEnabled || !s_mixerChain || !g_fxStream || !s_song) return false;
+    if (!s_mixerChain || !g_fxStream || !s_song) return false;
     if (g_activeEngine != PlaybackEngine::BASS || g_isLiveStream) return false;
     if (!g_autoAdvance || g_repeatMode == 1 || g_loopEnabled) return false;
     if (mediaaccess::DaisyIsActive() || g_nowPlayingType != SourceType::Local) return false;
@@ -2602,7 +2604,9 @@ void CrossfadeMaintain() {
     // needs both measures (a missing one means a normal fade, section 5).
     auto decodedNow = [](HSTREAM s) { return SongDecodePos(s); };
     bool gapless = false;
-    if (g_crossfadeAlbumGapless) {
+    // Crossfade off: a continuous album is always joined with no gap. On: as
+    // the "no crossfade between the tracks of the same album" box says.
+    if (g_crossfadeAlbumGapless || !g_crossfadeEnabled) {
         const SilenceInfo* a = CrossfadeSilenceFor(g_currentSourcePath);
         const SilenceInfo* b = CrossfadeSilenceFor(s_xfPath);
         gapless = a && b && a->ok && b->ok && lenCur - a->musicEnd < 0.5 && b->musicStart < 0.5 &&
@@ -2640,6 +2644,13 @@ void CrossfadeMaintain() {
             BASS_Mixer_StreamAddChannel(s_mixer, s_xfNext.load(), s_xfNextAddFlags | BASS_MIXER_CHAN_PAUSE);
             s_xfNextStartSec = -1.0;   // placed again below
         }
+    }
+
+    // Crossfade off: no fade. The next song stays open (in case it becomes a
+    // join), and the end of this one goes on to it as in 2.78.
+    if (!g_crossfadeEnabled) {
+        if (s_xfSync) { OutputLock lock(g_fxStream); CrossfadeRemoveSync(); }
+        return;
     }
 
     if (startNext != s_xfNextStartSec) {   // the next song is paused: placing it is safe
