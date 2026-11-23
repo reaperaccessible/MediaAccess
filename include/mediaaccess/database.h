@@ -246,5 +246,8 @@ std::vector<std::wstring> GetBookLibraryFolders();
 // v2.78 — audio CD metadata cache, by MusicBrainz Disc ID (UTF-8 JSON).
 bool CdCacheGet(const std::string& discId, std::string& json);
 bool CdCachePut(const std::string& discId, const std::string& releaseMbid, const std::string& json);
+// v2.78 — read offset per drive model (vendor + product).
+bool CdOffsetGet(const std::string& model, int* offset, bool* detected);
+bool CdOffsetPut(const std::string& model, int offset, bool detected);
 
 #endif // MEDIAACCESS_DATABASE_H

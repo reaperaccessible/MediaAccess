@@ -5,7 +5,10 @@
 // fields, F2 on a track, choice of the edition (Ctrl+M), new search (F5), the
 // cover saved as folder.jpg, files named after the titles. Phase 4: MP3, Ogg
 // Vorbis and Opus with a quality choice, tags and cover in the files, name
-// templates with a preview, CUE and M3U8 (Options... dialog).
+// templates with a preview, CUE and M3U8 (Options... dialog). Phase 5: Secure
+// mode, AccurateRip check of every track, drive read offset (saved, official
+// list, automatic detection), extraction log, Ctrl+Shift+R to extract again in
+// Secure mode the tracks AccurateRip did not confirm, Ctrl+L / Ctrl+O.
 //
 // Modeless like the YouTube window: closing only hides it, and the main
 // message loop routes its keys through IsDialogMessageW (main.cpp).
@@ -25,6 +28,7 @@
 #include "mediaaccess/basscd_loader.h"
 #include "mediaaccess/cd_ripper.h"
 #include "mediaaccess/cd_metadata.h"
+#include "mediaaccess/cd_verify.h"
 #include "mediaaccess/notify_sounds.h"
 #include "mediaaccess/actions.h"
 #include "mediaaccess/keymap.h"
@@ -42,6 +46,7 @@ using mediaaccess::DiscTrack;
 using mediaaccess::DriveMediaType;
 
 #define WM_CDMETA_RESULT (WM_APP + 0x310)   // wParam: lookup token, lParam: CdLookupResult*
+#define WM_CDOFFSET_RESULT (WM_APP + 0x312) // wParam: OffsetDetect, lParam: offset
 
 namespace {
 
@@ -66,8 +71,16 @@ const wchar_t* kDefaultFileTpl = L"%track% - %title%";
 struct RipOptions {
     std::wstring folderTpl = kDefaultFolderTpl, fileTpl = kDefaultFileTpl;
     bool embedCover = true, saveFolderJpg = true, writeCue = true, writeM3u = true, ejectWhenDone = false;
+    bool secure = false, verify = true, writeLog = true;
 };
 RipOptions g_opts;
+
+// The last extraction: its folder, its log, the tracks not confirmed.
+mediaaccess::RipSummary g_lastRip;
+bool g_haveLastRip = false;
+// Offset detection running (it reads the disc: no extraction meanwhile).
+volatile bool g_detecting = false;
+HWND g_optionsDlg = nullptr;   // open Options dialog, receives the detection result
 
 const DiscDrive* SelectedDrive(HWND dlg) {
     int sel = (int)SendDlgItemMessageW(dlg, IDC_CDRIP_DRIVE, CB_GETCURSEL, 0, 0);
@@ -256,6 +269,7 @@ bool ShowEditionDialog(HWND dlg);
 std::wstring ShortcutHint(const char* actionId);
 mediaaccess::RipFormat SelectedFormat(HWND dlg);
 void SaveRipSettings(HWND dlg);
+LRESULT CALLBACK DriveComboProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam, UINT_PTR, DWORD_PTR);
 std::wstring ExpandTemplate(const std::wstring& tpl, const CdReleaseMeta& m, int row);
 std::wstring FileTemplateFor(const CdReleaseMeta& m, const std::wstring& tpl);
 std::wstring AlbumFolderName(const CdReleaseMeta& m, const std::wstring& tpl);
@@ -443,12 +457,85 @@ void ShowOptionsChecks(HWND opt, const RipOptions& o) {
     CheckDlgButton(opt, IDC_CDOPT_CUE, o.writeCue ? BST_CHECKED : BST_UNCHECKED);
     CheckDlgButton(opt, IDC_CDOPT_M3U, o.writeM3u ? BST_CHECKED : BST_UNCHECKED);
     CheckDlgButton(opt, IDC_CDOPT_EJECT, o.ejectWhenDone ? BST_CHECKED : BST_UNCHECKED);
+    SendDlgItemMessageW(opt, IDC_CDOPT_MODE, CB_SETCURSEL, o.secure ? 1 : 0, 0);
+    CheckDlgButton(opt, IDC_CDOPT_VERIFY, o.verify ? BST_CHECKED : BST_UNCHECKED);
+    CheckDlgButton(opt, IDC_CDOPT_LOG, o.writeLog ? BST_CHECKED : BST_UNCHECKED);
 }
 
-INT_PTR CALLBACK OptionsDlgProc(HWND opt, UINT msg, WPARAM wParam, LPARAM) {
+const DiscDrive* SelectedDrive(HWND dlg);
+
+// The saved offset of the selected drive, or empty (automatic).
+void ShowSavedOffset(HWND opt) {
+    const DiscDrive* d = SelectedDrive(g_cdDialog);
+    int off = 0;
+    bool detected = false;
+    std::wstring text;
+    if (d && mediaaccess::SavedDriveOffset(d->vendorModel, &off, &detected)) text = std::to_wstring(off);
+    SetDlgItemTextW(opt, IDC_CDOPT_OFFSET, text.c_str());
+}
+
+void StartOffsetDetection() {
+    const DiscDrive* d = SelectedDrive(g_cdDialog);
+    if (!d || g_contents.type != DriveMediaType::AudioCD) {
+        SpeakW(T("No audio CD in the drive"));
+        return;
+    }
+    if (mediaaccess::IsRipping() || g_detecting) {
+        SpeakW(T("An extraction is running. Stop it first."));
+        return;
+    }
+    g_detecting = true;
+    DiscDrive drive = *d;
+    SpeakW(T("Detecting the read offset, about two minutes. You can keep working."));
+    std::thread([drive]() {
+        int offset = 0;
+        mediaaccess::OffsetDetect r = mediaaccess::DetectReadOffset(drive, &offset, nullptr);
+        if (r == mediaaccess::OffsetDetect::Found) mediaaccess::SaveDriveOffset(drive.vendorModel, offset, true);
+        g_detecting = false;
+        mediaaccess::ReleaseDrive(drive);
+        HWND target = (g_optionsDlg && IsWindow(g_optionsDlg)) ? g_optionsDlg : g_cdDialog;
+        if (target && IsWindow(target)) PostMessageW(target, WM_CDOFFSET_RESULT, (WPARAM)r, (LPARAM)offset);
+    }).detach();
+}
+
+void SpeakOffsetResult(WPARAM code, LPARAM offset) {
+    switch ((mediaaccess::OffsetDetect)code) {
+        case mediaaccess::OffsetDetect::Found:
+            SpeakW(Format(T("Read offset detected: %+d samples, confirmed on two tracks"), (int)offset));
+            break;
+        case mediaaccess::OffsetDetect::NotInDb:
+            SpeakW(T("This disc is not in AccurateRip: the offset cannot be detected with it. Try another CD."));
+            break;
+        case mediaaccess::OffsetDetect::TooFewTracks:
+            SpeakW(T("This disc has too few tracks to detect the offset. Try another CD."));
+            break;
+        case mediaaccess::OffsetDetect::NoMatch:
+            SpeakW(T("No offset matches AccurateRip on this disc. Try another CD."));
+            break;
+        default:
+            SpeakW(T("The offset could not be detected: the disc could not be read."));
+            break;
+    }
+}
+
+INT_PTR CALLBACK OptionsDlgProc(HWND opt, UINT msg, WPARAM wParam, LPARAM lParam) {
     switch (msg) {
+        case WM_CDOFFSET_RESULT:
+            if ((mediaaccess::OffsetDetect)wParam == mediaaccess::OffsetDetect::Found) {
+                SetDlgItemTextW(opt, IDC_CDOPT_OFFSET, std::to_wstring((int)lParam).c_str());
+            }
+            SpeakOffsetResult(wParam, lParam);
+            return TRUE;
+        case WM_DESTROY:
+            g_optionsDlg = nullptr;
+            break;
         case WM_INITDIALOG:
+            g_optionsDlg = opt;
             LocalizeDialog(opt);
+            SendDlgItemMessageW(opt, IDC_CDOPT_MODE, CB_ADDSTRING, 0, (LPARAM)T("Fast (one read, checked with AccurateRip)"));
+            SendDlgItemMessageW(opt, IDC_CDOPT_MODE, CB_ADDSTRING, 0, (LPARAM)T("Secure (two reads compared, slower)"));
+            SetWindowSubclass(GetDlgItem(opt, IDC_CDOPT_MODE), DriveComboProc, 4, 0);
+            ShowSavedOffset(opt);
             SetDlgItemTextW(opt, IDC_CDOPT_VARIABLES, T("%albumartist%, %artist%, %album%, %year%, %track%, "
                 "%tracktotal%, %title%, %disc%, %disctotal%, %genre%, %label%. A backslash makes a sub-folder."));
             ShowOptionsChecks(opt, g_opts);
@@ -464,6 +551,9 @@ INT_PTR CALLBACK OptionsDlgProc(HWND opt, UINT msg, WPARAM wParam, LPARAM) {
                     ShowOptionsChecks(opt, RipOptions());
                     UpdatePreview(opt);
                     return TRUE;
+                case IDC_CDOPT_DETECT:
+                    StartOffsetDetection();
+                    return TRUE;
                 case IDOK: {
                     RipOptions o;
                     o.folderTpl = GetText(opt, IDC_CDOPT_FOLDER);
@@ -475,6 +565,20 @@ INT_PTR CALLBACK OptionsDlgProc(HWND opt, UINT msg, WPARAM wParam, LPARAM) {
                     o.writeCue = IsDlgButtonChecked(opt, IDC_CDOPT_CUE) == BST_CHECKED;
                     o.writeM3u = IsDlgButtonChecked(opt, IDC_CDOPT_M3U) == BST_CHECKED;
                     o.ejectWhenDone = IsDlgButtonChecked(opt, IDC_CDOPT_EJECT) == BST_CHECKED;
+                    o.secure = SendDlgItemMessageW(opt, IDC_CDOPT_MODE, CB_GETCURSEL, 0, 0) == 1;
+                    o.verify = IsDlgButtonChecked(opt, IDC_CDOPT_VERIFY) == BST_CHECKED;
+                    o.writeLog = IsDlgButtonChecked(opt, IDC_CDOPT_LOG) == BST_CHECKED;
+                    {   // a typed offset is remembered for this drive model
+                        std::wstring text = GetText(opt, IDC_CDOPT_OFFSET);
+                        const DiscDrive* d = SelectedDrive(g_cdDialog);
+                        int saved = 0;
+                        bool detected = false, had = d && mediaaccess::SavedDriveOffset(d->vendorModel, &saved, &detected);
+                        wchar_t* end = nullptr;
+                        long v = wcstol(text.c_str(), &end, 10);
+                        if (d && !text.empty() && end && *end == 0 && v >= -5000 && v <= 5000 && (!had || v != saved)) {
+                            mediaaccess::SaveDriveOffset(d->vendorModel, (int)v, false);
+                        }
+                    }
                     g_opts = o;
                     EndDialog(opt, IDOK);
                     return TRUE;
@@ -698,7 +802,7 @@ void InitTrackList(HWND dlg) {
 }
 
 void OnEject(HWND dlg) {
-    if (mediaaccess::IsRipping()) {
+    if (mediaaccess::IsRipping() || g_detecting) {
         SpeakW(T("An extraction is running. Stop it first."));
         return;
     }
@@ -824,6 +928,9 @@ void LoadRipSettings(HWND dlg) {
     g_opts.writeCue = IniBool(L"WriteCue", true);
     g_opts.writeM3u = IniBool(L"WriteM3u", true);
     g_opts.ejectWhenDone = IniBool(L"EjectWhenDone", false);
+    g_opts.secure = GetPrivateProfileIntW(L"CdRip", L"Mode", 0, g_configPath.c_str()) == 1;
+    g_opts.verify = IniBool(L"VerifyAccurateRip", true);
+    g_opts.writeLog = IniBool(L"WriteLog", true);
 }
 
 void SaveRipSettings(HWND dlg) {
@@ -839,6 +946,9 @@ void SaveRipSettings(HWND dlg) {
     IniWrite(L"WriteCue", g_opts.writeCue ? L"1" : L"0");
     IniWrite(L"WriteM3u", g_opts.writeM3u ? L"1" : L"0");
     IniWrite(L"EjectWhenDone", g_opts.ejectWhenDone ? L"1" : L"0");
+    IniWrite(L"Mode", g_opts.secure ? L"1" : L"0");
+    IniWrite(L"VerifyAccurateRip", g_opts.verify ? L"1" : L"0");
+    IniWrite(L"WriteLog", g_opts.writeLog ? L"1" : L"0");
 }
 
 void InitRipControls(HWND dlg) {
@@ -962,7 +1072,11 @@ std::wstring TrackFileName(int row) {
 
 // ---- Extraction ----
 
-void OnStart(HWND dlg) {
+void OnStart(HWND dlg, bool secureOverride = false) {
+    if (g_detecting) {
+        SpeakW(T("The read offset is being detected. Wait for the end."));
+        return;
+    }
     if (mediaaccess::IsRipping()) {
         SpeakW(T("An extraction is already running"));
         return;
@@ -978,7 +1092,7 @@ void OnStart(HWND dlg) {
     for (int row = 0; row < (int)g_rowTrack.size(); ++row) {
         if (!ListView_GetCheckState(list, row)) continue;
         const DiscTrack& t = g_listContents.tracks[g_rowTrack[row]];
-        mediaaccess::RipTrack rt = { t.index, t.number, t.seconds, TrackFileName(row) };
+        mediaaccess::RipTrack rt = { t.index, t.number, t.seconds, row, TrackFileName(row) };
         rt.title = TrackTitle(row);
         if (row < (int)g_meta.tracks.size()) {
             rt.artist = g_meta.tracks[row].artist;
@@ -1006,6 +1120,10 @@ void OnStart(HWND dlg) {
     job.writeCue = g_opts.writeCue;
     job.writeM3u = g_opts.writeM3u;
     job.listName = CleanName(g_meta.album.empty() ? albumRel.substr(albumRel.find_last_of(L'\\') + 1) : g_meta.album);
+    job.secure = g_opts.secure || secureOverride;
+    job.verify = g_opts.verify;
+    job.writeLog = g_opts.writeLog;
+    job.discId = Utf8ToWide(g_lookup.discId);
     SaveRipSettings(dlg);
 
     // Never replace files without asking.
@@ -1020,9 +1138,13 @@ void OnStart(HWND dlg) {
         if (MessageBoxW(dlg, q.c_str(), T("Extract audio CD"), MB_YESNO | MB_ICONQUESTION | MB_DEFBUTTON2) != IDYES) return;
     }
 
-    // The names used for the files are the ones remembered for this disc.
-    g_metaEdited = true;
-    SaveMetaIfEdited();
+    // The names used for the files are the ones remembered for this disc
+    // (only once the disc is known: before that there is no ID to file them
+    // under, and marking them "edited" would keep a late answer away).
+    if (!g_lookup.discId.empty()) {
+        g_metaEdited = true;
+        SaveMetaIfEdited();
+    }
 
     // BASSCD keeps one stream per drive: a CD track playing from this drive
     // would be cut by the extraction (and would cut it). Stop it first.
@@ -1035,6 +1157,31 @@ void OnStart(HWND dlg) {
         return;
     }
     SetStatus(dlg, Format(T("Extracting to %ls"), job.folder.c_str()));
+}
+
+// Ctrl+Shift+R: the tracks AccurateRip did not confirm, ticked alone, again
+// in Secure mode.
+void OnRerip(HWND dlg) {
+    if (!g_haveLastRip || g_lastRip.notAccurate.empty()) {
+        SpeakW(T("No track to extract again"));
+        return;
+    }
+    HWND list = GetDlgItem(dlg, IDC_CDRIP_TRACKS);
+    for (int row = 0; row < (int)g_rowTrack.size(); ++row) {
+        int number = g_listContents.tracks[g_rowTrack[row]].number;
+        bool again = std::find(g_lastRip.notAccurate.begin(), g_lastRip.notAccurate.end(), number) != g_lastRip.notAccurate.end();
+        ListView_SetCheckState(list, row, again ? TRUE : FALSE);
+    }
+    OnStart(dlg, true);
+}
+
+void OnOpenLast(bool log) {
+    if (!g_haveLastRip || (log && g_lastRip.logPath.empty())) {
+        SpeakW(log ? T("No log yet") : T("No extraction yet"));
+        return;
+    }
+    const std::wstring& path = log ? g_lastRip.logPath : g_lastRip.folder;
+    ShellExecuteW(g_cdDialog, L"open", path.c_str(), nullptr, nullptr, SW_SHOWNORMAL);
 }
 
 void OnStop() {
@@ -1107,6 +1254,9 @@ void ShowTrackMenu(HWND dlg, LPARAM lParam) {
         { IDM_CDRIP_PROGRESS, "Announce the progress",   "CDRIP_PROGRESS" },
         { IDM_CDRIP_REFRESH,  "Look the disc up again",  "CDRIP_REFRESH" },
         { IDM_CDRIP_RELEASE,  "Choose another edition",  "CDRIP_RELEASE" },
+        { IDM_CDRIP_RERIP,    "Extract again the tracks not confirmed, in Secure mode", "CDRIP_RERIP" },
+        { IDM_CDRIP_OPENLOG,  "Open the log of the last extraction",    "CDRIP_OPENLOG" },
+        { IDM_CDRIP_OPENFOLDER, "Open the folder of the last extraction", "CDRIP_OPENFOLDER" },
     };
     HMENU menu = CreatePopupMenu();
     for (const Entry& e : entries) {
@@ -1172,6 +1322,15 @@ INT_PTR CALLBACK CdRipDlgProc(HWND dlg, UINT msg, WPARAM wParam, LPARAM lParam) 
                 case IDM_CDRIP_REFRESH:
                     StartLookup(dlg, false);
                     return TRUE;
+                case IDM_CDRIP_RERIP:
+                    OnRerip(dlg);
+                    return TRUE;
+                case IDM_CDRIP_OPENLOG:
+                    OnOpenLast(true);
+                    return TRUE;
+                case IDM_CDRIP_OPENFOLDER:
+                    OnOpenLast(false);
+                    return TRUE;
                 case IDC_CDRIP_FORMAT:
                     if (HIWORD(wParam) == CBN_SELCHANGE) {
                         FillQualityCombo(dlg);   // not focused: silent
@@ -1229,8 +1388,28 @@ INT_PTR CALLBACK CdRipDlgProc(HWND dlg, UINT msg, WPARAM wParam, LPARAM lParam) 
             OnTrackStart(dlg, (int)wParam, (int)LOWORD(lParam), (int)HIWORD(lParam));
             return TRUE;
         case WM_CDRIP_DONE: {
-            OnRipEnded(dlg, ((int)wParam == 1) ? std::wstring(T("Extraction done: 1 track"))
-                                               : Format(T("Extraction done: %d tracks"), (int)wParam), true);
+            std::unique_ptr<mediaaccess::RipSummary> sum(reinterpret_cast<mediaaccess::RipSummary*>(lParam));
+            std::wstring text = ((int)wParam == 1) ? std::wstring(T("Extraction done: 1 track"))
+                                                   : Format(T("Extraction done: %d tracks"), (int)wParam);
+            if (sum) {
+                g_lastRip = *sum;
+                g_haveLastRip = true;
+                if (sum->verified && sum->notAccurate.empty()) {
+                    text += L", " + std::wstring(sum->written == 1 ? T("accurate") : T("all accurate"));
+                } else if (sum->verified) {
+                    text += L", " + Format(T("%d accurate, %d not confirmed"), sum->accurate, (int)sum->notAccurate.size());
+                    std::wstring key = ShortcutHint("CDRIP_RERIP");
+                    if (!key.empty()) {
+                        key.erase(0, 1);
+                        text += L". " + Format(T("%ls to extract them again in Secure mode"), key.c_str());
+                    }
+                } else if (sum->notInDb) {
+                    text += L", " + std::wstring(T("disc not in AccurateRip"));
+                } else if (g_opts.verify) {
+                    text += L", " + std::wstring(T("not verified"));
+                }
+            }
+            OnRipEnded(dlg, text, true);
             const DiscDrive* d = SelectedDrive(dlg);
             bool open = false;
             if (g_opts.ejectWhenDone && d && !mediaaccess::IsDriveTrayOpen(*d) &&
@@ -1243,6 +1422,17 @@ INT_PTR CALLBACK CdRipDlgProc(HWND dlg, UINT msg, WPARAM wParam, LPARAM lParam) 
         case WM_CDRIP_CANCELLED:
             OnRipEnded(dlg, ((int)wParam == 0) ? std::wstring(T("Extraction stopped, no track written"))
                                                : Format(T("Extraction stopped, %d tracks written"), (int)wParam), false);
+            return TRUE;
+        case WM_CDRIP_TRACK_DONE:   // Secure mode: always said
+            SpeakW(Format(T("Warning: track %d, %d suspicious blocks"), (int)wParam, (int)lParam));
+            return TRUE;
+        case WM_CDRIP_SUMMARY: {
+            std::unique_ptr<mediaaccess::RipSummary> sum(reinterpret_cast<mediaaccess::RipSummary*>(lParam));
+            if (sum) { g_lastRip = *sum; g_haveLastRip = true; }
+            return TRUE;
+        }
+        case WM_CDOFFSET_RESULT:   // the Options dialog was closed meanwhile
+            SpeakOffsetResult(wParam, lParam);
             return TRUE;
         case WM_CDRIP_ERROR: {
             std::wstring* text = reinterpret_cast<std::wstring*>(lParam);

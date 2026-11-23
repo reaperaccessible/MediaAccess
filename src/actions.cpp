@@ -934,6 +934,15 @@ static const Action g_actions[] = {
     { "CDRIP_RELEASE", IDM_CDRIP_RELEASE, ActionCategory::CdRip,
       "Choose another edition", "Choisir une autre édition",
       { 'M', true,  false, false } },          // Ctrl+M
+    { "CDRIP_RERIP", IDM_CDRIP_RERIP, ActionCategory::CdRip,
+      "Extract again the tracks not confirmed, in Secure mode", "Réextraire en mode sécurisé les pistes non confirmées",
+      { 'R', true,  true,  false } },          // Ctrl+Shift+R
+    { "CDRIP_OPENLOG", IDM_CDRIP_OPENLOG, ActionCategory::CdRip,
+      "Open the log of the last extraction", "Ouvrir le journal de la dernière extraction",
+      { 'L', true,  false, false } },          // Ctrl+L
+    { "CDRIP_OPENFOLDER", IDM_CDRIP_OPENFOLDER, ActionCategory::CdRip,
+      "Open the folder of the last extraction", "Ouvrir le dossier de la dernière extraction",
+      { 'O', true,  false, false } },          // Ctrl+O
     // ========================================================================
     // CATEGORY: Radio — placeholder for future actions
     // CATEGORY: YouTube — placeholder for future actions

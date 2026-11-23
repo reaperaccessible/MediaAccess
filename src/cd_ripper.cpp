@@ -5,6 +5,8 @@
 #include "translations.h"
 #include "utils.h"
 #include "logger.h"
+#include "version.h"
+#include "cd_verify.h"
 #include "bassenc.h"
 #include "bassenc_flac.h"
 #include "bassenc_mp3.h"
@@ -207,9 +209,48 @@ HENCODE StartEncoder(HSTREAM s, const RipJob& job, const RipTrack& t,
 
 enum class TrackResult { Done, Cancelled, Failed };
 
+struct TrackOutcome {
+    uint32_t crcTest = 0, crcCopy = 0;   // CRC32 of the PCM (test pass: Secure mode only)
+    int      suspicious = 0;             // 1-second blocks never read twice the same (Secure)
+    ArCrc    ar;
+    ArTrackResult arResult;
+    bool     written = false;
+};
+
+void SetProgress(size_t pos, double trackFrac, double secondsBefore, double trackSeconds,
+                 double secondsTotal, ULONGLONG startTick) {
+    double doneSeconds = secondsBefore + trackFrac * trackSeconds;
+    double totalFrac = secondsTotal > 0 ? doneSeconds / secondsTotal : 0.0;
+    double elapsed = (GetTickCount64() - startTick) / 1000.0;
+    std::lock_guard<std::mutex> lock(g_progressMutex);
+    g_progress.trackPos = static_cast<int>(pos) + 1;
+    g_progress.trackFraction = trackFrac;
+    g_progress.totalFraction = totalFrac;
+    g_progress.secondsLeft = (totalFrac > 0.02) ? elapsed * (1.0 - totalFrac) / totalFrac : -1.0;
+}
+
+// Reads the whole stream into `pcm` (Secure mode). onBytes(done, total).
+template <typename F>
+TrackResult ReadAll(HSTREAM s, std::vector<BYTE>& pcm, F onBytes) {
+    QWORD total = BASS_ChannelGetLength(s, BASS_POS_BYTE);
+    pcm.clear();
+    if (total != static_cast<QWORD>(-1)) pcm.reserve(static_cast<size_t>(total));
+    static BYTE buf[588 * 4 * 75];
+    for (;;) {
+        if (g_cancel) return TrackResult::Cancelled;
+        DWORD got = BASS_ChannelGetData(s, buf, sizeof(buf));
+        if (got == static_cast<DWORD>(-1)) {
+            return BASS_ErrorGetCode() == BASS_ERROR_ENDED ? TrackResult::Done : TrackResult::Failed;
+        }
+        pcm.insert(pcm.end(), buf, buf + got);
+        onBytes(pcm.size(), total);
+    }
+}
+
 TrackResult RipOneTrack(const basscd::Api* cd, const RipJob& job, const RipTrack& t,
                         size_t pos, double secondsBefore, double secondsTotal,
-                        ULONGLONG startTick, const std::wstring& coverPath, HWND notify) {
+                        ULONGLONG startTick, const std::wstring& coverPath, HWND notify,
+                        TrackOutcome& out) {
     std::wstring finalPath = job.folder + L"\\" + t.fileName + RipFormatExtension(job.format);
     std::wstring partPath = finalPath + L".part";
     // A file template may hold a sub-folder ("%disc%\%track% - %title%").
@@ -222,21 +263,98 @@ TrackResult RipOneTrack(const basscd::Api* cd, const RipJob& job, const RipTrack
         PostError(notify, FmtInt(T("Track %d cannot be read. Check that the disc is in the drive."), t.number));
         return TrackResult::Failed;
     }
-    if (!StartEncoder(s, job, t, partPath, coverPath)) {
+    const QWORD total = BASS_ChannelGetLength(s, BASS_POS_BYTE);
+    const bool firstTrack = (t.audioPos == 0), lastTrack = (t.audioPos == job.trackTotal - 1);
+    ArAccumulator acc;
+    acc.Begin(total == static_cast<QWORD>(-1) ? 0 : total / 4, firstTrack, lastTrack);
+    static BYTE buf[588 * 4 * 75];   // 75 CD frames = 1 second
+    TrackResult result = TrackResult::Done;
+    HSTREAM source = s;              // the stream the encoder reads
+    std::vector<BYTE> pcm;
+
+    if (job.secure) {
+        // Test pass, then copy pass on the SAME stream (BASSCD keeps one per
+        // drive), compared block by block. A block read differently is read
+        // again until two reads agree (8 at most); a block that never agrees is
+        // "suspicious" and the first read is kept. The cache of the drive is not
+        // bypassed reliably: AccurateRip remains the proof.
+        std::vector<BYTE> second;
+        auto progress = [&](double base) {
+            return [&, base](size_t done, QWORD tot) {
+                double f = (tot && tot != static_cast<QWORD>(-1)) ? double(done) / double(tot) : 0.0;
+                SetProgress(pos, base + f / 2.0, secondsBefore, t.seconds, secondsTotal, startTick);
+            };
+        };
+        result = ReadAll(s, pcm, progress(0.0));
+        if (result == TrackResult::Done) {
+            out.crcTest = Crc32(0, pcm.data(), pcm.size());
+            BASS_ChannelSetPosition(s, 0, BASS_POS_BYTE);
+            result = ReadAll(s, second, progress(0.5));
+        }
+        if (result == TrackResult::Done) {
+            const size_t block = sizeof(buf);
+            size_t n = (std::min)(pcm.size(), second.size());
+            for (size_t at = 0; at < n && !g_cancel; at += block) {
+                size_t len = (std::min)(block, n - at);
+                if (memcmp(&pcm[at], &second[at], len) == 0) continue;
+                std::vector<std::vector<BYTE>> reads = {
+                    std::vector<BYTE>(pcm.begin() + at, pcm.begin() + at + len),
+                    std::vector<BYTE>(second.begin() + at, second.begin() + at + len) };
+                bool agreed = false;
+                for (int tries = 0; tries < 8 && !agreed && !g_cancel; ++tries) {
+                    std::vector<BYTE> again(len);
+                    if (!BASS_ChannelSetPosition(s, at, BASS_POS_BYTE)) break;
+                    DWORD got = BASS_ChannelGetData(s, again.data(), static_cast<DWORD>(len));
+                    if (got != len) continue;
+                    for (const std::vector<BYTE>& r : reads) {
+                        if (r == again) { memcpy(&pcm[at], again.data(), len); agreed = true; break; }
+                    }
+                    reads.push_back(again);
+                }
+                if (!agreed) ++out.suspicious;
+            }
+            if (g_cancel) result = TrackResult::Cancelled;
+        }
+        BASS_StreamFree(s);
+        s = 0;
+        source = 0;
+        if (result == TrackResult::Done) {
+            // The checked PCM goes to the encoder through a push stream.
+            source = BASS_StreamCreate(44100, 2, BASS_STREAM_DECODE, STREAMPROC_PUSH, nullptr);
+            if (!source) result = TrackResult::Failed;
+        }
+        if (result == TrackResult::Failed) {
+            PostError(notify, FmtInt(T("Reading track %d failed. The disc may have been removed."), t.number));
+        }
+        if (result != TrackResult::Done) {
+            if (source) BASS_StreamFree(source);
+            return result;
+        }
+    }
+
+    if (!StartEncoder(source, job, t, partPath, coverPath)) {
         int err = BASS_ErrorGetCode();
         LogF("CDRIP", "encoder start failed for %ls: error %d", partPath.c_str(), err);
-        BASS_StreamFree(s);
+        BASS_StreamFree(source);
         PostError(notify, Fmt(T("Cannot write to the folder %ls. Choose another folder."), job.folder));
         return TrackResult::Failed;
     }
 
-    const QWORD total = BASS_ChannelGetLength(s, BASS_POS_BYTE);
+    uint32_t crc = 0;
+    size_t fed = 0;
     QWORD done = 0;
-    static BYTE buf[588 * 4 * 75];   // 75 CD frames = 1 second
-    TrackResult result = TrackResult::Done;
     for (;;) {
         if (g_cancel) { result = TrackResult::Cancelled; break; }
-        DWORD got = BASS_ChannelGetData(s, buf, sizeof(buf));
+        if (job.secure) {
+            // Feed one block, then pull it through the encoder.
+            if (fed < pcm.size()) {
+                size_t len = (std::min)(sizeof(buf), pcm.size() - fed);
+                BASS_StreamPutData(source, &pcm[fed], static_cast<DWORD>(len));
+                fed += len;
+                if (fed == pcm.size()) BASS_StreamPutData(source, nullptr, BASS_STREAMPROC_END);
+            }
+        }
+        DWORD got = BASS_ChannelGetData(source, buf, sizeof(buf));
         if (got == static_cast<DWORD>(-1)) {
             int err = BASS_ErrorGetCode();
             if (err != BASS_ERROR_ENDED) {
@@ -247,26 +365,23 @@ TrackResult RipOneTrack(const basscd::Api* cd, const RipJob& job, const RipTrack
             break;
         }
         // The encoder stops by itself when it cannot write (disk full...).
-        if (!BASS_Encode_IsActive(s)) {
+        if (!BASS_Encode_IsActive(source)) {
             LogF("CDRIP", "encoder stopped while writing %ls", partPath.c_str());
             PostError(notify, Fmt(T("Writing to %ls failed. The disk may be full."), job.folder));
             result = TrackResult::Failed;
             break;
         }
+        crc = Crc32(crc, buf, got);
+        acc.Add(buf, got);
         done += got;
-        double trackFrac = (total && total != static_cast<QWORD>(-1)) ? double(done) / double(total) : 0.0;
-        double doneSeconds = secondsBefore + trackFrac * t.seconds;
-        double totalFrac = secondsTotal > 0 ? doneSeconds / secondsTotal : 0.0;
-        double elapsed = (GetTickCount64() - startTick) / 1000.0;
-        std::lock_guard<std::mutex> lock(g_progressMutex);
-        g_progress.trackPos = static_cast<int>(pos) + 1;
-        g_progress.trackFraction = trackFrac;
-        g_progress.totalFraction = totalFrac;
-        g_progress.secondsLeft = (totalFrac > 0.02) ? elapsed * (1.0 - totalFrac) / totalFrac : -1.0;
+        if (!job.secure) {
+            double f = (total && total != static_cast<QWORD>(-1)) ? double(done) / double(total) : 0.0;
+            SetProgress(pos, f, secondsBefore, t.seconds, secondsTotal, startTick);
+        }
     }
 
-    BASS_Encode_Stop(s);   // flushes and closes the file
-    BASS_StreamFree(s);
+    BASS_Encode_Stop(source);   // flushes and closes the file
+    BASS_StreamFree(source);
     if (result != TrackResult::Done) {
         DeleteFileW(partPath.c_str());
         return result;
@@ -277,6 +392,9 @@ TrackResult RipOneTrack(const basscd::Api* cd, const RipJob& job, const RipTrack
         PostError(notify, Fmt(T("Cannot write to the folder %ls. Choose another folder."), job.folder));
         return TrackResult::Failed;
     }
+    out.crcCopy = crc;
+    out.ar = acc.Result();
+    out.written = true;
     LogF("CDRIP", "track %d written: %ls", t.index, finalPath.c_str());
     return TrackResult::Done;
 }
@@ -340,11 +458,108 @@ void WriteLists(const RipJob& job, const std::vector<const RipTrack*>& written) 
     }
 }
 
+std::wstring Hex8(uint32_t v) {
+    wchar_t b[16];
+    _snwprintf_s(b, _countof(b), _TRUNCATE, L"%08X", v);
+    return b;
+}
+
+// The extraction log: English, UTF-8 with BOM, a standard technical format.
+void WriteLog(const RipJob& job, const std::wstring& path, const std::wstring& offsetSource,
+              ArDbState db, size_t pressings, const ArDiscIds& ids,
+              const std::vector<TrackOutcome>& outcomes, bool stopped) {
+    SYSTEMTIME st;
+    GetLocalTime(&st);
+    wchar_t line[512];
+    std::wstring L = L"MediaAccess " + Utf8ToWide(APP_VERSION) + L" - audio CD extraction log\r\n";
+    _snwprintf_s(line, _countof(line), _TRUNCATE, L"Date: %04d-%02d-%02d %02d:%02d\r\n\r\n",
+                 st.wYear, st.wMonth, st.wDay, st.wHour, st.wMinute);
+    L += line;
+    _snwprintf_s(line, _countof(line), _TRUNCATE, L"Drive: %ls (%lc:)\r\n", job.drive.vendorModel.c_str(), job.drive.letter);
+    L += line;
+    _snwprintf_s(line, _countof(line), _TRUNCATE, L"Read offset: %+d samples (%ls)\r\n", job.readOffset, offsetSource.c_str());
+    L += line;
+    L += std::wstring(L"Mode: ") + (job.secure ? L"Secure (two reads compared, blocks re-read until two agree)" : L"Fast (one read)") + L"\r\n";
+    L += L"Format: " + RipFormatNameEn(job.format) + L", " + RipQualityLabelEn(job.format, job.quality) + L"\r\n";
+    L += L"Metadata: " + (job.meta.source.empty() ? std::wstring(L"none") : job.meta.source) + L"\r\n";
+    L += L"Album: " + job.meta.albumArtist + L" - " + job.meta.album +
+         (job.meta.year.empty() ? L"" : L" (" + job.meta.year + L")") + L"\r\n";
+    if (!job.discId.empty()) L += L"MusicBrainz disc ID: " + job.discId + L"\r\n";
+    if (ids.ok) {
+        _snwprintf_s(line, _countof(line), _TRUNCATE, L"AccurateRip disc ID: %03d-%08x-%08x-%08x\r\n",
+                     ids.audioTracks, ids.id1, ids.id2, ids.cddb);
+        L += line;
+    }
+    switch (db) {
+        case ArDbState::Found:
+            _snwprintf_s(line, _countof(line), _TRUNCATE, L"AccurateRip: %u pressing(s) in the database\r\n", (unsigned)pressings);
+            L += line;
+            break;
+        case ArDbState::NotInDb:     L += L"AccurateRip: disc not in the database\r\n"; break;
+        case ArDbState::Unreachable: L += L"AccurateRip: database unreachable\r\n"; break;
+        default:                     L += L"AccurateRip: not checked\r\n"; break;
+    }
+    L += L"\r\n";
+
+    int accurate = 0, notAccurate = 0, suspicious = 0, writtenCount = 0;
+    std::wstring problems;
+    for (size_t i = 0; i < job.tracks.size() && i < outcomes.size(); ++i) {
+        const RipTrack& t = job.tracks[i];
+        const TrackOutcome& o = outcomes[i];
+        if (!o.written) continue;
+        ++writtenCount;
+        _snwprintf_s(line, _countof(line), _TRUNCATE, L"Track %02d  %ls\r\n", t.number, t.title.c_str());
+        L += line;
+        L += L"  File: " + t.fileName + RipFormatExtension(job.format) + L"\r\n";
+        if (job.secure) L += L"  Test CRC32: " + Hex8(o.crcTest) + L"\r\n";
+        L += L"  Copy CRC32: " + Hex8(o.crcCopy) + L"\r\n";
+        if (job.secure) {
+            _snwprintf_s(line, _countof(line), _TRUNCATE, L"  Suspicious blocks: %d\r\n", o.suspicious);
+            L += line;
+            if (o.suspicious > 0) { ++suspicious; problems += L"  Track " + std::to_wstring(t.number) + L": suspicious blocks\r\n"; }
+        }
+        switch (o.arResult.status) {
+            case ArStatus::Accurate:
+                _snwprintf_s(line, _countof(line), _TRUNCATE, L"  AccurateRip: accurate (confidence %d), v1 %08X, v2 %08X\r\n",
+                             o.arResult.confidence, o.ar.v1, o.ar.v2);
+                ++accurate;
+                break;
+            case ArStatus::NotAccurate:
+                _snwprintf_s(line, _countof(line), _TRUNCATE, L"  AccurateRip: NOT accurate, v1 %08X, v2 %08X\r\n", o.ar.v1, o.ar.v2);
+                ++notAccurate;
+                problems += L"  Track " + std::to_wstring(t.number) + L": not accurate\r\n";
+                break;
+            case ArStatus::NotInDb:
+                _snwprintf_s(line, _countof(line), _TRUNCATE, L"  AccurateRip: not in the database, v1 %08X, v2 %08X\r\n", o.ar.v1, o.ar.v2);
+                break;
+            default:
+                _snwprintf_s(line, _countof(line), _TRUNCATE, L"  AccurateRip: not verified, v1 %08X, v2 %08X\r\n", o.ar.v1, o.ar.v2);
+                break;
+        }
+        L += line;
+        L += L"\r\n";
+    }
+    if (stopped) L += L"Extraction stopped before the end.\r\n";
+    if (db == ArDbState::Found && notAccurate == 0 && suspicious == 0 && writtenCount > 0) {
+        L += L"All tracks accurate\r\n";
+    } else if (!problems.empty()) {
+        L += L"Problems:\r\n" + problems;
+    } else if (db != ArDbState::Found) {
+        L += L"Not verified with AccurateRip\r\n";
+    }
+    WriteUtf8(path, L, true);
+}
+
 void Worker(RipJob job, HWND notify) {
     const basscd::Api* cd = basscd::Get();
     std::vector<const RipTrack*> written;
+    std::vector<TrackOutcome> outcomes(job.tracks.size());
     bool stopped = false;
     std::wstring tempCover;
+    RipSummary* summary = new RipSummary();
+    ArDiscIds ids;
+    ArDbState db = ArDbState::NotChecked;
+    std::vector<ArPressing> pressings;
 
     int mk = cd ? SHCreateDirectoryExW(nullptr, job.folder.c_str(), nullptr) : ERROR_INVALID_FUNCTION;
     if (!cd || (mk != ERROR_SUCCESS && mk != ERROR_ALREADY_EXISTS && mk != ERROR_FILE_EXISTS)) {
@@ -352,6 +567,30 @@ void Worker(RipJob job, HWND notify) {
         PostError(notify, Fmt(T("Cannot create the folder %ls. Choose another folder."), job.folder));
         stopped = true;
     } else {
+        // The read offset of this drive: saved (detected or typed), else
+        // AccurateRip's list (then remembered), else 0.
+        std::wstring offsetSource = L"saved";
+        if (!job.offsetKnown) {
+            bool detected = false;
+            int o = 0;
+            if (SavedDriveOffset(job.drive.vendorModel, &o, &detected)) {
+                job.readOffset = o;
+                offsetSource = detected ? L"detected with AccurateRip" : L"typed by the user";
+            } else if (ListedDriveOffset(job.drive.vendorModel, &o)) {
+                job.readOffset = o;
+                offsetSource = L"AccurateRip drive list";
+                SaveDriveOffset(job.drive.vendorModel, o, false);
+            } else {
+                job.readOffset = 0;
+                offsetSource = L"unknown drive, 0 used";
+            }
+        } else {
+            offsetSource = L"typed by the user";
+        }
+        if (job.verify) {
+            ids = ComputeArIds(job.drive);
+            db = FetchAccurateRip(ids, pressings);
+        }
         // The cover first (a few seconds at most): folder.jpg (never replaced
         // when already there) and a temporary copy the encoders embed.
         std::vector<BYTE> image;
@@ -368,6 +607,11 @@ void Worker(RipJob job, HWND notify) {
             }
         }
         cd->SetSpeed(job.drive.bassIndex, static_cast<DWORD>(-1));   // fastest
+        cd->SetOffset(job.drive.bassIndex, job.readOffset);
+        // Secure mode: a read error is an error, read again 5 times; Fast
+        // mode: BASSCD's defaults (unreadable frames become silence, 2 retries).
+        BASS_SetConfig(BASS_CONFIG_CD_SKIPERROR, job.secure ? FALSE : TRUE);
+        BASS_SetConfig(BASS_CONFIG_CD_RETRY, job.secure ? 5 : 2);
         double secondsTotal = 0;
         for (const RipTrack& t : job.tracks) secondsTotal += t.seconds;
         double secondsBefore = 0;
@@ -381,20 +625,48 @@ void Worker(RipJob job, HWND notify) {
             Post(notify, WM_CDRIP_TRACK_START, i + 1,
                  MAKELPARAM(job.tracks.size(), job.tracks[i].number));
             TrackResult r = RipOneTrack(cd, job, job.tracks[i], i, secondsBefore, secondsTotal,
-                                        startTick, tempCover, notify);
+                                        startTick, tempCover, notify, outcomes[i]);
             if (r != TrackResult::Done) {
                 stopped = true;
                 if (r == TrackResult::Cancelled) Post(notify, WM_CDRIP_CANCELLED, written.size(), 0);
                 break;
             }
+            TrackOutcome& o = outcomes[i];
+            if (job.verify) o.arResult = MatchTrack(pressings, job.tracks[i].audioPos, o.ar);
+            if (db != ArDbState::Found && db != ArDbState::NotInDb) o.arResult.status = ArStatus::NotChecked;
+            if (o.suspicious > 0) Post(notify, WM_CDRIP_TRACK_DONE, job.tracks[i].number, o.suspicious);
             written.push_back(&job.tracks[i]);
             secondsBefore += job.tracks[i].seconds;
         }
+        cd->SetOffset(job.drive.bassIndex, 0);
+        BASS_SetConfig(BASS_CONFIG_CD_SKIPERROR, TRUE);
+        BASS_SetConfig(BASS_CONFIG_CD_RETRY, 2);
         cd->Release(job.drive.bassIndex);
         WriteLists(job, written);   // the tracks written, even after a stop
+        if (job.writeLog && !written.empty() && !job.listName.empty()) {
+            summary->logPath = job.folder + L"\\" + job.listName + L".log";
+            WriteLog(job, summary->logPath, offsetSource, db, pressings.size(), ids, outcomes, stopped);
+        }
     }
     if (!tempCover.empty()) DeleteFileW(tempCover.c_str());
-    if (!stopped) Post(notify, WM_CDRIP_DONE, written.size(), 0);
+
+    summary->written = static_cast<int>(written.size());
+    summary->verified = (db == ArDbState::Found);
+    summary->notInDb = (db == ArDbState::NotInDb);
+    summary->folder = job.folder;
+    for (size_t i = 0; i < outcomes.size(); ++i) {
+        if (!outcomes[i].written) continue;
+        if (outcomes[i].arResult.status == ArStatus::Accurate) ++summary->accurate;
+        if (outcomes[i].arResult.status == ArStatus::NotAccurate) summary->notAccurate.push_back(job.tracks[i].number);
+        if (outcomes[i].suspicious > 0) summary->suspicious.push_back(job.tracks[i].number);
+    }
+    if (stopped || !IsWindow(notify) || !PostMessageW(notify, WM_CDRIP_DONE, written.size(), reinterpret_cast<LPARAM>(summary))) {
+        // The window keeps the folder and the log path even after a stop.
+        if (stopped && IsWindow(notify) && PostMessageW(notify, WM_CDRIP_SUMMARY, 0, reinterpret_cast<LPARAM>(summary))) {
+            summary = nullptr;
+        }
+        delete summary;
+    }
     g_running = false;
 }
 
@@ -422,6 +694,22 @@ int RipQualityCount(RipFormat f) {
 
 int RipDefaultQuality(RipFormat) {
     return 0;   // every list starts with the plan's default
+}
+
+std::wstring RipQualityLabelEn(RipFormat f, int index) {
+    int n = 0;
+    const Quality* q = Qualities(f, &n);
+    return (index >= 0 && index < n) ? Utf8ToWide(q[index].label) : std::wstring();
+}
+
+std::wstring RipFormatNameEn(RipFormat f) {
+    switch (f) {
+        case RipFormat::WAV:  return L"WAV";
+        case RipFormat::MP3:  return L"MP3";
+        case RipFormat::OGG:  return L"Ogg Vorbis";
+        case RipFormat::OPUS: return L"Opus";
+        default:              return L"FLAC";
+    }
 }
 
 std::wstring RipQualityLabel(RipFormat f, int index) {

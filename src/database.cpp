@@ -300,6 +300,13 @@ bool InitDatabase() {
         "  fetched_at INTEGER NOT NULL"
         ");";
     sqlite3_exec(g_db, cdMetaSql, nullptr, nullptr, nullptr);
+    // v2.78 — read offset of each drive model (AccurateRip): detected or typed.
+    sqlite3_exec(g_db,
+        "CREATE TABLE IF NOT EXISTS cd_drive_offsets ("
+        "  drive_model TEXT PRIMARY KEY,"
+        "  read_offset INTEGER NOT NULL,"
+        "  detected INTEGER NOT NULL"
+        ");", nullptr, nullptr, nullptr);
 
     return true;
 }
@@ -1527,6 +1534,36 @@ bool CdCachePut(const std::string& discId, const std::string& releaseMbid, const
     sqlite3_bind_text(st, 2, releaseMbid.c_str(), -1, SQLITE_TRANSIENT);
     sqlite3_bind_text(st, 3, json.c_str(), -1, SQLITE_TRANSIENT);
     sqlite3_bind_int64(st, 4, (sqlite3_int64)time(nullptr));
+    int rc = sqlite3_step(st);
+    sqlite3_finalize(st);
+    return rc == SQLITE_DONE;
+}
+
+bool CdOffsetGet(const std::string& model, int* offset, bool* detected) {
+    if (!g_db || model.empty()) return false;
+    sqlite3_stmt* st = nullptr;
+    if (sqlite3_prepare_v2(g_db, "SELECT read_offset, detected FROM cd_drive_offsets WHERE drive_model=?;",
+                           -1, &st, nullptr) != SQLITE_OK) return false;
+    sqlite3_bind_text(st, 1, model.c_str(), -1, SQLITE_TRANSIENT);
+    bool found = false;
+    if (sqlite3_step(st) == SQLITE_ROW) {
+        *offset = sqlite3_column_int(st, 0);
+        if (detected) *detected = sqlite3_column_int(st, 1) != 0;
+        found = true;
+    }
+    sqlite3_finalize(st);
+    return found;
+}
+
+bool CdOffsetPut(const std::string& model, int offset, bool detected) {
+    if (!g_db || model.empty()) return false;
+    sqlite3_stmt* st = nullptr;
+    if (sqlite3_prepare_v2(g_db,
+        "INSERT OR REPLACE INTO cd_drive_offsets(drive_model, read_offset, detected) VALUES(?,?,?);",
+        -1, &st, nullptr) != SQLITE_OK) return false;
+    sqlite3_bind_text(st, 1, model.c_str(), -1, SQLITE_TRANSIENT);
+    sqlite3_bind_int(st, 2, offset);
+    sqlite3_bind_int(st, 3, detected ? 1 : 0);
     int rc = sqlite3_step(st);
     sqlite3_finalize(st);
     return rc == SQLITE_DONE;

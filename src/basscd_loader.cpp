@@ -62,7 +62,8 @@ void LoadOnce() {
         && Bind(dll, g_api.Release,        "BASS_CD_Release")
         && Bind(dll, g_api.StreamCreateFile, "BASS_CD_StreamCreateFile")
         && Bind(dll, g_api.StreamCreate,   "BASS_CD_StreamCreate")
-        && Bind(dll, g_api.SetSpeed,       "BASS_CD_SetSpeed");
+        && Bind(dll, g_api.SetSpeed,       "BASS_CD_SetSpeed")
+        && Bind(dll, g_api.SetOffset,      "BASS_CD_SetOffset");
     if (g_ok) {
         LogF("CD", "basscd.dll loaded");
     } else {

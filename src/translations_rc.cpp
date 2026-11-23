@@ -1129,8 +1129,18 @@ void RegisterRcTranslations() {
     AddTranslation("fr", "Write an &M3U8 playlist", L"Écrire une liste de lecture &M3U8");
     AddTranslation("en", "Eject the disc &when done", L"Eject the disc &when done");
     AddTranslation("fr", "Eject the disc &when done", L"É&jecter le disque à la fin");
+    AddTranslation("en", "E&xtraction mode:", L"E&xtraction mode:");
+    AddTranslation("fr", "E&xtraction mode:", L"Mode d'e&xtraction :");
+    AddTranslation("en", "Drive &read offset (samples, empty: automatic):", L"Drive &read offset (samples, empty: automatic):");
+    AddTranslation("fr", "Drive &read offset (samples, empty: automatic):", L"Décalage de lectu&re du lecteur (échantillons, vide : automatique) :");
+    AddTranslation("en", "De&tect...", L"De&tect...");
+    AddTranslation("fr", "De&tect...", L"Dé&tecter...");
+    AddTranslation("en", "&Verify with AccurateRip", L"&Verify with AccurateRip");
+    AddTranslation("fr", "&Verify with AccurateRip", L"&Vérifier avec AccurateRip");
+    AddTranslation("en", "Write a &log", L"Write a &log");
+    AddTranslation("fr", "Write a &log", L"Écrire un journa&l");
     AddTranslation("en", "&Defaults", L"&Defaults");
-    AddTranslation("fr", "&Defaults", L"&Valeurs par défaut");
+    AddTranslation("fr", "&Defaults", L"Valeurs &par défaut");
 
     // DIALOG: IDD_CD_RELEASE - "Editions of this disc" (v2.78)
     AddTranslation("en", "Editions of this disc", L"Editions of this disc");

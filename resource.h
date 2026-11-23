@@ -120,6 +120,9 @@
 #define IDM_CDRIP_PROGRESS       2002
 #define IDM_CDRIP_REFRESH        2003   // F5: look the disc up again
 #define IDM_CDRIP_RELEASE        2004   // Ctrl+M: choose another edition
+#define IDM_CDRIP_RERIP          2005   // Ctrl+Shift+R: tracks not confirmed, again in Secure mode
+#define IDM_CDRIP_OPENLOG        2006   // Ctrl+L: log of the last extraction
+#define IDM_CDRIP_OPENFOLDER     2007   // Ctrl+O: folder of the last extraction
 #define IDD_CD_RIP               2020
 #define IDC_CDRIP_DRIVE_LABEL    2021
 #define IDC_CDRIP_DRIVE          2022
@@ -176,6 +179,13 @@
 #define IDC_CDOPT_DEFAULTS       2073
 #define IDC_CDRIP_QUALITY        2074
 #define IDC_CDRIP_OPTIONS        2075
+#define IDC_CDOPT_MODE_LABEL     2076
+#define IDC_CDOPT_MODE           2077
+#define IDC_CDOPT_OFFSET_LABEL   2078
+#define IDC_CDOPT_OFFSET         2079
+#define IDC_CDOPT_DETECT         2080
+#define IDC_CDOPT_VERIFY         2081
+#define IDC_CDOPT_LOG            2082
 
 #define IDM_EFFECT_PRESETS  238
 

@@ -55,6 +55,10 @@ bool DownloadFrontCover(const CdReleaseMeta& meta, std::vector<BYTE>& image);
 // "Album, Artist, 2006, CA, Label, barcode, CD 1 of 2, 14 tracks".
 std::wstring DescribeRelease(const CdReleaseMeta& meta);
 
+// Plain HTTP(S) GET (WinHTTP, MediaAccess user agent, 10 s timeouts,
+// redirects followed). False on a network error; *status holds the HTTP code.
+bool HttpGetBytes(const std::wstring& url, DWORD* status, std::string* body, size_t maxBytes);
+
 // The page where the user can add this disc to MusicBrainz.
 std::wstring MusicBrainzSubmitUrl(const CdLookupResult& r, int audioTracks);
 

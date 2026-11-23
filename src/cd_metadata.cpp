@@ -36,7 +36,9 @@ std::wstring JStr(const json& j, const char* key) {
 
 struct HttpReply { DWORD status = 0; std::string body; };
 
-bool HttpGet(const std::wstring& url, HttpReply& reply, size_t maxBytes) {
+// accept: the Accept header. MusicBrainz wants JSON; AccurateRip answers
+// "406 Not Acceptable" to anything but its binary file, so "*/*" there.
+bool HttpGet(const std::wstring& url, HttpReply& reply, size_t maxBytes, const wchar_t* accept = L"*/*") {
     URL_COMPONENTS uc = {};
     uc.dwStructSize = sizeof(uc);
     wchar_t host[256] = {}, path[2048] = {};
@@ -58,7 +60,8 @@ bool HttpGet(const std::wstring& url, HttpReply& reply, size_t maxBytes) {
                                               WINHTTP_DEFAULT_ACCEPT_TYPES,
                                               uc.nScheme == INTERNET_SCHEME_HTTPS ? WINHTTP_FLAG_SECURE : 0)
                          : nullptr;
-    if (req && WinHttpSendRequest(req, L"Accept: application/json\r\n", (DWORD)-1, WINHTTP_NO_REQUEST_DATA, 0, 0, 0) &&
+    std::wstring header = std::wstring(L"Accept: ") + accept + L"\r\n";
+    if (req && WinHttpSendRequest(req, header.c_str(), (DWORD)-1, WINHTTP_NO_REQUEST_DATA, 0, 0, 0) &&
         WinHttpReceiveResponse(req, nullptr)) {
         DWORD status = 0, len = sizeof(status);
         WinHttpQueryHeaders(req, WINHTTP_QUERY_STATUS_CODE | WINHTTP_QUERY_FLAG_NUMBER,
@@ -95,7 +98,7 @@ bool MusicBrainzGet(const std::wstring& url, HttpReply& reply) {
         ULONGLONG now = GetTickCount64();
         if (now - g_mbLast < 1100) Sleep((DWORD)(1100 - (now - g_mbLast)));
         g_mbLast = GetTickCount64();
-        if (!HttpGet(url, reply, 8 * 1024 * 1024)) return false;
+        if (!HttpGet(url, reply, 8 * 1024 * 1024, L"application/json")) return false;
         if (reply.status != 503) return true;
         LogF("CDMETA", "MusicBrainz 503, retrying");
     }
@@ -488,6 +491,14 @@ std::wstring DescribeRelease(const CdReleaseMeta& m) {
     _snwprintf_s(buf, _countof(buf), _TRUNCATE, T("%d tracks"), (int)m.tracks.size());
     out += L", "; out += buf;
     return out;
+}
+
+bool HttpGetBytes(const std::wstring& url, DWORD* status, std::string* body, size_t maxBytes) {
+    HttpReply reply;
+    bool ok = HttpGet(url, reply, maxBytes);
+    *status = reply.status;
+    body->swap(reply.body);
+    return ok;
 }
 
 std::wstring MusicBrainzSubmitUrl(const CdLookupResult& r, int audioTracks) {

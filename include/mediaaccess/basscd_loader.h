@@ -31,6 +31,7 @@ struct Api {
     HSTREAM     (WINAPI *StreamCreateFile)(const char* file, DWORD flags);
     HSTREAM     (WINAPI *StreamCreate)(DWORD drive, DWORD track, DWORD flags);
     BOOL        (WINAPI *SetSpeed)(DWORD drive, DWORD speed);
+    BOOL        (WINAPI *SetOffset)(DWORD drive, int offset);   // read offset, in samples
 };
 
 // Loads basscd.dll once. Returns nullptr when it cannot be loaded; LastError()
