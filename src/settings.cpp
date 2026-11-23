@@ -358,6 +358,14 @@ void LoadSettings() {
     g_autoAdvance = GetPrivateProfileIntW(L"Playback", L"AutoAdvance", 1, g_configPath.c_str()) != 0;
     g_repeatMode = GetPrivateProfileIntW(L"Playback", L"RepeatMode", 0, g_configPath.c_str());
     if (g_repeatMode < 0 || g_repeatMode > 2) g_repeatMode = 0;
+
+    // Crossfade
+    g_crossfadeEnabled = GetPrivateProfileIntW(L"Crossfade", L"Enabled", 0, g_configPath.c_str()) != 0;
+    g_crossfadeSeconds = GetPrivateProfileIntW(L"Crossfade", L"Seconds", 6, g_configPath.c_str());
+    if (g_crossfadeSeconds < 1) g_crossfadeSeconds = 1;
+    else if (g_crossfadeSeconds > 15) g_crossfadeSeconds = 15;
+    g_crossfadeShape = GetPrivateProfileIntW(L"Crossfade", L"Shape", 0, g_configPath.c_str());
+    if (g_crossfadeShape < 0 || g_crossfadeShape > 1) g_crossfadeShape = 0;
     g_playlistFollowPlayback = GetPrivateProfileIntW(L"Playback", L"PlaylistFollow", 1, g_configPath.c_str()) != 0;
     g_checkForUpdates = GetPrivateProfileIntW(L"Playback", L"CheckForUpdates", 1, g_configPath.c_str()) != 0;
     g_autoFollowDevice = GetPrivateProfileIntW(L"Playback", L"AutoFollowDevice", 1, g_configPath.c_str()) != 0;  // v2.32
@@ -774,6 +782,11 @@ void SaveSettings() {
     WritePrivateProfileStringW(L"Playback", L"AutoAdvance", g_autoAdvance ? L"1" : L"0", g_configPath.c_str());
     swprintf(buf, 32, L"%d", g_repeatMode);
     WritePrivateProfileStringW(L"Playback", L"RepeatMode", buf, g_configPath.c_str());
+    WritePrivateProfileStringW(L"Crossfade", L"Enabled", g_crossfadeEnabled ? L"1" : L"0", g_configPath.c_str());
+    swprintf(buf, 32, L"%d", g_crossfadeSeconds);
+    WritePrivateProfileStringW(L"Crossfade", L"Seconds", buf, g_configPath.c_str());
+    swprintf(buf, 32, L"%d", g_crossfadeShape);
+    WritePrivateProfileStringW(L"Crossfade", L"Shape", buf, g_configPath.c_str());
     WritePrivateProfileStringW(L"Playback", L"PlaylistFollow", g_playlistFollowPlayback ? L"1" : L"0", g_configPath.c_str());
     WritePrivateProfileStringW(L"Playback", L"CheckForUpdates", g_checkForUpdates ? L"1" : L"0", g_configPath.c_str());
     WritePrivateProfileStringW(L"Playback", L"AutoFollowDevice", g_autoFollowDevice ? L"1" : L"0", g_configPath.c_str());  // v2.32

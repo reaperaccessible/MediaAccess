@@ -127,6 +127,10 @@ static const Action g_actions[] = {
     { "PLAYER_REPEAT_TOGGLE",     IDM_PLAY_REPEAT_TOGGLE,     ActionCategory::Main,
       "Cycle repeat mode",            "Changer le mode répétition",
       { 'E', false, false, false } },
+    // Crossfade on/off (fades the end of a local song into the next one).
+    { "PLAYER_CROSSFADE_TOGGLE",  IDM_PLAY_CROSSFADE_TOGGLE,  ActionCategory::Main,
+      "Toggle crossfade",             "Basculer le fondu enchaîné",
+      { 'F', false, false, false } },
     // Toggles the v1.65 preference that announces the playback position after
     // each left/right seek. Same commandId is also registered in the Global
     // category below so the user can bind a system-wide hotkey. Requested by
@@ -552,6 +556,8 @@ static const Action g_actions[] = {
       "Mettre en pause/Reprendre l'enregistrement (global)", {} },
     { "GLOBAL_SHUFFLE",           IDM_PLAY_SHUFFLE,           ActionCategory::Global,
       "Toggle shuffle (global)",      "Basculer la lecture aléatoire (global)", {} },
+    { "GLOBAL_CROSSFADE_TOGGLE",  IDM_PLAY_CROSSFADE_TOGGLE,  ActionCategory::Global,
+      "Toggle crossfade (global)",    "Basculer le fondu enchaîné (global)", {} },
     // Same commandId as PLAYER_TOGGLE_SEEK_ANNOUNCE above; WM_HOTKEY → WM_COMMAND
     // routes to a single case in main.cpp regardless of which entry was triggered.
     { "GLOBAL_TOGGLE_SEEK_ANNOUNCE", IDM_PLAY_TOGGLE_SEEK_ANNOUNCE, ActionCategory::Global,

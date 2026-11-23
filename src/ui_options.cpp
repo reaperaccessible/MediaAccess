@@ -373,6 +373,10 @@ void ShowTabControls(HWND hwnd, int tab) {
                         IDC_BOOK_SKIP_PAGES, IDC_BOOK_SKIP_NOTES,
                         IDC_BOOK_SKIP_SIDEBARS, IDC_BOOK_SKIP_PRODNOTES,
                         IDC_BOOK_SKIP_FOOTNOTES, IDC_BOOK_SKIP_REFERENCES};
+    // Crossfade tab controls (tab 13)
+    int crossfadeCtrls[] = {IDC_LABEL_XF_DESCRIPTION, IDC_XF_ENABLE,
+                            IDC_LABEL_XF_SECONDS, IDC_XF_SECONDS,
+                            IDC_LABEL_XF_SHAPE, IDC_XF_SHAPE};
 
 
 
@@ -439,6 +443,11 @@ void ShowTabControls(HWND hwnd, int tab) {
     // Show/hide Books library controls
     for (int id : booksCtrls) {
         ShowWindow(GetDlgItem(hwnd, id), tab == 12 ? SW_SHOW : SW_HIDE);
+    }
+
+    // Show/hide Crossfade controls
+    for (int id : crossfadeCtrls) {
+        ShowWindow(GetDlgItem(hwnd, id), tab == 13 ? SW_SHOW : SW_HIDE);
     }
 }
 
@@ -567,6 +576,8 @@ INT_PTR CALLBACK OptionsDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
             TabCtrl_InsertItem(hTab, 11, &tie);
             tie.pszText = const_cast<LPWSTR>(T("Books"));
             TabCtrl_InsertItem(hTab, 12, &tie);
+            tie.pszText = const_cast<LPWSTR>(T("Crossfade"));
+            TabCtrl_InsertItem(hTab, 13, &tie);
 
             // v1.90 — Hide all non-Playback tab controls BEFORE populating
             // anything. Reason: a later EnableWindow(IDC_REC_BITRATE, FALSE)
@@ -1104,6 +1115,24 @@ INT_PTR CALLBACK OptionsDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
                 SetDlgItemTextW(hwnd, IDC_SS_TONALITY, buf);
             }
 
+            // Initialize Crossfade tab controls
+            {
+                CheckDlgButton(hwnd, IDC_XF_ENABLE, g_crossfadeEnabled ? BST_CHECKED : BST_UNCHECKED);
+                HWND hSec = GetDlgItem(hwnd, IDC_XF_SECONDS);
+                SendMessageW(hSec, CB_RESETCONTENT, 0, 0);
+                for (int s = 1; s <= 15; ++s) {
+                    wchar_t buf[64];
+                    swprintf(buf, 64, T(s == 1 ? "%d second" : "%d seconds"), s);
+                    SendMessageW(hSec, CB_ADDSTRING, 0, (LPARAM)buf);
+                }
+                SendMessageW(hSec, CB_SETCURSEL, g_crossfadeSeconds - 1, 0);
+                HWND hShape = GetDlgItem(hwnd, IDC_XF_SHAPE);
+                SendMessageW(hShape, CB_RESETCONTENT, 0, 0);
+                SendMessageW(hShape, CB_ADDSTRING, 0, (LPARAM)T("Smooth (constant level)"));
+                SendMessageW(hShape, CB_ADDSTRING, 0, (LPARAM)T("Linear"));
+                SendMessageW(hShape, CB_SETCURSEL, g_crossfadeShape, 0);
+            }
+
             // Initialize MIDI tab controls
             {
                 SetDlgItemTextW(hwnd, IDC_MIDI_SOUNDFONT, g_midiSoundFont.c_str());
@@ -1634,6 +1663,16 @@ INT_PTR CALLBACK OptionsDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
                         if (voices >= 1 && voices <= 1000) g_midiMaxVoices = voices;
 
                         g_midiSincInterp = (IsDlgButtonChecked(hwnd, IDC_MIDI_SINC) == BST_CHECKED);
+                    }
+
+                    // Get Crossfade settings
+                    {
+                        g_crossfadeEnabled = (IsDlgButtonChecked(hwnd, IDC_XF_ENABLE) == BST_CHECKED);
+                        int s = (int)SendMessageW(GetDlgItem(hwnd, IDC_XF_SECONDS), CB_GETCURSEL, 0, 0);
+                        if (s >= 0 && s < 15) g_crossfadeSeconds = s + 1;
+                        int sh = (int)SendMessageW(GetDlgItem(hwnd, IDC_XF_SHAPE), CB_GETCURSEL, 0, 0);
+                        if (sh == 0 || sh == 1) g_crossfadeShape = sh;
+                        CrossfadeMaintain();
                     }
 
                     // Get Language setting

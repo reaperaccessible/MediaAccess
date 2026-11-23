@@ -84,6 +84,13 @@ static HSTREAM s_mixer = 0;           // the mixer at the head of the chain
 static bool s_mixerChain = false;     // g_fxStream is the song-mixer chain
 static ChainSignature s_chainSig;     // settings the chain was built with
 
+// Crossfade, phase 2 (see the block after PollSongEnd).
+static std::atomic<DWORD> s_xfNext{0};      // next song, open and paused in the mixer
+static std::atomic<bool>  s_xfArmed{false}; // the fade-start sync may fire
+static std::atomic<DWORD> s_xfFadingOut{0}; // song going out (set by the sync)
+static void CrossfadeDropAll();
+static void PostCrossfadeMaintain();
+
 // Everything the processor reads only when it is created: a change of any of
 // them rebuilds the chain at the next song, as every song did before.
 static ChainSignature CurrentChainSignature() {
@@ -104,6 +111,7 @@ static ChainSignature CurrentChainSignature() {
 // (BASS_ENCODE_AUTOFREE): clear the recording flags so they do not lie.
 static void ReleaseSongMixer() {
     bool wasChain = s_mixerChain;
+    CrossfadeDropAll();   // the chain is gone already: nothing is locked
     if (s_song) {
         if (g_sourceStream == s_song) g_sourceStream = 0;
         BASS_StreamFree(s_song);
@@ -124,6 +132,11 @@ static void ReleaseSongMixer() {
 // left the mixer, but the tempo and playback buffers still hold it. Mark that
 // point in the processor and let the UI thread wait until it is heard.
 static void CALLBACK OnSongDecodeEnd(HSYNC, DWORD channel, DWORD, void* user) {
+    // Crossfade: the song that faded out is only let go, never "ended".
+    if (channel == s_xfFadingOut.load()) {
+        PostMessage(g_hwnd, WM_CROSSFADE_OUT_DONE, static_cast<WPARAM>(channel), 0);
+        return;
+    }
     auto* processor = static_cast<TempoProcessor*>(user);
     if (processor) processor->MarkSourceEnd();
     PostMessage(g_hwnd, WM_SONG_DECODE_END, static_cast<WPARAM>(channel), 0);
@@ -1420,6 +1433,31 @@ static bool HasMp4VideoTrack(const wchar_t* path) {
 // Returns false on decode failure. The error box is suppressed when the
 // playlist has more than one entry — so a single corrupt track in a long
 // playlist doesn't spam the user; PlayTrack just advances past it.
+// A local song as a decode stream (also used to open the next song of a
+// crossfade ahead of time). MIDI keeps its own path when the user wants sinc
+// interpolation (Options > MIDI), which the generic call can't request.
+static HSTREAM OpenSongStream(const wchar_t* path) {
+    HSTREAM song = 0;
+    if (IsMidiFile(path) && g_midiSincInterp) {
+        DWORD flags = BASS_UNICODE | BASS_STREAM_DECODE | BASS_SAMPLE_FLOAT | BASS_MIDI_SINCINTER;
+        song = BASS_MIDI_StreamCreateFile(FALSE, path, 0, 0, flags, 0);
+        // Apply SoundFont to this specific stream if loaded
+        if (song && g_hSoundFont) {
+            BASS_MIDI_FONT font;
+            font.font = g_hSoundFont;
+            font.preset = -1;
+            font.bank = 0;
+            BASS_MIDI_StreamSetFonts(song, &font, 1);
+        }
+    } else if (mediaaccess::IsCdaFile(path)) {
+        // v2.78 — a track of an audio CD ("E:\Track01.cda"): BASSCD reads it.
+        song = mediaaccess::OpenCdaStream(path, BASS_STREAM_DECODE | BASS_SAMPLE_FLOAT);
+    } else {
+        song = BASS_StreamCreateFile(FALSE, path, 0, 0, BASS_UNICODE | BASS_STREAM_DECODE | BASS_SAMPLE_FLOAT);
+    }
+    return song;
+}
+
 bool LoadFile(const wchar_t* path) {
     // Loading any other media unloads the current DAISY book first so the
     // user doesn't end up with overlapping audio streams.
@@ -1500,6 +1538,7 @@ bool LoadFile(const wchar_t* path) {
         // output (clears its buffer), drop the effects (re-applied below, so
         // they start fresh as before), let the old song go. An encoder on
         // g_fxStream stays: the recording goes on across songs.
+        CrossfadeDropAll();   // a fade in progress or planned ends here
         BASS_ChannelStop(g_fxStream);
         RemoveDSPEffects();
         GetTempoProcessor()->SetSongStream(0);
@@ -1548,24 +1587,7 @@ bool LoadFile(const wchar_t* path) {
     // wants sinc interpolation (Options → MIDI), which the generic
     // BASS_StreamCreateFile path can't request. Otherwise generic handles
     // every format including MIDI (lower CPU, lower quality).
-    HSTREAM song = 0;
-    if (IsMidiFile(path) && g_midiSincInterp) {
-        DWORD flags = BASS_UNICODE | BASS_STREAM_DECODE | BASS_SAMPLE_FLOAT | BASS_MIDI_SINCINTER;
-        song = BASS_MIDI_StreamCreateFile(FALSE, path, 0, 0, flags, 0);
-        // Apply SoundFont to this specific stream if loaded
-        if (song && g_hSoundFont) {
-            BASS_MIDI_FONT font;
-            font.font = g_hSoundFont;
-            font.preset = -1;
-            font.bank = 0;
-            BASS_MIDI_StreamSetFonts(song, &font, 1);
-        }
-    } else if (mediaaccess::IsCdaFile(path)) {
-        // v2.78 — a track of an audio CD ("E:\Track01.cda"): BASSCD reads it.
-        song = mediaaccess::OpenCdaStream(path, BASS_STREAM_DECODE | BASS_SAMPLE_FLOAT);
-    } else {
-        song = BASS_StreamCreateFile(FALSE, path, 0, 0, BASS_UNICODE | BASS_STREAM_DECODE | BASS_SAMPLE_FLOAT);
-    }
+    HSTREAM song = OpenSongStream(path);
     if (!song) {
         int openError = BASS_ErrorGetCode();
         dropChain();
@@ -1768,6 +1790,7 @@ bool LoadFile(const wchar_t* path) {
     g_currentSourcePath = path;
     UpdateWindowTitle();
     UpdateStatusBar();
+    PostCrossfadeMaintain();   // plan the fade into the next song (after PlayTrack)
     return true;
 }
 
@@ -1804,6 +1827,415 @@ void PollSongEnd() {
     KillTimer(g_hwnd, IDT_SONG_END);
     processor->ClearSourceEnd();
     OnTrackEnd(0, 0, 0, nullptr);
+}
+
+// =============================================================================
+// Crossfade, phase 2 — the end of one local song fades into the next one
+// (docs/PLAN_FONDU_ENCHAINE.md, sections 2, 3 and 5).
+//
+// While a song plays, the next one is decided once (shuffle included), opened
+// and plugged into the mixer PAUSED. A mixtime sync on the current song, at
+// "length - fade", unpauses it and puts two volume envelopes on: the song
+// going out descends, the one coming in rises. The mixer feeds the single
+// chain (tempo, effects, volume, recording), so both songs share it and
+// nothing is cut. The sync (BASS thread) only does that and posts
+// WM_CROSSFADE_START; the UI thread then makes the new song the current one
+// (title, announcement, history, playlist caret), once, at the start of the
+// fade. The song going out is freed by us when it has left the mixer.
+//
+// Never a fade (section 3): crossfade off, auto-advance off, repeat one, an
+// A-B loop, a book, anything not started as a local file of the playlist
+// (podcasts, YouTube, radio windows), a next item that is not a local audio
+// file played by BASS (web address, video, mpv, CD track), or a next song that
+// resumes at a remembered position.
+//
+// Threads: everything here runs on the UI thread except OnCrossfadeStart and
+// the atomics it touches. Every change to the mixer's sources is made with the
+// output stream locked, so the sync can never run halfway through one.
+// =============================================================================
+static HSTREAM s_xfOut = 0;                 // same, once the UI thread took it over
+static HSYNC   s_xfSync = 0;                // fade-start sync, on s_xfSyncSong
+static HSTREAM s_xfSyncSong = 0;
+static QWORD   s_xfStartByte = 0;           // where the fade starts (song bytes)
+static QWORD   s_xfLenBytes = 0;            // its length (mixer bytes)
+static int     s_xfShape = -1;
+static std::vector<BASS_MIXER_NODE> s_xfOutNodes, s_xfInNodes;
+
+// The next song, decided once (section 5): kept while the current song, the
+// list entry, shuffle and repeat stay the same.
+static int          s_xfIndex = -1;
+static std::wstring s_xfPath;
+static int          s_xfDecidedCur = -1;
+static bool         s_xfDecidedShuffle = false;
+static int          s_xfDecidedRepeat = -1;
+static std::wstring s_xfRejected;           // a next file that cannot fade in (not retried)
+static bool         s_xfMaintainPosted = false;
+
+namespace {
+struct OutputLock {   // holds the mixer still: no sync can fire meanwhile
+    HSTREAM h;
+    explicit OutputLock(HSTREAM s) : h(s) { if (h) BASS_ChannelLock(h, TRUE); }
+    ~OutputLock() { if (h) BASS_ChannelLock(h, FALSE); }
+};
+}
+
+static double SongLength(HSTREAM song) {
+    QWORD len = BASS_ChannelGetLength(song, BASS_POS_BYTE);
+    return (len == (QWORD)-1) ? 0.0 : BASS_ChannelBytes2Seconds(song, len);
+}
+
+static double SongDecodePos(HSTREAM song) {
+    QWORD pos = BASS_Mixer_ChannelGetPosition(song, BASS_POS_BYTE);
+    return (pos == (QWORD)-1) ? 0.0 : BASS_ChannelBytes2Seconds(song, pos);
+}
+
+// File seconds played per heard second: the fade the user sets is a heard
+// duration (tempo is a percentage, rate a factor; Speedy's non-linear mode is
+// only approximated).
+static double CrossfadeSpeedFactor() {
+    double f = (1.0 + g_tempo / 100.0) * g_rate;
+    return f < 0.1 ? 0.1 : f;
+}
+
+// Mixtime sync on the song going out (BASS thread): the mixer has reached the
+// fade start. Changes made here apply from this exact sample.
+static void CALLBACK OnCrossfadeStart(HSYNC, DWORD channel, DWORD, void*) {
+    if (!s_xfArmed.exchange(false)) return;
+    DWORD next = s_xfNext.load();
+    if (!next || s_xfOutNodes.empty()) return;
+    BASS_Mixer_ChannelSetEnvelope(channel, BASS_MIXER_ENV_VOL,
+                                  s_xfOutNodes.data(), (DWORD)s_xfOutNodes.size());
+    // (No BASS_MIXER_ENV_REMOVE: it takes the whole SOURCE out of the mixer
+    // at the end of the envelope. The envelope, ending at full level, is
+    // removed by the UI thread once the song going out has left.)
+    BASS_Mixer_ChannelSetEnvelope(next, BASS_MIXER_ENV_VOL,
+                                  s_xfInNodes.data(), (DWORD)s_xfInNodes.size());
+    BASS_Mixer_ChannelSetEnvelopePos(channel, BASS_MIXER_ENV_VOL, 0);
+    BASS_Mixer_ChannelSetEnvelopePos(next, BASS_MIXER_ENV_VOL, 0);
+    BASS_Mixer_ChannelFlags(next, 0, BASS_MIXER_CHAN_PAUSE);
+    s_xfFadingOut.store(channel);
+    PostMessage(g_hwnd, WM_CROSSFADE_START, (WPARAM)next, (LPARAM)channel);
+}
+
+static void CrossfadeRemoveSync() {
+    s_xfArmed.store(false);
+    if (s_xfSync && s_xfSyncSong) BASS_Mixer_ChannelRemoveSync(s_xfSyncSong, s_xfSync);
+    s_xfSync = 0;
+    s_xfSyncSong = 0;
+    s_xfStartByte = 0;
+    s_xfLenBytes = 0;
+}
+
+// Let the prepared next song go (the decision itself is kept).
+static void CrossfadeFreeNext() {
+    OutputLock lock(s_mixerChain ? g_fxStream : 0);
+    CrossfadeRemoveSync();
+    DWORD next = s_xfNext.exchange(0);
+    if (next) BASS_StreamFree(next);   // also takes it out of the mixer
+}
+
+static void CrossfadeForgetDecision() {
+    s_xfIndex = -1;
+    s_xfPath.clear();
+    s_xfDecidedCur = -1;
+    s_xfDecidedRepeat = -1;
+}
+
+// A gesture during a fade ends it: the song going out is let go at once and
+// the current song plays on at full level.
+static void CrossfadeFinishNow() {
+    DWORD out = s_xfOut ? s_xfOut : s_xfFadingOut.load();
+    if (!out) return;
+    OutputLock lock(s_mixerChain ? g_fxStream : 0);
+    BASS_StreamFree(out);
+    s_xfOut = 0;
+    s_xfFadingOut.store(0);
+    if (s_song) BASS_Mixer_ChannelSetEnvelope(s_song, BASS_MIXER_ENV_VOL, nullptr, 0);
+}
+
+// Everything about crossfades goes: a new song is loaded, or the chain ends.
+static void CrossfadeDropAll() {
+    CrossfadeFreeNext();
+    CrossfadeFinishNow();
+    CrossfadeForgetDecision();
+    s_xfRejected.clear();
+}
+
+static void PostCrossfadeMaintain() {
+    if (s_xfMaintainPosted || !g_hwnd) return;
+    s_xfMaintainPosted = true;
+    PostMessage(g_hwnd, WM_CROSSFADE_MAINTAIN, 0, 0);
+}
+
+void CrossfadeBeforeSeek() {
+    if (s_xfFadingOut.load() && !s_xfOut) {
+        // The fade began a moment ago and the UI has not switched yet: the
+        // gesture is for the song coming in.
+        HandleCrossfadeStart((WPARAM)s_xfNext.load(), (LPARAM)s_xfFadingOut.load());
+    }
+    CrossfadeFinishNow();
+    PostCrossfadeMaintain();   // the fade start moves with the position
+}
+
+void CrossfadeGesture() {
+    CrossfadeBeforeSeek();
+}
+
+// A local audio file BASS plays, outside a CD: the only kind that fades.
+static bool CrossfadeFileAllowed(const std::wstring& path) {
+    const wchar_t* p = path.c_str();
+    if (path.empty() || IsURL(p) || IsVideoFile(path) || IsMpvOnlyAudioFile(path) ||
+        IsVideoExtension(p) || mediaaccess::IsCdaFile(p)) return false;
+    if (IsAmbiguousMp4Ext(p) && IsMPVAvailable() && HasMp4VideoTrack(p)) return false;
+    return true;
+}
+
+// The current song may fade out into another one.
+static bool CrossfadeCurrentAllowed() {
+    if (!g_crossfadeEnabled || !s_mixerChain || !g_fxStream || !s_song) return false;
+    if (g_activeEngine != PlaybackEngine::BASS || g_isLiveStream) return false;
+    if (!g_autoAdvance || g_repeatMode == 1 || g_loopEnabled) return false;
+    if (mediaaccess::DaisyIsActive() || g_nowPlayingType != SourceType::Local) return false;
+    if (g_currentTrack < 0 || g_currentTrack >= static_cast<int>(g_playlist.size())) return false;
+    // Started from the playlist (not a YouTube cache file loaded directly).
+    if (_wcsicmp(g_playlist[g_currentTrack].c_str(), g_currentSourcePath.c_str()) != 0) return false;
+    return CrossfadeFileAllowed(g_currentSourcePath);
+}
+
+// The decided next index, or -1 (end of the list). Decided once, like
+// NextTrack would, and kept while nothing it depends on changes.
+static int CrossfadeDecideNext() {
+    const int n = static_cast<int>(g_playlist.size());
+    const int cur = g_currentTrack;
+    if (s_xfDecidedCur == cur && s_xfDecidedShuffle == g_shuffle &&
+        s_xfDecidedRepeat == g_repeatMode &&
+        (s_xfIndex < 0 || (s_xfIndex < n && g_playlist[s_xfIndex] == s_xfPath))) {
+        return s_xfIndex;
+    }
+    CrossfadeFreeNext();
+    int next = -1;
+    if (g_repeatMode == 1) {
+        next = cur;
+    } else if (g_shuffle && n > 1) {
+        do { next = rand() % n; } while (next == cur);
+    } else if (cur + 1 < n) {
+        next = cur + 1;
+    } else if (g_repeatMode == 2) {
+        next = 0;
+    }
+    s_xfIndex = next;
+    s_xfPath = (next >= 0 && next < n) ? g_playlist[next] : std::wstring();
+    s_xfDecidedCur = cur;
+    s_xfDecidedShuffle = g_shuffle;
+    s_xfDecidedRepeat = g_repeatMode;
+    return next;
+}
+
+int CrossfadePlannedNext() {
+    const int n = static_cast<int>(g_playlist.size());
+    if (s_xfIndex < 0 || s_xfIndex >= n || s_xfDecidedCur != g_currentTrack ||
+        s_xfDecidedShuffle != g_shuffle || s_xfDecidedRepeat != g_repeatMode ||
+        g_playlist[s_xfIndex] != s_xfPath) return -1;
+    return s_xfIndex;
+}
+
+// Envelope value for a linear amplitude. MediaAccess sets
+// BASS_CONFIG_CURVE_VOL (logarithmic volume curve), which mixer envelopes
+// follow too: a value v means (v - 1) x 100 dB, 0 being silence.
+static float EnvelopeValue(double amplitude) {
+    if (amplitude <= 0.00001) return 0.0f;   // -100 dB and below: silence
+    double v = 1.0 + 20.0 * log10(amplitude) / 100.0;
+    return static_cast<float>(v < 0.0 ? 0.0 : (v > 1.0 ? 1.0 : v));
+}
+
+// Fade curves, as volume envelope nodes over `lenBytes` of the mixer. Many
+// nodes: BASS interpolates between them on the (logarithmic) value.
+static void BuildCrossfadeNodes(QWORD lenBytes, int shape) {
+    const int kSteps = 48;
+    const DWORD frame = 2 * sizeof(float);
+    s_xfOutNodes.clear();
+    s_xfInNodes.clear();
+    for (int i = 0; i <= kSteps; ++i) {
+        double t = static_cast<double>(i) / kSteps;
+        QWORD pos = static_cast<QWORD>(t * static_cast<double>(lenBytes));
+        pos -= pos % frame;
+        double out, in;
+        if (shape == 1) {           // linear amplitude
+            out = 1.0 - t;
+            in = t;
+        } else {                    // smooth: equal power, no dip in the middle
+            out = cos(t * 1.5707963267948966);
+            in = sin(t * 1.5707963267948966);
+        }
+        s_xfOutNodes.push_back({ pos, EnvelopeValue(out) });
+        s_xfInNodes.push_back({ pos, EnvelopeValue(in) });
+    }
+}
+
+// UI thread: plan the next fade, or keep the one planned, or drop it. Cheap
+// when nothing changed: called on every song start, after a seek, on the
+// 250 ms status tick and whenever a setting it depends on changes.
+void CrossfadeMaintain() {
+    s_xfMaintainPosted = false;
+    if (s_xfFadingOut.load() && !s_xfOut) return;   // a fade is starting
+    if (!CrossfadeCurrentAllowed()) {
+        if (s_xfNext.load() || s_xfSync) {
+            CrossfadeFreeNext();
+            LogF("Crossfade", "planned fade dropped (not allowed now)");
+        }
+        return;
+    }
+    const int idx = CrossfadeDecideNext();
+    if (idx < 0 || idx == g_currentTrack || !CrossfadeFileAllowed(s_xfPath)) {
+        if (s_xfNext.load() || s_xfSync) CrossfadeFreeNext();
+        return;
+    }
+
+    if (!s_xfNext.load()) {
+        if (_wcsicmp(s_xfPath.c_str(), s_xfRejected.c_str()) == 0) return;
+        HSTREAM h = OpenSongStream(s_xfPath.c_str());
+        if (!h) { s_xfRejected = s_xfPath; return; }
+        // A next song that resumes at its remembered position never fades in.
+        double lenNext = SongLength(h);
+        if (g_rememberPosMinutes > 0 && lenNext >= g_rememberPosMinutes * 60.0) {
+            double saved = LoadFilePositionDB(s_xfPath);
+            if (saved > 0 && saved < lenNext) {
+                BASS_StreamFree(h);
+                s_xfRejected = s_xfPath;
+                return;
+            }
+        }
+        BASS_CHANNELINFO info = {};
+        BASS_ChannelGetInfo(h, &info);
+        const DWORD flags = BASS_MIXER_CHAN_PAUSE | BASS_MIXER_CHAN_NORAMPIN |
+                            (info.chans > 2 ? BASS_MIXER_CHAN_DOWNMIX : 0);
+        BOOL added;
+        {
+            OutputLock lock(g_fxStream);
+            added = BASS_Mixer_StreamAddChannel(s_mixer, h, flags);
+        }
+        if (!added) {
+            LogF("Crossfade", "next song not added to the mixer (error %d)", BASS_ErrorGetCode());
+            BASS_StreamFree(h);
+            s_xfRejected = s_xfPath;
+            return;
+        }
+        s_xfNext.store(h);
+    }
+
+    // Where and how long: the heard duration, never more than half of the
+    // shorter song (section 3).
+    const double lenCur = SongLength(s_song);
+    const double lenNext = SongLength(s_xfNext.load());
+    double fade = g_crossfadeSeconds * CrossfadeSpeedFactor();
+    fade = (std::min)(fade, (std::min)(lenCur, lenNext) / 2.0);
+    double start = lenCur - fade;
+    const double decoded = SongDecodePos(s_song);
+    if (start < decoded) {
+        // The mixer is already past the start (a seek near the end, or the
+        // fade turned on late). A start planned and still ahead is kept;
+        // otherwise the fade starts right away with what is left.
+        if (s_xfSync && s_xfSyncSong == s_song &&
+            BASS_ChannelBytes2Seconds(s_song, s_xfStartByte) > decoded) return;
+        start = decoded + 0.2;
+        fade = lenCur - start;
+    }
+    if (fade < 0.5) {   // too late for a fade: the song simply ends
+        if (s_xfSync) { OutputLock lock(g_fxStream); CrossfadeRemoveSync(); }
+        return;
+    }
+    const QWORD startB = BASS_ChannelSeconds2Bytes(s_song, start);
+    const QWORD lenB = BASS_ChannelSeconds2Bytes(s_mixer, fade);
+    if (s_xfSync && s_xfSyncSong == s_song && s_xfShape == g_crossfadeShape &&
+        startB == s_xfStartByte && lenB == s_xfLenBytes) return;   // unchanged
+
+    OutputLock lock(g_fxStream);
+    CrossfadeRemoveSync();
+    BuildCrossfadeNodes(lenB, g_crossfadeShape);
+    s_xfShape = g_crossfadeShape;
+    s_xfSync = BASS_Mixer_ChannelSetSync(s_song, BASS_SYNC_POS | BASS_SYNC_MIXTIME | BASS_SYNC_ONETIME,
+                                         startB, OnCrossfadeStart, nullptr);
+    if (!s_xfSync) return;
+    s_xfSyncSong = s_song;
+    s_xfStartByte = startB;
+    s_xfLenBytes = lenB;
+    s_xfArmed.store(true);
+    LogF("Crossfade", "planned: track %d -> %d at %.2f s, %.2f s of file", g_currentTrack, s_xfIndex, start, fade);
+}
+
+static void AnnounceCurrentTrackChange();   // below, shared with PlayTrack
+
+// WM_CROSSFADE_START (UI thread): the fade has begun. The song coming in is
+// now the current song, once, here: title, announcement, history, playlist.
+void HandleCrossfadeStart(WPARAM nextSong, LPARAM outSong) {
+    if (!s_mixerChain || !g_fxStream) return;
+    if (static_cast<DWORD>(nextSong) != s_xfNext.load() ||
+        static_cast<HSTREAM>(outSong) != s_song || s_xfOut) return;
+    const int nextIndex = s_xfIndex;
+    if (nextIndex < 0 || nextIndex >= static_cast<int>(g_playlist.size())) return;
+
+    // The song going out was heard to its end, as far as its remembered
+    // position goes: cleared, as at a normal end.
+    const double outLen = SongLength(s_song);
+    if (g_rememberPosMinutes > 0 && outLen >= g_rememberPosMinutes * 60.0 &&
+        !g_currentSourcePath.empty()) {
+        SaveFilePositionDB(g_currentSourcePath, 0.0);
+    }
+
+    {
+        OutputLock lock(g_fxStream);
+        s_xfOut = s_song;
+        s_song = static_cast<HSTREAM>(s_xfNext.exchange(0));
+        s_xfSync = 0;          // one-time sync, gone
+        s_xfSyncSong = 0;
+        s_xfStartByte = 0;
+        s_xfLenBytes = 0;
+        GetTempoProcessor()->SetSongStream(s_song);
+    }
+    KillTimer(g_hwnd, IDT_SONG_END);
+    LogF("Crossfade", "fade from track %d into track %d", g_currentTrack, nextIndex);
+    CrossfadeForgetDecision();
+    s_xfRejected.clear();
+
+    g_currentTrack = nextIndex;
+    g_sourceStream = s_song;
+    float bitrate = 0;
+    BASS_ChannelGetAttribute(s_song, BASS_ATTRIB_BITRATE, &bitrate);
+    g_currentBitrate = static_cast<int>(bitrate);
+    g_currentSourcePath = g_playlist[nextIndex];
+    BASS_Mixer_ChannelSetSync(s_song, BASS_SYNC_END | BASS_SYNC_MIXTIME, 0,
+                              OnSongDecodeEnd, GetTempoProcessor());
+    ParseChapters(g_sourceStream);
+    g_loopStart = g_loopEnd = -1.0;
+    g_loopEnabled = false;
+    ArmLoopSync();
+    AddToRecentFiles(g_currentSourcePath);
+
+    NotifyPlaylistTrackChanged();
+    ApplyNowPlayingForCurrentTrack();
+    if (g_speechTrackChange) AnnounceCurrentTrackChange();
+    UpdateWindowTitle();
+    UpdateStatusBar();
+    CrossfadeMaintain();   // and the one after
+}
+
+// WM_CROSSFADE_OUT_DONE (UI thread): the song that faded out has left the mixer.
+void HandleCrossfadeOutDone(WPARAM song) {
+    DWORD s = static_cast<DWORD>(song);
+    if (!s || (s != s_xfOut && s != s_xfFadingOut.load())) return;
+    OutputLock lock(s_mixerChain ? g_fxStream : 0);
+    BASS_StreamFree(s);
+    s_xfOut = 0;
+    s_xfFadingOut.store(0);
+    if (s_song) BASS_Mixer_ChannelSetEnvelope(s_song, BASS_MIXER_ENV_VOL, nullptr, 0);
+}
+
+// F key and the menu: crossfade on or off.
+void ToggleCrossfade() {
+    g_crossfadeEnabled = !g_crossfadeEnabled;
+    Speak(g_crossfadeEnabled ? Ts("Crossfade on") : Ts("Crossfade off"));
+    SaveSettings();
+    CrossfadeMaintain();
 }
 
 // BASS_SYNC_META callback. Fires when internet radio stations send a new
@@ -2004,6 +2436,7 @@ void Pause() {
             Speak(Ts("Cannot pause live stream"));
             return;
         }
+        CrossfadeGesture();   // a fade in progress ends first
         BASS_ChannelPause(g_fxStream);
 
         if (g_rewindOnPauseMs > 0) {
@@ -2819,6 +3252,46 @@ void ApplyNowPlayingForCurrentTrack() {
     }
 }
 
+// The announcement of a new current track (PlayTrack, and the start of a
+// crossfade): the stream title, else "artist - title", else the file name.
+static void AnnounceCurrentTrackChange() {
+    // For streams, announce the stream title; for files, announce title or filename
+    HSTREAM stream = TagSourceStream();
+    if (stream) {
+        std::string streamTitle = GetStreamTitle(stream);
+        if (!streamTitle.empty()) {
+            Speak(streamTitle);
+        } else {
+            std::string title = GetMetadataTag(stream, "TITLE");
+            std::string artist = GetMetadataTag(stream, "ARTIST");
+
+            // Try ID3v1 if nothing found
+            if (title.empty()) {
+                const TAG_ID3* id3 = (const TAG_ID3*)BASS_ChannelGetTags(stream, BASS_TAG_ID3);
+                if (id3) {
+                    title = GetTrimmedTag(id3->title, 30);
+                    if (artist.empty()) artist = GetTrimmedTag(id3->artist, 30);
+                }
+            }
+
+            if (!title.empty() && !artist.empty()) {
+                Speak(artist + " - " + title);
+            } else if (!title.empty()) {
+                Speak(title);
+            } else {
+                // Fall back to filename
+                std::wstring path = g_playlist[g_currentTrack];
+                const wchar_t* lastSlash = wcsrchr(path.c_str(), L'\\');
+                if (!lastSlash) lastSlash = wcsrchr(path.c_str(), L'/');
+                std::wstring filename = lastSlash ? (lastSlash + 1) : path;
+                char buf[512];
+                WideCharToMultiByte(CP_UTF8, 0, filename.c_str(), -1, buf, sizeof(buf), nullptr, nullptr);
+                Speak(buf);
+            }
+        }
+    }
+}
+
 // g_isBusy gate prevents re-entrancy from rapid Next/Prev presses.
 void PlayTrack(int index, bool autoPlay) {
     // v2.72 — a track change arriving while a YouTube wait is on screen (Next
@@ -2879,41 +3352,7 @@ void PlayTrack(int index, bool autoPlay) {
 
     // Announce track change if setting is enabled
     if (loadedSuccessfully && g_speechTrackChange) {
-        // For streams, announce the stream title; for files, announce title or filename
-        HSTREAM stream = TagSourceStream();
-        if (stream) {
-            std::string streamTitle = GetStreamTitle(stream);
-            if (!streamTitle.empty()) {
-                Speak(streamTitle);
-            } else {
-                std::string title = GetMetadataTag(stream, "TITLE");
-                std::string artist = GetMetadataTag(stream, "ARTIST");
-
-                // Try ID3v1 if nothing found
-                if (title.empty()) {
-                    const TAG_ID3* id3 = (const TAG_ID3*)BASS_ChannelGetTags(stream, BASS_TAG_ID3);
-                    if (id3) {
-                        title = GetTrimmedTag(id3->title, 30);
-                        if (artist.empty()) artist = GetTrimmedTag(id3->artist, 30);
-                    }
-                }
-
-                if (!title.empty() && !artist.empty()) {
-                    Speak(artist + " - " + title);
-                } else if (!title.empty()) {
-                    Speak(title);
-                } else {
-                    // Fall back to filename
-                    std::wstring path = g_playlist[g_currentTrack];
-                    const wchar_t* lastSlash = wcsrchr(path.c_str(), L'\\');
-                    if (!lastSlash) lastSlash = wcsrchr(path.c_str(), L'/');
-                    std::wstring filename = lastSlash ? (lastSlash + 1) : path;
-                    char buf[512];
-                    WideCharToMultiByte(CP_UTF8, 0, filename.c_str(), -1, buf, sizeof(buf), nullptr, nullptr);
-                    Speak(buf);
-                }
-            }
-        }
+        AnnounceCurrentTrackChange();
     }
 
     g_isBusy = false;
@@ -2934,10 +3373,14 @@ void NextTrack(bool autoPlay) {
 
     int next;
     if (g_shuffle && g_playlist.size() > 1) {
-        // Random track (excluding current)
-        do {
-            next = rand() % static_cast<int>(g_playlist.size());
-        } while (next == g_currentTrack && g_playlist.size() > 1);
+        // Random track (excluding current). A crossfade decides the next song
+        // ahead of time: the same one comes, faded or not.
+        next = CrossfadePlannedNext();
+        if (next < 0 || next == g_currentTrack) {
+            do {
+                next = rand() % static_cast<int>(g_playlist.size());
+            } while (next == g_currentTrack && g_playlist.size() > 1);
+        }
     } else {
         next = g_currentTrack + 1;
         if (next >= static_cast<int>(g_playlist.size())) {

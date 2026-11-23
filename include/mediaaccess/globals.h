@@ -285,6 +285,11 @@ extern bool g_shuffle;                  // Shuffle playback order
 extern bool g_autoAdvance;              // Auto-play next track when current ends (default true)
 extern int g_repeatMode;                // 0 = off, 1 = repeat one, 2 = repeat all
 
+// Crossfade (docs/PLAN_FONDU_ENCHAINE.md) — MediaAccess.ini [Crossfade]
+extern bool g_crossfadeEnabled;         // fade one local song into the next (F key)
+extern int  g_crossfadeSeconds;         // heard duration of the fade, 1-15 s (default 6)
+extern int  g_crossfadeShape;           // 0 = smooth (equal power), 1 = linear
+
 // Chapter support
 struct Chapter {
     double position;        // Position in seconds

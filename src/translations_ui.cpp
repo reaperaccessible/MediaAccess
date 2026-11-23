@@ -546,6 +546,16 @@ void RegisterUiTranslations() {
     AddTranslation("fr", "Shuffle on",                              L"Aléatoire activé");
     AddTranslation("en", "Shuffle off",                             L"Shuffle off");
     AddTranslation("fr", "Shuffle off",                             L"Aléatoire désactivé");
+    // Crossfade (F) — "fondu enchaîné", never bare "fondu" (the sleep timer fades too)
+    AddTranslation("en", "Crossfade on",                            L"Crossfade on");
+    AddTranslation("fr", "Crossfade on",                            L"Fondu enchaîné activé");
+    AddTranslation("en", "Crossfade off",                           L"Crossfade off");
+    AddTranslation("fr", "Crossfade off",                           L"Fondu enchaîné désactivé");
+    // Main window Applications menu: the toggle's name, as in its announcement
+    AddTranslation("en", "Crossfade",                               L"Crossfade");
+    AddTranslation("fr", "Crossfade",                               L"Fondu enchaîné");
+    AddTranslation("en", "Shuffle",                                 L"Shuffle");
+    AddTranslation("fr", "Shuffle",                                 L"Aléatoire");
     AddTranslation("en", "Position announcement on",                L"Position announcement on");
     AddTranslation("fr", "Position announcement on",                L"Annonce de position activée");
     AddTranslation("en", "Position announcement off",               L"Position announcement off");

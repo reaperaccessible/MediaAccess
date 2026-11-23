@@ -72,6 +72,7 @@
 #define IDM_PLAY_REPEAT_OFF    225   // menu-only radio: repeat off   (g_repeatMode 0)
 #define IDM_PLAY_REPEAT_ONE    226   // menu-only radio: repeat track (g_repeatMode 1)
 #define IDM_PLAY_REPEAT_ALL    227   // menu-only radio: repeat all   (g_repeatMode 2)
+#define IDM_PLAY_CROSSFADE_TOGGLE 229  // crossfade on/off (F)
 #define IDM_PLAY_PLAYLIST_TOTAL 228  // v2.64 — announce total duration of the current local-file playlist
 #define IDM_PLAY_TOGGLE_SEEK_ANNOUNCE 1800
 
@@ -228,9 +229,19 @@
 #define WM_PLAYLIST_DURATIONS  (WM_USER + 25) // v2.76 — playlist manager: new track durations measured (no data; relayed to the manager)
 #define WM_PLAYLIST_TOTAL_DONE (WM_USER + 22) // v2.64 — playlist total-duration worker finished (lParam=PlaylistTotalResult* heap)
 #define WM_SONG_DECODE_END     (WM_USER + 26) // crossfade phase 1 — a local song left the mixer (wParam=song stream); wait until it is heard
+#define WM_CROSSFADE_START     (WM_USER + 27) // crossfade — the fade has begun in the mixer (wParam=incoming song, lParam=outgoing song)
+#define WM_CROSSFADE_OUT_DONE  (WM_USER + 28) // crossfade — the outgoing song left the mixer (wParam=song): free it
+#define WM_CROSSFADE_MAINTAIN  (WM_USER + 29) // crossfade — plan (or re-plan) the next fade
 
 // v2.52 — YouTube automatic-caption options (YouTube tab). 1760-1762 verified free.
 #define IDC_YT_FETCH_CAPTIONS    1760
+// Crossfade tab of the Options (the last tab). 1780-1799 reserved for it.
+#define IDC_LABEL_XF_DESCRIPTION 1780
+#define IDC_XF_ENABLE            1781
+#define IDC_LABEL_XF_SECONDS     1782
+#define IDC_XF_SECONDS           1783
+#define IDC_LABEL_XF_SHAPE       1784
+#define IDC_XF_SHAPE             1785
 #define IDC_YT_CAPTION_LANG      1761
 #define IDC_LABEL_YT_CAPTION_LANG 1762
 #define IDC_YT_AUTOPLAY_NEXT     1766   // v2.61 — autoplay next result when a YouTube video ends

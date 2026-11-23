@@ -465,6 +465,11 @@ bool g_shuffle = false;                             // Shuffle playback order
 bool g_autoAdvance = true;                          // Auto-play next track when current ends
 int g_repeatMode = 0;                               // 0 = off, 1 = repeat one, 2 = repeat all
 
+// Crossfade (MediaAccess.ini [Crossfade])
+bool g_crossfadeEnabled = false;
+int  g_crossfadeSeconds = 6;
+int  g_crossfadeShape = 0;
+
 // Chapter support
 std::vector<Chapter> g_chapters;                    // Chapters for current file
 bool g_chapterSeekEnabled = true;                   // Enable chapter seeking (default on)

@@ -84,6 +84,14 @@ void CALLBACK OnTrackEnd(HSYNC handle, DWORD channel, DWORD data, void* user);
 void HandleSongDecodeEnd(WPARAM songStream);  // crossfade phase 1 — WM_SONG_DECODE_END
 void PollSongEnd();                          // crossfade phase 1 — IDT_SONG_END tick
 
+// Crossfade (docs/PLAN_FONDU_ENCHAINE.md)
+void HandleCrossfadeStart(WPARAM nextSong, LPARAM outSong);  // WM_CROSSFADE_START
+void HandleCrossfadeOutDone(WPARAM song);                    // WM_CROSSFADE_OUT_DONE
+void CrossfadeMaintain();      // plan, keep or drop the next fade (UI thread; cheap)
+void CrossfadeGesture();       // pause/stop/seek: a fade in progress ends first
+int  CrossfadePlannedNext();   // the next index a crossfade decided, or -1
+void ToggleCrossfade();        // F key: on/off, announced
+
 // Stream metadata change callback (for internet radio)
 void CALLBACK OnMetaChange(HSYNC handle, DWORD channel, DWORD data, void* user);
 void AnnounceStreamMetadata();

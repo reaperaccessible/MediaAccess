@@ -99,6 +99,11 @@ protected:
     volatile bool m_endMarked = false;
 };
 
+// Crossfade, phase 2 (player.cpp): called by every processor's SetPosition in
+// song mode, on the UI thread, before it moves the song. A fade in progress
+// ends there (the song going out is let go) and the next fade is planned anew.
+void CrossfadeBeforeSeek();
+
 // Factory function to create a tempo processor
 TempoProcessor* CreateTempoProcessor(TempoAlgorithm algorithm);
 

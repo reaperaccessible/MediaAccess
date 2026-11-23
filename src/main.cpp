@@ -269,6 +269,40 @@ static bool IsWindowOpeningGlobalCommand(int cmd) {
 // (0=off, 1=track, 2=all). MF_BYCOMMAND walks the whole menu tree, so it finds
 // the items inside the Playback sub-popup. Called at startup, on every menu
 // open (so the E-cycle is reflected), and right after a direct selection.
+// Applications key / Shift+F10 in the main window (house rule: every shortcut
+// is also in this menu, with its key, in the words of its announcement). The
+// toggles are check items; repeat shows the current mode, as E announces it.
+static std::wstring MainMenuKeyHint(const char* actionId) {
+    const std::vector<mediaaccess::Shortcut>* keys =
+        mediaaccess::GetActiveKeyMap().GetShortcuts(actionId);
+    if (!keys || keys->empty()) return std::wstring();
+    return L"\t" + Utf8ToWide(mediaaccess::ShortcutToDisplay(keys->front()));
+}
+
+static void ShowMainContextMenu(HWND hwnd, LPARAM lParam) {
+    POINT pt = { (short)LOWORD(lParam), (short)HIWORD(lParam) };
+    if (lParam == (LPARAM)-1) {   // from the keyboard
+        RECT rc = {};
+        GetClientRect(hwnd, &rc);
+        pt.x = rc.left + 10;
+        pt.y = rc.top + 10;
+        ClientToScreen(hwnd, &pt);
+    }
+    const char* repeatNames[] = { "Repeat off", "Repeat track", "Repeat all" };
+    int rm = (g_repeatMode >= 0 && g_repeatMode <= 2) ? g_repeatMode : 0;
+    std::wstring xf = std::wstring(T("Crossfade")) + MainMenuKeyHint("PLAYER_CROSSFADE_TOGGLE");
+    std::wstring sh = std::wstring(T("Shuffle")) + MainMenuKeyHint("PLAYER_SHUFFLE");
+    std::wstring rp = std::wstring(T(repeatNames[rm])) + MainMenuKeyHint("PLAYER_REPEAT_TOGGLE");
+    HMENU menu = CreatePopupMenu();
+    AppendMenuW(menu, MF_STRING | (g_crossfadeEnabled ? MF_CHECKED : 0),
+                IDM_PLAY_CROSSFADE_TOGGLE, xf.c_str());
+    AppendMenuW(menu, MF_STRING | (g_shuffle ? MF_CHECKED : 0), IDM_PLAY_SHUFFLE, sh.c_str());
+    AppendMenuW(menu, MF_STRING, IDM_PLAY_REPEAT_TOGGLE, rp.c_str());
+    int cmd = TrackPopupMenu(menu, TPM_RETURNCMD | TPM_NONOTIFY, pt.x, pt.y, 0, hwnd, nullptr);
+    DestroyMenu(menu);
+    if (cmd) SendMessageW(hwnd, WM_COMMAND, MAKEWPARAM(cmd, 0), 0);
+}
+
 static void UpdateRepeatMenuRadio(HWND hwnd) {
     HMENU hMenu = GetMenu(hwnd);
     if (!hMenu) return;
@@ -767,6 +801,8 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
 
             // Set initial menu check states
             CheckMenuItem(GetMenu(hwnd), IDM_PLAY_SHUFFLE, g_shuffle ? MF_CHECKED : MF_UNCHECKED);
+            CheckMenuItem(GetMenu(hwnd), IDM_PLAY_CROSSFADE_TOGGLE,
+                          g_crossfadeEnabled ? MF_CHECKED : MF_UNCHECKED);
             UpdateRepeatMenuRadio(hwnd);   // v2.45 — seed the Repeat radio
 
             // Localize main menu based on active language.
@@ -994,6 +1030,9 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
                 return 0;
             }
             if (wParam == IDT_UPDATE_TITLE) {
+                // Crossfade: keep the planned fade in line with the playlist,
+                // shuffle, repeat, tempo and the position (cheap if unchanged).
+                CrossfadeMaintain();
                 // v1.94 — if a system capture self-stopped because its device was
                 // lost, announce it once (NVDA) on the UI thread.
                 if (mediaaccess::ConsumeSystemCaptureLost()) {
@@ -1331,6 +1370,18 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
             HandleSongDecodeEnd(wParam);
             return 0;
 
+        case WM_CROSSFADE_START:
+            HandleCrossfadeStart(wParam, lParam);
+            return 0;
+
+        case WM_CROSSFADE_OUT_DONE:
+            HandleCrossfadeOutDone(wParam);
+            return 0;
+
+        case WM_CROSSFADE_MAINTAIN:
+            CrossfadeMaintain();
+            return 0;
+
         case WM_META_CHANGED:
             AnnounceStreamMetadata();
             UpdateWindowTitle();
@@ -1622,6 +1673,18 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
                     UpdateRecentFilesMenu(hMenu);
                 }
                 UpdateRepeatMenuRadio(hwnd);   // v2.45 — reflect g_repeatMode (e.g. after the E cycle)
+                // Crossfade can also change in Options.
+                CheckMenuItem(GetMenu(hwnd), IDM_PLAY_CROSSFADE_TOGGLE,
+                              g_crossfadeEnabled ? MF_CHECKED : MF_UNCHECKED);
+            }
+            break;
+
+        case WM_CONTEXTMENU:
+            // Applications key / Shift+F10 / right click in the main window: the
+            // playback toggles, with their keys, named like their announcements.
+            if (!g_isVideoPlaying) {
+                ShowMainContextMenu(hwnd, lParam);
+                return 0;
             }
             break;
 
@@ -1928,6 +1991,12 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
                     Speak(g_shuffle ? Ts("Shuffle on") : Ts("Shuffle off"));
                     CheckMenuItem(GetMenu(hwnd), IDM_PLAY_SHUFFLE, g_shuffle ? MF_CHECKED : MF_UNCHECKED);
                     SaveSettings();
+                    CrossfadeMaintain();   // the next song is decided anew
+                    break;
+                case IDM_PLAY_CROSSFADE_TOGGLE:
+                    ToggleCrossfade();
+                    CheckMenuItem(GetMenu(hwnd), IDM_PLAY_CROSSFADE_TOGGLE,
+                                  g_crossfadeEnabled ? MF_CHECKED : MF_UNCHECKED);
                     break;
                 case IDM_PLAY_TOGGLE_SEEK_ANNOUNCE:
                     // Toggles g_speechSeekPosition (the v1.65 preference that controls
@@ -1975,10 +2044,12 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
                     Speak(Ts(names[g_repeatMode]));
                     UpdateRepeatMenuRadio(hwnd);
                     SaveSettings();
+                    CrossfadeMaintain();
                     break;
                 }
                 case IDM_PLAY_REPEAT_TOGGLE:
                     ToggleRepeatMode();
+                    CrossfadeMaintain();
                     break;
                 case IDM_EFFECT_PRESETS:
                     ShowEffectPresetsMenu(hwnd);

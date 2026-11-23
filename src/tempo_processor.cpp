@@ -233,6 +233,7 @@ public:
     void SetPosition(double seconds) override {
         if (!m_fxStream) return;
         if (m_song) {
+            CrossfadeBeforeSeek();   // a fade in progress ends first
             ClearSourceEnd();
             // Move the song inside the mixer, then flush the tempo stream:
             // BASS_FX refuses to move a mixer source to an arbitrary position
@@ -653,6 +654,9 @@ public:
     }
 
     void SetPosition(double seconds) override {
+        // A fade in progress ends first (before the lock: it locks the
+        // output stream, whose StreamProc takes m_mutex).
+        if (m_song) CrossfadeBeforeSeek();
         std::lock_guard<std::mutex> lock(m_mutex);
         if (!m_sourceStream || !m_sonicStream) return;
 
@@ -1117,6 +1121,9 @@ public:
     }
 
     void SetPosition(double seconds) override {
+        // A fade in progress ends first (before the lock: it locks the
+        // output stream, whose StreamProc takes m_mutex).
+        if (m_song) CrossfadeBeforeSeek();
         std::lock_guard<std::mutex> lock(m_mutex);
         if (!m_sourceStream) return;
 

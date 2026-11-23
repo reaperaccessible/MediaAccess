@@ -77,6 +77,7 @@ BEGIN
         MENUITEM "&Next\tB", IDM_PLAY_NEXT
         MENUITEM SEPARATOR
         MENUITEM "S&huffle\tH", IDM_PLAY_SHUFFLE
+        MENUITEM "Cr&ossfade\tF", IDM_PLAY_CROSSFADE_TOGGLE
         POPUP "R&epeat"
         BEGIN
             MENUITEM "Repeat &off",   IDM_PLAY_REPEAT_OFF
@@ -421,6 +422,14 @@ BEGIN
     AUTOCHECKBOX    "Pro&ducer notes",  IDC_BOOK_SKIP_PRODNOTES,  17, 316, 100, 10
     AUTOCHECKBOX    "&Footnotes",       IDC_BOOK_SKIP_FOOTNOTES, 125, 316, 100, 10
     AUTOCHECKBOX    "&References",      IDC_BOOK_SKIP_REFERENCES,225, 316, 100, 10
+
+    // Crossfade tab controls (shown when tab 13 selected)
+    LTEXT           "Fade the end of a song into the next one, in a playlist or a folder of audio files:", IDC_LABEL_XF_DESCRIPTION, 17, 30, 305, 10
+    AUTOCHECKBOX    "&Crossfade between songs", IDC_XF_ENABLE, 17, 46, 250, 10
+    LTEXT           "Crossfade &duration:", IDC_LABEL_XF_SECONDS, 17, 64, 110, 10
+    COMBOBOX        IDC_XF_SECONDS, 130, 62, 90, 200, CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    LTEXT           "Crossfade &shape:", IDC_LABEL_XF_SHAPE, 17, 82, 110, 10
+    COMBOBOX        IDC_XF_SHAPE, 130, 80, 150, 100, CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
 
     DEFPUSHBUTTON   "OK", IDOK, 229, 332, 50, 14
     PUSHBUTTON      "Cancel", IDCANCEL, 283, 332, 50, 14

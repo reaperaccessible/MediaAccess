@@ -106,6 +106,9 @@ void RegisterRcTranslations() {
     AddTranslation("en", "S&huffle\tH", L"S&huffle\tH");
     AddTranslation("fr", "S&huffle\tH", L"Lecture a&léatoire\tH");
 
+    AddTranslation("en", "Cr&ossfade\tF", L"Cr&ossfade\tF");
+    AddTranslation("fr", "Cr&ossfade\tF", L"&Fondu enchaîné\tF");
+
     AddTranslation("en", "R&epeat", L"R&epeat");
     AddTranslation("fr", "R&epeat", L"R&épéter");
     AddTranslation("en", "Repeat &off",   L"Repeat &off");
@@ -856,6 +859,26 @@ void RegisterRcTranslations() {
                    L"Utilisez 0 pour automatique, 4000-8000 pour la parole, 8000-16000 pour la musique.");
 
     // MIDI tab
+    // Options > Crossfade tab
+    AddTranslation("en", "Fade the end of a song into the next one, in a playlist or a folder of audio files:",
+                   L"Fade the end of a song into the next one, in a playlist or a folder of audio files:");
+    AddTranslation("fr", "Fade the end of a song into the next one, in a playlist or a folder of audio files:",
+                   L"Fondre la fin d'une chanson dans la suivante, dans une liste de lecture ou un dossier de fichiers audio :");
+    AddTranslation("en", "&Crossfade between songs", L"&Crossfade between songs");
+    AddTranslation("fr", "&Crossfade between songs", L"&Fondu enchaîné entre les chansons");
+    AddTranslation("en", "Crossfade &duration:", L"Crossfade &duration:");
+    AddTranslation("fr", "Crossfade &duration:", L"&Durée du fondu enchaîné :");
+    AddTranslation("en", "Crossfade &shape:", L"Crossfade &shape:");
+    AddTranslation("fr", "Crossfade &shape:", L"F&orme du fondu enchaîné :");
+    AddTranslation("en", "%d second", L"%d second");
+    AddTranslation("fr", "%d second", L"%d seconde");
+    AddTranslation("en", "%d seconds", L"%d seconds");
+    AddTranslation("fr", "%d seconds", L"%d secondes");
+    AddTranslation("en", "Smooth (constant level)", L"Smooth (constant level)");
+    AddTranslation("fr", "Smooth (constant level)", L"Douce (niveau constant)");
+    AddTranslation("en", "Linear", L"Linear");
+    AddTranslation("fr", "Linear", L"Linéaire");
+
     AddTranslation("en", "MIDI playback settings (BASSMIDI):", L"MIDI playback settings (BASSMIDI):");
     AddTranslation("fr", "MIDI playback settings (BASSMIDI):",
                    L"Paramètres de lecture MIDI (BASSMIDI) :");
