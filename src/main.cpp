@@ -277,6 +277,7 @@ static void UpdateRepeatMenuRadio(HWND hwnd) {
 
 // Declarations from ui.cpp
 int ExpandFileToFolder(const std::wstring& filePath, std::vector<std::wstring>& outFiles);
+bool ShouldExpandToFolder(const std::wstring& filePath);
 void AddFilesFromFolder(const std::wstring& folder, std::vector<std::wstring>& files,
                         bool includeVideo = false);
 
@@ -789,7 +790,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
                 OpenCueSheet(cue);
             } else if (!g_playlist.empty()) {
                 int startIndex = 0;
-                if (g_loadFolder && g_playlist.size() == 1) {
+                if (g_playlist.size() == 1 && ShouldExpandToFolder(g_playlist[0])) {
                     std::wstring singleFile = g_playlist[0];
                     startIndex = ExpandFileToFolder(singleFile, g_playlist);
                 }
@@ -1045,7 +1046,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
                 }
                 if (!g_pendingFiles.empty()) {
                     int startIndex = 0;
-                    if (g_loadFolder && g_pendingFiles.size() == 1) {
+                    if (g_pendingFiles.size() == 1 && ShouldExpandToFolder(g_pendingFiles[0])) {
                         startIndex = ExpandFileToFolder(g_pendingFiles[0], g_playlist);
                         g_pendingFiles.clear();
                     } else {

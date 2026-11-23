@@ -59,7 +59,8 @@ void LoadOnce() {
         && Bind(dll, g_api.GetTrackLength, "BASS_CD_GetTrackLength")
         && Bind(dll, g_api.GetTOC,         "BASS_CD_GetTOC")
         && Bind(dll, g_api.GetID,          "BASS_CD_GetID")
-        && Bind(dll, g_api.Release,        "BASS_CD_Release");
+        && Bind(dll, g_api.Release,        "BASS_CD_Release")
+        && Bind(dll, g_api.StreamCreateFile, "BASS_CD_StreamCreateFile");
     if (g_ok) {
         LogF("CD", "basscd.dll loaded");
     } else {

@@ -4,6 +4,7 @@
 
 #include <windows.h>
 #include <string>
+#include "bass.h"
 #include <vector>
 
 namespace mediaaccess {
@@ -44,5 +45,17 @@ bool ToggleDriveTray(const DiscDrive& drive, bool* nowOpen);
 
 // Lets other programs use the drive again (BASS keeps a handle open).
 void ReleaseDrive(const DiscDrive& drive);
+
+// ---- Playing a CD track opened as a file ("E:\Track01.cda") ----
+// Windows shows each audio track as a 44-byte .cda file: it holds no sound,
+// only where the track is. BASSCD reads the track itself from it.
+bool IsCdaFile(const wchar_t* path);
+// A BASS stream for that track (0 on failure, BASS_ErrorGetCode says why).
+// Opening a second stream on the same drive frees the first one
+// (BASS_CONFIG_CD_FREEOLD): never call it just to measure a track.
+HSTREAM OpenCdaStream(const wchar_t* path, DWORD flags);
+// Length of that track from the disc's table of contents, without opening a
+// stream (safe while the track is playing). 0 when unknown.
+double CdaTrackSeconds(const wchar_t* path);
 
 } // namespace mediaaccess

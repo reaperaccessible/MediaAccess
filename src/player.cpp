@@ -14,6 +14,7 @@
 #include "mediaaccess/daisy_player.h"  // DaisyClose() when loading other media
 #include "mediaaccess/wasapi_loopback.h"  // v1.94 — system-audio (loopback) recording
 #include "mediaaccess/audio_device_watcher.h"  // v2.32 — auto-follow default output device
+#include "mediaaccess/disc_drives.h"  // v2.78 — audio CD tracks (.cda)
 
 // Forward declaration so LoadURL (earlier in the file) can call it.
 static void TeardownMpvBeforeLoad();
@@ -1417,6 +1418,9 @@ bool LoadFile(const wchar_t* path) {
             font.bank = 0;
             BASS_MIDI_StreamSetFonts(g_stream, &font, 1);
         }
+    } else if (mediaaccess::IsCdaFile(path)) {
+        // v2.78 — a track of an audio CD ("E:\Track01.cda"): BASSCD reads it.
+        g_stream = mediaaccess::OpenCdaStream(path, BASS_STREAM_DECODE | BASS_SAMPLE_FLOAT);
     } else {
         g_stream = BASS_StreamCreateFile(FALSE, path, 0, 0, BASS_UNICODE | BASS_STREAM_DECODE | BASS_SAMPLE_FLOAT);
     }
@@ -2399,6 +2403,9 @@ static double ProbeDurationWithFfprobe(const std::wstring& ffprobe, const std::w
 // video or anything BASS refuses: the bundled ffprobe. Worker threads only.
 // Returns 0 when the file cannot be measured.
 static double MeasureMediaDurationUncached(const std::wstring& path, const std::wstring& ffprobe) {
+    // v2.78 — a CD track is measured from the disc's table of contents:
+    // opening a second stream on the drive would stop the track playing.
+    if (mediaaccess::IsCdaFile(path.c_str())) return mediaaccess::CdaTrackSeconds(path.c_str());
     double seconds = 0.0;
     HSTREAM s = BASS_StreamCreateFile(FALSE, path.c_str(), 0, 0,
                                       BASS_STREAM_DECODE | BASS_UNICODE);

@@ -3,6 +3,7 @@
 #include "disc_drives.h"
 #include "basscd_loader.h"
 #include "logger.h"
+#include <cwctype>
 
 namespace mediaaccess {
 
@@ -97,6 +98,44 @@ bool ToggleDriveTray(const DiscDrive& drive, bool* nowOpen) {
 void ReleaseDrive(const DiscDrive& drive) {
     const basscd::Api* cd = basscd::Get();
     if (cd) cd->Release(drive.bassIndex);
+}
+
+bool IsCdaFile(const wchar_t* path) {
+    const wchar_t* ext = path ? wcsrchr(path, L'.') : nullptr;
+    return ext && _wcsicmp(ext, L".cda") == 0;
+}
+
+HSTREAM OpenCdaStream(const wchar_t* path, DWORD flags) {
+    const basscd::Api* cd = basscd::Get();
+    if (!cd) {
+        LogF("CD", "cannot play %ls: %ls", path, basscd::LastError().c_str());
+        return 0;
+    }
+    HSTREAM s = cd->StreamCreateFile(reinterpret_cast<const char*>(path), flags | BASS_UNICODE);
+    if (!s) LogF("CD", "BASS_CD_StreamCreateFile failed (error %d): %ls", BASS_ErrorGetCode(), path);
+    return s;
+}
+
+double CdaTrackSeconds(const wchar_t* path) {
+    // "E:\Track07.cda": drive letter first, track number in the file name.
+    if (!IsCdaFile(path) || !iswalpha(path[0]) || path[1] != L':') return 0.0;
+    const wchar_t* name = wcsrchr(path, L'\\');
+    name = name ? name + 1 : path;
+    int number = 0;
+    for (const wchar_t* p = name; *p && *p != L'.'; ++p) {
+        if (iswdigit(*p)) number = number * 10 + (*p - L'0');
+    }
+    const basscd::Api* cd = basscd::Get();
+    if (!cd || number < 1) return 0.0;
+    wchar_t letter = static_cast<wchar_t>(towupper(path[0]));
+    BASS_CD_INFO info;
+    for (DWORD i = 0; i < 26 && cd->GetInfo(i, &info); ++i) {
+        if (info.letter >= 0 && L'A' + info.letter == letter) {
+            DWORD bytes = cd->GetTrackLength(i, static_cast<DWORD>(number - 1));
+            return bytes == static_cast<DWORD>(-1) ? 0.0 : bytes / kBytesPerSecond;
+        }
+    }
+    return 0.0;
 }
 
 } // namespace mediaaccess

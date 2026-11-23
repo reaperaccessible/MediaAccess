@@ -5,6 +5,7 @@
 #include "mediaaccess/wasapi_loopback.h"  // v1.94 — system-capture state for status bar
 #include "mediaaccess/youtube.h"          // v2.11 — YouTubePlayById for history replay
 #include "mediaaccess/cue_sheet.h"        // v2.34 — .cue sheet support
+#include "mediaaccess/disc_drives.h"      // v2.78 — a CD track opens the whole disc
 #include <shlwapi.h>
 #include <shobjidl.h>   // v2.76 — IFileOpenDialog (Add Folder)
 #include <vector>
@@ -315,10 +316,21 @@ bool IsOpenableMediaPath(const std::wstring& path) {
     return false;
 }
 
-// Expand a single file to all audio files in its folder
+// v2.78 — whether opening this single file should load its whole folder:
+// the "Load folder" option for audio files, and always for a track of an
+// audio CD (opening track 1 means playing the disc, like a CD player).
+bool ShouldExpandToFolder(const std::wstring& filePath) {
+    if (mediaaccess::IsCdaFile(filePath.c_str())) return true;
+    size_t dot = filePath.find_last_of(L'.');
+    return g_loadFolder && dot != std::wstring::npos && IsSupportedAudioExt(filePath.substr(dot));
+}
+
+// Expand a single file to all audio files in its folder (for a CD track: all
+// the tracks of the disc, in order).
 // Returns the index of the original file in the expanded list
 int ExpandFileToFolder(const std::wstring& filePath, std::vector<std::wstring>& outFiles) {
     outFiles.clear();
+    const bool cdTrack = mediaaccess::IsCdaFile(filePath.c_str());
 
     // Get directory and filename
     size_t lastSlash = filePath.find_last_of(L"\\/");
@@ -345,13 +357,19 @@ int ExpandFileToFolder(const std::wstring& filePath, std::vector<std::wstring>& 
             size_t dotPos = name.find_last_of(L'.');
             if (dotPos != std::wstring::npos) {
                 std::wstring ext = name.substr(dotPos);
-                if (IsSupportedAudioExt(ext)) {
+                if (cdTrack ? (_wcsicmp(ext.c_str(), L".cda") == 0) : IsSupportedAudioExt(ext)) {
                     files.push_back(dir + name);
                 }
             }
         }
     } while (FindNextFileW(hFind, &fd));
     FindClose(hFind);
+    if (cdTrack) {
+        // "Track01.cda" ... "Track11.cda": the name order is the disc order.
+        std::sort(files.begin(), files.end(), [](const std::wstring& a, const std::wstring& b) {
+            return _wcsicmp(a.c_str(), b.c_str()) < 0;
+        });
+    }
 
     // Find the index of the original file
     int targetIndex = 0;
@@ -521,8 +539,7 @@ void ShowOpenDialog() {
             // Check if it's a playlist file
             if (IsPlaylistFile(dir)) {
                 g_playlist = ParsePlaylist(dir);
-            } else if (g_loadFolder && IsSupportedAudioExt(
-                           dir.substr(dir.find_last_of(L'.')))) {
+            } else if (ShouldExpandToFolder(dir)) {
                 // v1.76 — "Load folder" only makes sense for audio
                 // (the use case is "play the whole album when I pick a
                 // track"). For a video file selected through File > Open,
