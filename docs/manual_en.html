@@ -395,6 +395,7 @@
 <tr><td><kbd>Z</kbd> / <kbd>B</kbd></td><td>Previous / Next</td></tr>
 <tr><td><kbd>H</kbd></td><td>Toggle shuffle</td></tr>
 <tr><td><kbd>E</kbd></td><td>Repeat mode (off → track → all → off); or pick directly from <strong>Playback → Repeat</strong> (radio items, mode announced)</td></tr>
+<tr><td><kbd>F</kbd></td><td>Turn the crossfade between songs on or off (see below)</td></tr>
 <tr><td><kbd>J</kbd></td><td>Jump to time (mm:ss or hh:mm:ss)</td></tr>
 <tr><td><kbd>Home</kbd></td><td>Beginning of track</td></tr>
 <tr><td><kbd>Shift</kbd>+<kbd>End</kbd></td><td>Jump to 30 seconds before the end</td></tr>
@@ -404,6 +405,18 @@
 <tr><td><kbd>A</kbd></td><td>Open audio device selection menu</td></tr>
 </tbody>
 </table>
+
+<h3>From one song to the next: the crossfade</h3>
+<p>In a playlist or a folder of audio files, MediaAccess can fade the end of a song into the next one, as on the radio: a few seconds before the end, the next song rises while the first one goes down. <kbd>F</kbd> turns the crossfade on or off and announces "Crossfade on" or "Crossfade off". The same command is a check item of the <strong>Playback</strong> menu, and of the main window's context menu (<kbd>Applications</kbd> key or <kbd>Shift</kbd>+<kbd>F10</kbd>), which also offers shuffle (<kbd>H</kbd>) and the repeat mode (<kbd>E</kbd>). The crossfade is off at first launch; its settings are in the <strong>Crossfade</strong> tab of the Options (<a href="#options">section 22</a>).</p>
+<ul>
+  <li><strong>Duration and shape.</strong> The fade lasts 6 seconds by default, from 1 to 15. This is the duration you hear, even when the tempo or the rate is changed, and never more than half of the shorter of the two songs. The smooth shape keeps the same level all through the fade; the linear shape leaves a slight dip in the middle.</li>
+  <li><strong>Silence does not count.</strong> MediaAccess measures, in the background, the silence at the end of the current song and at the start of the next one: the fade begins where the music really stops, and the next song starts where its music begins.</li>
+  <li><strong>Albums without pauses.</strong> Two tracks that follow each other in the same album, when the music does not stop between them (a concert, a mixed record, an opera), are joined with no fade and no gap. The tracks of an audio CD are always joined that way.</li>
+  <li><strong>The same volume for every song.</strong> MediaAccess can play the songs at a comparable volume, with the ReplayGain gain many programs write into the files, or with the analysis you start from the playlist (<a href="#playlists">section 9</a>). This setting also works when the crossfade is off.</li>
+  <li><strong>Gestures.</strong> When the crossfade is on, pause, stop, next or previous track and resume make a short fade, half a second by default, instead of a sharp cut. With "Legacy volume" (Options → Advanced), they cut as before.</li>
+</ul>
+<p>During the fade, the rising song is already the current song: its title is announced once, at the start of the fade, and the time, the seeks and the tags are about it. A key during the fade (pause, seek, next track…) ends it: the song going out goes down in a short fade. Before the fade, the remaining time still counts to the end of the file. Effects, tempo and recording go from one song to the next without a break.</p>
+<p>There is never a crossfade when auto-advance is off, when one track is repeated, with an active A-B loop, towards a video, a web address or a file that resumes at a remembered position, nor for what is started from the podcast, YouTube, radio or book windows. This fade has nothing to do with the one of the sleep timer (<a href="#sleep-timer">section 27</a>).</p>
 
 <h3>Jump near the end</h3>
 <p><kbd>Shift</kbd>+<kbd>End</kbd> jumps to 30 seconds before the end of the current track. Useful to preview an ending, skip a bonus track tucked at the end of an album, or catch the wrap-up of an audiobook chapter. The shortcut is a no-op on live streams whose duration is unknown.</p>
@@ -597,12 +610,19 @@
 <tr><td><kbd>Ctrl</kbd>+<kbd>A</kbd></td><td>Select all</td></tr>
 <tr><td><kbd>Ctrl</kbd>+<kbd>V</kbd></td><td>Paste: audio files into the tracks, or a playlist file (M3U, M3U8, PLS) which joins the saved playlists</td></tr>
 <tr><td><kbd>Alt</kbd>+<kbd>↑</kbd> / <kbd>Alt</kbd>+<kbd>↓</kbd></td><td>Reorder the selected tracks</td></tr>
+<tr><td><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>A</kbd></td><td>Analyse the volume of the tracks, or stop the analysis (see below)</td></tr>
+<tr><td><kbd>Ctrl</kbd>+<kbd>I</kbd></td><td>Announce the progress of the volume analysis</td></tr>
+<tr><td><kbd>Applications</kbd> or <kbd>Shift</kbd>+<kbd>F10</kbd></td><td>In the track list: context menu of the volume analysis</td></tr>
 <tr><td><kbd>Esc</kbd></td><td>Close the window</td></tr>
 </tbody>
 </table>
 <p>Each track announces its duration at the end of its line, for example "3. My track.mp3, 3 min 25 s". The window opens at once: durations are measured in the background and appear as they come, without interrupting the screen reader; MediaAccess then remembers them until it is closed. A radio, a podcast or a YouTube video has no duration.</p>
-<p><strong>Shortcuts for the manager.</strong> The "Playlist manager" category of <strong>Tools → Actions</strong> lets you assign shortcuts that work only in this window: announce elapsed time, remaining time, the track's duration, the total duration of the list shown, what is playing; play / pause, stop, next or previous track; volume up or down, mute. No shortcut is assigned by default. So as not to get in the window's way, only <kbd>Ctrl</kbd> or <kbd>Ctrl</kbd>+<kbd>Shift</kbd> with a letter or a digit, and the function keys (except <kbd>F2</kbd> and <kbd>F10</kbd>) are accepted; <kbd>Ctrl</kbd>+<kbd>S</kbd>, <kbd>Ctrl</kbd>+<kbd>A</kbd> and <kbd>Ctrl</kbd>+<kbd>V</kbd> remain the window's own, and a shortcut that is already global is refused.</p>
+<p><strong>Shortcuts for the manager.</strong> The "Playlist manager" category of <strong>Tools → Actions</strong> lets you assign shortcuts that work only in this window: announce elapsed time, remaining time, the track's duration, the total duration of the list shown, what is playing; play / pause, stop, next or previous track; volume up or down, mute. None of these is assigned by default (only the volume analysis ones are). So as not to get in the window's way, only <kbd>Ctrl</kbd> or <kbd>Ctrl</kbd>+<kbd>Shift</kbd> with a letter or a digit, and the function keys (except <kbd>F2</kbd> and <kbd>F10</kbd>) are accepted; <kbd>Ctrl</kbd>+<kbd>S</kbd>, <kbd>Ctrl</kbd>+<kbd>A</kbd> and <kbd>Ctrl</kbd>+<kbd>V</kbd> remain the window's own, and a shortcut that is already global is refused.</p>
 <p>Reaching the edge of a list is never silent: <kbd>↑</kbd> on the first line announces "First," followed by the line, <kbd>↓</kbd> on the last line announces "Last,".</p>
+
+<h3>Analysing the volume of the tracks</h3>
+<p>For <strong>Options → Crossfade → Even out the volume</strong> to play files that have no ReplayGain gain at the same volume, MediaAccess first has to measure their volume. In the track list, <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>A</kbd> analyses the tracks shown: MediaAccess announces for example "Analysing the volume of 42 tracks", works in the background without disturbing playback, then says the result once, "42 tracks analysed". <kbd>Ctrl</kbd>+<kbd>I</kbd> says how far the analysis is; <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>A</kbd> a second time stops it. Both commands are also in the list's context menu (<kbd>Applications</kbd> key or <kbd>Shift</kbd>+<kbd>F10</kbd>).</p>
+<p>The result is kept: an analysed track is not analysed again as long as its file does not change, and a track that already has its ReplayGain gain does not need to be. The tracks of the same album and the same folder, analysed together, also get an album gain. MediaAccess never starts this analysis by itself.</p>
 
 <h3>Buttons</h3>
 <ul>
@@ -896,7 +916,7 @@
 
 <section id="recording" aria-labelledby="recording-h">
 <h2 id="recording-h">14. Recording</h2>
-<p><kbd>R</kbd> starts/stops recording the audio output.</p>
+<p><kbd>R</kbd> starts/stops recording the audio output. In a list of audio files, the recording goes on from one song to the next, crossfades included (the short fade of the gestures is not in it).</p>
 <p><kbd>Shift</kbd>+<kbd>R</kbd> pauses the recording, then resumes it (punch-in/out recording). The final file contains only the recorded spans, concatenated: e.g. start recording, pause during a part you don't want, resume, and on stop you get a single file with the skipped part removed. Also works for system-audio recording. The status bar shows "(paused)" while paused.</p>
 
 <h3>Formats</h3>
@@ -936,7 +956,7 @@
 <p>MediaAccess plays audio CDs like any file, and can also extract them: it copies the tracks of the disc to WAV, FLAC, MP3, Ogg Vorbis or Opus files, with the album and track names, the cover, and a check that the copy is exact. You need a CD or DVD drive, built in or plugged in over USB.</p>
 
 <h3>Listening to a CD</h3>
-<p>Windows shows each track of an audio CD as a small file, <code>Track01.cda</code>, <code>Track02.cda</code>… in the drive (for example <code>E:\</code>). Open one of them with <kbd>Ctrl</kbd>+<kbd>O</kbd>, from File Explorer or from the command line: MediaAccess then loads <strong>every track of the disc</strong>, in order, and starts on the one you chose, like a CD player. <kbd>B</kbd> and <kbd>Z</kbd> go to the next or previous track; seeking, volume, effects and time announcements work as for a file.</p>
+<p>Windows shows each track of an audio CD as a small file, <code>Track01.cda</code>, <code>Track02.cda</code>… in the drive (for example <code>E:\</code>). Open one of them with <kbd>Ctrl</kbd>+<kbd>O</kbd>, from File Explorer or from the command line: MediaAccess then loads <strong>every track of the disc</strong>, in order, and starts on the one you chose, like a CD player. <kbd>B</kbd> and <kbd>Z</kbd> go to the next or previous track; seeking, volume, effects and time announcements work as for a file. When the crossfade is on (<kbd>F</kbd>), the tracks follow each other with no gap, and never with a fade, as on a CD player.</p>
 
 <h3>The extraction window</h3>
 <p><strong>File → Extract audio CD</strong> (<kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>X</kbd>) opens the extraction window. Its title says at once what is in the drive, for example "Extract audio CD: drive E, 11 tracks, 48 minutes", and the focus lands on the first track. If no drive is connected, a message says so and the window does not open.</p>
@@ -1204,7 +1224,7 @@
 
 <section id="options" aria-labelledby="options-h">
 <h2 id="options-h">22. Options reference</h2>
-<p><kbd>Ctrl</kbd>+<kbd>,</kbd> or <strong>Tools → Options</strong> opens preferences. Twelve tabs. (Keyboard shortcuts are no longer configured here: use <kbd>F4</kbd> or <strong>Tools → Actions</strong>, see <a href="#hotkeys">section 19</a>.)</p>
+<p><kbd>Ctrl</kbd>+<kbd>,</kbd> or <strong>Tools → Options</strong> opens preferences. Fourteen tabs. (Keyboard shortcuts are no longer configured here: use <kbd>F4</kbd> or <strong>Tools → Actions</strong>, see <a href="#hotkeys">section 19</a>.)</p>
 <p>To move between tabs from the keyboard, use <kbd>Ctrl</kbd>+<kbd>Tab</kbd> (next tab) and <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Tab</kbd> (previous tab); navigation wraps from the last tab to the first and back, and the screen reader announces the new tab name.</p>
 
 <h3>Playback tab</h3>
@@ -1306,6 +1326,21 @@
 
 <h3>MIDI tab</h3>
 <p>See <a href="#midi">section 16</a>.</p>
+
+<h3>Books tab</h3>
+<p>See <a href="#books">section 26</a>.</p>
+
+<h3>Crossfade tab</h3>
+<p>Going from one song to the next, explained in <a href="#audio">section 4</a>:</p>
+<ul>
+  <li><strong>Crossfade between songs</strong>: the same as the <kbd>F</kbd> key.</li>
+  <li><strong>Crossfade duration</strong>: from 1 to 15 seconds (6 by default).</li>
+  <li><strong>Crossfade shape</strong>: Smooth (constant level) or Linear.</li>
+  <li><strong>Skip the silence between songs</strong> (on by default) and <strong>Silence threshold</strong>: from −40 to −70 dB (−50 by default); anything quieter than the threshold counts as silence.</li>
+  <li><strong>No crossfade between the tracks of the same album</strong> (on by default): the tracks of an album without pauses are joined with no fade and no gap.</li>
+  <li><strong>Even out the volume</strong>: No (default), Track gain (every song at the same volume) or Album gain (the intended differences between the tracks of an album are kept); <strong>Preamplification</strong>: from −6 to +6 dB, added to the gain. A gain that raises the volume always stops before clipping.</li>
+  <li><strong>Gesture crossfade</strong>: None (sharp cut), or from 0.25 to 2 seconds (0.5 by default).</li>
+</ul>
 </section>
 
 <section id="accessibility" aria-labelledby="accessibility-h">
@@ -1329,7 +1364,7 @@
   <li>Movement unit change</li>
   <li>Chapters</li>
   <li>Errors (always)</li>
-  <li>Repeat mode, shuffle, mute, recording (on every toggle)</li>
+  <li>Repeat mode, shuffle, crossfade, mute, recording (on every toggle)</li>
 </ul>
 
 <h3>On-demand announcements</h3>
@@ -1546,7 +1581,7 @@
 <p>While the timer is running, the remaining time can be queried at any moment with <kbd>Shift</kbd>+<kbd>F8</kbd>. When it fires, MediaAccess stops whichever engine is currently playing — whether you are listening to music, watching a video, reading a book, or tuned to a radio.</p>
 
 <h3>Optional fade-out</h3>
-<p>For a softer transition, you can enable a fade-out over the <strong>last 30 seconds</strong> before the stop. The option lives in <strong>Tools → Options</strong> (<kbd>Ctrl</kbd>+<kbd>,</kbd>), tab <strong>Playback</strong>, checkbox <strong>Fade out at end of sleep timer (last 30 seconds)</strong>. Without the fade-out, the stop is instant.</p>
+<p>For a softer transition, you can enable a fade-out over the <strong>last 30 seconds</strong> before the stop. The option lives in <strong>Tools → Options</strong> (<kbd>Ctrl</kbd>+<kbd>,</kbd>), tab <strong>Playback</strong>, checkbox <strong>Fade out at end of sleep timer (last 30 seconds)</strong>. Without the fade-out, the stop is instant. This sleep-timer fade is separate from the crossfade between songs (<a href="#audio">section 4</a>), which has its own tab.</p>
 
 <h3>Remapping the shortcuts</h3>
 <p>All three shortcuts <kbd>F8</kbd>, <kbd>Shift</kbd>+<kbd>F8</kbd> and <kbd>Ctrl</kbd>+<kbd>F8</kbd> are rebindable via <strong>Tools → Actions</strong> (<kbd>F4</kbd>), section <strong>Tools</strong>.</p>
@@ -1586,6 +1621,7 @@
 <tr><td><kbd>Z</kbd> / <kbd>B</kbd></td><td>Previous / Next</td></tr>
 <tr><td><kbd>H</kbd></td><td>Toggle shuffle</td></tr>
 <tr><td><kbd>E</kbd></td><td>Repeat mode</td></tr>
+<tr><td><kbd>F</kbd></td><td>Crossfade</td></tr>
 <tr><td><kbd>J</kbd></td><td>Jump to time</td></tr>
 <tr><td><kbd>Home</kbd></td><td>Beginning</td></tr>
 <tr><td><kbd>Shift</kbd>+<kbd>End</kbd></td><td>Jump to 30 seconds before end</td></tr>
@@ -1672,6 +1708,16 @@
 <tr><td><kbd>9</kbd></td><td>Duration</td></tr>
 <tr><td><kbd>0</kbd></td><td>Filename</td></tr>
 <tr><td><kbd>Shift</kbd>+digit</td><td>Show the same tag in a window</td></tr>
+</tbody>
+</table>
+
+<h3>Playlist manager</h3>
+<table>
+<caption>Playlist manager shortcuts</caption>
+<thead><tr><th>Shortcut</th><th>Action</th></tr></thead>
+<tbody>
+<tr><td><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>A</kbd></td><td>Analyse the volume of the tracks / Stop</td></tr>
+<tr><td><kbd>Ctrl</kbd>+<kbd>I</kbd></td><td>Announce the progress of the volume analysis</td></tr>
 </tbody>
 </table>
 

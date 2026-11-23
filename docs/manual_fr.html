@@ -396,6 +396,7 @@
 <tr><td><kbd>Z</kbd> / <kbd>B</kbd></td><td>Précédent / Suivant</td></tr>
 <tr><td><kbd>H</kbd></td><td>Activer/désactiver lecture aléatoire</td></tr>
 <tr><td><kbd>E</kbd></td><td>Mode répétition (off → piste → tout → off) ; ou choix direct dans <strong>Lecture → Répéter</strong> (boutons radio, mode annoncé)</td></tr>
+<tr><td><kbd>F</kbd></td><td>Activer/désactiver le fondu enchaîné entre les chansons (voir ci-dessous)</td></tr>
 <tr><td><kbd>J</kbd></td><td>Aller à un instant (mm:ss ou hh:mm:ss)</td></tr>
 <tr><td><kbd>Origine</kbd></td><td>Début de la piste</td></tr>
 <tr><td><kbd>Maj</kbd>+<kbd>Fin</kbd></td><td>Aller à 30 secondes avant la fin</td></tr>
@@ -405,6 +406,18 @@
 <tr><td><kbd>A</kbd></td><td>Ouvrir le menu de sélection du périphérique audio</td></tr>
 </tbody>
 </table>
+
+<h3>D'une chanson à l'autre : le fondu enchaîné</h3>
+<p>Dans une liste de lecture ou un dossier de fichiers audio, MediaAccess peut fondre la fin d'une chanson dans la suivante, comme à la radio : quelques secondes avant la fin, la suivante monte pendant que la première descend. <kbd>F</kbd> allume ou éteint le fondu enchaîné et annonce « Fondu enchaîné activé » ou « Fondu enchaîné désactivé ». La même commande est une case à cocher du menu <strong>Lecture</strong>, et du menu contextuel de la fenêtre principale (touche <kbd>Applications</kbd> ou <kbd>Maj</kbd>+<kbd>F10</kbd>), qui donne aussi la lecture aléatoire (<kbd>H</kbd>) et le mode répétition (<kbd>E</kbd>). Le fondu enchaîné est éteint au premier lancement ; ses réglages sont dans l'onglet <strong>Fondu enchaîné</strong> des Options (<a href="#options">section 22</a>).</p>
+<ul>
+  <li><strong>La durée et la forme.</strong> Le fondu dure 6 secondes par défaut, de 1 à 15. C'est la durée que vous entendez, même quand le tempo ou la vitesse sont changés, et jamais plus que la moitié de la plus courte des deux chansons. La forme douce garde le même niveau tout au long du fondu ; la forme linéaire laisse un léger creux au milieu.</li>
+  <li><strong>Le silence ne compte pas.</strong> MediaAccess mesure, en arrière-plan, le silence à la fin de la chanson en cours et au début de la suivante : le fondu commence là où la musique s'arrête vraiment, et la suivante démarre là où sa musique commence.</li>
+  <li><strong>Les albums sans pause.</strong> Deux pistes qui se suivent dans un même album, quand la musique ne s'arrête pas entre elles (un concert, un disque mixé, un opéra), s'enchaînent sans fondu et sans blanc. Les pistes d'un CD audio s'enchaînent toujours ainsi.</li>
+  <li><strong>Le même volume pour toutes les chansons.</strong> MediaAccess peut jouer les chansons à un volume comparable, grâce au gain ReplayGain que beaucoup de programmes écrivent dans les fichiers, ou grâce à l'analyse que vous lancez depuis la liste de lecture (<a href="#playlists">section 9</a>). Ce réglage marche aussi quand le fondu enchaîné est éteint.</li>
+  <li><strong>Les gestes.</strong> Quand le fondu enchaîné est allumé, la pause, l'arrêt, la piste suivante ou précédente et la reprise font un fondu court, d'une demi-seconde par défaut, au lieu d'une coupure sèche. Avec le « Volume hérité » (Options → Avancé), ils coupent net.</li>
+</ul>
+<p>Pendant le fondu, la chanson qui monte est déjà la chanson en cours : son titre est annoncé une fois, au début du fondu, et le temps, les déplacements et les étiquettes parlent d'elle. Une touche pendant le fondu (pause, déplacement, piste suivante…) le termine : la chanson qui sortait s'éteint en un fondu court. Avant le fondu, le temps restant compte toujours jusqu'à la fin du fichier. Les effets, le tempo et l'enregistrement passent d'une chanson à l'autre sans coupure.</p>
+<p>Il n'y a jamais de fondu enchaîné quand l'avance automatique est coupée, en répétition d'une seule piste, avec une boucle A-B active, vers une vidéo, une adresse web ou un fichier qui reprend à une position mémorisée, ni pour ce qui est lancé depuis les fenêtres des podcasts, de YouTube, de la radio ou des livres. Ce fondu n'a rien à voir avec celui de la minuterie de sommeil (<a href="#minuterie">section 27</a>).</p>
 
 <h3>Aller près de la fin</h3>
 <p><kbd>Maj</kbd>+<kbd>Fin</kbd> place la lecture 30 secondes avant la fin de la piste en cours. Pratique pour pré-écouter une fin, sauter une piste bonus glissée en fin d'album ou attraper la conclusion d'un chapitre de livre audio. Le raccourci est sans effet sur les flux en direct dont la durée est inconnue.</p>
@@ -598,12 +611,19 @@
 <tr><td><kbd>Ctrl</kbd>+<kbd>A</kbd></td><td>Tout sélectionner</td></tr>
 <tr><td><kbd>Ctrl</kbd>+<kbd>V</kbd></td><td>Coller : des fichiers audio dans les pistes, ou un fichier de liste (M3U, M3U8, PLS) qui s'ajoute aux listes enregistrées</td></tr>
 <tr><td><kbd>Alt</kbd>+<kbd>↑</kbd> / <kbd>Alt</kbd>+<kbd>↓</kbd></td><td>Réorganiser les pistes sélectionnées</td></tr>
+<tr><td><kbd>Ctrl</kbd>+<kbd>Maj</kbd>+<kbd>A</kbd></td><td>Analyser le volume des pistes, ou arrêter l'analyse (voir plus bas)</td></tr>
+<tr><td><kbd>Ctrl</kbd>+<kbd>I</kbd></td><td>Annoncer la progression de l'analyse du volume</td></tr>
+<tr><td><kbd>Applications</kbd> ou <kbd>Maj</kbd>+<kbd>F10</kbd></td><td>Dans la liste des pistes : menu contextuel de l'analyse du volume</td></tr>
 <tr><td><kbd>Échap</kbd></td><td>Fermer la fenêtre</td></tr>
 </tbody>
 </table>
 <p>Chaque piste annonce sa durée à la fin de sa ligne, par exemple «&nbsp;3. Mon morceau.mp3, 3 min 25 s&nbsp;». La fenêtre s'ouvre tout de suite : les durées sont calculées en arrière-plan et s'ajoutent au fur et à mesure, sans interrompre la lecture du lecteur d'écran ; MediaAccess s'en souvient ensuite jusqu'à sa fermeture. Une radio, un podcast ou une vidéo YouTube n'ont pas de durée.</p>
-<p><strong>Raccourcis propres au gestionnaire.</strong> La catégorie «&nbsp;Gestionnaire de listes de lecture&nbsp;» de <strong>Outils → Actions</strong> permet d'assigner des raccourcis qui n'agissent que dans cette fenêtre : annoncer le temps écoulé, le temps restant, la durée du morceau, la durée totale de la liste affichée, ce qui joue ; lecture / pause, arrêt, morceau suivant ou précédent ; monter ou baisser le volume, sourdine. Aucun raccourci n'est assigné d'office. Pour ne pas gêner la fenêtre, seuls sont acceptés <kbd>Ctrl</kbd> ou <kbd>Ctrl</kbd>+<kbd>Maj</kbd> avec une lettre ou un chiffre, et les touches de fonction (sauf <kbd>F2</kbd> et <kbd>F10</kbd>) ; <kbd>Ctrl</kbd>+<kbd>S</kbd>, <kbd>Ctrl</kbd>+<kbd>A</kbd> et <kbd>Ctrl</kbd>+<kbd>V</kbd> restent ceux de la fenêtre, et un raccourci déjà global est refusé.</p>
+<p><strong>Raccourcis propres au gestionnaire.</strong> La catégorie «&nbsp;Gestionnaire de listes de lecture&nbsp;» de <strong>Outils → Actions</strong> permet d'assigner des raccourcis qui n'agissent que dans cette fenêtre : annoncer le temps écoulé, le temps restant, la durée du morceau, la durée totale de la liste affichée, ce qui joue ; lecture / pause, arrêt, morceau suivant ou précédent ; monter ou baisser le volume, sourdine. Aucun de ces raccourcis n'est assigné d'office (seuls ceux de l'analyse du volume le sont). Pour ne pas gêner la fenêtre, seuls sont acceptés <kbd>Ctrl</kbd> ou <kbd>Ctrl</kbd>+<kbd>Maj</kbd> avec une lettre ou un chiffre, et les touches de fonction (sauf <kbd>F2</kbd> et <kbd>F10</kbd>) ; <kbd>Ctrl</kbd>+<kbd>S</kbd>, <kbd>Ctrl</kbd>+<kbd>A</kbd> et <kbd>Ctrl</kbd>+<kbd>V</kbd> restent ceux de la fenêtre, et un raccourci déjà global est refusé.</p>
 <p>Arriver au bord d'une liste n'est jamais muet : <kbd>↑</kbd> sur la première ligne annonce «&nbsp;Premier,&nbsp;» suivi de la ligne, <kbd>↓</kbd> sur la dernière annonce «&nbsp;Dernier,&nbsp;».</p>
+
+<h3>Analyser le volume des pistes</h3>
+<p>Pour que <strong>Options → Fondu enchaîné → Égaliser le volume</strong> joue au même volume des fichiers qui n'ont pas de gain ReplayGain, MediaAccess doit d'abord mesurer leur volume. Dans la liste des pistes, <kbd>Ctrl</kbd>+<kbd>Maj</kbd>+<kbd>A</kbd> analyse les pistes affichées : MediaAccess annonce par exemple «&nbsp;Analyse du volume de 42 pistes&nbsp;», travaille en arrière-plan sans gêner la lecture, puis dit le résultat une seule fois, «&nbsp;42 pistes analysées&nbsp;». <kbd>Ctrl</kbd>+<kbd>I</kbd> dit où en est l'analyse ; <kbd>Ctrl</kbd>+<kbd>Maj</kbd>+<kbd>A</kbd> une seconde fois l'arrête. Les deux commandes sont aussi dans le menu contextuel de la liste (touche <kbd>Applications</kbd> ou <kbd>Maj</kbd>+<kbd>F10</kbd>).</p>
+<p>Le résultat est gardé : une piste analysée ne l'est plus, tant que son fichier ne change pas, et une piste qui a déjà son gain ReplayGain n'a pas besoin de l'être. Les pistes d'un même album et d'un même dossier, analysées ensemble, reçoivent aussi un gain d'album. MediaAccess ne lance jamais cette analyse de lui-même.</p>
 
 <h3>Boutons</h3>
 <ul>
@@ -897,7 +917,7 @@
 
 <section id="enregistrement" aria-labelledby="enregistrement-h">
 <h2 id="enregistrement-h">14. Enregistrement</h2>
-<p><kbd>R</kbd> démarre/arrête l'enregistrement de la sortie audio.</p>
+<p><kbd>R</kbd> démarre/arrête l'enregistrement de la sortie audio. Dans une liste de fichiers audio, l'enregistrement continue d'une chanson à l'autre, fondus enchaînés compris (le fondu court des gestes, lui, n'y est pas).</p>
 <p><kbd>Maj</kbd>+<kbd>R</kbd> met l'enregistrement en pause, puis le reprend (enregistrement « par morceaux »). Le fichier final ne contient que les passages enregistrés, collés bout à bout : par exemple, lancez l'enregistrement, mettez en pause pendant un passage qui ne vous intéresse pas, reprenez, et à l'arrêt vous obtenez un seul fichier sans le passage sauté. Fonctionne aussi pour l'enregistrement de l'audio système. La barre d'état affiche « (pause) » pendant la pause.</p>
 
 <h3>Formats</h3>
@@ -937,7 +957,7 @@
 <p>MediaAccess lit les CD audio comme n'importe quel fichier, et sait aussi les extraire : il copie les pistes du disque en fichiers WAV, FLAC, MP3, Ogg Vorbis ou Opus, avec les noms de l'album et des pistes, la pochette, et une vérification de l'exactitude de la copie. Il faut un lecteur de CD ou de DVD, intégré ou branché en USB.</p>
 
 <h3>Écouter un CD</h3>
-<p>Windows montre chaque piste d'un CD audio comme un petit fichier, <code>Track01.cda</code>, <code>Track02.cda</code>… dans le lecteur (par exemple <code>E:\</code>). Ouvrez l'une d'elles avec <kbd>Ctrl</kbd>+<kbd>O</kbd>, depuis l'Explorateur ou par la ligne de commande : MediaAccess charge alors <strong>toutes les pistes du disque</strong>, dans l'ordre, et commence par celle que vous avez choisie, comme un lecteur de CD. <kbd>B</kbd> et <kbd>Z</kbd> passent à la piste suivante ou précédente ; l'avance, le retour, le volume, les effets et les annonces du temps fonctionnent comme pour un fichier.</p>
+<p>Windows montre chaque piste d'un CD audio comme un petit fichier, <code>Track01.cda</code>, <code>Track02.cda</code>… dans le lecteur (par exemple <code>E:\</code>). Ouvrez l'une d'elles avec <kbd>Ctrl</kbd>+<kbd>O</kbd>, depuis l'Explorateur ou par la ligne de commande : MediaAccess charge alors <strong>toutes les pistes du disque</strong>, dans l'ordre, et commence par celle que vous avez choisie, comme un lecteur de CD. <kbd>B</kbd> et <kbd>Z</kbd> passent à la piste suivante ou précédente ; l'avance, le retour, le volume, les effets et les annonces du temps fonctionnent comme pour un fichier. Quand le fondu enchaîné est allumé (<kbd>F</kbd>), les pistes s'enchaînent sans blanc, et jamais avec un fondu, comme sur une platine.</p>
 
 <h3>La fenêtre d'extraction</h3>
 <p><strong>Fichier → Extraire un CD audio</strong> (<kbd>Ctrl</kbd>+<kbd>Maj</kbd>+<kbd>X</kbd>) ouvre la fenêtre d'extraction. Son titre dit d'emblée ce qui est dans le lecteur, par exemple « Extraire un CD audio : lecteur E, 11 pistes, 48 minutes », et le focus arrive sur la première piste. Si aucun lecteur n'est branché, un message le dit et la fenêtre ne s'ouvre pas.</p>
@@ -1201,7 +1221,7 @@
 
 <section id="options" aria-labelledby="options-h">
 <h2 id="options-h">22. Options détaillées</h2>
-<p><kbd>Ctrl</kbd>+<kbd>,</kbd> ou <strong>Outils → Options</strong> ouvre les préférences. Douze onglets. (Les raccourcis clavier ne sont plus configurés ici : utilisez <kbd>F4</kbd> ou <strong>Outils → Actions</strong>, voir <a href="#hotkeys">section 19</a>.)</p>
+<p><kbd>Ctrl</kbd>+<kbd>,</kbd> ou <strong>Outils → Options</strong> ouvre les préférences. Quatorze onglets. (Les raccourcis clavier ne sont plus configurés ici : utilisez <kbd>F4</kbd> ou <strong>Outils → Actions</strong>, voir <a href="#hotkeys">section 19</a>.)</p>
 <p>Pour passer d'un onglet à l'autre au clavier, utilisez <kbd>Ctrl</kbd>+<kbd>Tab</kbd> (onglet suivant) et <kbd>Ctrl</kbd>+<kbd>Maj</kbd>+<kbd>Tab</kbd> (onglet précédent) ; la navigation boucle du dernier onglet au premier et inversement, et le lecteur d'écran annonce le nom du nouvel onglet.</p>
 
 <h3>Onglet Lecture</h3>
@@ -1303,6 +1323,21 @@
 
 <h3>Onglet MIDI</h3>
 <p>Voir <a href="#midi">section 16</a>.</p>
+
+<h3>Onglet Livres</h3>
+<p>Voir <a href="#livres">section 26</a>.</p>
+
+<h3>Onglet Fondu enchaîné</h3>
+<p>Le passage d'une chanson à l'autre, expliqué à la <a href="#audio">section 4</a> :</p>
+<ul>
+  <li><strong>Fondu enchaîné entre les chansons</strong> : la même chose que la touche <kbd>F</kbd>.</li>
+  <li><strong>Durée du fondu enchaîné</strong> : de 1 à 15 secondes (6 par défaut).</li>
+  <li><strong>Forme du fondu enchaîné</strong> : Douce (niveau constant) ou Linéaire.</li>
+  <li><strong>Sauter le silence entre les chansons</strong> (activé par défaut) et <strong>Seuil du silence</strong> : de −40 à −70 dB (−50 par défaut) ; ce qui est plus faible que le seuil compte comme du silence.</li>
+  <li><strong>Pas de fondu enchaîné entre les pistes d'un même album</strong> (activé par défaut) : les pistes d'un album sans pause s'enchaînent sans fondu et sans blanc.</li>
+  <li><strong>Égaliser le volume</strong> : Non (par défaut), Gain de la piste (chaque chanson au même volume) ou Gain de l'album (les écarts voulus entre les pistes d'un album sont gardés) ; <strong>Préamplification</strong> : de −6 à +6 dB, ajoutée au gain. Un gain qui monte le volume s'arrête toujours avant la saturation.</li>
+  <li><strong>Fondu enchaîné des gestes</strong> : Aucun (coupure sèche), ou de 0,25 à 2 secondes (0,5 par défaut).</li>
+</ul>
 </section>
 
 <section id="accessibilite" aria-labelledby="accessibilite-h">
@@ -1326,7 +1361,7 @@
   <li>Changement d'unité de déplacement</li>
   <li>Chapitres</li>
   <li>Erreurs (toujours)</li>
-  <li>Mode répétition, lecture aléatoire, muet, enregistrement (à chaque bascule)</li>
+  <li>Mode répétition, lecture aléatoire, fondu enchaîné, muet, enregistrement (à chaque bascule)</li>
 </ul>
 
 <h3>Annonces à la demande</h3>
@@ -1543,7 +1578,7 @@
 <p>Quand la minuterie est active, le temps restant peut être consulté à tout moment via <kbd>Maj</kbd>+<kbd>F8</kbd>. À l'échéance, MediaAccess arrête le moteur en cours d'utilisation — peu importe que vous écoutiez de la musique, regardiez une vidéo, lisiez un livre ou écoutiez une radio.</p>
 
 <h3>Fondu sortant optionnel</h3>
-<p>Pour une transition plus douce, vous pouvez activer un fondu sortant sur les <strong>30 dernières secondes</strong> avant l'arrêt. L'option se règle dans <strong>Outils → Options</strong> (<kbd>Ctrl</kbd>+<kbd>,</kbd>), onglet <strong>Lecture</strong>, case <strong>Fondu sortant à la fin de la minuterie de sommeil (30 dernières secondes)</strong>. Sans le fondu, l'arrêt est instantané.</p>
+<p>Pour une transition plus douce, vous pouvez activer un fondu sortant sur les <strong>30 dernières secondes</strong> avant l'arrêt. L'option se règle dans <strong>Outils → Options</strong> (<kbd>Ctrl</kbd>+<kbd>,</kbd>), onglet <strong>Lecture</strong>, case <strong>Fondu sortant à la fin de la minuterie de sommeil (30 dernières secondes)</strong>. Sans le fondu, l'arrêt est instantané. Ce fondu de la minuterie est distinct du fondu enchaîné entre les chansons (<a href="#audio">section 4</a>), qui se règle dans son propre onglet.</p>
 
 <h3>Réaffecter les raccourcis</h3>
 <p>Les trois raccourcis <kbd>F8</kbd>, <kbd>Maj</kbd>+<kbd>F8</kbd> et <kbd>Ctrl</kbd>+<kbd>F8</kbd> sont réaffectables via <strong>Outils → Actions</strong> (<kbd>F4</kbd>), section <strong>Outils</strong>.</p>
@@ -1583,6 +1618,7 @@
 <tr><td><kbd>Z</kbd> / <kbd>B</kbd></td><td>Précédent / Suivant</td></tr>
 <tr><td><kbd>H</kbd></td><td>Lecture aléatoire</td></tr>
 <tr><td><kbd>E</kbd></td><td>Mode répétition</td></tr>
+<tr><td><kbd>F</kbd></td><td>Fondu enchaîné</td></tr>
 <tr><td><kbd>J</kbd></td><td>Aller à un instant</td></tr>
 <tr><td><kbd>Origine</kbd></td><td>Début</td></tr>
 <tr><td><kbd>Maj</kbd>+<kbd>Fin</kbd></td><td>Aller à 30 secondes avant la fin</td></tr>
@@ -1670,6 +1706,16 @@
 <tr><td><kbd>9</kbd></td><td>Durée</td></tr>
 <tr><td><kbd>0</kbd></td><td>Nom de fichier</td></tr>
 <tr><td><kbd>Maj</kbd>+chiffre</td><td>Afficher la même étiquette dans une fenêtre</td></tr>
+</tbody>
+</table>
+
+<h3>Gestionnaire de listes de lecture</h3>
+<table>
+<caption>Raccourcis du gestionnaire de listes de lecture</caption>
+<thead><tr><th>Raccourci</th><th>Action</th></tr></thead>
+<tbody>
+<tr><td><kbd>Ctrl</kbd>+<kbd>Maj</kbd>+<kbd>A</kbd></td><td>Analyser le volume des pistes / Arrêter</td></tr>
+<tr><td><kbd>Ctrl</kbd>+<kbd>I</kbd></td><td>Annoncer la progression de l'analyse du volume</td></tr>
 </tbody>
 </table>
 
