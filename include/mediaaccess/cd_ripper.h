@@ -9,6 +9,7 @@
 #include <string>
 #include <vector>
 #include "disc_drives.h"
+#include "cd_metadata.h"
 
 namespace mediaaccess {
 
@@ -26,6 +27,7 @@ struct RipJob {
     std::vector<RipTrack> tracks;
     RipFormat             format = RipFormat::FLAC;
     std::wstring          folder;  // created if missing
+    CdReleaseMeta         meta;    // its front cover is saved as folder.jpg
 };
 
 struct RipProgress {

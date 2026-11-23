@@ -171,6 +171,18 @@ copy /y "temp_dl\miniz\miniz.c" "deps\miniz\" >nul
 copy /y "temp_dl\miniz\LICENSE" "deps\miniz\" >nul 2>&1
 echo miniz installed.
 
+REM ============================================================
+REM nlohmann/json 3.12.0 (single header, MIT)
+REM Used by cd_metadata.cpp (MusicBrainz answers, CD metadata cache).
+REM build_new.bat has /I"deps", so the code includes <nlohmann/json.hpp>.
+REM ============================================================
+echo.
+echo Downloading nlohmann/json...
+if exist "deps\nlohmann" rmdir /s /q "deps\nlohmann"
+mkdir "deps\nlohmann"
+powershell -Command "Invoke-WebRequest -Uri 'https://github.com/nlohmann/json/releases/download/v3.12.0/json.hpp' -OutFile 'deps\nlohmann\json.hpp'"
+echo nlohmann/json installed.
+
 echo.
 echo Downloading SQLite...
 powershell -Command "Invoke-WebRequest -Uri 'https://sqlite.org/2026/sqlite-amalgamation-3510200.zip' -OutFile 'temp_dl\sqlite.zip'"

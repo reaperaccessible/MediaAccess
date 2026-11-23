@@ -928,6 +928,12 @@ static const Action g_actions[] = {
     { "CDRIP_PROGRESS", IDM_CDRIP_PROGRESS, ActionCategory::CdRip,
       "Announce the progress", "Annoncer la progression",
       { 'I', true,  false, false } },          // Ctrl+I
+    { "CDRIP_REFRESH", IDM_CDRIP_REFRESH, ActionCategory::CdRip,
+      "Look the disc up again", "Chercher de nouveau le disque",
+      { VK_F5, false, false, false } },        // F5
+    { "CDRIP_RELEASE", IDM_CDRIP_RELEASE, ActionCategory::CdRip,
+      "Choose another edition", "Choisir une autre édition",
+      { 'M', true,  false, false } },          // Ctrl+M
     // ========================================================================
     // CATEGORY: Radio — placeholder for future actions
     // CATEGORY: YouTube — placeholder for future actions

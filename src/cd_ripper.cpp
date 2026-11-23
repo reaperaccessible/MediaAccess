@@ -140,6 +140,19 @@ void Worker(RipJob job, HWND notify) {
         PostError(notify, Fmt(T("Cannot create the folder %ls. Choose another folder."), job.folder));
         stopped = true;
     } else {
+        // The cover first (a few seconds at most), so it is there even if the
+        // extraction is stopped. Never replaces a folder.jpg already present.
+        std::wstring cover = job.folder + L"\\folder.jpg";
+        std::vector<BYTE> image;
+        if (job.meta.hasFrontCover && GetFileAttributesW(cover.c_str()) == INVALID_FILE_ATTRIBUTES &&
+            DownloadFrontCover(job.meta, image)) {
+            HANDLE f = CreateFileW(cover.c_str(), GENERIC_WRITE, 0, nullptr, CREATE_NEW, FILE_ATTRIBUTE_NORMAL, nullptr);
+            if (f != INVALID_HANDLE_VALUE) {
+                DWORD written = 0;
+                WriteFile(f, image.data(), (DWORD)image.size(), &written, nullptr);
+                CloseHandle(f);
+            }
+        }
         cd->SetSpeed(job.drive.bassIndex, static_cast<DWORD>(-1));   // fastest
         double secondsTotal = 0;
         for (const RipTrack& t : job.tracks) secondsTotal += t.seconds;

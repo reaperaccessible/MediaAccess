@@ -1084,7 +1084,37 @@ void RegisterRcTranslations() {
     AddTranslation("fr", "&Eject", L"É&jecter");
     AddTranslation("en", "&Status:", L"&Status:");
     AddTranslation("fr", "&Status:", L"É&tat :");
-    // "&Format:", "&Output folder:" and "Bro&wse..." reuse the existing translations.
+    // "&Format:", "&Output folder:", "Bro&wse..." and "&Genre:" reuse the existing translations.
+    AddTranslation("en", "Al&bum:", L"Al&bum:");
+    AddTranslation("fr", "Al&bum:", L"Al&bum :");
+    AddTranslation("en", "Album a&rtist:", L"Album a&rtist:");
+    AddTranslation("fr", "Album a&rtist:", L"Artiste d&e l'album :");
+    AddTranslation("en", "&Year:", L"&Year:");
+    AddTranslation("fr", "&Year:", L"A&nnée :");
+    AddTranslation("en", "Dis&c:", L"Dis&c:");
+    AddTranslation("fr", "Dis&c:", L"Dis&que :");
+    AddTranslation("en", "of", L"of");
+    AddTranslation("fr", "of", L"sur");
+    AddTranslation("en", "Co&mpilation (various artists)", L"Co&mpilation (various artists)");
+    AddTranslation("fr", "Co&mpilation (various artists)", L"Co&mpilation (artistes variés)");
+    AddTranslation("en", "Track tit&le:", L"Track tit&le:");
+    AddTranslation("fr", "Track tit&le:", L"Titre de la pi&ste :");
+    AddTranslation("en", "Track art&ist:", L"Track art&ist:");
+    AddTranslation("fr", "Track art&ist:", L"Art&iste de la piste :");
+    AddTranslation("en", "Editio&ns...", L"Editio&ns...");
+    AddTranslation("fr", "Editio&ns...", L"É&ditions...");
+
+    // DIALOG: IDD_CD_RELEASE - "Editions of this disc" (v2.78)
+    AddTranslation("en", "Editions of this disc", L"Editions of this disc");
+    AddTranslation("fr", "Editions of this disc", L"Éditions de ce disque");
+    AddTranslation("en", "&Editions:", L"&Editions:");
+    AddTranslation("fr", "&Editions:", L"&Éditions :");
+    AddTranslation("en", "Open on &MusicBrainz", L"Open on &MusicBrainz");
+    AddTranslation("fr", "Open on &MusicBrainz", L"Ouvrir sur &MusicBrainz");
+    AddTranslation("en", "Search &again", L"Search &again");
+    AddTranslation("fr", "Search &again", L"Chercher de &nouveau");
+    AddTranslation("en", "&Submit this disc to MusicBrainz", L"&Submit this disc to MusicBrainz");
+    AddTranslation("fr", "&Submit this disc to MusicBrainz", L"&Soumettre ce disque à MusicBrainz");
     AddTranslation("en", "E&xtract", L"E&xtract");
     AddTranslation("fr", "E&xtract", L"E&xtraire");
     AddTranslation("en", "Sto&p", L"Sto&p");

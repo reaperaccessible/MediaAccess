@@ -1,6 +1,9 @@
 // ui_cd_rip.cpp — "Extract audio CD" window (docs/PLAN_EXTRACTION_CD.md).
 // Phase 1: choose the drive, list the tracks, eject. Phase 2: extract the
-// ticked tracks to WAV or FLAC (cd_ripper), progress on Ctrl+I.
+// ticked tracks to WAV or FLAC (cd_ripper), progress on Ctrl+I. Phase 3: album
+// and track names (cd_metadata: cache, MusicBrainz, CD-Text, GnuDB), editable
+// fields, F2 on a track, choice of the edition (Ctrl+M), new search (F5), the
+// cover saved as folder.jpg, files named after the titles.
 //
 // Modeless like the YouTube window: closing only hides it, and the main
 // message loop routes its keys through IsDialogMessageW (main.cpp).
@@ -9,27 +12,34 @@
 // ("Extract audio CD: drive D, 12 tracks, 47 minutes"), so opening the window
 // is said in one go by NVDA and JAWS (title, list, line). The program itself
 // speaks only for events the reader cannot see: a disc inserted or removed,
-// the tray opened or closed, the edges of a list ("First,", "Last,"), each
-// track started, and the end of an extraction (with the download sound).
-// Buttons are never renamed (Extract and Stop are two buttons): renaming the
-// focused button would make the reader speak a second time.
+// the tray opened or closed, the names found for the disc, the edges of a
+// list ("First,", "Last,"), each track started, and the end of an extraction
+// (with the download sound). Buttons are never renamed (Extract and Stop are
+// two buttons): renaming the focused button would make the reader speak twice.
 
 #include "ui_internal.h"
 #include "mediaaccess/ui_cd_rip.h"
 #include "mediaaccess/disc_drives.h"
 #include "mediaaccess/basscd_loader.h"
 #include "mediaaccess/cd_ripper.h"
+#include "mediaaccess/cd_metadata.h"
 #include "mediaaccess/notify_sounds.h"
 #include "mediaaccess/actions.h"
 #include "mediaaccess/keymap.h"
 #include <dbt.h>
 #include <vector>
 #include <cmath>
+#include <memory>
+#include <thread>
 
+using mediaaccess::CdLookupResult;
+using mediaaccess::CdReleaseMeta;
 using mediaaccess::DiscContents;
 using mediaaccess::DiscDrive;
 using mediaaccess::DiscTrack;
 using mediaaccess::DriveMediaType;
+
+#define WM_CDMETA_RESULT (WM_APP + 0x310)   // wParam: lookup token, lParam: CdLookupResult*
 
 namespace {
 
@@ -42,6 +52,12 @@ DiscContents           g_contents;       // disc in the selected drive
 DiscContents           g_listContents;   // disc the track list shows
 std::vector<int>       g_rowTrack;       // list row -> index in g_listContents.tracks
 
+CdLookupResult g_lookup;                 // last lookup for the listed disc
+CdReleaseMeta  g_meta;                   // names shown and edited (one entry per row)
+int            g_lookupToken = 0;        // a newer lookup makes older results stale
+bool           g_filling = false;        // fields being filled by the program, not typed
+bool           g_metaEdited = false;     // the user changed a name: save it to the cache
+
 const DiscDrive* SelectedDrive(HWND dlg) {
     int sel = (int)SendDlgItemMessageW(dlg, IDC_CDRIP_DRIVE, CB_GETCURSEL, 0, 0);
     if (sel < 0 || sel >= (int)g_drives.size()) return nullptr;
@@ -49,12 +65,21 @@ const DiscDrive* SelectedDrive(HWND dlg) {
 }
 
 std::wstring Format(const wchar_t* fmt, ...) {
-    wchar_t buf[512];
+    wchar_t buf[1024];
     va_list ap;
     va_start(ap, fmt);
     _vsnwprintf_s(buf, _countof(buf), _TRUNCATE, fmt, ap);
     va_end(ap);
     return buf;
+}
+
+std::wstring GetText(HWND dlg, int id) {
+    HWND h = GetDlgItem(dlg, id);
+    int len = GetWindowTextLengthW(h);
+    std::wstring s(len + 1, L'\0');
+    GetWindowTextW(h, &s[0], len + 1);
+    s.resize(len);
+    return s;
 }
 
 std::wstring Duration(double seconds) {
@@ -83,19 +108,32 @@ std::wstring DiscSummary(const DiscDrive& d, const DiscContents& c) {
     return s;
 }
 
+void SetStatus(HWND dlg, const std::wstring& text) {
+    SetDlgItemTextW(dlg, IDC_CDRIP_STATUS, text.c_str());
+}
+
 void UpdateTitleAndStatus(HWND dlg) {
     const DiscDrive* d = SelectedDrive(dlg);
     std::wstring summary = d ? DiscSummary(*d, g_contents) : std::wstring();
     std::wstring title = summary.empty() ? std::wstring(T("Extract audio CD"))
                                          : Format(T("Extract audio CD: %ls"), summary.c_str());
     SetWindowTextW(dlg, title.c_str());
-    SetDlgItemTextW(dlg, IDC_CDRIP_STATUS, summary.c_str());
+    SetStatus(dlg, summary);
 }
 
+// Title of a row: the name found or typed, else "Track n".
+std::wstring TrackTitle(int row) {
+    if (row >= 0 && row < (int)g_meta.tracks.size() && !g_meta.tracks[row].title.empty()) {
+        return g_meta.tracks[row].title;
+    }
+    if (row < 0 || row >= (int)g_rowTrack.size()) return std::wstring();
+    return Format(T("Track %d"), g_listContents.tracks[g_rowTrack[row]].number);
+}
+
+// "01 - Title": the number stays in the name, so it is heard with the title.
 std::wstring RowText(int row) {
     if (row < 0 || row >= (int)g_rowTrack.size()) return std::wstring();
-    const DiscTrack& t = g_listContents.tracks[g_rowTrack[row]];
-    return Format(L"%02d - ", t.number) + Format(T("Track %d"), t.number);
+    return Format(L"%02d - ", g_listContents.tracks[g_rowTrack[row]].number) + TrackTitle(row);
 }
 
 void FillTrackList(HWND dlg) {
@@ -120,6 +158,342 @@ void FillTrackList(HWND dlg) {
     SendMessageW(list, WM_SETREDRAW, TRUE, 0);
 }
 
+void RenameRow(HWND dlg, int row) {
+    std::wstring text = RowText(row);
+    ListView_SetItemText(GetDlgItem(dlg, IDC_CDRIP_TRACKS), row, 0, &text[0]);
+}
+
+int SelectedRow(HWND dlg) {
+    return ListView_GetNextItem(GetDlgItem(dlg, IDC_CDRIP_TRACKS), -1, LVNI_SELECTED);
+}
+
+void FillTrackFields(HWND dlg) {
+    int row = SelectedRow(dlg);
+    bool ok = row >= 0 && row < (int)g_meta.tracks.size();
+    g_filling = true;
+    SetDlgItemTextW(dlg, IDC_CDRIP_TTITLE, ok ? TrackTitle(row).c_str() : L"");
+    SetDlgItemTextW(dlg, IDC_CDRIP_TARTIST, ok ? g_meta.tracks[row].artist.c_str() : L"");
+    g_filling = false;
+}
+
+void FillMetaFields(HWND dlg) {
+    g_filling = true;
+    SetDlgItemTextW(dlg, IDC_CDRIP_ALBUM, g_meta.album.c_str());
+    SetDlgItemTextW(dlg, IDC_CDRIP_ARTIST, g_meta.albumArtist.c_str());
+    SetDlgItemTextW(dlg, IDC_CDRIP_YEAR, g_meta.year.c_str());
+    SetDlgItemTextW(dlg, IDC_CDRIP_GENRE, g_meta.genre.c_str());
+    SetDlgItemTextW(dlg, IDC_CDRIP_DISC, g_meta.tracks.empty() ? L"" : std::to_wstring(g_meta.discNumber).c_str());
+    SetDlgItemTextW(dlg, IDC_CDRIP_DISCTOTAL, g_meta.tracks.empty() ? L"" : std::to_wstring(g_meta.discTotal).c_str());
+    CheckDlgButton(dlg, IDC_CDRIP_COMPILATION, g_meta.compilation ? BST_CHECKED : BST_UNCHECKED);
+    g_filling = false;
+    FillTrackFields(dlg);
+}
+
+// Shows `meta` for the listed disc: fields, then the track names.
+void ShowMeta(HWND dlg, const CdReleaseMeta& meta) {
+    g_meta = meta;
+    g_metaEdited = false;
+    FillMetaFields(dlg);
+    for (int row = 0; row < (int)g_rowTrack.size(); ++row) RenameRow(dlg, row);
+}
+
+void SaveMetaIfEdited() {
+    if (g_metaEdited && !g_lookup.discId.empty()) {
+        mediaaccess::SaveToCache(g_lookup.discId, g_meta);
+        g_metaEdited = false;
+    }
+}
+
+// Starts a lookup on a worker thread; WM_CDMETA_RESULT brings the answer.
+void StartLookup(HWND dlg, bool useCache) {
+    const DiscDrive* d = SelectedDrive(dlg);
+    if (!d || g_listContents.type != DriveMediaType::AudioCD) return;
+    if (mediaaccess::IsRipping()) {
+        SpeakW(T("An extraction is running. Stop it first."));
+        return;
+    }
+    int token = ++g_lookupToken;
+    DiscDrive drive = *d;
+    DiscContents contents = g_listContents;
+    SetStatus(dlg, T("Looking up the disc..."));
+    std::thread([dlg, token, drive, contents, useCache]() {
+        CdLookupResult* r = new CdLookupResult(mediaaccess::LookupDisc(drive, contents, useCache));
+        if (!IsWindow(dlg) || !PostMessageW(dlg, WM_CDMETA_RESULT, token, (LPARAM)r)) delete r;
+    }).detach();
+}
+
+// True when the editions differ in what the user would see (track count or
+// titles): then the choice is offered at once.
+bool EditionsDiffer(const std::vector<CdReleaseMeta>& c) {
+    for (size_t i = 1; i < c.size(); ++i) {
+        if (c[i].tracks.size() != c[0].tracks.size()) return true;
+        for (size_t t = 0; t < c[0].tracks.size(); ++t) {
+            if (c[i].tracks[t].title != c[0].tracks[t].title) return true;
+        }
+    }
+    return false;
+}
+
+std::wstring Headline(const CdReleaseMeta& m) {
+    std::wstring s = m.album;
+    if (!m.albumArtist.empty()) s += L", " + m.albumArtist;
+    if (!m.year.empty()) s += L", " + m.year;
+    return s;
+}
+
+bool ShowEditionDialog(HWND dlg);
+std::wstring ShortcutHint(const char* actionId);
+
+void OnLookupResult(HWND dlg, int token, CdLookupResult* r) {
+    std::unique_ptr<CdLookupResult> owner(r);
+    if (token != g_lookupToken) return;   // the disc changed meanwhile
+    g_lookup = *r;
+    UpdateTitleAndStatus(dlg);
+    if (r->candidates.empty()) {
+        ShowMeta(dlg, mediaaccess::DefaultRelease(g_listContents));
+        SpeakW(T("Unknown disc. The tracks are named Track 1, Track 2. You can change them."));
+        return;
+    }
+    const CdReleaseMeta& first = r->candidates[0];
+    if (g_metaEdited) {
+        // The user named tracks while the answer was on its way: keep their
+        // names; the editions found stay one Ctrl+M away.
+        std::wstring key = ShortcutHint("CDRIP_RELEASE");
+        if (!key.empty()) key.erase(0, 1);
+        SpeakW(Format(T("Names found, your changes are kept. %ls to use them"), key.c_str()));
+        return;
+    }
+    if (r->candidates.size() > 1 && EditionsDiffer(r->candidates)) {
+        ShowMeta(dlg, first);
+        ShowEditionDialog(dlg);   // its title says what it is
+        return;
+    }
+    const wchar_t* where = r->fromCache                    ? T("Found in MediaAccess's memory: %ls")
+                         : first.source == L"CD-Text"      ? T("Found in the CD-Text: %ls")
+                         : first.source == L"GnuDB"        ? T("Found on GnuDB: %ls")
+                                                           : T("Found on MusicBrainz: %ls");
+    std::wstring text = Format(where, Headline(first).c_str());
+    if (r->candidates.size() > 1) {
+        std::wstring key = ShortcutHint("CDRIP_RELEASE");
+        if (!key.empty()) key.erase(0, 1);   // the hint starts with a tab
+        text += L". " + Format(T("%d editions, the first one is chosen, %ls to change"),
+                               (int)r->candidates.size(), key.c_str());
+    }
+    // Said before the names change: the line that has the focus is then
+    // renamed, and the reader says its new name after this.
+    SpeakW(text);
+    ShowMeta(dlg, first);
+}
+
+// ---- Edition dialog (modal) ----
+
+// A list view, like the track list: a LISTBOX here was read twice by NVDA
+// when the dialog opened (focus, then selection).
+LRESULT CALLBACK EditionListProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam, UINT_PTR, DWORD_PTR) {
+    if (msg == WM_KEYDOWN && (wParam == VK_UP || wParam == VK_DOWN)) {   // never a silent edge
+        int count = ListView_GetItemCount(hwnd);
+        int cur = ListView_GetNextItem(hwnd, -1, LVNI_FOCUSED);
+        bool first = (wParam == VK_UP && cur == 0);
+        bool last = (wParam == VK_DOWN && cur == count - 1);
+        if (count > 0 && cur >= 0 && (first || last)) {
+            wchar_t text[1024] = {};
+            ListView_GetItemText(hwnd, cur, 0, text, _countof(text));
+            SpeakW(std::wstring(first ? T("First,") : T("Last,")) + L" " + text);
+            return 0;
+        }
+    }
+    return DefSubclassProc(hwnd, msg, wParam, lParam);
+}
+
+int EditionSelected(HWND dlg) {
+    return ListView_GetNextItem(GetDlgItem(dlg, IDC_CDREL_LIST), -1, LVNI_SELECTED);
+}
+
+INT_PTR CALLBACK EditionDlgProc(HWND dlg, UINT msg, WPARAM wParam, LPARAM lParam) {
+    switch (msg) {
+        case WM_INITDIALOG: {
+            LocalizeDialog(dlg);
+            HWND list = GetDlgItem(dlg, IDC_CDREL_LIST);
+            ListView_SetExtendedListViewStyle(list, LVS_EX_FULLROWSELECT);
+            RECT rc;
+            GetClientRect(list, &rc);
+            LVCOLUMNW col = {};
+            col.mask = LVCF_WIDTH;
+            col.cx = rc.right - rc.left - GetSystemMetrics(SM_CXVSCROLL);
+            ListView_InsertColumn(list, 0, &col);
+            std::vector<std::wstring> lines;
+            int pick = 0;
+            for (size_t i = 0; i < g_lookup.candidates.size(); ++i) {
+                lines.push_back(mediaaccess::DescribeRelease(g_lookup.candidates[i]));
+                if (g_lookup.candidates[i].releaseMbid == g_meta.releaseMbid) pick = (int)i;
+            }
+            if (lines.empty()) lines.push_back(T("No edition found for this disc"));
+            for (size_t i = 0; i < lines.size(); ++i) {
+                LVITEMW item = {};
+                item.mask = LVIF_TEXT;
+                item.iItem = (int)i;
+                item.pszText = &lines[i][0];
+                ListView_InsertItem(list, &item);
+            }
+            ListView_SetItemState(list, pick, LVIS_FOCUSED | LVIS_SELECTED, LVIS_FOCUSED | LVIS_SELECTED);
+            ListView_EnsureVisible(list, pick, FALSE);
+            SetWindowSubclass(list, EditionListProc, 1, 0);
+            EnableWindow(GetDlgItem(dlg, IDC_CDREL_SUBMIT), !g_lookup.discId.empty());
+            EnableWindow(GetDlgItem(dlg, IDC_CDREL_OPEN_MB), !g_lookup.candidates.empty());
+            // TRUE: Windows gives the focus to the list (first control) once,
+            // with the dialog; an extra SetFocus made the line speak twice.
+            return TRUE;
+        }
+        case WM_NOTIFY: {
+            const NMHDR* nm = reinterpret_cast<const NMHDR*>(lParam);
+            if (nm->idFrom == IDC_CDREL_LIST && nm->code == LVN_ITEMACTIVATE && !g_lookup.candidates.empty()) {
+                EndDialog(dlg, IDOK + 100 + EditionSelected(dlg));   // Enter or double click
+                return TRUE;
+            }
+            break;
+        }
+        case WM_COMMAND: {
+            int sel = EditionSelected(dlg);
+            switch (LOWORD(wParam)) {
+                case IDOK:
+                    EndDialog(dlg, g_lookup.candidates.empty() ? IDCANCEL : IDOK + 100 + sel);
+                    return TRUE;
+                case IDCANCEL:
+                    EndDialog(dlg, IDCANCEL);
+                    return TRUE;
+                case IDC_CDREL_SEARCH:
+                    EndDialog(dlg, IDRETRY);
+                    return TRUE;
+                case IDC_CDREL_OPEN_MB:
+                    if (sel >= 0 && sel < (int)g_lookup.candidates.size()) {
+                        std::wstring url = L"https://musicbrainz.org/release/" + g_lookup.candidates[sel].releaseMbid;
+                        ShellExecuteW(dlg, L"open", url.c_str(), nullptr, nullptr, SW_SHOWNORMAL);
+                    }
+                    return TRUE;
+                case IDC_CDREL_SUBMIT: {
+                    std::wstring url = mediaaccess::MusicBrainzSubmitUrl(g_lookup, (int)g_rowTrack.size());
+                    ShellExecuteW(dlg, L"open", url.c_str(), nullptr, nullptr, SW_SHOWNORMAL);
+                    return TRUE;
+                }
+            }
+            break;
+        }
+    }
+    return FALSE;
+}
+
+// Returns true when the shown names changed.
+bool ShowEditionDialog(HWND dlg) {
+    INT_PTR r = DialogBoxW(GetModuleHandleW(nullptr), MAKEINTRESOURCEW(IDD_CD_RELEASE), dlg, EditionDlgProc);
+    if (r == IDRETRY) {
+        StartLookup(dlg, false);
+        return false;
+    }
+    int idx = (int)r - (IDOK + 100);
+    if (idx >= 0 && idx < (int)g_lookup.candidates.size()) {
+        ShowMeta(dlg, g_lookup.candidates[idx]);
+        g_metaEdited = true;   // the choice is remembered for this disc
+        SaveMetaIfEdited();
+        return true;
+    }
+    return false;
+}
+
+void OnChooseEdition(HWND dlg) {
+    if (g_listContents.type != DriveMediaType::AudioCD) {
+        SpeakW(T("No audio CD in the drive"));
+        return;
+    }
+    ShowEditionDialog(dlg);
+}
+
+// ---- Fields ----
+
+void OnFieldChanged(HWND dlg, int id) {
+    if (g_filling) return;
+    std::wstring v = GetText(dlg, id);
+    int row = SelectedRow(dlg);
+    switch (id) {
+        case IDC_CDRIP_ALBUM:     g_meta.album = v; break;
+        case IDC_CDRIP_ARTIST:    g_meta.albumArtist = v; break;
+        case IDC_CDRIP_YEAR:      g_meta.year = v; break;
+        case IDC_CDRIP_GENRE:     g_meta.genre = v; break;
+        case IDC_CDRIP_DISC:      g_meta.discNumber = _wtoi(v.c_str()); break;
+        case IDC_CDRIP_DISCTOTAL: g_meta.discTotal = _wtoi(v.c_str()); break;
+        case IDC_CDRIP_TTITLE:
+            if (row < 0 || row >= (int)g_meta.tracks.size()) return;
+            g_meta.tracks[row].title = v;
+            RenameRow(dlg, row);   // not the focused control: silent
+            break;
+        case IDC_CDRIP_TARTIST:
+            if (row < 0 || row >= (int)g_meta.tracks.size()) return;
+            g_meta.tracks[row].artist = v;
+            break;
+        default:
+            return;
+    }
+    g_metaEdited = true;
+}
+
+// F2 on a track: the edit box holds the title alone, without "01 - ".
+LRESULT CALLBACK LabelEditProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam, UINT_PTR, DWORD_PTR) {
+    // Enter and Escape belong to the edit box, not to the window's buttons.
+    if (msg == WM_GETDLGCODE) return DLGC_WANTALLKEYS | DefSubclassProc(hwnd, msg, wParam, lParam);
+    return DefSubclassProc(hwnd, msg, wParam, lParam);
+}
+
+bool OnListNotify(HWND dlg, NMHDR* nm) {
+    if (nm->idFrom != IDC_CDRIP_TRACKS) return false;
+    switch (nm->code) {
+        case LVN_KEYDOWN: {
+            // A list view never starts editing on F2 by itself.
+            const NMLVKEYDOWN* kd = reinterpret_cast<const NMLVKEYDOWN*>(nm);
+            if (kd->wVKey == VK_F2) {
+                int row = ListView_GetNextItem(nm->hwndFrom, -1, LVNI_FOCUSED);
+                if (row >= 0) ListView_EditLabel(nm->hwndFrom, row);
+            }
+            return false;
+        }
+        case LVN_ITEMCHANGED: {
+            const NMLISTVIEW* lv = reinterpret_cast<const NMLISTVIEW*>(nm);
+            if ((lv->uChanged & LVIF_STATE) && (lv->uNewState & LVIS_SELECTED) && !(lv->uOldState & LVIS_SELECTED)) {
+                FillTrackFields(dlg);
+            }
+            return false;
+        }
+        case LVN_BEGINLABELEDIT: {
+            const NMLVDISPINFOW* di = reinterpret_cast<const NMLVDISPINFOW*>(nm);
+            if (di->item.iItem < 0 || di->item.iItem >= (int)g_meta.tracks.size()) {
+                SetWindowLongPtrW(dlg, DWLP_MSGRESULT, TRUE);   // nothing to edit yet
+                return true;
+            }
+            HWND edit = ListView_GetEditControl(nm->hwndFrom);
+            if (edit) {
+                SetWindowTextW(edit, TrackTitle(di->item.iItem).c_str());
+                SendMessageW(edit, EM_SETSEL, 0, -1);
+                SetWindowSubclass(edit, LabelEditProc, 1, 0);
+            }
+            SetWindowLongPtrW(dlg, DWLP_MSGRESULT, FALSE);
+            return true;
+        }
+        case LVN_ENDLABELEDIT: {
+            const NMLVDISPINFOW* di = reinterpret_cast<const NMLVDISPINFOW*>(nm);
+            int row = di->item.iItem;
+            if (di->item.pszText && row >= 0 && row < (int)g_meta.tracks.size()) {
+                g_meta.tracks[row].title = di->item.pszText;
+                g_metaEdited = true;
+                RenameRow(dlg, row);       // "01 - New title", said by the reader
+                FillTrackFields(dlg);
+            }
+            SetWindowLongPtrW(dlg, DWLP_MSGRESULT, FALSE);   // the row text is set above
+            return true;
+        }
+    }
+    return false;
+}
+
+// ---- Disc and drives ----
+
 bool SameDisc(const DiscContents& a, const DiscContents& b) {
     if (a.tracks.size() != b.tracks.size()) return false;
     for (size_t i = 0; i < a.tracks.size(); ++i) {
@@ -132,17 +506,26 @@ bool SameDisc(const DiscContents& a, const DiscContents& b) {
 
 // Reads the disc in the selected drive; the list always shows what is really
 // in it (empty when there is no audio CD). It is left alone when the very same
-// disc is read again (the window reopened), so the ticked tracks are kept.
+// disc is read again (the window reopened), so the ticked tracks and the names
+// are kept. Another disc starts a new lookup.
 void RefreshDisc(HWND dlg) {
     const DiscDrive* d = SelectedDrive(dlg);
     g_contents = d ? mediaaccess::ReadDiscContents(*d) : DiscContents();
     DiscContents shown = (g_contents.type == DriveMediaType::AudioCD) ? g_contents : DiscContents();
-    if (!SameDisc(shown, g_listContents)) {
+    bool changed = !SameDisc(shown, g_listContents);
+    if (changed) {
+        SaveMetaIfEdited();
+        ++g_lookupToken;   // results for the previous disc are now stale
+        g_lookup = CdLookupResult();
         g_listContents = shown;
+        g_meta = mediaaccess::DefaultRelease(g_listContents);
         FillTrackList(dlg);
+        if (g_listContents.tracks.empty()) g_meta = CdReleaseMeta();
+        FillMetaFields(dlg);
     }
     UpdateTitleAndStatus(dlg);
     EnableWindow(GetDlgItem(dlg, IDC_CDRIP_EJECT), d && d->canOpen);
+    if (changed) StartLookup(dlg, true);
 }
 
 void FillDriveCombo(HWND dlg) {
@@ -243,10 +626,7 @@ void OnEject(HWND dlg) {
     }
     if (nowOpen) {
         g_trayOpenedByUs = true;
-        g_contents = DiscContents();
-        g_listContents = DiscContents();
-        FillTrackList(dlg);
-        UpdateTitleAndStatus(dlg);
+        RefreshDisc(dlg);   // the list empties: the disc is gone
         SpeakW(T("Tray open"));
     } else {
         // Closing the tray: the disc is read when Windows reports it
@@ -333,11 +713,57 @@ void OnBrowse(HWND dlg) {
     }
 }
 
-// ---- Extraction ----
+// ---- File names ----
 
-void SetStatus(HWND dlg, const std::wstring& text) {
-    SetDlgItemTextW(dlg, IDC_CDRIP_STATUS, text.c_str());
+// One folder or file name: no character Windows refuses, no control
+// character, no trailing space or dot, no reserved device name, 120 at most.
+std::wstring CleanName(const std::wstring& in) {
+    std::wstring s;
+    for (wchar_t c : in) {
+        if (c < 32) continue;
+        s += wcschr(L"\\/:*?\"<>|", c) ? L'-' : c;
+    }
+    while (!s.empty() && (s.back() == L' ' || s.back() == L'.')) s.pop_back();
+    while (!s.empty() && s.front() == L' ') s.erase(s.begin());
+    if (s.size() > 120) s.resize(120);
+    while (!s.empty() && (s.back() == L' ' || s.back() == L'.')) s.pop_back();
+    static const wchar_t* reserved[] = { L"CON", L"PRN", L"AUX", L"NUL", L"COM1", L"COM2", L"COM3",
+        L"COM4", L"COM5", L"COM6", L"COM7", L"COM8", L"COM9", L"LPT1", L"LPT2", L"LPT3", L"LPT4",
+        L"LPT5", L"LPT6", L"LPT7", L"LPT8", L"LPT9" };
+    std::wstring stem = s.substr(0, s.find(L'.'));
+    for (const wchar_t* r : reserved) {
+        if (_wcsicmp(stem.c_str(), r) == 0) { s += L"_"; break; }
+    }
+    return s;
 }
+
+// Plan 4.6 defaults: "Album artist\Album (year)"; files "01 - Title",
+// "1-01 - Title" for a multi-disc set, "01 - Artist - Title" for a compilation.
+std::wstring AlbumFolder(const std::wstring& root) {
+    std::wstring album = CleanName(g_meta.album);
+    if (album.empty()) {
+        SYSTEMTIME st;
+        GetLocalTime(&st);
+        return root + L"\\" + Format(T("Audio CD %04d-%02d-%02d %02dh%02d"),
+                                     st.wYear, st.wMonth, st.wDay, st.wHour, st.wMinute);
+    }
+    if (!g_meta.year.empty()) album += L" (" + CleanName(g_meta.year) + L")";
+    std::wstring artist = CleanName(g_meta.albumArtist);
+    return root + L"\\" + (artist.empty() ? album : artist + L"\\" + album);
+}
+
+std::wstring TrackFileName(int row) {
+    int number = g_listContents.tracks[g_rowTrack[row]].number;
+    std::wstring title = TrackTitle(row);
+    std::wstring prefix = (g_meta.discTotal > 1) ? Format(L"%d-%02d", g_meta.discNumber, number)
+                                                 : Format(L"%02d", number);
+    if (g_meta.compilation && row < (int)g_meta.tracks.size() && !g_meta.tracks[row].artist.empty()) {
+        return CleanName(prefix + L" - " + g_meta.tracks[row].artist + L" - " + title);
+    }
+    return CleanName(prefix + L" - " + title);
+}
+
+// ---- Extraction ----
 
 void OnStart(HWND dlg) {
     if (mediaaccess::IsRipping()) {
@@ -355,7 +781,7 @@ void OnStart(HWND dlg) {
     for (int row = 0; row < (int)g_rowTrack.size(); ++row) {
         if (!ListView_GetCheckState(list, row)) continue;
         const DiscTrack& t = g_listContents.tracks[g_rowTrack[row]];
-        job.tracks.push_back({ t.index, t.number, t.seconds, RowText(row) });
+        job.tracks.push_back({ t.index, t.number, t.seconds, TrackFileName(row) });
     }
     if (job.tracks.empty()) {
         SpeakW(T("No track is ticked"));
@@ -363,16 +789,28 @@ void OnStart(HWND dlg) {
     }
     int format = (int)SendDlgItemMessageW(dlg, IDC_CDRIP_FORMAT, CB_GETCURSEL, 0, 0);
     job.format = (format == 0) ? mediaaccess::RipFormat::WAV : mediaaccess::RipFormat::FLAC;
-    wchar_t root[MAX_PATH * 4] = {};
-    GetDlgItemTextW(dlg, IDC_CDRIP_FOLDER, root, _countof(root));
-    std::wstring rootDir = root[0] ? root : DefaultOutputRoot();
+    std::wstring rootDir = GetText(dlg, IDC_CDRIP_FOLDER);
+    if (rootDir.empty()) rootDir = DefaultOutputRoot();
     while (!rootDir.empty() && (rootDir.back() == L'\\' || rootDir.back() == L'/')) rootDir.pop_back();
-    // Phase 2 has no album name yet: one dated folder per extraction.
-    SYSTEMTIME st;
-    GetLocalTime(&st);
-    job.folder = rootDir + L"\\" + Format(T("Audio CD %04d-%02d-%02d %02dh%02d"),
-                                          st.wYear, st.wMonth, st.wDay, st.wHour, st.wMinute);
+    job.folder = AlbumFolder(rootDir);
+    job.meta = g_meta;
     SaveRipSettings(dlg);
+
+    // Never replace files without asking.
+    const wchar_t* ext = (job.format == mediaaccess::RipFormat::WAV) ? L".wav" : L".flac";
+    int existing = 0;
+    for (const mediaaccess::RipTrack& t : job.tracks) {
+        if (GetFileAttributesW((job.folder + L"\\" + t.fileName + ext).c_str()) != INVALID_FILE_ATTRIBUTES) ++existing;
+    }
+    if (existing > 0) {
+        std::wstring q = Format(T("%d of these files already exist in %ls. Replace them?"),
+                                existing, job.folder.c_str());
+        if (MessageBoxW(dlg, q.c_str(), T("Extract audio CD"), MB_YESNO | MB_ICONQUESTION | MB_DEFBUTTON2) != IDYES) return;
+    }
+
+    // The names used for the files are the ones remembered for this disc.
+    g_metaEdited = true;
+    SaveMetaIfEdited();
 
     // BASSCD keeps one stream per drive: a CD track playing from this drive
     // would be cut by the extraction (and would cut it). Stop it first.
@@ -413,7 +851,11 @@ void OnProgress() {
 }
 
 void OnTrackStart(HWND dlg, int pos, int count, int number) {
-    std::wstring text = Format(T("Track %d of %d: %ls"), pos, count, Format(T("Track %d"), number).c_str());
+    std::wstring name = Format(T("Track %d"), number);
+    for (int row = 0; row < (int)g_rowTrack.size(); ++row) {
+        if (g_listContents.tracks[g_rowTrack[row]].number == number) { name = TrackTitle(row); break; }
+    }
+    std::wstring text = Format(T("Track %d of %d: %ls"), pos, count, name.c_str());
     SetStatus(dlg, text);
     SpeakW(text);
 }
@@ -447,11 +889,18 @@ void ShowTrackMenu(HWND dlg, LPARAM lParam) {
         pt.y = rc.bottom;
         ClientToScreen(list, &pt);
     }
+    struct Entry { int cmd; const char* key; const char* action; };
+    const Entry entries[] = {
+        { IDM_CDRIP_START,    "Extract / Stop",          "CDRIP_START" },
+        { IDM_CDRIP_PROGRESS, "Announce the progress",   "CDRIP_PROGRESS" },
+        { IDM_CDRIP_REFRESH,  "Look the disc up again",  "CDRIP_REFRESH" },
+        { IDM_CDRIP_RELEASE,  "Choose another edition",  "CDRIP_RELEASE" },
+    };
     HMENU menu = CreatePopupMenu();
-    std::wstring start = std::wstring(T("Extract / Stop")) + ShortcutHint("CDRIP_START");
-    std::wstring progress = std::wstring(T("Announce the progress")) + ShortcutHint("CDRIP_PROGRESS");
-    AppendMenuW(menu, MF_STRING, IDM_CDRIP_START, start.c_str());
-    AppendMenuW(menu, MF_STRING, IDM_CDRIP_PROGRESS, progress.c_str());
+    for (const Entry& e : entries) {
+        std::wstring text = std::wstring(T(e.key)) + ShortcutHint(e.action);
+        AppendMenuW(menu, MF_STRING, e.cmd, text.c_str());
+    }
     int cmd = TrackPopupMenu(menu, TPM_RETURNCMD | TPM_NONOTIFY, pt.x, pt.y, 0, dlg, nullptr);
     DestroyMenu(menu);
     if (cmd) SendMessageW(dlg, WM_COMMAND, MAKEWPARAM(cmd, 0), 0);
@@ -460,6 +909,7 @@ void ShowTrackMenu(HWND dlg, LPARAM lParam) {
 void HideDialog(HWND dlg) {
     ShowWindow(dlg, SW_HIDE);
     SaveRipSettings(dlg);
+    SaveMetaIfEdited();
     // An extraction keeps running hidden (it releases its drive at the end).
     if (!mediaaccess::IsRipping()) {
         for (const DiscDrive& d : g_drives) mediaaccess::ReleaseDrive(d);
@@ -503,8 +953,26 @@ INT_PTR CALLBACK CdRipDlgProc(HWND dlg, UINT msg, WPARAM wParam, LPARAM lParam) 
                 case IDC_CDRIP_BROWSE:
                     OnBrowse(dlg);
                     return TRUE;
+                case IDC_CDRIP_EDITIONS:
+                case IDM_CDRIP_RELEASE:
+                    OnChooseEdition(dlg);
+                    return TRUE;
+                case IDM_CDRIP_REFRESH:
+                    StartLookup(dlg, false);
+                    return TRUE;
                 case IDC_CDRIP_FORMAT:
                     if (HIWORD(wParam) == CBN_SELCHANGE) SaveRipSettings(dlg);
+                    return TRUE;
+                case IDC_CDRIP_ALBUM: case IDC_CDRIP_ARTIST: case IDC_CDRIP_YEAR:
+                case IDC_CDRIP_GENRE: case IDC_CDRIP_DISC: case IDC_CDRIP_DISCTOTAL:
+                case IDC_CDRIP_TTITLE: case IDC_CDRIP_TARTIST:
+                    if (HIWORD(wParam) == EN_CHANGE) OnFieldChanged(dlg, LOWORD(wParam));
+                    return TRUE;
+                case IDC_CDRIP_COMPILATION:
+                    if (!g_filling) {
+                        g_meta.compilation = IsDlgButtonChecked(dlg, IDC_CDRIP_COMPILATION) == BST_CHECKED;
+                        g_metaEdited = true;
+                    }
                     return TRUE;
                 case IDM_CDRIP_START:   // Ctrl+R: extract, or stop when running
                     if (mediaaccess::IsRipping()) OnStop(); else OnStart(dlg);
@@ -518,6 +986,9 @@ INT_PTR CALLBACK CdRipDlgProc(HWND dlg, UINT msg, WPARAM wParam, LPARAM lParam) 
             }
             break;
 
+        case WM_NOTIFY:
+            return OnListNotify(dlg, reinterpret_cast<NMHDR*>(lParam)) ? TRUE : FALSE;
+
         case WM_DEVICECHANGE:
             OnMediaChange(dlg, wParam, lParam);
             return TRUE;
@@ -528,6 +999,10 @@ INT_PTR CALLBACK CdRipDlgProc(HWND dlg, UINT msg, WPARAM wParam, LPARAM lParam) 
                 return TRUE;
             }
             break;
+
+        case WM_CDMETA_RESULT:
+            OnLookupResult(dlg, (int)wParam, reinterpret_cast<CdLookupResult*>(lParam));
+            return TRUE;
 
         case WM_CDRIP_TRACK_START:
             OnTrackStart(dlg, (int)wParam, (int)LOWORD(lParam), (int)HIWORD(lParam));

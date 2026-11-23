@@ -290,6 +290,17 @@ bool InitDatabase() {
         ");";
     sqlite3_exec(g_db, bookFoldersSql, nullptr, nullptr, nullptr);
 
+    // v2.78 — audio CD metadata, by MusicBrainz Disc ID: the release chosen and
+    // the user's corrections, so a disc read again keeps its titles (offline too).
+    const char* cdMetaSql =
+        "CREATE TABLE IF NOT EXISTS cd_meta_cache ("
+        "  disc_id TEXT PRIMARY KEY,"
+        "  release_mbid TEXT,"
+        "  json TEXT NOT NULL,"
+        "  fetched_at INTEGER NOT NULL"
+        ");";
+    sqlite3_exec(g_db, cdMetaSql, nullptr, nullptr, nullptr);
+
     return true;
 }
 
@@ -1484,6 +1495,38 @@ bool RemoveBookLibraryFolder(const std::wstring& path) {
     if (sqlite3_prepare_v2(g_db, "DELETE FROM book_library_folders WHERE path=?;",
                            -1, &st, nullptr) != SQLITE_OK) return false;
     sqlite3_bind_text(st, 1, pathU8.c_str(), -1, SQLITE_TRANSIENT);
+    int rc = sqlite3_step(st);
+    sqlite3_finalize(st);
+    return rc == SQLITE_DONE;
+}
+
+// v2.78 — audio CD metadata cache (see cd_metadata.cpp). Callable from the
+// lookup thread: SQLite is built in serialized mode.
+bool CdCacheGet(const std::string& discId, std::string& json) {
+    if (!g_db || discId.empty()) return false;
+    sqlite3_stmt* st = nullptr;
+    if (sqlite3_prepare_v2(g_db, "SELECT json FROM cd_meta_cache WHERE disc_id=?;",
+                           -1, &st, nullptr) != SQLITE_OK) return false;
+    sqlite3_bind_text(st, 1, discId.c_str(), -1, SQLITE_TRANSIENT);
+    bool found = false;
+    if (sqlite3_step(st) == SQLITE_ROW) {
+        const char* p = (const char*)sqlite3_column_text(st, 0);
+        if (p) { json = p; found = true; }
+    }
+    sqlite3_finalize(st);
+    return found;
+}
+
+bool CdCachePut(const std::string& discId, const std::string& releaseMbid, const std::string& json) {
+    if (!g_db || discId.empty()) return false;
+    sqlite3_stmt* st = nullptr;
+    if (sqlite3_prepare_v2(g_db,
+        "INSERT OR REPLACE INTO cd_meta_cache(disc_id, release_mbid, json, fetched_at) VALUES(?,?,?,?);",
+        -1, &st, nullptr) != SQLITE_OK) return false;
+    sqlite3_bind_text(st, 1, discId.c_str(), -1, SQLITE_TRANSIENT);
+    sqlite3_bind_text(st, 2, releaseMbid.c_str(), -1, SQLITE_TRANSIENT);
+    sqlite3_bind_text(st, 3, json.c_str(), -1, SQLITE_TRANSIENT);
+    sqlite3_bind_int64(st, 4, (sqlite3_int64)time(nullptr));
     int rc = sqlite3_step(st);
     sqlite3_finalize(st);
     return rc == SQLITE_DONE;

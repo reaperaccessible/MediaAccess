@@ -779,6 +779,41 @@ void RegisterUiTranslations() {
                          L"This shortcut is already a global shortcut and would never reach the audio CD extraction window:");
     AddTranslation("fr", "This shortcut is already a global shortcut and would never reach the audio CD extraction window:",
                          L"Ce raccourci est déjà un raccourci global et n'atteindrait jamais la fenêtre d'extraction de CD audio :");
+    // v2.78 — names of the disc (phase 3)
+    AddTranslation("en", "Looking up the disc...", L"Looking up the disc...");
+    AddTranslation("fr", "Looking up the disc...", L"Recherche des informations du disque...");
+    AddTranslation("en", "Unknown disc. The tracks are named Track 1, Track 2. You can change them.",
+                         L"Unknown disc. The tracks are named Track 1, Track 2. You can change them.");
+    AddTranslation("fr", "Unknown disc. The tracks are named Track 1, Track 2. You can change them.",
+                         L"Disque inconnu. Les pistes sont nommées Piste 1, Piste 2. Vous pouvez les modifier.");
+    AddTranslation("en", "Found in MediaAccess's memory: %ls", L"Found in MediaAccess's memory: %ls");
+    AddTranslation("fr", "Found in MediaAccess's memory: %ls", L"Retrouvé dans la mémoire de MediaAccess : %ls");
+    AddTranslation("en", "Found in the CD-Text: %ls", L"Found in the CD-Text: %ls");
+    AddTranslation("fr", "Found in the CD-Text: %ls", L"Trouvé dans le CD-Text : %ls");
+    AddTranslation("en", "Found on GnuDB: %ls", L"Found on GnuDB: %ls");
+    AddTranslation("fr", "Found on GnuDB: %ls", L"Trouvé sur GnuDB : %ls");
+    AddTranslation("en", "Found on MusicBrainz: %ls", L"Found on MusicBrainz: %ls");
+    AddTranslation("fr", "Found on MusicBrainz: %ls", L"Trouvé sur MusicBrainz : %ls");
+    AddTranslation("en", "%d editions, the first one is chosen, %ls to change",
+                         L"%d editions, the first one is chosen, %ls to change");
+    AddTranslation("fr", "%d editions, the first one is chosen, %ls to change",
+                         L"%d éditions, la première est choisie, %ls pour changer");
+    AddTranslation("en", "Names found, your changes are kept. %ls to use them",
+                         L"Names found, your changes are kept. %ls to use them");
+    AddTranslation("fr", "Names found, your changes are kept. %ls to use them",
+                         L"Noms trouvés, vos modifications sont gardées. %ls pour les utiliser");
+    AddTranslation("en", "No edition found for this disc", L"No edition found for this disc");
+    AddTranslation("fr", "No edition found for this disc", L"Aucune édition trouvée pour ce disque");
+    AddTranslation("en", "%d of these files already exist in %ls. Replace them?",
+                         L"%d of these files already exist in %ls. Replace them?");
+    AddTranslation("fr", "%d of these files already exist in %ls. Replace them?",
+                         L"%d de ces fichiers existent déjà dans %ls. Les remplacer ?");
+    AddTranslation("en", "Look the disc up again", L"Look the disc up again");
+    AddTranslation("fr", "Look the disc up again", L"Chercher de nouveau le disque");
+    AddTranslation("en", "Choose another edition", L"Choose another edition");
+    AddTranslation("fr", "Choose another edition", L"Choisir une autre édition");
+    AddTranslation("en", "CD %d of %d", L"CD %d of %d");
+    AddTranslation("fr", "CD %d of %d", L"CD %d sur %d");
     AddTranslation("en", "Disc removed", L"Disc removed");
     AddTranslation("fr", "Disc removed", L"Disque retiré");
     AddTranslation("en", "Audio CD support is missing (basscd.dll). Please reinstall MediaAccess.",

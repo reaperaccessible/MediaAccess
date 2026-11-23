@@ -118,6 +118,8 @@
 #define IDM_CD_RIP_OPEN          2000   // File > Extract audio CD...
 #define IDM_CDRIP_START          2001   // CdRip actions (window-local shortcuts)
 #define IDM_CDRIP_PROGRESS       2002
+#define IDM_CDRIP_REFRESH        2003   // F5: look the disc up again
+#define IDM_CDRIP_RELEASE        2004   // Ctrl+M: choose another edition
 #define IDD_CD_RIP               2020
 #define IDC_CDRIP_DRIVE_LABEL    2021
 #define IDC_CDRIP_DRIVE          2022
@@ -133,6 +135,30 @@
 #define IDC_CDRIP_BROWSE         2032
 #define IDC_CDRIP_START          2033
 #define IDC_CDRIP_STOP           2034
+#define IDC_CDRIP_ALBUM_LABEL    2035
+#define IDC_CDRIP_ALBUM          2036
+#define IDC_CDRIP_ARTIST_LABEL   2037
+#define IDC_CDRIP_ARTIST         2038
+#define IDC_CDRIP_YEAR_LABEL     2039
+#define IDC_CDRIP_YEAR           2040
+#define IDC_CDRIP_GENRE_LABEL    2041
+#define IDC_CDRIP_GENRE          2042
+#define IDC_CDRIP_DISC_LABEL     2043
+#define IDC_CDRIP_DISC           2044
+#define IDC_CDRIP_DISCTOTAL_LABEL 2045
+#define IDC_CDRIP_DISCTOTAL      2046
+#define IDC_CDRIP_COMPILATION    2047
+#define IDC_CDRIP_TTITLE_LABEL   2048
+#define IDC_CDRIP_TTITLE         2049
+#define IDD_CD_RELEASE           2050
+#define IDC_CDREL_LABEL          2051
+#define IDC_CDREL_LIST           2052
+#define IDC_CDREL_OPEN_MB        2053
+#define IDC_CDREL_SEARCH         2054
+#define IDC_CDREL_SUBMIT         2055
+#define IDC_CDRIP_TARTIST_LABEL  2056
+#define IDC_CDRIP_TARTIST        2057
+#define IDC_CDRIP_EDITIONS       2058
 
 #define IDM_EFFECT_PRESETS  238
 

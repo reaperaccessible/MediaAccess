@@ -243,4 +243,8 @@ bool AddBookLibraryFolder(const std::wstring& path);
 bool RemoveBookLibraryFolder(const std::wstring& path);
 std::vector<std::wstring> GetBookLibraryFolders();
 
+// v2.78 — audio CD metadata cache, by MusicBrainz Disc ID (UTF-8 JSON).
+bool CdCacheGet(const std::string& discId, std::string& json);
+bool CdCachePut(const std::string& discId, const std::string& releaseMbid, const std::string& json);
+
 #endif // MEDIAACCESS_DATABASE_H
