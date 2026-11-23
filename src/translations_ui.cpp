@@ -698,6 +698,87 @@ void RegisterUiTranslations() {
     AddTranslation("fr", "CD inserted in %ls", L"CD inséré dans le %ls");
     AddTranslation("en", "No audio CD in %ls", L"No audio CD in %ls");
     AddTranslation("fr", "No audio CD in %ls", L"Pas de CD audio dans le %ls");
+    // v2.78 — extraction (phase 2)
+    AddTranslation("en", "WAV (uncompressed)", L"WAV (uncompressed)");
+    AddTranslation("fr", "WAV (uncompressed)", L"WAV (non compressé)");
+    AddTranslation("en", "FLAC (lossless)", L"FLAC (lossless)");
+    AddTranslation("fr", "FLAC (lossless)", L"FLAC (sans perte)");
+    AddTranslation("en", "Choose the output folder", L"Choose the output folder");
+    AddTranslation("fr", "Choose the output folder", L"Choisir le dossier de sortie");
+    AddTranslation("en", "Audio CD %04d-%02d-%02d %02dh%02d", L"Audio CD %04d-%02d-%02d %02dh%02d");
+    AddTranslation("fr", "Audio CD %04d-%02d-%02d %02dh%02d", L"CD audio %04d-%02d-%02d %02dh%02d");
+    AddTranslation("en", "An extraction is already running", L"An extraction is already running");
+    AddTranslation("fr", "An extraction is already running", L"Une extraction est déjà en cours");
+    AddTranslation("en", "An extraction is running. Stop it first.", L"An extraction is running. Stop it first.");
+    AddTranslation("fr", "An extraction is running. Stop it first.", L"Une extraction est en cours. Arrêtez-la d'abord.");
+    AddTranslation("en", "No extraction is running", L"No extraction is running");
+    AddTranslation("fr", "No extraction is running", L"Aucune extraction en cours");
+    AddTranslation("en", "No audio CD in the drive", L"No audio CD in the drive");
+    AddTranslation("fr", "No audio CD in the drive", L"Pas de CD audio dans le lecteur");
+    AddTranslation("en", "No track is ticked", L"No track is ticked");
+    AddTranslation("fr", "No track is ticked", L"Aucune piste cochée");
+    AddTranslation("en", "Extracting to %ls", L"Extracting to %ls");
+    AddTranslation("fr", "Extracting to %ls", L"Extraction vers %ls");
+    AddTranslation("en", "Track %d of %d: %ls", L"Track %d of %d: %ls");
+    AddTranslation("fr", "Track %d of %d: %ls", L"Piste %d sur %d : %ls");
+    AddTranslation("en", "Track %d of %d, %d %%, total %d %%", L"Track %d of %d, %d %%, total %d %%");
+    AddTranslation("fr", "Track %d of %d, %d %%, total %d %%", L"Piste %d sur %d, %d %%, total %d %%");
+    AddTranslation("en", "less than a minute left", L"less than a minute left");
+    AddTranslation("fr", "less than a minute left", L"moins d'une minute restante");
+    AddTranslation("en", "about %d minutes left", L"about %d minutes left");
+    AddTranslation("fr", "about %d minutes left", L"environ %d minutes restantes");
+    AddTranslation("en", "Extraction done: 1 track", L"Extraction done: 1 track");
+    AddTranslation("fr", "Extraction done: 1 track", L"Extraction terminée : 1 piste");
+    AddTranslation("en", "Extraction done: %d tracks", L"Extraction done: %d tracks");
+    AddTranslation("fr", "Extraction done: %d tracks", L"Extraction terminée : %d pistes");
+    AddTranslation("en", "Extraction stopped, no track written", L"Extraction stopped, no track written");
+    AddTranslation("fr", "Extraction stopped, no track written", L"Extraction arrêtée, aucune piste écrite");
+    AddTranslation("en", "Extraction stopped, %d tracks written", L"Extraction stopped, %d tracks written");
+    AddTranslation("fr", "Extraction stopped, %d tracks written", L"Extraction arrêtée, %d pistes écrites");
+    AddTranslation("en", "Extract / Stop", L"Extract / Stop");
+    AddTranslation("fr", "Extract / Stop", L"Extraire / Arrêter");
+    AddTranslation("en", "Announce the progress", L"Announce the progress");
+    AddTranslation("fr", "Announce the progress", L"Annoncer la progression");
+    AddTranslation("en", "Track %d cannot be read. Check that the disc is in the drive.",
+                         L"Track %d cannot be read. Check that the disc is in the drive.");
+    AddTranslation("fr", "Track %d cannot be read. Check that the disc is in the drive.",
+                         L"La piste %d ne peut pas être lue. Vérifiez que le disque est dans le lecteur.");
+    AddTranslation("en", "Reading track %d failed. The disc may have been removed.",
+                         L"Reading track %d failed. The disc may have been removed.");
+    AddTranslation("fr", "Reading track %d failed. The disc may have been removed.",
+                         L"La lecture de la piste %d a échoué. Le disque a peut-être été retiré.");
+    AddTranslation("en", "Cannot write to the folder %ls. Choose another folder.",
+                         L"Cannot write to the folder %ls. Choose another folder.");
+    AddTranslation("fr", "Cannot write to the folder %ls. Choose another folder.",
+                         L"Impossible d'écrire dans le dossier %ls. Choisissez un autre dossier.");
+    AddTranslation("en", "Cannot create the folder %ls. Choose another folder.",
+                         L"Cannot create the folder %ls. Choose another folder.");
+    AddTranslation("fr", "Cannot create the folder %ls. Choose another folder.",
+                         L"Impossible de créer le dossier %ls. Choisissez un autre dossier.");
+    AddTranslation("en", "Writing to %ls failed. The disk may be full.",
+                         L"Writing to %ls failed. The disk may be full.");
+    AddTranslation("fr", "Writing to %ls failed. The disk may be full.",
+                         L"L'écriture dans %ls a échoué. Le disque est peut-être plein.");
+    AddTranslation("en", "An audio CD extraction is running. Stop it and quit?",
+                         L"An audio CD extraction is running. Stop it and quit?");
+    AddTranslation("fr", "An audio CD extraction is running. Stop it and quit?",
+                         L"Une extraction de CD audio est en cours. L'arrêter et quitter ?");
+    AddTranslation("en", "Audio CD extraction shortcuts must be Ctrl or Ctrl+Shift with a letter "
+                         "or a digit, or a function key (except F2 and F10). Ctrl+S, Ctrl+A "
+                         "and Ctrl+V are not allowed.",
+                         L"Audio CD extraction shortcuts must be Ctrl or Ctrl+Shift with a letter "
+                         L"or a digit, or a function key (except F2 and F10). Ctrl+S, Ctrl+A "
+                         L"and Ctrl+V are not allowed.");
+    AddTranslation("fr", "Audio CD extraction shortcuts must be Ctrl or Ctrl+Shift with a letter "
+                         "or a digit, or a function key (except F2 and F10). Ctrl+S, Ctrl+A "
+                         "and Ctrl+V are not allowed.",
+                         L"Les raccourcis de l'extraction de CD audio doivent être Ctrl ou Ctrl+Maj avec une lettre "
+                         L"ou un chiffre, ou une touche de fonction (sauf F2 et F10). Ctrl+S, Ctrl+A "
+                         L"et Ctrl+V ne sont pas permis.");
+    AddTranslation("en", "This shortcut is already a global shortcut and would never reach the audio CD extraction window:",
+                         L"This shortcut is already a global shortcut and would never reach the audio CD extraction window:");
+    AddTranslation("fr", "This shortcut is already a global shortcut and would never reach the audio CD extraction window:",
+                         L"Ce raccourci est déjà un raccourci global et n'atteindrait jamais la fenêtre d'extraction de CD audio :");
     AddTranslation("en", "Disc removed", L"Disc removed");
     AddTranslation("fr", "Disc removed", L"Disque retiré");
     AddTranslation("en", "Audio CD support is missing (basscd.dll). Please reinstall MediaAccess.",

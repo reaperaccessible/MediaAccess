@@ -705,7 +705,8 @@ public:
     IFACEMETHODIMP OnOverwrite(IFileDialog*, IShellItem*, FDE_OVERWRITE_RESPONSE*) override { return S_OK; }
 };
 
-static std::wstring PickFolderModern(const std::wstring& lastFolder) {
+// v2.78 — also the output-folder picker of the Extract audio CD window.
+std::wstring PickFolderModern(const std::wstring& lastFolder, const wchar_t* title) {
     std::wstring chosen;
     IFileOpenDialog* dlg = nullptr;
     if (FAILED(CoCreateInstance(CLSID_FileOpenDialog, nullptr, CLSCTX_INPROC_SERVER,
@@ -715,7 +716,7 @@ static std::wstring PickFolderModern(const std::wstring& lastFolder) {
     dlg->GetOptions(&opts);
     dlg->SetOptions(opts | FOS_PICKFOLDERS | FOS_FORCEFILESYSTEM | FOS_PATHMUSTEXIST |
                     FOS_NOCHANGEDIR);
-    dlg->SetTitle(T("Select folder to add to playlist"));
+    dlg->SetTitle(title ? title : T("Select folder to add to playlist"));
 
     if (UsableStartFolder(lastFolder)) {
         // Parent folder + the last folder's name; a drive root has no parent.

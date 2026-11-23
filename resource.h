@@ -116,6 +116,8 @@
 // v2.78 — audio CD extraction (docs/PLAN_EXTRACTION_CD.md). Range 2000-2099 is
 // reserved for it; CD/DVD playback (docs/PLAN_CD_DVD.md) must take 2100-2199.
 #define IDM_CD_RIP_OPEN          2000   // File > Extract audio CD...
+#define IDM_CDRIP_START          2001   // CdRip actions (window-local shortcuts)
+#define IDM_CDRIP_PROGRESS       2002
 #define IDD_CD_RIP               2020
 #define IDC_CDRIP_DRIVE_LABEL    2021
 #define IDC_CDRIP_DRIVE          2022
@@ -124,6 +126,13 @@
 #define IDC_CDRIP_EJECT          2025
 #define IDC_CDRIP_STATUS_LABEL   2026
 #define IDC_CDRIP_STATUS         2027
+#define IDC_CDRIP_FORMAT_LABEL   2028
+#define IDC_CDRIP_FORMAT         2029
+#define IDC_CDRIP_FOLDER_LABEL   2030
+#define IDC_CDRIP_FOLDER         2031
+#define IDC_CDRIP_BROWSE         2032
+#define IDC_CDRIP_START          2033
+#define IDC_CDRIP_STOP           2034
 
 #define IDM_EFFECT_PRESETS  238
 

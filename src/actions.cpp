@@ -918,6 +918,17 @@ static const Action g_actions[] = {
     { "PL_MUTE", IDM_PLAY_MUTE, ActionCategory::Playlist,
       "Mute", "Sourdine", {} },
     // ========================================================================
+    // CATEGORY: CdRip — v2.78: active while the Extract audio CD window has
+    // the focus (modeless; main.cpp routes its keys here before the dialog).
+    // Same key rules as the Playlist manager (IsPlaylistShortcutAllowed).
+    // ========================================================================
+    { "CDRIP_START", IDM_CDRIP_START, ActionCategory::CdRip,
+      "Extract / Stop", "Extraire / Arrêter",
+      { 'R', true,  false, false } },          // Ctrl+R
+    { "CDRIP_PROGRESS", IDM_CDRIP_PROGRESS, ActionCategory::CdRip,
+      "Announce the progress", "Annoncer la progression",
+      { 'I', true,  false, false } },          // Ctrl+I
+    // ========================================================================
     // CATEGORY: Radio — placeholder for future actions
     // CATEGORY: YouTube — placeholder for future actions
     // (No entries yet; categories appear empty in the Actions dialog until
@@ -986,6 +997,7 @@ std::string CategoryDisplayName(ActionCategory cat)
         case ActionCategory::Global:  return fr ? "Globale"    : "Global";
         case ActionCategory::Books:   return fr ? "Livres"     : "Books";
         case ActionCategory::Playlist: return fr ? "Gestionnaire de listes de lecture" : "Playlist manager";
+        case ActionCategory::CdRip:   return fr ? "Extraction de CD audio" : "Audio CD extraction";
         default:                      return "";
     }
 }

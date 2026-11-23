@@ -1084,6 +1084,11 @@ void RegisterRcTranslations() {
     AddTranslation("fr", "&Eject", L"É&jecter");
     AddTranslation("en", "&Status:", L"&Status:");
     AddTranslation("fr", "&Status:", L"É&tat :");
+    // "&Format:", "&Output folder:" and "Bro&wse..." reuse the existing translations.
+    AddTranslation("en", "E&xtract", L"E&xtract");
+    AddTranslation("fr", "E&xtract", L"E&xtraire");
+    AddTranslation("en", "Sto&p", L"Sto&p");
+    AddTranslation("fr", "Sto&p", L"&Arrêter");
 
     // ===================================================================
     // DIALOG: IDD_RADIO - "Internet Radio"

@@ -1,5 +1,6 @@
-// ui_cd_rip.cpp — "Extract audio CD" window, phase 1 of
-// docs/PLAN_EXTRACTION_CD.md: choose the drive, list the tracks, eject.
+// ui_cd_rip.cpp — "Extract audio CD" window (docs/PLAN_EXTRACTION_CD.md).
+// Phase 1: choose the drive, list the tracks, eject. Phase 2: extract the
+// ticked tracks to WAV or FLAC (cd_ripper), progress on Ctrl+I.
 //
 // Modeless like the YouTube window: closing only hides it, and the main
 // message loop routes its keys through IsDialogMessageW (main.cpp).
@@ -8,12 +9,19 @@
 // ("Extract audio CD: drive D, 12 tracks, 47 minutes"), so opening the window
 // is said in one go by NVDA and JAWS (title, list, line). The program itself
 // speaks only for events the reader cannot see: a disc inserted or removed,
-// the tray opened or closed, and the edges of a list ("First,", "Last,").
+// the tray opened or closed, the edges of a list ("First,", "Last,"), each
+// track started, and the end of an extraction (with the download sound).
+// Buttons are never renamed (Extract and Stop are two buttons): renaming the
+// focused button would make the reader speak a second time.
 
 #include "ui_internal.h"
 #include "mediaaccess/ui_cd_rip.h"
 #include "mediaaccess/disc_drives.h"
 #include "mediaaccess/basscd_loader.h"
+#include "mediaaccess/cd_ripper.h"
+#include "mediaaccess/notify_sounds.h"
+#include "mediaaccess/actions.h"
+#include "mediaaccess/keymap.h"
 #include <dbt.h>
 #include <vector>
 #include <cmath>
@@ -220,6 +228,10 @@ void InitTrackList(HWND dlg) {
 }
 
 void OnEject(HWND dlg) {
+    if (mediaaccess::IsRipping()) {
+        SpeakW(T("An extraction is running. Stop it first."));
+        return;
+    }
     const DiscDrive* d = SelectedDrive(dlg);
     bool nowOpen = false;
     if (!d) return;
@@ -279,9 +291,179 @@ void OnMediaChange(HWND dlg, WPARAM event, LPARAM lParam) {
     }
 }
 
+// ---- Settings ([CdRip] in MediaAccess.ini) ----
+
+std::wstring DefaultOutputRoot() {
+    wchar_t music[MAX_PATH] = {};
+    if (SUCCEEDED(SHGetFolderPathW(nullptr, CSIDL_MYMUSIC, nullptr, 0, music))) return music;
+    return L"C:\\";
+}
+
+void LoadRipSettings(HWND dlg) {
+    int format = GetPrivateProfileIntW(L"CdRip", L"Format", (int)mediaaccess::RipFormat::FLAC, g_configPath.c_str());
+    SendDlgItemMessageW(dlg, IDC_CDRIP_FORMAT, CB_SETCURSEL, (format == 0) ? 0 : 1, 0);
+    wchar_t root[MAX_PATH * 4] = {};
+    GetPrivateProfileStringW(L"CdRip", L"OutputRoot", L"", root, _countof(root), g_configPath.c_str());
+    SetDlgItemTextW(dlg, IDC_CDRIP_FOLDER, root[0] ? root : DefaultOutputRoot().c_str());
+}
+
+void SaveRipSettings(HWND dlg) {
+    int format = (int)SendDlgItemMessageW(dlg, IDC_CDRIP_FORMAT, CB_GETCURSEL, 0, 0);
+    WritePrivateProfileStringW(L"CdRip", L"Format", format == 0 ? L"0" : L"1", g_configPath.c_str());
+    wchar_t root[MAX_PATH * 4] = {};
+    GetDlgItemTextW(dlg, IDC_CDRIP_FOLDER, root, _countof(root));
+    WritePrivateProfileStringW(L"CdRip", L"OutputRoot", root, g_configPath.c_str());
+}
+
+void InitRipControls(HWND dlg) {
+    HWND combo = GetDlgItem(dlg, IDC_CDRIP_FORMAT);
+    SendMessageW(combo, CB_ADDSTRING, 0, (LPARAM)T("WAV (uncompressed)"));
+    SendMessageW(combo, CB_ADDSTRING, 0, (LPARAM)T("FLAC (lossless)"));
+    SetWindowSubclass(combo, DriveComboProc, 2, 0);   // same "First," / "Last," rule
+    LoadRipSettings(dlg);
+}
+
+void OnBrowse(HWND dlg) {
+    wchar_t cur[MAX_PATH * 4] = {};
+    GetDlgItemTextW(dlg, IDC_CDRIP_FOLDER, cur, _countof(cur));
+    std::wstring chosen = PickFolderModern(cur, T("Choose the output folder"));
+    if (!chosen.empty()) {
+        SetDlgItemTextW(dlg, IDC_CDRIP_FOLDER, chosen.c_str());
+        SaveRipSettings(dlg);
+    }
+}
+
+// ---- Extraction ----
+
+void SetStatus(HWND dlg, const std::wstring& text) {
+    SetDlgItemTextW(dlg, IDC_CDRIP_STATUS, text.c_str());
+}
+
+void OnStart(HWND dlg) {
+    if (mediaaccess::IsRipping()) {
+        SpeakW(T("An extraction is already running"));
+        return;
+    }
+    const DiscDrive* d = SelectedDrive(dlg);
+    if (!d || g_contents.type != DriveMediaType::AudioCD) {
+        SpeakW(T("No audio CD in the drive"));
+        return;
+    }
+    HWND list = GetDlgItem(dlg, IDC_CDRIP_TRACKS);
+    mediaaccess::RipJob job;
+    job.drive = *d;
+    for (int row = 0; row < (int)g_rowTrack.size(); ++row) {
+        if (!ListView_GetCheckState(list, row)) continue;
+        const DiscTrack& t = g_listContents.tracks[g_rowTrack[row]];
+        job.tracks.push_back({ t.index, t.number, t.seconds, RowText(row) });
+    }
+    if (job.tracks.empty()) {
+        SpeakW(T("No track is ticked"));
+        return;
+    }
+    int format = (int)SendDlgItemMessageW(dlg, IDC_CDRIP_FORMAT, CB_GETCURSEL, 0, 0);
+    job.format = (format == 0) ? mediaaccess::RipFormat::WAV : mediaaccess::RipFormat::FLAC;
+    wchar_t root[MAX_PATH * 4] = {};
+    GetDlgItemTextW(dlg, IDC_CDRIP_FOLDER, root, _countof(root));
+    std::wstring rootDir = root[0] ? root : DefaultOutputRoot();
+    while (!rootDir.empty() && (rootDir.back() == L'\\' || rootDir.back() == L'/')) rootDir.pop_back();
+    // Phase 2 has no album name yet: one dated folder per extraction.
+    SYSTEMTIME st;
+    GetLocalTime(&st);
+    job.folder = rootDir + L"\\" + Format(T("Audio CD %04d-%02d-%02d %02dh%02d"),
+                                          st.wYear, st.wMonth, st.wDay, st.wHour, st.wMinute);
+    SaveRipSettings(dlg);
+
+    // BASSCD keeps one stream per drive: a CD track playing from this drive
+    // would be cut by the extraction (and would cut it). Stop it first.
+    if (g_currentTrack >= 0 && g_currentTrack < (int)g_playlist.size()) {
+        const std::wstring& cur = g_playlist[g_currentTrack];
+        if (mediaaccess::IsCdaFile(cur.c_str()) && towupper(cur[0]) == d->letter) Stop();
+    }
+    if (!mediaaccess::StartRip(job, dlg)) {
+        SpeakW(T("An extraction is already running"));
+        return;
+    }
+    SetStatus(dlg, Format(T("Extracting to %ls"), job.folder.c_str()));
+}
+
+void OnStop() {
+    if (!mediaaccess::IsRipping()) {
+        SpeakW(T("No extraction is running"));
+        return;
+    }
+    mediaaccess::CancelRip();   // WM_CDRIP_CANCELLED says how many were written
+}
+
+void OnProgress() {
+    if (!mediaaccess::IsRipping()) {
+        SpeakW(T("No extraction is running"));
+        return;
+    }
+    mediaaccess::RipProgress p = mediaaccess::GetRipProgress();
+    std::wstring s = Format(T("Track %d of %d, %d %%, total %d %%"), p.trackPos, p.trackCount,
+                            (int)(p.trackFraction * 100.0), (int)(p.totalFraction * 100.0));
+    if (p.secondsLeft >= 0) {
+        int minutes = (int)(p.secondsLeft / 60.0 + 0.5);
+        s += L", ";
+        s += (minutes < 1) ? std::wstring(T("less than a minute left"))
+                           : Format(T("about %d minutes left"), minutes);
+    }
+    SpeakW(s);
+}
+
+void OnTrackStart(HWND dlg, int pos, int count, int number) {
+    std::wstring text = Format(T("Track %d of %d: %ls"), pos, count, Format(T("Track %d"), number).c_str());
+    SetStatus(dlg, text);
+    SpeakW(text);
+}
+
+void OnRipEnded(HWND dlg, const std::wstring& text, bool success) {
+    SetStatus(dlg, text);
+    SpeakW(text);
+    PlayDownloadSound(success);
+}
+
+// Applications key / Shift+F10 on the track list: the window's actions with
+// their shortcuts, named like the actions (house rule).
+std::wstring ShortcutHint(const char* actionId) {
+    const std::vector<mediaaccess::Shortcut>* keys = mediaaccess::GetActiveKeyMap().GetShortcuts(actionId);
+    if (!keys || keys->empty()) return std::wstring();
+    std::string text = mediaaccess::ShortcutToDisplay(keys->front());
+    int n = MultiByteToWideChar(CP_UTF8, 0, text.c_str(), -1, nullptr, 0);
+    std::wstring w(n > 0 ? n - 1 : 0, L'\0');
+    if (n > 0) MultiByteToWideChar(CP_UTF8, 0, text.c_str(), -1, &w[0], n);
+    return w.empty() ? w : L"\t" + w;
+}
+
+void ShowTrackMenu(HWND dlg, LPARAM lParam) {
+    HWND list = GetDlgItem(dlg, IDC_CDRIP_TRACKS);
+    POINT pt = { (short)LOWORD(lParam), (short)HIWORD(lParam) };
+    if (lParam == (LPARAM)-1) {   // from the keyboard: at the focused line
+        RECT rc = {};
+        int cur = ListView_GetNextItem(list, -1, LVNI_FOCUSED);
+        if (cur < 0 || !ListView_GetItemRect(list, cur, &rc, LVIR_LABEL)) GetClientRect(list, &rc);
+        pt.x = rc.left;
+        pt.y = rc.bottom;
+        ClientToScreen(list, &pt);
+    }
+    HMENU menu = CreatePopupMenu();
+    std::wstring start = std::wstring(T("Extract / Stop")) + ShortcutHint("CDRIP_START");
+    std::wstring progress = std::wstring(T("Announce the progress")) + ShortcutHint("CDRIP_PROGRESS");
+    AppendMenuW(menu, MF_STRING, IDM_CDRIP_START, start.c_str());
+    AppendMenuW(menu, MF_STRING, IDM_CDRIP_PROGRESS, progress.c_str());
+    int cmd = TrackPopupMenu(menu, TPM_RETURNCMD | TPM_NONOTIFY, pt.x, pt.y, 0, dlg, nullptr);
+    DestroyMenu(menu);
+    if (cmd) SendMessageW(dlg, WM_COMMAND, MAKEWPARAM(cmd, 0), 0);
+}
+
 void HideDialog(HWND dlg) {
     ShowWindow(dlg, SW_HIDE);
-    for (const DiscDrive& d : g_drives) mediaaccess::ReleaseDrive(d);
+    SaveRipSettings(dlg);
+    // An extraction keeps running hidden (it releases its drive at the end).
+    if (!mediaaccess::IsRipping()) {
+        for (const DiscDrive& d : g_drives) mediaaccess::ReleaseDrive(d);
+    }
     if (g_hwnd) SetForegroundWindow(g_hwnd);
 }
 
@@ -299,6 +481,7 @@ INT_PTR CALLBACK CdRipDlgProc(HWND dlg, UINT msg, WPARAM wParam, LPARAM lParam) 
         case WM_INITDIALOG:
             LocalizeDialog(dlg);
             InitTrackList(dlg);
+            InitRipControls(dlg);
             FillDriveCombo(dlg);
             RefreshDisc(dlg);
             return FALSE;   // focus is placed by ShowCdRipDialog
@@ -311,6 +494,24 @@ INT_PTR CALLBACK CdRipDlgProc(HWND dlg, UINT msg, WPARAM wParam, LPARAM lParam) 
                 case IDC_CDRIP_EJECT:
                     OnEject(dlg);
                     return TRUE;
+                case IDC_CDRIP_START:
+                    OnStart(dlg);
+                    return TRUE;
+                case IDC_CDRIP_STOP:
+                    OnStop();
+                    return TRUE;
+                case IDC_CDRIP_BROWSE:
+                    OnBrowse(dlg);
+                    return TRUE;
+                case IDC_CDRIP_FORMAT:
+                    if (HIWORD(wParam) == CBN_SELCHANGE) SaveRipSettings(dlg);
+                    return TRUE;
+                case IDM_CDRIP_START:   // Ctrl+R: extract, or stop when running
+                    if (mediaaccess::IsRipping()) OnStop(); else OnStart(dlg);
+                    return TRUE;
+                case IDM_CDRIP_PROGRESS:
+                    OnProgress();
+                    return TRUE;
                 case IDCANCEL:
                     HideDialog(dlg);
                     return TRUE;
@@ -320,6 +521,33 @@ INT_PTR CALLBACK CdRipDlgProc(HWND dlg, UINT msg, WPARAM wParam, LPARAM lParam) 
         case WM_DEVICECHANGE:
             OnMediaChange(dlg, wParam, lParam);
             return TRUE;
+
+        case WM_CONTEXTMENU:
+            if ((HWND)wParam == GetDlgItem(dlg, IDC_CDRIP_TRACKS)) {
+                ShowTrackMenu(dlg, lParam);
+                return TRUE;
+            }
+            break;
+
+        case WM_CDRIP_TRACK_START:
+            OnTrackStart(dlg, (int)wParam, (int)LOWORD(lParam), (int)HIWORD(lParam));
+            return TRUE;
+        case WM_CDRIP_DONE:
+            OnRipEnded(dlg, ((int)wParam == 1) ? std::wstring(T("Extraction done: 1 track"))
+                                               : Format(T("Extraction done: %d tracks"), (int)wParam), true);
+            return TRUE;
+        case WM_CDRIP_CANCELLED:
+            OnRipEnded(dlg, ((int)wParam == 0) ? std::wstring(T("Extraction stopped, no track written"))
+                                               : Format(T("Extraction stopped, %d tracks written"), (int)wParam), false);
+            return TRUE;
+        case WM_CDRIP_ERROR: {
+            std::wstring* text = reinterpret_cast<std::wstring*>(lParam);
+            if (text) {
+                OnRipEnded(dlg, *text, false);
+                delete text;
+            }
+            return TRUE;
+        }
 
         case WM_CLOSE:
             HideDialog(dlg);
@@ -364,4 +592,20 @@ void ShowCdRipDialog(HWND parent) {
 
 HWND GetCdRipDialog() {
     return g_cdDialog;
+}
+
+bool CdRipTryShortcut(const MSG& msg) {
+    if (!g_cdDialog || (msg.message != WM_KEYDOWN && msg.message != WM_SYSKEYDOWN)) return false;
+    if (msg.hwnd != g_cdDialog && !IsChild(g_cdDialog, msg.hwnd)) return false;
+    mediaaccess::Shortcut sc;
+    sc.vk    = (UINT)msg.wParam;
+    sc.ctrl  = (GetKeyState(VK_CONTROL) & 0x8000) != 0;
+    sc.shift = (GetKeyState(VK_SHIFT)   & 0x8000) != 0;
+    sc.alt   = (GetKeyState(VK_MENU)    & 0x8000) != 0;
+    sc.win   = ((GetKeyState(VK_LWIN) & 0x8000) != 0) || ((GetKeyState(VK_RWIN) & 0x8000) != 0);
+    if (!mediaaccess::IsPlaylistShortcutAllowed(sc)) return false;
+    int cmd = mediaaccess::GetActiveKeyMap().FindCommandFor(sc, mediaaccess::ActionCategory::CdRip);
+    if (cmd == 0) return false;
+    SendMessageW(g_cdDialog, WM_COMMAND, MAKEWPARAM(cmd, 0), 0);
+    return true;   // not translated: no stray Ctrl+letter character in a field
 }

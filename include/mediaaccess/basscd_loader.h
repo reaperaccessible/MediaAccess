@@ -29,6 +29,8 @@ struct Api {
     BOOL        (WINAPI *Release)(DWORD drive);
     // file: a "TrackNN.cda" path, wide when flags has BASS_UNICODE.
     HSTREAM     (WINAPI *StreamCreateFile)(const char* file, DWORD flags);
+    HSTREAM     (WINAPI *StreamCreate)(DWORD drive, DWORD track, DWORD flags);
+    BOOL        (WINAPI *SetSpeed)(DWORD drive, DWORD speed);
 };
 
 // Loads basscd.dll once. Returns nullptr when it cannot be loaded; LastError()

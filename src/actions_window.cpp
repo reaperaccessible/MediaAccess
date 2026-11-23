@@ -281,6 +281,8 @@ static void PopulateCategoryCombo(HWND dlg)
         (LPARAM)U8ToW(CategoryDisplayName(ActionCategory::Books)).c_str());
     SendMessageW(combo, CB_ADDSTRING, 0,   // v2.76
         (LPARAM)U8ToW(CategoryDisplayName(ActionCategory::Playlist)).c_str());
+    SendMessageW(combo, CB_ADDSTRING, 0,   // v2.78
+        (LPARAM)U8ToW(CategoryDisplayName(ActionCategory::CdRip)).c_str());
     SendMessageW(combo, CB_SETCURSEL, (WPARAM)(int)s_state->currentCategory, 0);
 }
 
@@ -496,12 +498,16 @@ static bool ResolveConflictAndAssign(HWND dlg, const Action* target, const Short
     // letter / digit, F1-F12 except F2 and F10, never Ctrl+S / A / V). Alt+letter
     // would press the window's buttons and Shift+letter move the list by
     // initial; Tab, arrows and Escape are the window's own.
-    if (target->category == ActionCategory::Playlist) {
+    // v2.78 — the Extract audio CD window follows the same rules.
+    if (target->category == ActionCategory::Playlist || target->category == ActionCategory::CdRip) {
         if (!IsPlaylistShortcutAllowed(sc)) {
-            std::wstring msg = U8ToW(Ts(
-                "Playlist manager shortcuts must be Ctrl or Ctrl+Shift with a letter "
-                "or a digit, or a function key (except F2 and F10). Ctrl+S, Ctrl+A "
-                "and Ctrl+V are already used in that window."));
+            std::wstring msg = U8ToW(Ts(target->category == ActionCategory::CdRip
+                ? "Audio CD extraction shortcuts must be Ctrl or Ctrl+Shift with a letter "
+                  "or a digit, or a function key (except F2 and F10). Ctrl+S, Ctrl+A "
+                  "and Ctrl+V are not allowed."
+                : "Playlist manager shortcuts must be Ctrl or Ctrl+Shift with a letter "
+                  "or a digit, or a function key (except F2 and F10). Ctrl+S, Ctrl+A "
+                  "and Ctrl+V are already used in that window."));
             MessageBoxW(dlg, msg.c_str(), U8ToW(Ts("Invalid shortcut")).c_str(),
                         MB_OK | MB_ICONWARNING);
             return false;
@@ -510,7 +516,9 @@ static bool ResolveConflictAndAssign(HWND dlg, const Action* target, const Short
         std::string globalId = GetActiveKeyMapMut().FindActionFor(sc, ActionCategory::Global);
         if (!globalId.empty()) {
             const Action* g = ActionByStringId(globalId);
-            std::string m = Ts("This shortcut is already a global shortcut and would never reach the playlist manager:") +
+            std::string m = Ts(target->category == ActionCategory::CdRip
+                               ? "This shortcut is already a global shortcut and would never reach the audio CD extraction window:"
+                               : "This shortcut is already a global shortcut and would never reach the playlist manager:") +
                             (g ? std::string("\n  ") + ActionDisplayName(*g) : std::string());
             MessageBoxW(dlg, U8ToW(m).c_str(), U8ToW(Ts("Invalid shortcut")).c_str(),
                         MB_OK | MB_ICONWARNING);

@@ -34,6 +34,7 @@ enum class ActionCategory {
     Global  = 3,   // System-wide hotkeys (active even when MediaAccess has no focus)
     Books   = 4,   // DAISY / EPUB reader actions
     Playlist = 5,  // v2.76 — Playlist manager window (Ctrl+P), active while it has the focus
+    CdRip   = 6,   // v2.78 — Extract audio CD window (Ctrl+Shift+X), active while it has the focus
     Count
 };
 

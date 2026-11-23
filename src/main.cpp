@@ -43,6 +43,7 @@
 #include "database.h"
 #include "youtube.h"
 #include "ui_cd_rip.h"
+#include "cd_ripper.h"
 #include "download_manager.h"
 #include "updater.h"
 #include "resource.h"
@@ -678,6 +679,13 @@ static bool g_exitDeferredHadTray = false;
 
 static void RequestAppExit(HWND hwnd) {
     if (g_exitDeferred) return;
+    // v2.78 — an audio CD extraction is running: ask, then stop it cleanly
+    // (the track being written is removed, never left truncated).
+    if (mediaaccess::IsRipping()) {
+        if (MessageBoxW(hwnd, T("An audio CD extraction is running. Stop it and quit?"),
+                        APP_NAME, MB_YESNO | MB_ICONQUESTION | MB_DEFBUTTON2) != IDYES) return;
+        mediaaccess::CancelRipAndWait();
+    }
     // A YouTube wait loop is on the stack: never destroy under it. End the
     // wait; the gate drops its action and posts WM_CLOSE again once unwound.
     if (YtdlpWaitShown()) { YtdlpEndWaitForExit(); return; }
@@ -2794,7 +2802,8 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLi
         }
         // v2.78 — same routing for the modeless "Extract audio CD" window.
         HWND cdDlg = GetCdRipDialog();
-        if (cdDlg && IsWindowVisible(cdDlg) && IsDialogMessageW(cdDlg, &msg)) {
+        if (cdDlg && IsWindowVisible(cdDlg) &&
+            (CdRipTryShortcut(msg) || IsDialogMessageW(cdDlg, &msg))) {
             continue;
         }
 
