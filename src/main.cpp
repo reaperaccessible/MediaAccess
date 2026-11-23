@@ -47,6 +47,7 @@
 #include "download_manager.h"
 #include "updater.h"
 #include "resource.h"
+#include "mediaaccess/loudness.h"   // crossfade phase 5 — volume analysis
 #include "video_engine.h"
 #include "mediaaccess/version.h"   // APP_VERSION, BUILD_COMMIT, GITHUB_REPO (Help -> About)
 #include "mediaaccess/logger.h"
@@ -1388,6 +1389,10 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
 
         case WM_CROSSFADE_CD_JOIN:
             HandleCrossfadeCdJoin(wParam);
+            return 0;
+
+        case WM_LOUDNESS_RESULT:
+            mediaaccess::HandleLoudnessResult(lParam);
             return 0;
 
         case WM_META_CHANGED:

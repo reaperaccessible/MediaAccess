@@ -93,6 +93,9 @@ int  CrossfadePlannedNext();   // the next index a crossfade decided, or -1
 void ToggleCrossfade();        // F key: on/off, announced
 void HandleCrossfadeSilence(LPARAM result);   // WM_CROSSFADE_SILENCE
 void HandleCrossfadeCdJoin(WPARAM stream);     // WM_CROSSFADE_CD_JOIN
+void CrossfadeGainRefresh();   // volume settings or analysis changed: the songs in the mixer again
+bool StreamHasOwnGain(HSTREAM s);         // a ReplayGain or R128 tag (any thread)
+std::string StreamAlbumTag(HSTREAM s);    // album tag, UTF-8 (any thread)
 
 // Stream metadata change callback (for internet radio)
 void CALLBACK OnMetaChange(HSYNC handle, DWORD channel, DWORD data, void* user);

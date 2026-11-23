@@ -290,6 +290,22 @@ bool InitDatabase() {
         ");";
     sqlite3_exec(g_db, bookFoldersSql, nullptr, nullptr, nullptr);
 
+    // Crossfade, phase 5 — the volume analysis the user ran from the playlist
+    // manager: integrated loudness (LUFS) and peak of each file, and of its
+    // album when the album was analysed together.
+    sqlite3_exec(g_db,
+        "CREATE TABLE IF NOT EXISTS loudness ("
+        "  path TEXT PRIMARY KEY,"
+        "  size INTEGER NOT NULL,"
+        "  mtime INTEGER NOT NULL,"
+        "  lufs REAL NOT NULL,"
+        "  peak REAL NOT NULL,"
+        "  seconds REAL NOT NULL,"
+        "  album_lufs REAL,"
+        "  album_peak REAL,"
+        "  measured_at INTEGER NOT NULL"
+        ");", nullptr, nullptr, nullptr);
+
     // v2.78 — audio CD metadata, by MusicBrainz Disc ID: the release chosen and
     // the user's corrections, so a disc read again keeps its titles (offline too).
     const char* cdMetaSql =
@@ -336,6 +352,68 @@ void SaveFilePositionDB(const std::wstring& filePath, double position) {
         sqlite3_bind_int64(stmt, 3, static_cast<sqlite3_int64>(time(nullptr)));
         sqlite3_step(stmt);
         sqlite3_finalize(stmt);
+    }
+}
+
+static bool LoudnessStamp(const std::wstring& path, sqlite3_int64& size, sqlite3_int64& mtime) {
+    WIN32_FILE_ATTRIBUTE_DATA fa;
+    if (!GetFileAttributesExW(path.c_str(), GetFileExInfoStandard, &fa)) return false;
+    size = static_cast<sqlite3_int64>(((ULONGLONG)fa.nFileSizeHigh << 32) | fa.nFileSizeLow);
+    mtime = static_cast<sqlite3_int64>(((ULONGLONG)fa.ftLastWriteTime.dwHighDateTime << 32) |
+                                       fa.ftLastWriteTime.dwLowDateTime);
+    return true;
+}
+
+bool LoadLoudnessDB(const std::wstring& filePath, LoudnessRow& row) {
+    if (!g_db) return false;
+    sqlite3_int64 size = 0, mtime = 0;
+    if (!LoudnessStamp(filePath, size, mtime)) return false;
+    std::string p = WideToUtf8(filePath);
+    sqlite3_stmt* st = nullptr;
+    bool found = false;
+    if (sqlite3_prepare_v2(g_db, "SELECT size, mtime, lufs, peak, seconds, album_lufs, album_peak "
+                                 "FROM loudness WHERE path = ?;", -1, &st, nullptr) == SQLITE_OK) {
+        sqlite3_bind_text(st, 1, p.c_str(), -1, SQLITE_TRANSIENT);
+        if (sqlite3_step(st) == SQLITE_ROW && sqlite3_column_int64(st, 0) == size &&
+            sqlite3_column_int64(st, 1) == mtime) {
+            row.lufs = sqlite3_column_double(st, 2);
+            row.peak = sqlite3_column_double(st, 3);
+            row.seconds = sqlite3_column_double(st, 4);
+            row.hasAlbum = sqlite3_column_type(st, 5) != SQLITE_NULL;
+            row.albumLufs = row.hasAlbum ? sqlite3_column_double(st, 5) : 0.0;
+            row.albumPeak = row.hasAlbum ? sqlite3_column_double(st, 6) : 0.0;
+            found = true;
+        }
+        sqlite3_finalize(st);
+    }
+    return found;
+}
+
+void SaveLoudnessDB(const std::wstring& filePath, const LoudnessRow& row) {
+    if (!g_db) return;
+    sqlite3_int64 size = 0, mtime = 0;
+    if (!LoudnessStamp(filePath, size, mtime)) return;
+    std::string p = WideToUtf8(filePath);
+    sqlite3_stmt* st = nullptr;
+    if (sqlite3_prepare_v2(g_db, "INSERT OR REPLACE INTO loudness (path, size, mtime, lufs, peak, seconds, "
+                                 "album_lufs, album_peak, measured_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);",
+                           -1, &st, nullptr) == SQLITE_OK) {
+        sqlite3_bind_text(st, 1, p.c_str(), -1, SQLITE_TRANSIENT);
+        sqlite3_bind_int64(st, 2, size);
+        sqlite3_bind_int64(st, 3, mtime);
+        sqlite3_bind_double(st, 4, row.lufs);
+        sqlite3_bind_double(st, 5, row.peak);
+        sqlite3_bind_double(st, 6, row.seconds);
+        if (row.hasAlbum) {
+            sqlite3_bind_double(st, 7, row.albumLufs);
+            sqlite3_bind_double(st, 8, row.albumPeak);
+        } else {
+            sqlite3_bind_null(st, 7);
+            sqlite3_bind_null(st, 8);
+        }
+        sqlite3_bind_int64(st, 9, static_cast<sqlite3_int64>(time(nullptr)));
+        sqlite3_step(st);
+        sqlite3_finalize(st);
     }
 }
 

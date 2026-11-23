@@ -124,6 +124,16 @@ bool InitDatabase();
 // Close database (call at shutdown)
 void CloseDatabase();
 
+// Crossfade, phase 5 — volume analysis, per file (size and time of the file
+// kept: a file changed since is measured again).
+struct LoudnessRow {
+    double lufs = 0.0, peak = 0.0, seconds = 0.0;
+    bool   hasAlbum = false;
+    double albumLufs = 0.0, albumPeak = 0.0;
+};
+bool LoadLoudnessDB(const std::wstring& filePath, LoudnessRow& row);
+void SaveLoudnessDB(const std::wstring& filePath, const LoudnessRow& row);
+
 // File position operations
 void SaveFilePositionDB(const std::wstring& filePath, double position);
 double LoadFilePositionDB(const std::wstring& filePath);

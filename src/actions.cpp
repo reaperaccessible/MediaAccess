@@ -923,6 +923,13 @@ static const Action g_actions[] = {
       "Volume down", "Baisser le volume", {} },
     { "PL_MUTE", IDM_PLAY_MUTE, ActionCategory::Playlist,
       "Mute", "Sourdine", {} },
+    // Crossfade, phase 5 — volume analysis, started (and stopped) by the user.
+    { "PL_ANALYZE_VOLUME", IDM_PL_ANALYZE_VOLUME, ActionCategory::Playlist,
+      "Analyse the volume of the tracks / Stop", "Analyser le volume des pistes / Arrêter",
+      { 'A', true,  true,  false } },          // Ctrl+Shift+A
+    { "PL_ANALYZE_PROGRESS", IDM_PL_ANALYZE_PROGRESS, ActionCategory::Playlist,
+      "Announce the progress of the volume analysis", "Annoncer la progression de l'analyse du volume",
+      { 'I', true,  false, false } },          // Ctrl+I
     // ========================================================================
     // CATEGORY: CdRip — v2.78: active while the Extract audio CD window has
     // the focus (modeless; main.cpp routes its keys here before the dialog).

@@ -886,6 +886,16 @@ void RegisterRcTranslations() {
                    L"No crossfade between the tracks of the same &album");
     AddTranslation("fr", "No crossfade between the tracks of the same &album",
                    L"Pas de fondu enchaîné entre les pistes d'un même &album");
+    AddTranslation("en", "Even out the &volume:", L"Even out the &volume:");
+    AddTranslation("fr", "Even out the &volume:", L"Égaliser le &volume :");
+    AddTranslation("en", "&Preamplification:", L"&Preamplification:");
+    AddTranslation("fr", "&Preamplification:", L"&Préamplification :");
+    AddTranslation("en", "No", L"No");
+    AddTranslation("fr", "No", L"Non");
+    AddTranslation("en", "Track gain", L"Track gain");
+    AddTranslation("fr", "Track gain", L"Gain de la piste");
+    AddTranslation("en", "Album gain", L"Album gain");
+    AddTranslation("fr", "Album gain", L"Gain de l'album");
 
     AddTranslation("en", "MIDI playback settings (BASSMIDI):", L"MIDI playback settings (BASSMIDI):");
     AddTranslation("fr", "MIDI playback settings (BASSMIDI):",

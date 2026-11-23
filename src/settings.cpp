@@ -370,6 +370,10 @@ void LoadSettings() {
     g_crossfadeSilenceDb = GetPrivateProfileIntW(L"Crossfade", L"SilenceDb", -50, g_configPath.c_str());
     if (g_crossfadeSilenceDb > -40 || g_crossfadeSilenceDb < -70) g_crossfadeSilenceDb = -50;
     g_crossfadeAlbumGapless = GetPrivateProfileIntW(L"Crossfade", L"AlbumNoFade", 1, g_configPath.c_str()) != 0;
+    g_crossfadeNormalize = GetPrivateProfileIntW(L"Crossfade", L"Normalize", 0, g_configPath.c_str());
+    if (g_crossfadeNormalize < 0 || g_crossfadeNormalize > 2) g_crossfadeNormalize = 0;
+    g_crossfadePreampDb = GetPrivateProfileIntW(L"Crossfade", L"PreampDb", 0, g_configPath.c_str());
+    if (g_crossfadePreampDb < -6 || g_crossfadePreampDb > 6) g_crossfadePreampDb = 0;
     g_playlistFollowPlayback = GetPrivateProfileIntW(L"Playback", L"PlaylistFollow", 1, g_configPath.c_str()) != 0;
     g_checkForUpdates = GetPrivateProfileIntW(L"Playback", L"CheckForUpdates", 1, g_configPath.c_str()) != 0;
     g_autoFollowDevice = GetPrivateProfileIntW(L"Playback", L"AutoFollowDevice", 1, g_configPath.c_str()) != 0;  // v2.32
@@ -795,6 +799,10 @@ void SaveSettings() {
     swprintf(buf, 32, L"%d", g_crossfadeSilenceDb);
     WritePrivateProfileStringW(L"Crossfade", L"SilenceDb", buf, g_configPath.c_str());
     WritePrivateProfileStringW(L"Crossfade", L"AlbumNoFade", g_crossfadeAlbumGapless ? L"1" : L"0", g_configPath.c_str());
+    swprintf(buf, 32, L"%d", g_crossfadeNormalize);
+    WritePrivateProfileStringW(L"Crossfade", L"Normalize", buf, g_configPath.c_str());
+    swprintf(buf, 32, L"%d", g_crossfadePreampDb);
+    WritePrivateProfileStringW(L"Crossfade", L"PreampDb", buf, g_configPath.c_str());
     WritePrivateProfileStringW(L"Playback", L"PlaylistFollow", g_playlistFollowPlayback ? L"1" : L"0", g_configPath.c_str());
     WritePrivateProfileStringW(L"Playback", L"CheckForUpdates", g_checkForUpdates ? L"1" : L"0", g_configPath.c_str());
     WritePrivateProfileStringW(L"Playback", L"AutoFollowDevice", g_autoFollowDevice ? L"1" : L"0", g_configPath.c_str());  // v2.32

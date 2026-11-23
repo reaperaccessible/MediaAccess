@@ -129,6 +129,10 @@ BOOK_BOOKMARK_LIST = M
 BOOK_ANNOUNCE_PROGRESS = Shift+P
 BOOK_TOGGLE_SKIP = Shift+S
 
+# ----- Playlist -----
+PL_ANALYZE_VOLUME = Ctrl+Shift+A
+PL_ANALYZE_PROGRESS = Ctrl+I
+
 # ----- CdRip -----
 CDRIP_START = Ctrl+R
 CDRIP_PROGRESS = Ctrl+I

@@ -378,7 +378,8 @@ void ShowTabControls(HWND hwnd, int tab) {
                             IDC_LABEL_XF_SECONDS, IDC_XF_SECONDS,
                             IDC_LABEL_XF_SHAPE, IDC_XF_SHAPE,
                             IDC_XF_SKIP_SILENCE, IDC_LABEL_XF_SILENCE, IDC_XF_SILENCE,
-                            IDC_XF_ALBUM};
+                            IDC_XF_ALBUM, IDC_LABEL_XF_NORMALIZE, IDC_XF_NORMALIZE,
+                            IDC_LABEL_XF_PREAMP, IDC_XF_PREAMP};
 
 
 
@@ -1143,6 +1144,20 @@ INT_PTR CALLBACK OptionsDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
                 }
                 SendMessageW(hSil, CB_SETCURSEL, (-40 - g_crossfadeSilenceDb) / 5, 0);
                 CheckDlgButton(hwnd, IDC_XF_ALBUM, g_crossfadeAlbumGapless ? BST_CHECKED : BST_UNCHECKED);
+                HWND hNorm = GetDlgItem(hwnd, IDC_XF_NORMALIZE);
+                SendMessageW(hNorm, CB_RESETCONTENT, 0, 0);
+                SendMessageW(hNorm, CB_ADDSTRING, 0, (LPARAM)T("No"));
+                SendMessageW(hNorm, CB_ADDSTRING, 0, (LPARAM)T("Track gain"));
+                SendMessageW(hNorm, CB_ADDSTRING, 0, (LPARAM)T("Album gain"));
+                SendMessageW(hNorm, CB_SETCURSEL, g_crossfadeNormalize, 0);
+                HWND hPre = GetDlgItem(hwnd, IDC_XF_PREAMP);
+                SendMessageW(hPre, CB_RESETCONTENT, 0, 0);
+                for (int d = -6; d <= 6; ++d) {
+                    wchar_t buf[32];
+                    swprintf(buf, 32, d > 0 ? L"+%d dB" : L"%d dB", d);
+                    SendMessageW(hPre, CB_ADDSTRING, 0, (LPARAM)buf);
+                }
+                SendMessageW(hPre, CB_SETCURSEL, g_crossfadePreampDb + 6, 0);
             }
 
             // Initialize MIDI tab controls
@@ -1688,6 +1703,11 @@ INT_PTR CALLBACK OptionsDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
                         int si = (int)SendMessageW(GetDlgItem(hwnd, IDC_XF_SILENCE), CB_GETCURSEL, 0, 0);
                         if (si >= 0 && si <= 6) g_crossfadeSilenceDb = -40 - 5 * si;
                         g_crossfadeAlbumGapless = (IsDlgButtonChecked(hwnd, IDC_XF_ALBUM) == BST_CHECKED);
+                        int nm = (int)SendMessageW(GetDlgItem(hwnd, IDC_XF_NORMALIZE), CB_GETCURSEL, 0, 0);
+                        if (nm >= 0 && nm <= 2) g_crossfadeNormalize = nm;
+                        int pa = (int)SendMessageW(GetDlgItem(hwnd, IDC_XF_PREAMP), CB_GETCURSEL, 0, 0);
+                        if (pa >= 0 && pa <= 12) g_crossfadePreampDb = pa - 6;
+                        CrossfadeGainRefresh();
                         CrossfadeMaintain();
                     }
 

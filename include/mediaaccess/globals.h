@@ -292,6 +292,8 @@ extern int  g_crossfadeShape;           // 0 = smooth (equal power), 1 = linear
 extern bool g_crossfadeSkipSilence;     // fade from where the music really ends (default on)
 extern int  g_crossfadeSilenceDb;       // silence threshold, dBFS (-40 to -70, default -50)
 extern bool g_crossfadeAlbumGapless;    // no fade inside a continuous album: joined without a gap (default on)
+extern int  g_crossfadeNormalize;       // even out the volume: 0 = no, 1 = track gain, 2 = album gain
+extern int  g_crossfadePreampDb;        // added to the gain, -6 to +6 dB (default 0)
 
 // Chapter support
 struct Chapter {

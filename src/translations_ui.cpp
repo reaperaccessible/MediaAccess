@@ -551,6 +551,31 @@ void RegisterUiTranslations() {
     AddTranslation("fr", "Crossfade on",                            L"Fondu enchaîné activé");
     AddTranslation("en", "Crossfade off",                           L"Crossfade off");
     AddTranslation("fr", "Crossfade off",                           L"Fondu enchaîné désactivé");
+    // Volume analysis (playlist manager)
+    AddTranslation("en", "Analysing the volume of %d tracks", L"Analysing the volume of %d tracks");
+    AddTranslation("fr", "Analysing the volume of %d tracks", L"Analyse du volume de %d pistes");
+    AddTranslation("en", "Analysing the volume of 1 track", L"Analysing the volume of 1 track");
+    AddTranslation("fr", "Analysing the volume of 1 track", L"Analyse du volume d'une piste");
+    AddTranslation("en", "Volume analysis: %d of %d", L"Volume analysis: %d of %d");
+    AddTranslation("fr", "Volume analysis: %d of %d", L"Analyse du volume : %d sur %d");
+    AddTranslation("en", "No volume analysis running", L"No volume analysis running");
+    AddTranslation("fr", "No volume analysis running", L"Aucune analyse du volume en cours");
+    AddTranslation("en", "%d tracks analysed", L"%d tracks analysed");
+    AddTranslation("fr", "%d tracks analysed", L"%d pistes analysées");
+    AddTranslation("en", "1 track analysed", L"1 track analysed");
+    AddTranslation("fr", "1 track analysed", L"1 piste analysée");
+    AddTranslation("en", "Volume analysis stopped, %d tracks analysed", L"Volume analysis stopped, %d tracks analysed");
+    AddTranslation("fr", "Volume analysis stopped, %d tracks analysed", L"Analyse du volume arrêtée, %d pistes analysées");
+    AddTranslation("en", "Volume analysis stopped, 1 track analysed", L"Volume analysis stopped, 1 track analysed");
+    AddTranslation("fr", "Volume analysis stopped, 1 track analysed", L"Analyse du volume arrêtée, 1 piste analysée");
+    AddTranslation("en", "No track to analyse", L"No track to analyse");
+    AddTranslation("fr", "No track to analyse", L"Aucune piste à analyser");
+    AddTranslation("en", "Analyse the volume of the tracks", L"Analyse the volume of the tracks");
+    AddTranslation("fr", "Analyse the volume of the tracks", L"Analyser le volume des pistes");
+    AddTranslation("en", "Stop the volume analysis", L"Stop the volume analysis");
+    AddTranslation("fr", "Stop the volume analysis", L"Arrêter l'analyse du volume");
+    AddTranslation("en", "Announce the progress of the volume analysis", L"Announce the progress of the volume analysis");
+    AddTranslation("fr", "Announce the progress of the volume analysis", L"Annoncer la progression de l'analyse du volume");
     // Main window Applications menu: the toggle's name, as in its announcement
     AddTranslation("en", "Crossfade",                               L"Crossfade");
     AddTranslation("fr", "Crossfade",                               L"Fondu enchaîné");

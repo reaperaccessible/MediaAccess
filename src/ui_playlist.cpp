@@ -3,6 +3,7 @@
 #include "mediaaccess/youtube.h"   // v2.69 — YouTubeGetDownloadRoot for the playlists folder
 #include "mediaaccess/keymap.h"    // v2.76 — Playlist-manager action category
 #include "mediaaccess/actions.h"
+#include "mediaaccess/loudness.h"   // crossfade phase 5 — volume analysis
 #include <atomic>
 #include <thread>
 
@@ -297,8 +298,43 @@ static bool TryPlaylistAction(UINT msg, WPARAM wParam) {
     // Only Ctrl+letter makes a (control) character: swallow that one, nothing else.
     s_plSwallowChar = sc.ctrl && sc.vk >= 'A' && sc.vk <= 'Z';
     if (cmd == IDM_PL_LIST_TOTAL) SpeakShownListTotal();
+    else if (cmd == IDM_PL_ANALYZE_VOLUME) mediaaccess::LoudnessBatchToggle(ShownList());
+    else if (cmd == IDM_PL_ANALYZE_PROGRESS) mediaaccess::LoudnessBatchSpeakProgress();
     else SendMessageW(g_hwnd, WM_COMMAND, MAKEWPARAM(cmd, 0), 0);
     return true;
+}
+
+// Crossfade, phase 5 — the Applications menu of the track list (Applications
+// key, Shift+F10, right click): the volume analysis, with its keys, in the
+// words of the actions (house rule).
+static std::wstring PlaylistKeyHint(const char* actionId) {
+    const std::vector<mediaaccess::Shortcut>* keys = mediaaccess::GetActiveKeyMap().GetShortcuts(actionId);
+    if (!keys || keys->empty()) return std::wstring();
+    return L"\t" + Utf8ToWide(mediaaccess::ShortcutToDisplay(keys->front()));
+}
+
+static void ShowPlaylistMenu(HWND dlg, HWND list, LPARAM lParam) {
+    POINT pt = { (short)LOWORD(lParam), (short)HIWORD(lParam) };
+    if (lParam == (LPARAM)-1) {   // from the keyboard: at the line with the caret
+        RECT rc = {};
+        int cur = (int)SendMessageW(list, LB_GETCARETINDEX, 0, 0);
+        if (cur < 0 || SendMessageW(list, LB_GETITEMRECT, cur, (LPARAM)&rc) == LB_ERR) GetClientRect(list, &rc);
+        pt.x = rc.left;
+        pt.y = rc.bottom;
+        ClientToScreen(list, &pt);
+    }
+    std::wstring analyse = std::wstring(T(mediaaccess::LoudnessBatchRunning() ? "Stop the volume analysis"
+                                                                               : "Analyse the volume of the tracks"))
+                           + PlaylistKeyHint("PL_ANALYZE_VOLUME");
+    std::wstring progress = std::wstring(T("Announce the progress of the volume analysis"))
+                            + PlaylistKeyHint("PL_ANALYZE_PROGRESS");
+    HMENU menu = CreatePopupMenu();
+    AppendMenuW(menu, MF_STRING, IDM_PL_ANALYZE_VOLUME, analyse.c_str());
+    AppendMenuW(menu, MF_STRING, IDM_PL_ANALYZE_PROGRESS, progress.c_str());
+    int cmd = TrackPopupMenu(menu, TPM_RETURNCMD | TPM_NONOTIFY, pt.x, pt.y, 0, dlg, nullptr);
+    DestroyMenu(menu);
+    if (cmd == IDM_PL_ANALYZE_VOLUME) mediaaccess::LoudnessBatchToggle(ShownList());
+    else if (cmd == IDM_PL_ANALYZE_PROGRESS) mediaaccess::LoudnessBatchSpeakProgress();
 }
 
 // Buttons need the same treatment, so they get a small subclass of their own.
@@ -891,6 +927,13 @@ static INT_PTR CALLBACK PlaylistDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPAR
                 if (sel >= 0 && sel < (int)ShownList().size()) {
                     PlayShownTrack(sel);   // v2.69 — stay in the list, as for Enter
                 }
+                return TRUE;
+            }
+            break;
+
+        case WM_CONTEXTMENU:   // crossfade phase 5 — the track list's Applications menu
+            if ((HWND)wParam == GetDlgItem(hwnd, IDC_PLAYLIST_LIST)) {
+                ShowPlaylistMenu(hwnd, (HWND)wParam, lParam);
                 return TRUE;
             }
             break;

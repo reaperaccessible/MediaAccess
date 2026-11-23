@@ -16,6 +16,7 @@
 #include "mediaaccess/audio_device_watcher.h"  // v2.32 — auto-follow default output device
 #include "mediaaccess/disc_drives.h"  // v2.78 — audio CD tracks (.cda)
 #include "mediaaccess/basscd_loader.h" // crossfade phase 4 — CD track joins
+#include "mediaaccess/loudness.h"      // crossfade phase 5 — volume analysis
 
 // Forward declaration so LoadURL (earlier in the file) can call it.
 static void TeardownMpvBeforeLoad();
@@ -35,6 +36,7 @@ static void TeardownMpvBeforeLoad();
 #include <map>
 #include <set>
 #include <thread>
+#include <memory>
 #include <algorithm>  // std::sort (v2.43 bookmark navigation)
 #include <algorithm>
 #include <vector>
@@ -105,6 +107,7 @@ static DWORD              s_xfNextAddFlags = 0;     // its mixer flags (without 
 static HSTREAM            s_xfGapSyncSong = 0;
 static void CrossfadeDropAll();
 static void PostCrossfadeMaintain();
+static void ApplySongGain(HSTREAM song, const std::wstring& path);   // phase 5
 
 // Everything the processor reads only when it is created: a change of any of
 // them rebuilds the chain at the next song, as every song did before.
@@ -178,6 +181,160 @@ static void CALLBACK OnSongDecodeEnd(HSYNC, DWORD channel, DWORD, void* user) {
     auto* processor = static_cast<TempoProcessor*>(user);
     if (processor) processor->MarkSourceEnd();
     PostMessage(g_hwnd, WM_SONG_DECODE_END, static_cast<WPARAM>(channel), 0);
+}
+
+// =============================================================================
+// Crossfade, phase 5 — even out the volume (plan, section 2.3). The gain of a
+// song comes from its own tags (ReplayGain; R128 for Opus) or, failing that,
+// from the analysis the user ran from the playlist manager (database). Track
+// or album gain, plus a preamplification; a positive gain is limited by the
+// peak so nothing clips. Applied as a DSP on the song stream, inside the
+// mixer: before the fade envelopes, the tempo, the compressor and the EQ.
+// =============================================================================
+static std::string GetMetadataTagForGain(HSTREAM s, const char* key);
+
+// TXXX frame of an ID3v2 tag, by description (REPLAYGAIN_TRACK_GAIN...).
+static std::string ID3v2Txxx(const unsigned char* tag, const char* desc) {
+    if (!tag || tag[0] != 'I' || tag[1] != 'D' || tag[2] != '3') return "";
+    const unsigned char version = tag[3];
+    size_t size = ((tag[6] & 0x7F) << 21) | ((tag[7] & 0x7F) << 14) | ((tag[8] & 0x7F) << 7) | (tag[9] & 0x7F);
+    const unsigned char* p = tag + 10;
+    const unsigned char* end = tag + 10 + size;
+    if (tag[5] & 0x40) p += 4 + ((p[0] << 24) | (p[1] << 16) | (p[2] << 8) | p[3]);
+    while (p + 10 < end && p[0]) {
+        size_t fs = version >= 4
+            ? (((p[4] & 0x7F) << 21) | ((p[5] & 0x7F) << 14) | ((p[6] & 0x7F) << 7) | (p[7] & 0x7F))
+            : ((size_t)(p[4] << 24) | (p[5] << 16) | (p[6] << 8) | p[7]);
+        const unsigned char* d = p + 10;
+        if (fs == 0 || d + fs > end) break;
+        if (memcmp(p, "TXXX", 4) == 0 && fs > 2) {
+            // encoding, description, value. UTF-16 is read by its low bytes
+            // (the names and values are plain ASCII).
+            unsigned char enc = d[0];
+            std::string text;
+            for (size_t i = 1; i < fs; ++i) {
+                if (enc == 1 || enc == 2) {
+                    if (i + 1 >= fs) break;
+                    unsigned c = d[i] | (d[i + 1] << 8);
+                    if (enc == 2) c = (d[i] << 8) | d[i + 1];
+                    ++i;
+                    if (c == 0xFEFF || c == 0xFFFE) continue;
+                    text.push_back(c ? static_cast<char>(c & 0x7F) : '\0');
+                } else {
+                    text.push_back(static_cast<char>(d[i]));
+                }
+            }
+            size_t z = text.find('\0');
+            if (z != std::string::npos && _stricmp(text.substr(0, z).c_str(), desc) == 0) {
+                std::string v = text.substr(z + 1);
+                v.erase(std::find(v.begin(), v.end(), '\0'), v.end());
+                return v;
+            }
+        }
+        p = d + fs;
+    }
+    return "";
+}
+
+static std::string GainTag(HSTREAM s, const char* key) {
+    std::string v = GetMetadataTagForGain(s, key);
+    if (v.empty()) v = ID3v2Txxx((const unsigned char*)BASS_ChannelGetTags(s, BASS_TAG_ID3V2), key);
+    return v;
+}
+
+struct SongGain {
+    bool hasTrack = false, hasAlbum = false;
+    double track = 0.0, trackPeak = 0.0, album = 0.0, albumPeak = 0.0;   // dB re -18 LUFS; linear peaks
+};
+
+static bool ParseNumber(const std::string& s, double& out) {
+    if (s.empty()) return false;
+    char* e = nullptr;
+    out = strtod(s.c_str(), &e);
+    return e && e != s.c_str();
+}
+
+// The gains a file carries itself (thread-safe: tags only).
+static SongGain TagGains(HSTREAM s) {
+    SongGain g;
+    double v;
+    if (ParseNumber(GainTag(s, "REPLAYGAIN_TRACK_GAIN"), v)) { g.hasTrack = true; g.track = v; }
+    if (ParseNumber(GainTag(s, "REPLAYGAIN_ALBUM_GAIN"), v)) { g.hasAlbum = true; g.album = v; }
+    if (ParseNumber(GainTag(s, "REPLAYGAIN_TRACK_PEAK"), v)) g.trackPeak = v;
+    if (ParseNumber(GainTag(s, "REPLAYGAIN_ALBUM_PEAK"), v)) g.albumPeak = v;
+    // Opus: R128 gains, Q7.8 dB relative to -23 LUFS: +5 dB to the ReplayGain
+    // reference of -18 LUFS.
+    if (!g.hasTrack && ParseNumber(GainTag(s, "R128_TRACK_GAIN"), v)) { g.hasTrack = true; g.track = v / 256.0 + 5.0; }
+    if (!g.hasAlbum && ParseNumber(GainTag(s, "R128_ALBUM_GAIN"), v)) { g.hasAlbum = true; g.album = v / 256.0 + 5.0; }
+    return g;
+}
+
+bool StreamHasOwnGain(HSTREAM s) {
+    SongGain g = TagGains(s);
+    return g.hasTrack || g.hasAlbum;
+}
+
+std::string StreamAlbumTag(HSTREAM s) {
+    std::string album = GetMetadataTagForGain(s, "ALBUM");
+    if (album.empty()) {
+        const TAG_ID3* id3 = (const TAG_ID3*)BASS_ChannelGetTags(s, BASS_TAG_ID3);
+        if (id3) album = GetTrimmedTag(id3->album, 30);
+    }
+    return album;
+}
+
+// Linear gain per song, read by its DSP on the audio thread.
+static std::map<HSTREAM, std::unique_ptr<std::atomic<float>>> s_songGain;
+
+static void CALLBACK SongGainDSP(HDSP, DWORD, void* buffer, DWORD length, void* user) {
+    float g = static_cast<std::atomic<float>*>(user)->load();
+    if (g == 1.0f) return;
+    float* f = static_cast<float*>(buffer);
+    for (DWORD i = 0, n = length / sizeof(float); i < n; ++i) f[i] *= g;
+}
+
+// The gain this song gets now, in linear terms (1 = unchanged).
+static float SongGainFor(HSTREAM song, const std::wstring& path) {
+    if (g_crossfadeNormalize == 0 || mediaaccess::IsCdaFile(path.c_str())) return 1.0f;
+    SongGain g = TagGains(song);
+    const char* from = "tags";
+    if (!g.hasTrack && !g.hasAlbum) {
+        LoudnessRow row;
+        if (!LoadLoudnessDB(path, row)) return 1.0f;   // unknown: as it is
+        g.hasTrack = true;
+        g.track = -18.0 - row.lufs;
+        g.trackPeak = row.peak;
+        if (row.hasAlbum) { g.hasAlbum = true; g.album = -18.0 - row.albumLufs; g.albumPeak = row.albumPeak; }
+        from = "analysis";
+    }
+    bool album = g_crossfadeNormalize == 2 && g.hasAlbum;
+    if (!album && !g.hasTrack) { g.track = g.album; g.trackPeak = g.albumPeak; }   // album only: use it
+    double db = (album ? g.album : g.track) + g_crossfadePreampDb;
+    double peak = album ? g.albumPeak : g.trackPeak;
+    double lin = pow(10.0, db / 20.0);
+    if (peak > 0.0 && lin * peak > 1.0) lin = 1.0 / peak;   // never clip
+    LogF("Crossfade", "volume: %s gain %+.2f dB (%s), x%.3f: %ls", album ? "album" : "track",
+         album ? g.album : g.track, from, lin, path.c_str());
+    return static_cast<float>(lin);
+}
+
+static void ApplySongGain(HSTREAM song, const std::wstring& path) {
+    if (!song) return;
+    // Forget the streams that are gone.
+    for (auto it = s_songGain.begin(); it != s_songGain.end();) {
+        BASS_CHANNELINFO ci;
+        if (!BASS_ChannelGetInfo(it->first, &ci)) it = s_songGain.erase(it); else ++it;
+    }
+    float lin = SongGainFor(song, path);
+    auto it = s_songGain.find(song);
+    if (it == s_songGain.end()) {
+        if (lin == 1.0f) return;
+        auto g = std::make_unique<std::atomic<float>>(lin);
+        BASS_ChannelSetDSP(song, SongGainDSP, g.get(), 0);
+        s_songGain[song] = std::move(g);
+    } else {
+        it->second->store(lin);
+    }
 }
 
 // Tag source: the song on the mixer chain, else the classic choice.
@@ -584,6 +741,7 @@ bool InitBass(HWND hwnd) {
 // it's owned by g_fxStream via BASS_FX_FREESOURCE, and for Speedy/Signalsmith
 // it's owned by the tempo processor; double-freeing either way crashes.
 void FreeBass() {
+    mediaaccess::LoudnessBatchShutdown();   // phase 5: analysis workers out first
     // Crossfade silence measures still running hold decode streams: let them
     // finish (a few ms each) before BASS goes.
     for (int i = 0; i < 300 && s_silenceWorkers.load() > 0; ++i) Sleep(10);
@@ -1667,6 +1825,8 @@ bool LoadFile(const wchar_t* path) {
         return false;
     }
 
+    ApplySongGain(song, path);   // phase 5: even out the volume
+
     // Capture initial bitrate (of the song itself)
     float bitrate = 0;
     BASS_ChannelGetAttribute(song, BASS_ATTRIB_BITRATE, &bitrate);
@@ -2367,6 +2527,7 @@ void CrossfadeMaintain() {
                 return;
             }
         }
+        ApplySongGain(h, s_xfPath);   // phase 5
         BASS_CHANNELINFO info = {};
         BASS_ChannelGetInfo(h, &info);
         s_xfNextAddFlags = BASS_MIXER_CHAN_NORAMPIN | (info.chans > 2 ? BASS_MIXER_CHAN_DOWNMIX : 0);
@@ -2592,6 +2753,14 @@ void HandleCrossfadeOutDone(WPARAM song) {
     s_xfOut = 0;
     s_xfFadingOut.store(0);
     if (s_song) BASS_Mixer_ChannelSetEnvelope(s_song, BASS_MIXER_ENV_VOL, nullptr, 0);
+}
+
+// Volume settings changed, or an analysis just finished: the songs in the
+// mixer get their gain again (the next fade or song takes it as it comes).
+void CrossfadeGainRefresh() {
+    if (!s_mixerChain) return;
+    if (s_song) ApplySongGain(s_song, g_currentSourcePath);
+    if (s_xfNext.load()) ApplySongGain(s_xfNext.load(), s_xfPath);
 }
 
 // F key and the menu: crossfade on or off.
@@ -4376,6 +4545,8 @@ static void ParseStreamTitle(const std::string& streamTitle, std::string& artist
 // header heuristics. For internet radio, ICY META is consulted for
 // TITLE/ARTIST so the currently-playing song shows up, with a fall-back
 // to the station name (icy-name) when no song info is present.
+static std::string GetMetadataTagForGain(HSTREAM s, const char* key) { return GetMetadataTag(s, key); }
+
 static std::string GetMetadataTag(HSTREAM stream, const char* tagName) {
     if (!stream) return "";
 
