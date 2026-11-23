@@ -1,9 +1,12 @@
 #pragma once
-// cd_ripper — extracting audio CD tracks to files, on a worker thread.
-// Phase 2 of docs/PLAN_EXTRACTION_CD.md: Fast mode (one read per track),
-// WAV and FLAC. Each file is written as "<name>.part" and renamed at the end,
-// so a cancelled or failed track never leaves a truncated file under its
-// real name.
+// cd_ripper — extracting audio CD tracks to files, on a worker thread
+// (docs/PLAN_EXTRACTION_CD.md). Fast mode: one read per track. Formats: WAV,
+// FLAC, MP3, Ogg Vorbis, Opus (Opus only when lib\bassenc_opus.dll is there).
+// Tags and the front cover go into each file (BASSenc options, like the flac,
+// lame, oggenc and opusenc tools); a CUE sheet and an M3U8 playlist can be
+// written next to them. Each file is written as "<name>.part" and renamed at
+// the end, so a cancelled or failed track never leaves a truncated file under
+// its real name.
 
 #include <windows.h>
 #include <string>
@@ -13,21 +16,35 @@
 
 namespace mediaaccess {
 
-enum class RipFormat { WAV = 0, FLAC = 1 };
+// Values stored in [CdRip] Format: keep them stable.
+enum class RipFormat { WAV = 0, FLAC = 1, MP3 = 2, OGG = 3, OPUS = 4 };
+
+bool IsOpusAvailable();                          // bassenc_opus.dll can be loaded
+const wchar_t* RipFormatExtension(RipFormat f);  // L".flac"...
+
+// Quality choices of a format (index into a fixed list; WAV has one).
+int  RipQualityCount(RipFormat f);
+int  RipDefaultQuality(RipFormat f);
+std::wstring RipQualityLabel(RipFormat f, int index);
 
 struct RipTrack {
     int          index;      // 0-based BASSCD track number
     int          number;     // number on the disc
     double       seconds;
-    std::wstring fileName;   // without folder or extension
+    std::wstring fileName;   // relative to the album folder, without extension (may hold "\")
+    std::wstring title, artist, isrc, recordingMbid;
 };
 
 struct RipJob {
     DiscDrive             drive;
     std::vector<RipTrack> tracks;
     RipFormat             format = RipFormat::FLAC;
-    std::wstring          folder;  // created if missing
-    CdReleaseMeta         meta;    // its front cover is saved as folder.jpg
+    int                   quality = 0;      // index, see RipQualityLabel
+    std::wstring          folder;           // album folder, created if missing
+    CdReleaseMeta         meta;             // album tags and the cover
+    int                   trackTotal = 0;   // audio tracks on the disc (TRACKTOTAL)
+    bool embedCover = true, saveFolderJpg = true, writeCue = true, writeM3u = true;
+    std::wstring          listName;         // CUE / M3U8 file name, without extension
 };
 
 struct RipProgress {

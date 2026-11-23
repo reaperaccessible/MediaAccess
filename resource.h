@@ -159,6 +159,23 @@
 #define IDC_CDRIP_TARTIST_LABEL  2056
 #define IDC_CDRIP_TARTIST        2057
 #define IDC_CDRIP_EDITIONS       2058
+#define IDC_CDRIP_QUALITY_LABEL  2059
+#define IDD_CD_RIP_OPTIONS       2060
+#define IDC_CDOPT_FOLDER_LABEL   2061
+#define IDC_CDOPT_FOLDER         2062
+#define IDC_CDOPT_FILE_LABEL     2063
+#define IDC_CDOPT_FILE           2064
+#define IDC_CDOPT_VARIABLES      2065
+#define IDC_CDOPT_PREVIEW_LABEL  2066
+#define IDC_CDOPT_PREVIEW        2067
+#define IDC_CDOPT_EMBED          2068
+#define IDC_CDOPT_FOLDERJPG      2069
+#define IDC_CDOPT_CUE            2070
+#define IDC_CDOPT_M3U            2071
+#define IDC_CDOPT_EJECT          2072
+#define IDC_CDOPT_DEFAULTS       2073
+#define IDC_CDRIP_QUALITY        2074
+#define IDC_CDRIP_OPTIONS        2075
 
 #define IDM_EFFECT_PRESETS  238
 

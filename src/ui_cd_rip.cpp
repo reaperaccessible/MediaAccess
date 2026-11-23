@@ -3,7 +3,9 @@
 // ticked tracks to WAV or FLAC (cd_ripper), progress on Ctrl+I. Phase 3: album
 // and track names (cd_metadata: cache, MusicBrainz, CD-Text, GnuDB), editable
 // fields, F2 on a track, choice of the edition (Ctrl+M), new search (F5), the
-// cover saved as folder.jpg, files named after the titles.
+// cover saved as folder.jpg, files named after the titles. Phase 4: MP3, Ogg
+// Vorbis and Opus with a quality choice, tags and cover in the files, name
+// templates with a preview, CUE and M3U8 (Options... dialog).
 //
 // Modeless like the YouTube window: closing only hides it, and the main
 // message loop routes its keys through IsDialogMessageW (main.cpp).
@@ -57,6 +59,15 @@ CdReleaseMeta  g_meta;                   // names shown and edited (one entry pe
 int            g_lookupToken = 0;        // a newer lookup makes older results stale
 bool           g_filling = false;        // fields being filled by the program, not typed
 bool           g_metaEdited = false;     // the user changed a name: save it to the cache
+
+// [CdRip] options (Options... dialog). Plan 4.6 default templates.
+const wchar_t* kDefaultFolderTpl = L"%albumartist%\\%album% (%year%)";
+const wchar_t* kDefaultFileTpl = L"%track% - %title%";
+struct RipOptions {
+    std::wstring folderTpl = kDefaultFolderTpl, fileTpl = kDefaultFileTpl;
+    bool embedCover = true, saveFolderJpg = true, writeCue = true, writeM3u = true, ejectWhenDone = false;
+};
+RipOptions g_opts;
 
 const DiscDrive* SelectedDrive(HWND dlg) {
     int sel = (int)SendDlgItemMessageW(dlg, IDC_CDRIP_DRIVE, CB_GETCURSEL, 0, 0);
@@ -243,6 +254,11 @@ std::wstring Headline(const CdReleaseMeta& m) {
 
 bool ShowEditionDialog(HWND dlg);
 std::wstring ShortcutHint(const char* actionId);
+mediaaccess::RipFormat SelectedFormat(HWND dlg);
+void SaveRipSettings(HWND dlg);
+std::wstring ExpandTemplate(const std::wstring& tpl, const CdReleaseMeta& m, int row);
+std::wstring FileTemplateFor(const CdReleaseMeta& m, const std::wstring& tpl);
+std::wstring AlbumFolderName(const CdReleaseMeta& m, const std::wstring& tpl);
 
 void OnLookupResult(HWND dlg, int token, CdLookupResult* r) {
     std::unique_ptr<CdLookupResult> owner(r);
@@ -405,6 +421,77 @@ void OnChooseEdition(HWND dlg) {
         return;
     }
     ShowEditionDialog(dlg);
+}
+
+// ---- Options dialog (modal) ----
+
+void UpdatePreview(HWND opt) {
+    CdReleaseMeta m = g_meta;
+    if (m.album.empty()) { m.album = T("Album"); }
+    if (m.albumArtist.empty()) { m.albumArtist = T("Artist"); }
+    std::wstring folder = AlbumFolderName(m, GetText(opt, IDC_CDOPT_FOLDER));
+    std::wstring file = ExpandTemplate(FileTemplateFor(m, GetText(opt, IDC_CDOPT_FILE)), m, 0);
+    std::wstring text = folder + L"\\" + file + mediaaccess::RipFormatExtension(SelectedFormat(g_cdDialog));
+    SetDlgItemTextW(opt, IDC_CDOPT_PREVIEW, text.c_str());
+}
+
+void ShowOptionsChecks(HWND opt, const RipOptions& o) {
+    SetDlgItemTextW(opt, IDC_CDOPT_FOLDER, o.folderTpl.c_str());
+    SetDlgItemTextW(opt, IDC_CDOPT_FILE, o.fileTpl.c_str());
+    CheckDlgButton(opt, IDC_CDOPT_EMBED, o.embedCover ? BST_CHECKED : BST_UNCHECKED);
+    CheckDlgButton(opt, IDC_CDOPT_FOLDERJPG, o.saveFolderJpg ? BST_CHECKED : BST_UNCHECKED);
+    CheckDlgButton(opt, IDC_CDOPT_CUE, o.writeCue ? BST_CHECKED : BST_UNCHECKED);
+    CheckDlgButton(opt, IDC_CDOPT_M3U, o.writeM3u ? BST_CHECKED : BST_UNCHECKED);
+    CheckDlgButton(opt, IDC_CDOPT_EJECT, o.ejectWhenDone ? BST_CHECKED : BST_UNCHECKED);
+}
+
+INT_PTR CALLBACK OptionsDlgProc(HWND opt, UINT msg, WPARAM wParam, LPARAM) {
+    switch (msg) {
+        case WM_INITDIALOG:
+            LocalizeDialog(opt);
+            SetDlgItemTextW(opt, IDC_CDOPT_VARIABLES, T("%albumartist%, %artist%, %album%, %year%, %track%, "
+                "%tracktotal%, %title%, %disc%, %disctotal%, %genre%, %label%. A backslash makes a sub-folder."));
+            ShowOptionsChecks(opt, g_opts);
+            UpdatePreview(opt);
+            return TRUE;   // the focus goes to the first field, once
+        case WM_COMMAND:
+            switch (LOWORD(wParam)) {
+                case IDC_CDOPT_FOLDER:
+                case IDC_CDOPT_FILE:
+                    if (HIWORD(wParam) == EN_CHANGE) UpdatePreview(opt);
+                    return TRUE;
+                case IDC_CDOPT_DEFAULTS:
+                    ShowOptionsChecks(opt, RipOptions());
+                    UpdatePreview(opt);
+                    return TRUE;
+                case IDOK: {
+                    RipOptions o;
+                    o.folderTpl = GetText(opt, IDC_CDOPT_FOLDER);
+                    o.fileTpl = GetText(opt, IDC_CDOPT_FILE);
+                    if (o.folderTpl.empty()) o.folderTpl = kDefaultFolderTpl;
+                    if (o.fileTpl.empty()) o.fileTpl = kDefaultFileTpl;
+                    o.embedCover = IsDlgButtonChecked(opt, IDC_CDOPT_EMBED) == BST_CHECKED;
+                    o.saveFolderJpg = IsDlgButtonChecked(opt, IDC_CDOPT_FOLDERJPG) == BST_CHECKED;
+                    o.writeCue = IsDlgButtonChecked(opt, IDC_CDOPT_CUE) == BST_CHECKED;
+                    o.writeM3u = IsDlgButtonChecked(opt, IDC_CDOPT_M3U) == BST_CHECKED;
+                    o.ejectWhenDone = IsDlgButtonChecked(opt, IDC_CDOPT_EJECT) == BST_CHECKED;
+                    g_opts = o;
+                    EndDialog(opt, IDOK);
+                    return TRUE;
+                }
+                case IDCANCEL:
+                    EndDialog(opt, IDCANCEL);
+                    return TRUE;
+            }
+            break;
+    }
+    return FALSE;
+}
+
+void OnOptions(HWND dlg) {
+    if (DialogBoxW(GetModuleHandleW(nullptr), MAKEINTRESOURCEW(IDD_CD_RIP_OPTIONS), dlg, OptionsDlgProc) == IDOK) {
+        SaveRipSettings(dlg);
+    }
 }
 
 // ---- Fields ----
@@ -679,27 +766,90 @@ std::wstring DefaultOutputRoot() {
     return L"C:\\";
 }
 
+std::wstring IniString(const wchar_t* key, const wchar_t* def) {
+    wchar_t buf[MAX_PATH * 4] = {};
+    GetPrivateProfileStringW(L"CdRip", key, def, buf, _countof(buf), g_configPath.c_str());
+    return buf;
+}
+
+bool IniBool(const wchar_t* key, bool def) {
+    return GetPrivateProfileIntW(L"CdRip", key, def ? 1 : 0, g_configPath.c_str()) != 0;
+}
+
+void IniWrite(const wchar_t* key, const std::wstring& v) {
+    WritePrivateProfileStringW(L"CdRip", key, v.c_str(), g_configPath.c_str());
+}
+
+const wchar_t* QualityKey(mediaaccess::RipFormat f) {
+    switch (f) {
+        case mediaaccess::RipFormat::FLAC: return L"Quality_FLAC";
+        case mediaaccess::RipFormat::MP3:  return L"Quality_MP3";
+        case mediaaccess::RipFormat::OGG:  return L"Quality_OGG";
+        case mediaaccess::RipFormat::OPUS: return L"Quality_OPUS";
+        default:                           return nullptr;
+    }
+}
+
+// The format list is WAV, FLAC, MP3, Ogg Vorbis[, Opus]: its index is the
+// RipFormat value (Opus is last, so it can be left out).
+mediaaccess::RipFormat SelectedFormat(HWND dlg) {
+    int sel = (int)SendDlgItemMessageW(dlg, IDC_CDRIP_FORMAT, CB_GETCURSEL, 0, 0);
+    return (sel >= 0 && sel <= 4) ? (mediaaccess::RipFormat)sel : mediaaccess::RipFormat::FLAC;
+}
+
+void FillQualityCombo(HWND dlg) {
+    mediaaccess::RipFormat f = SelectedFormat(dlg);
+    HWND combo = GetDlgItem(dlg, IDC_CDRIP_QUALITY);
+    SendMessageW(combo, CB_RESETCONTENT, 0, 0);
+    int n = mediaaccess::RipQualityCount(f);
+    for (int i = 0; i < n; ++i) {
+        SendMessageW(combo, CB_ADDSTRING, 0, (LPARAM)mediaaccess::RipQualityLabel(f, i).c_str());
+    }
+    const wchar_t* key = QualityKey(f);
+    int q = key ? GetPrivateProfileIntW(L"CdRip", key, mediaaccess::RipDefaultQuality(f), g_configPath.c_str()) : 0;
+    SendMessageW(combo, CB_SETCURSEL, (q >= 0 && q < n) ? q : 0, 0);
+}
+
 void LoadRipSettings(HWND dlg) {
+    int count = (int)SendDlgItemMessageW(dlg, IDC_CDRIP_FORMAT, CB_GETCOUNT, 0, 0);
     int format = GetPrivateProfileIntW(L"CdRip", L"Format", (int)mediaaccess::RipFormat::FLAC, g_configPath.c_str());
-    SendDlgItemMessageW(dlg, IDC_CDRIP_FORMAT, CB_SETCURSEL, (format == 0) ? 0 : 1, 0);
-    wchar_t root[MAX_PATH * 4] = {};
-    GetPrivateProfileStringW(L"CdRip", L"OutputRoot", L"", root, _countof(root), g_configPath.c_str());
-    SetDlgItemTextW(dlg, IDC_CDRIP_FOLDER, root[0] ? root : DefaultOutputRoot().c_str());
+    SendDlgItemMessageW(dlg, IDC_CDRIP_FORMAT, CB_SETCURSEL, (format >= 0 && format < count) ? format : 1, 0);
+    FillQualityCombo(dlg);
+    std::wstring root = IniString(L"OutputRoot", L"");
+    SetDlgItemTextW(dlg, IDC_CDRIP_FOLDER, root.empty() ? DefaultOutputRoot().c_str() : root.c_str());
+    g_opts.folderTpl = IniString(L"FolderTemplate", kDefaultFolderTpl);
+    g_opts.fileTpl = IniString(L"FileTemplate", kDefaultFileTpl);
+    g_opts.embedCover = IniBool(L"EmbedCover", true);
+    g_opts.saveFolderJpg = IniBool(L"SaveFolderJpg", true);
+    g_opts.writeCue = IniBool(L"WriteCue", true);
+    g_opts.writeM3u = IniBool(L"WriteM3u", true);
+    g_opts.ejectWhenDone = IniBool(L"EjectWhenDone", false);
 }
 
 void SaveRipSettings(HWND dlg) {
-    int format = (int)SendDlgItemMessageW(dlg, IDC_CDRIP_FORMAT, CB_GETCURSEL, 0, 0);
-    WritePrivateProfileStringW(L"CdRip", L"Format", format == 0 ? L"0" : L"1", g_configPath.c_str());
-    wchar_t root[MAX_PATH * 4] = {};
-    GetDlgItemTextW(dlg, IDC_CDRIP_FOLDER, root, _countof(root));
-    WritePrivateProfileStringW(L"CdRip", L"OutputRoot", root, g_configPath.c_str());
+    mediaaccess::RipFormat f = SelectedFormat(dlg);
+    IniWrite(L"Format", std::to_wstring((int)f));
+    const wchar_t* key = QualityKey(f);
+    if (key) IniWrite(key, std::to_wstring((int)SendDlgItemMessageW(dlg, IDC_CDRIP_QUALITY, CB_GETCURSEL, 0, 0)));
+    IniWrite(L"OutputRoot", GetText(dlg, IDC_CDRIP_FOLDER));
+    IniWrite(L"FolderTemplate", g_opts.folderTpl);
+    IniWrite(L"FileTemplate", g_opts.fileTpl);
+    IniWrite(L"EmbedCover", g_opts.embedCover ? L"1" : L"0");
+    IniWrite(L"SaveFolderJpg", g_opts.saveFolderJpg ? L"1" : L"0");
+    IniWrite(L"WriteCue", g_opts.writeCue ? L"1" : L"0");
+    IniWrite(L"WriteM3u", g_opts.writeM3u ? L"1" : L"0");
+    IniWrite(L"EjectWhenDone", g_opts.ejectWhenDone ? L"1" : L"0");
 }
 
 void InitRipControls(HWND dlg) {
     HWND combo = GetDlgItem(dlg, IDC_CDRIP_FORMAT);
     SendMessageW(combo, CB_ADDSTRING, 0, (LPARAM)T("WAV (uncompressed)"));
     SendMessageW(combo, CB_ADDSTRING, 0, (LPARAM)T("FLAC (lossless)"));
+    SendMessageW(combo, CB_ADDSTRING, 0, (LPARAM)L"MP3");
+    SendMessageW(combo, CB_ADDSTRING, 0, (LPARAM)L"Ogg Vorbis");
+    if (mediaaccess::IsOpusAvailable()) SendMessageW(combo, CB_ADDSTRING, 0, (LPARAM)L"Opus");
     SetWindowSubclass(combo, DriveComboProc, 2, 0);   // same "First," / "Last," rule
+    SetWindowSubclass(GetDlgItem(dlg, IDC_CDRIP_QUALITY), DriveComboProc, 3, 0);
     LoadRipSettings(dlg);
 }
 
@@ -737,30 +887,77 @@ std::wstring CleanName(const std::wstring& in) {
     return s;
 }
 
-// Plan 4.6 defaults: "Album artist\Album (year)"; files "01 - Title",
-// "1-01 - Title" for a multi-disc set, "01 - Artist - Title" for a compilation.
-std::wstring AlbumFolder(const std::wstring& root) {
-    std::wstring album = CleanName(g_meta.album);
-    if (album.empty()) {
+// Name templates (plan 4.6): %albumartist% %artist% %album% %year% %track%
+// %tracktotal% %title% %disc% %disctotal% %genre% %label%. Each part between
+// backslashes is cleaned on its own; an empty "()" left by a missing value
+// goes away, and so does a part left empty.
+std::wstring ExpandTemplate(const std::wstring& tpl, const CdReleaseMeta& m, int row) {
+    std::wstring title, artist;
+    int number = 0;
+    if (row >= 0 && row < (int)g_rowTrack.size()) {
+        number = g_listContents.tracks[g_rowTrack[row]].number;
+        title = TrackTitle(row);
+        if (row < (int)m.tracks.size()) artist = m.tracks[row].artist;
+    }
+    if (artist.empty()) artist = m.albumArtist;
+    const std::pair<const wchar_t*, std::wstring> vars[] = {
+        { L"%albumartist%", m.albumArtist }, { L"%artist%", artist }, { L"%album%", m.album },
+        { L"%year%", m.year }, { L"%track%", Format(L"%02d", number) },
+        { L"%tracktotal%", Format(L"%02d", (int)g_rowTrack.size()) }, { L"%title%", title },
+        { L"%disc%", std::to_wstring(m.discNumber) }, { L"%disctotal%", std::to_wstring(m.discTotal) },
+        { L"%genre%", m.genre }, { L"%label%", m.label },
+    };
+    std::wstring out, part;
+    auto flush = [&]() {
+        for (const wchar_t* empty : { L"()", L"[]" }) {
+            size_t at;
+            while ((at = part.find(empty)) != std::wstring::npos) part.erase(at, 2);
+        }
+        std::wstring clean = CleanName(part);
+        if (!clean.empty()) out += (out.empty() ? L"" : L"\\") + clean;
+        part.clear();
+    };
+    for (size_t i = 0; i < tpl.size();) {
+        if (tpl[i] == L'\\' || tpl[i] == L'/') { flush(); ++i; continue; }
+        bool matched = false;
+        for (const auto& v : vars) {
+            size_t len = wcslen(v.first);
+            if (_wcsnicmp(tpl.c_str() + i, v.first, len) == 0) {
+                for (wchar_t c : v.second) part += (c == L'\\' || c == L'/') ? L'-' : c;
+                i += len;
+                matched = true;
+                break;
+            }
+        }
+        if (!matched) part += tpl[i++];
+    }
+    flush();
+    return out;
+}
+
+// The default file template becomes "1-01 - Title" for a multi-disc set and
+// "01 - Artist - Title" for a compilation (plan 4.6); a template the user
+// wrote is used as it is.
+std::wstring FileTemplateFor(const CdReleaseMeta& m, const std::wstring& tpl) {
+    if (tpl != kDefaultFileTpl) return tpl;
+    if (m.discTotal > 1) return L"%disc%-%track% - %title%";
+    if (m.compilation) return L"%track% - %artist% - %title%";
+    return tpl;
+}
+
+std::wstring AlbumFolderName(const CdReleaseMeta& m, const std::wstring& tpl) {
+    std::wstring rel = (m.album.empty() && m.albumArtist.empty()) ? std::wstring() : ExpandTemplate(tpl, m, -1);
+    if (rel.empty()) {   // nothing known about the disc: a dated folder
         SYSTEMTIME st;
         GetLocalTime(&st);
-        return root + L"\\" + Format(T("Audio CD %04d-%02d-%02d %02dh%02d"),
-                                     st.wYear, st.wMonth, st.wDay, st.wHour, st.wMinute);
+        rel = Format(T("Audio CD %04d-%02d-%02d %02dh%02d"), st.wYear, st.wMonth, st.wDay, st.wHour, st.wMinute);
     }
-    if (!g_meta.year.empty()) album += L" (" + CleanName(g_meta.year) + L")";
-    std::wstring artist = CleanName(g_meta.albumArtist);
-    return root + L"\\" + (artist.empty() ? album : artist + L"\\" + album);
+    return rel;
 }
 
 std::wstring TrackFileName(int row) {
-    int number = g_listContents.tracks[g_rowTrack[row]].number;
-    std::wstring title = TrackTitle(row);
-    std::wstring prefix = (g_meta.discTotal > 1) ? Format(L"%d-%02d", g_meta.discNumber, number)
-                                                 : Format(L"%02d", number);
-    if (g_meta.compilation && row < (int)g_meta.tracks.size() && !g_meta.tracks[row].artist.empty()) {
-        return CleanName(prefix + L" - " + g_meta.tracks[row].artist + L" - " + title);
-    }
-    return CleanName(prefix + L" - " + title);
+    std::wstring name = ExpandTemplate(FileTemplateFor(g_meta, g_opts.fileTpl), g_meta, row);
+    return name.empty() ? Format(L"%02d", g_listContents.tracks[g_rowTrack[row]].number) : name;
 }
 
 // ---- Extraction ----
@@ -781,23 +978,38 @@ void OnStart(HWND dlg) {
     for (int row = 0; row < (int)g_rowTrack.size(); ++row) {
         if (!ListView_GetCheckState(list, row)) continue;
         const DiscTrack& t = g_listContents.tracks[g_rowTrack[row]];
-        job.tracks.push_back({ t.index, t.number, t.seconds, TrackFileName(row) });
+        mediaaccess::RipTrack rt = { t.index, t.number, t.seconds, TrackFileName(row) };
+        rt.title = TrackTitle(row);
+        if (row < (int)g_meta.tracks.size()) {
+            rt.artist = g_meta.tracks[row].artist;
+            rt.isrc = g_meta.tracks[row].isrc;
+            rt.recordingMbid = g_meta.tracks[row].recordingMbid;
+        }
+        if (rt.artist.empty()) rt.artist = g_meta.albumArtist;
+        job.tracks.push_back(rt);
     }
     if (job.tracks.empty()) {
         SpeakW(T("No track is ticked"));
         return;
     }
-    int format = (int)SendDlgItemMessageW(dlg, IDC_CDRIP_FORMAT, CB_GETCURSEL, 0, 0);
-    job.format = (format == 0) ? mediaaccess::RipFormat::WAV : mediaaccess::RipFormat::FLAC;
+    job.format = SelectedFormat(dlg);
+    job.quality = (int)SendDlgItemMessageW(dlg, IDC_CDRIP_QUALITY, CB_GETCURSEL, 0, 0);
     std::wstring rootDir = GetText(dlg, IDC_CDRIP_FOLDER);
     if (rootDir.empty()) rootDir = DefaultOutputRoot();
     while (!rootDir.empty() && (rootDir.back() == L'\\' || rootDir.back() == L'/')) rootDir.pop_back();
-    job.folder = AlbumFolder(rootDir);
+    std::wstring albumRel = AlbumFolderName(g_meta, g_opts.folderTpl);
+    job.folder = rootDir + L"\\" + albumRel;
     job.meta = g_meta;
+    job.trackTotal = (int)g_rowTrack.size();
+    job.embedCover = g_opts.embedCover;
+    job.saveFolderJpg = g_opts.saveFolderJpg;
+    job.writeCue = g_opts.writeCue;
+    job.writeM3u = g_opts.writeM3u;
+    job.listName = CleanName(g_meta.album.empty() ? albumRel.substr(albumRel.find_last_of(L'\\') + 1) : g_meta.album);
     SaveRipSettings(dlg);
 
     // Never replace files without asking.
-    const wchar_t* ext = (job.format == mediaaccess::RipFormat::WAV) ? L".wav" : L".flac";
+    const wchar_t* ext = mediaaccess::RipFormatExtension(job.format);
     int existing = 0;
     for (const mediaaccess::RipTrack& t : job.tracks) {
         if (GetFileAttributesW((job.folder + L"\\" + t.fileName + ext).c_str()) != INVALID_FILE_ATTRIBUTES) ++existing;
@@ -961,7 +1173,16 @@ INT_PTR CALLBACK CdRipDlgProc(HWND dlg, UINT msg, WPARAM wParam, LPARAM lParam) 
                     StartLookup(dlg, false);
                     return TRUE;
                 case IDC_CDRIP_FORMAT:
+                    if (HIWORD(wParam) == CBN_SELCHANGE) {
+                        FillQualityCombo(dlg);   // not focused: silent
+                        SaveRipSettings(dlg);
+                    }
+                    return TRUE;
+                case IDC_CDRIP_QUALITY:
                     if (HIWORD(wParam) == CBN_SELCHANGE) SaveRipSettings(dlg);
+                    return TRUE;
+                case IDC_CDRIP_OPTIONS:
+                    OnOptions(dlg);
                     return TRUE;
                 case IDC_CDRIP_ALBUM: case IDC_CDRIP_ARTIST: case IDC_CDRIP_YEAR:
                 case IDC_CDRIP_GENRE: case IDC_CDRIP_DISC: case IDC_CDRIP_DISCTOTAL:
@@ -1007,10 +1228,18 @@ INT_PTR CALLBACK CdRipDlgProc(HWND dlg, UINT msg, WPARAM wParam, LPARAM lParam) 
         case WM_CDRIP_TRACK_START:
             OnTrackStart(dlg, (int)wParam, (int)LOWORD(lParam), (int)HIWORD(lParam));
             return TRUE;
-        case WM_CDRIP_DONE:
+        case WM_CDRIP_DONE: {
             OnRipEnded(dlg, ((int)wParam == 1) ? std::wstring(T("Extraction done: 1 track"))
                                                : Format(T("Extraction done: %d tracks"), (int)wParam), true);
+            const DiscDrive* d = SelectedDrive(dlg);
+            bool open = false;
+            if (g_opts.ejectWhenDone && d && !mediaaccess::IsDriveTrayOpen(*d) &&
+                mediaaccess::ToggleDriveTray(*d, &open) && open) {
+                g_trayOpenedByUs = true;   // "Disc removed" is not said on top of the end
+                RefreshDisc(dlg);
+            }
             return TRUE;
+        }
         case WM_CDRIP_CANCELLED:
             OnRipEnded(dlg, ((int)wParam == 0) ? std::wstring(T("Extraction stopped, no track written"))
                                                : Format(T("Extraction stopped, %d tracks written"), (int)wParam), false);

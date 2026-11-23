@@ -143,6 +143,12 @@ powershell -Command "Expand-Archive -Path 'temp_dl\bassenc_flac.zip' -Destinatio
 copy /y "temp_dl\bassenc_flac\c\x64\bassenc_flac.lib" "lib\" >nul
 copy /y "temp_dl\bassenc_flac\x64\bassenc_flac.dll" "lib\" >nul
 
+REM BASSENC_OPUS (v2.78 — audio CD extraction to Opus; loaded at run time, no .lib)
+echo Downloading BASSENC_OPUS...
+powershell -Command "Invoke-WebRequest -Uri 'https://www.un4seen.com/files/bassenc_opus24.zip' -OutFile 'temp_dl\bassenc_opus.zip'"
+powershell -Command "Expand-Archive -Path 'temp_dl\bassenc_opus.zip' -DestinationPath 'temp_dl\bassenc_opus' -Force"
+copy /y "temp_dl\bassenc_opus\x64\bassenc_opus.dll" "lib\" >nul
+
 echo.
 echo Downloading Steam Audio SDK (for 3D spatial audio)...
 if exist "deps\steamaudio" rmdir /s /q "deps\steamaudio"

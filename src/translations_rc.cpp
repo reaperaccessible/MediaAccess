@@ -1101,8 +1101,36 @@ void RegisterRcTranslations() {
     AddTranslation("fr", "Track tit&le:", L"Titre de la pi&ste :");
     AddTranslation("en", "Track art&ist:", L"Track art&ist:");
     AddTranslation("fr", "Track art&ist:", L"Art&iste de la piste :");
+    AddTranslation("en", "Q&uality:", L"Q&uality:");
+    AddTranslation("fr", "Q&uality:", L"Q&ualité :");
+    AddTranslation("en", "Options...", L"Options...");
+    AddTranslation("fr", "Options...", L"Options...");
     AddTranslation("en", "Editio&ns...", L"Editio&ns...");
     AddTranslation("fr", "Editio&ns...", L"É&ditions...");
+
+    // DIALOG: IDD_CD_RIP_OPTIONS - "Extraction options" (v2.78)
+    AddTranslation("en", "Extraction options", L"Extraction options");
+    AddTranslation("fr", "Extraction options", L"Options d'extraction");
+    AddTranslation("en", "&Folder name:", L"&Folder name:");
+    AddTranslation("fr", "&Folder name:", L"Nom du &dossier :");
+    AddTranslation("en", "File &name:", L"File &name:");
+    AddTranslation("fr", "File &name:", L"Nom du &fichier :");
+    AddTranslation("en", "Names you can use:", L"Names you can use:");
+    AddTranslation("fr", "Names you can use:", L"Noms utilisables :");
+    AddTranslation("en", "&Preview:", L"&Preview:");
+    AddTranslation("fr", "&Preview:", L"&Aperçu :");
+    AddTranslation("en", "&Embed the cover in the files", L"&Embed the cover in the files");
+    AddTranslation("fr", "&Embed the cover in the files", L"&Intégrer la pochette aux fichiers");
+    AddTranslation("en", "Save the cover as f&older.jpg", L"Save the cover as f&older.jpg");
+    AddTranslation("fr", "Save the cover as f&older.jpg", L"Enregistrer la pochette en f&older.jpg");
+    AddTranslation("en", "Write a &CUE sheet", L"Write a &CUE sheet");
+    AddTranslation("fr", "Write a &CUE sheet", L"Écrire un fichier &CUE");
+    AddTranslation("en", "Write an &M3U8 playlist", L"Write an &M3U8 playlist");
+    AddTranslation("fr", "Write an &M3U8 playlist", L"Écrire une liste de lecture &M3U8");
+    AddTranslation("en", "Eject the disc &when done", L"Eject the disc &when done");
+    AddTranslation("fr", "Eject the disc &when done", L"É&jecter le disque à la fin");
+    AddTranslation("en", "&Defaults", L"&Defaults");
+    AddTranslation("fr", "&Defaults", L"&Valeurs par défaut");
 
     // DIALOG: IDD_CD_RELEASE - "Editions of this disc" (v2.78)
     AddTranslation("en", "Editions of this disc", L"Editions of this disc");

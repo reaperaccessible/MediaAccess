@@ -814,6 +814,57 @@ void RegisterUiTranslations() {
     AddTranslation("fr", "Choose another edition", L"Choisir une autre édition");
     AddTranslation("en", "CD %d of %d", L"CD %d of %d");
     AddTranslation("fr", "CD %d of %d", L"CD %d sur %d");
+    AddTranslation("en", "%albumartist%, %artist%, %album%, %year%, %track%, %tracktotal%, %title%, %disc%, %disctotal%, %genre%, %label%. A backslash makes a sub-folder.",
+                         L"%albumartist%, %artist%, %album%, %year%, %track%, %tracktotal%, %title%, %disc%, %disctotal%, %genre%, %label%. A backslash makes a sub-folder.");
+    AddTranslation("fr", "%albumartist%, %artist%, %album%, %year%, %track%, %tracktotal%, %title%, %disc%, %disctotal%, %genre%, %label%. A backslash makes a sub-folder.",
+                         L"%albumartist% (artiste de l'album), %artist% (artiste de la piste), %album%, %year% (année), %track% (piste), %tracktotal% (nombre de pistes), %title% (titre), %disc% (disque), %disctotal% (nombre de disques), %genre%, %label% (étiquette). Une barre oblique inverse fait un sous-dossier.");
+    // v2.78 — extraction formats and qualities (phase 4)
+    AddTranslation("en", "Album", L"Album");
+    AddTranslation("fr", "Album", L"Album");
+    AddTranslation("en", "Artist", L"Artist");
+    AddTranslation("fr", "Artist", L"Artiste");
+    AddTranslation("en", "Level 5 (default)", L"Level 5 (default)");
+    AddTranslation("fr", "Level 5 (default)", L"Niveau 5 (par défaut)");
+    AddTranslation("en", "Level 8 (smallest, slowest)", L"Level 8 (smallest, slowest)");
+    AddTranslation("fr", "Level 8 (smallest, slowest)", L"Niveau 8 (le plus petit, le plus lent)");
+    AddTranslation("en", "Level 0 (fastest)", L"Level 0 (fastest)");
+    AddTranslation("fr", "Level 0 (fastest)", L"Niveau 0 (le plus rapide)");
+    AddTranslation("en", "VBR V0, about 245 kbps (default)", L"VBR V0, about 245 kbps (default)");
+    AddTranslation("fr", "VBR V0, about 245 kbps (default)", L"VBR V0, environ 245 kbps (par défaut)");
+    AddTranslation("en", "VBR V2, about 190 kbps", L"VBR V2, about 190 kbps");
+    AddTranslation("fr", "VBR V2, about 190 kbps", L"VBR V2, environ 190 kbps");
+    AddTranslation("en", "VBR V4, about 165 kbps", L"VBR V4, about 165 kbps");
+    AddTranslation("fr", "VBR V4, about 165 kbps", L"VBR V4, environ 165 kbps");
+    AddTranslation("en", "CBR 320 kbps", L"CBR 320 kbps");
+    AddTranslation("fr", "CBR 320 kbps", L"CBR 320 kbps");
+    AddTranslation("en", "CBR 256 kbps", L"CBR 256 kbps");
+    AddTranslation("fr", "CBR 256 kbps", L"CBR 256 kbps");
+    AddTranslation("en", "CBR 192 kbps", L"CBR 192 kbps");
+    AddTranslation("fr", "CBR 192 kbps", L"CBR 192 kbps");
+    AddTranslation("en", "CBR 128 kbps", L"CBR 128 kbps");
+    AddTranslation("fr", "CBR 128 kbps", L"CBR 128 kbps");
+    AddTranslation("en", "Quality 6, about 192 kbps (default)", L"Quality 6, about 192 kbps (default)");
+    AddTranslation("fr", "Quality 6, about 192 kbps (default)", L"Qualité 6, environ 192 kbps (par défaut)");
+    AddTranslation("en", "Quality 8, about 256 kbps", L"Quality 8, about 256 kbps");
+    AddTranslation("fr", "Quality 8, about 256 kbps", L"Qualité 8, environ 256 kbps");
+    AddTranslation("en", "Quality 10, about 500 kbps", L"Quality 10, about 500 kbps");
+    AddTranslation("fr", "Quality 10, about 500 kbps", L"Qualité 10, environ 500 kbps");
+    AddTranslation("en", "Quality 5, about 160 kbps", L"Quality 5, about 160 kbps");
+    AddTranslation("fr", "Quality 5, about 160 kbps", L"Qualité 5, environ 160 kbps");
+    AddTranslation("en", "Quality 4, about 128 kbps", L"Quality 4, about 128 kbps");
+    AddTranslation("fr", "Quality 4, about 128 kbps", L"Qualité 4, environ 128 kbps");
+    AddTranslation("en", "160 kbps (default)", L"160 kbps (default)");
+    AddTranslation("fr", "160 kbps (default)", L"160 kbps (par défaut)");
+    AddTranslation("en", "192 kbps", L"192 kbps");
+    AddTranslation("fr", "192 kbps", L"192 kbps");
+    AddTranslation("en", "256 kbps", L"256 kbps");
+    AddTranslation("fr", "256 kbps", L"256 kbps");
+    AddTranslation("en", "128 kbps", L"128 kbps");
+    AddTranslation("fr", "128 kbps", L"128 kbps");
+    AddTranslation("en", "96 kbps", L"96 kbps");
+    AddTranslation("fr", "96 kbps", L"96 kbps");
+    AddTranslation("en", "16-bit, 44.1 kHz (as on the CD)", L"16-bit, 44.1 kHz (as on the CD)");
+    AddTranslation("fr", "16-bit, 44.1 kHz (as on the CD)", L"16 bits, 44,1 kHz (comme sur le CD)");
     AddTranslation("en", "Disc removed", L"Disc removed");
     AddTranslation("fr", "Disc removed", L"Disque retiré");
     AddTranslation("en", "Audio CD support is missing (basscd.dll). Please reinstall MediaAccess.",
