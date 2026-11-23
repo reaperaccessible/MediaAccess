@@ -42,6 +42,7 @@
 #include "effects.h"
 #include "database.h"
 #include "youtube.h"
+#include "ui_cd_rip.h"
 #include "download_manager.h"
 #include "updater.h"
 #include "resource.h"
@@ -1671,6 +1672,9 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
                 case IDM_FILE_YTSUBS:   // v2.61 (Phase 3b) — YouTube channel subscriptions
                     ShowYtSubscriptionsDialog(hwnd);
                     break;
+                case IDM_CD_RIP_OPEN:   // v2.78 — audio CD extraction (modeless)
+                    ShowCdRipDialog(hwnd);
+                    break;
                 case IDM_FILE_EXIT:
                     // v2.72 — through DestroyWindow (WM_DESTROY saves the
                     // settings), deferred while a yt-dlp update runs.
@@ -2786,6 +2790,11 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLi
         HWND ytDlg = GetYouTubeDialog();
         if (ytDlg && IsWindowVisible(ytDlg) && IsDialogMessageW(ytDlg, &msg)) {
             continue;  // Message was handled by the dialog
+        }
+        // v2.78 — same routing for the modeless "Extract audio CD" window.
+        HWND cdDlg = GetCdRipDialog();
+        if (cdDlg && IsWindowVisible(cdDlg) && IsDialogMessageW(cdDlg, &msg)) {
+            continue;
         }
 
         // Only process accelerators if YouTube dialog doesn't have focus

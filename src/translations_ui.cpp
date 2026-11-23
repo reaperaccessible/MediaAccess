@@ -662,4 +662,50 @@ void RegisterUiTranslations() {
     AddTranslation("fr", "created",   L"créé");
     AddTranslation("en", "shortcuts", L"shortcuts");
     AddTranslation("fr", "shortcuts", L"raccourcis");
+
+    // v2.78 — Extract audio CD window (ui_cd_rip.cpp)
+    AddTranslation("en", "drive %lc",   L"drive %lc");
+    AddTranslation("fr", "drive %lc",   L"lecteur %lc");
+    AddTranslation("en", "1 track",     L"1 track");
+    AddTranslation("fr", "1 track",     L"1 piste");
+    AddTranslation("en", "%d tracks",   L"%d tracks");
+    AddTranslation("fr", "%d tracks",   L"%d pistes");
+    AddTranslation("en", "%d minute",   L"%d minute");
+    AddTranslation("fr", "%d minute",   L"%d minute");
+    AddTranslation("en", "%d minutes",  L"%d minutes");
+    AddTranslation("fr", "%d minutes",  L"%d minutes");
+    AddTranslation("en", "no disc",     L"no disc");
+    AddTranslation("fr", "no disc",     L"aucun disque");
+    AddTranslation("en", "no audio CD", L"no audio CD");
+    AddTranslation("fr", "no audio CD", L"pas de CD audio");
+    AddTranslation("en", "Track %d",    L"Track %d");
+    AddTranslation("fr", "Track %d",    L"Piste %d");
+    AddTranslation("en", "Title",       L"Title");
+    AddTranslation("fr", "Title",       L"Titre");
+    AddTranslation("en", "Duration",    L"Duration");
+    AddTranslation("fr", "Duration",    L"Durée");
+    AddTranslation("en", "Tray open",   L"Tray open");
+    AddTranslation("fr", "Tray open",   L"Tiroir ouvert");
+    AddTranslation("en", "Tray closed", L"Tray closed");
+    AddTranslation("fr", "Tray closed", L"Tiroir fermé");
+    AddTranslation("en", "Extract audio CD: %ls", L"Extract audio CD: %ls");
+    AddTranslation("fr", "Extract audio CD: %ls", L"Extraire un CD audio : %ls");
+    AddTranslation("en", "Close the tray by hand", L"Close the tray by hand");
+    AddTranslation("fr", "Close the tray by hand", L"Refermez le tiroir à la main");
+    AddTranslation("en", "The tray cannot be opened", L"The tray cannot be opened");
+    AddTranslation("fr", "The tray cannot be opened", L"Le tiroir ne peut pas être ouvert");
+    AddTranslation("en", "CD inserted in %ls", L"CD inserted in %ls");
+    AddTranslation("fr", "CD inserted in %ls", L"CD inséré dans le %ls");
+    AddTranslation("en", "No audio CD in %ls", L"No audio CD in %ls");
+    AddTranslation("fr", "No audio CD in %ls", L"Pas de CD audio dans le %ls");
+    AddTranslation("en", "Disc removed", L"Disc removed");
+    AddTranslation("fr", "Disc removed", L"Disque retiré");
+    AddTranslation("en", "Audio CD support is missing (basscd.dll). Please reinstall MediaAccess.",
+                         L"Audio CD support is missing (basscd.dll). Please reinstall MediaAccess.");
+    AddTranslation("fr", "Audio CD support is missing (basscd.dll). Please reinstall MediaAccess.",
+                         L"La prise en charge des CD audio est absente (basscd.dll). Réinstallez MediaAccess.");
+    AddTranslation("en", "No CD or DVD drive was found on this computer.",
+                         L"No CD or DVD drive was found on this computer.");
+    AddTranslation("fr", "No CD or DVD drive was found on this computer.",
+                         L"Aucun lecteur de CD ou de DVD n'a été trouvé sur cet ordinateur.");
 }

@@ -51,6 +51,7 @@ BEGIN
         MENUITEM "&Add Stream to Favorites...\tCtrl+D", IDM_FILE_ADD_TO_FAVORITES
         MENUITEM "&Podcasts...\tCtrl+Shift+P", IDM_FILE_PODCAST
         MENUITEM "YouTube su&bscriptions...", IDM_FILE_YTSUBS
+        MENUITEM "Extract audio &CD...\tCtrl+Shift+X", IDM_CD_RIP_OPEN
         MENUITEM "&Schedule...\tCtrl+S", IDM_FILE_SCHEDULE
         MENUITEM "Song &History...\tCtrl+Shift+H", IDM_VIEW_SONG_HISTORY
         MENUITEM SEPARATOR
@@ -519,6 +520,23 @@ BEGIN
     PUSHBUTTON      "&Copy", IDC_HISTORY_COPY, 7, 238, 50, 14
     PUSHBUTTON      "C&lear", IDC_HISTORY_CLEAR, 62, 238, 50, 14
     DEFPUSHBUTTON   "Close", IDCANCEL, 343, 238, 50, 14
+END
+
+// v2.78 — audio CD extraction (modeless, like YouTube). Resource order matters
+// for MSAA: each LTEXT right before its control becomes that control's name.
+IDD_CD_RIP DIALOGEX 0, 0, 330, 250
+STYLE DS_SETFONT | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU | WS_THICKFRAME
+CAPTION "Extract audio CD"
+FONT 8, "MS Shell Dlg"
+BEGIN
+    LTEXT           "&Drive:", IDC_CDRIP_DRIVE_LABEL, 7, 9, 40, 10
+    COMBOBOX        IDC_CDRIP_DRIVE, 50, 7, 273, 100, CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    LTEXT           "&Tracks:", IDC_CDRIP_TRACKS_LABEL, 7, 26, 80, 10
+    CONTROL         "", IDC_CDRIP_TRACKS, "SysListView32", LVS_REPORT | LVS_SINGLESEL | LVS_SHOWSELALWAYS | WS_BORDER | WS_TABSTOP, 7, 38, 316, 140
+    PUSHBUTTON      "&Eject", IDC_CDRIP_EJECT, 7, 184, 60, 14
+    LTEXT           "&Status:", IDC_CDRIP_STATUS_LABEL, 7, 204, 80, 10
+    EDITTEXT        IDC_CDRIP_STATUS, 7, 215, 250, 28, ES_MULTILINE | ES_READONLY | ES_AUTOVSCROLL | WS_VSCROLL | WS_TABSTOP
+    PUSHBUTTON      "Close", IDCANCEL, 263, 229, 60, 14
 END
 
 IDD_RADIO DIALOGEX 0, 0, 350, 280

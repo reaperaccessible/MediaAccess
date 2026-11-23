@@ -112,6 +112,19 @@
 #define IDM_CLEAR_LOOP       1839
 #define IDM_GOTO_LOOP_START  1840
 #define IDM_GOTO_LOOP_END    1841
+
+// v2.78 — audio CD extraction (docs/PLAN_EXTRACTION_CD.md). Range 2000-2099 is
+// reserved for it; CD/DVD playback (docs/PLAN_CD_DVD.md) must take 2100-2199.
+#define IDM_CD_RIP_OPEN          2000   // File > Extract audio CD...
+#define IDD_CD_RIP               2020
+#define IDC_CDRIP_DRIVE_LABEL    2021
+#define IDC_CDRIP_DRIVE          2022
+#define IDC_CDRIP_TRACKS_LABEL   2023
+#define IDC_CDRIP_TRACKS         2024
+#define IDC_CDRIP_EJECT          2025
+#define IDC_CDRIP_STATUS_LABEL   2026
+#define IDC_CDRIP_STATUS         2027
+
 #define IDM_EFFECT_PRESETS  238
 
 // Accelerator table

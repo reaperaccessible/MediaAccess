@@ -84,6 +84,9 @@ static const Action g_actions[] = {
     { "FILE_YTSUBS",              IDM_FILE_YTSUBS,            ActionCategory::Main,
       "YouTube subscriptions...",     "Abonnements YouTube...",
       { 0, false, false, false } },
+    { "FILE_CD_RIP",              IDM_CD_RIP_OPEN,            ActionCategory::Main,
+      "Extract audio CD...",          "Extraire un CD audio...",
+      { 'X', true,  true,  false } },          // Ctrl+Shift+X (eXtract)
     { "FILE_SCHEDULE",            IDM_FILE_SCHEDULE,          ActionCategory::Main,
       "Schedule...",                  "Planificateur...",
       { 'S', true,  false, false } },

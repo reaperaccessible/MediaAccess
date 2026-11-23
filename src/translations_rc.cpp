@@ -55,6 +55,9 @@ void RegisterRcTranslations() {
     AddTranslation("en", "&Podcasts...\tCtrl+Shift+P", L"&Podcasts...\tCtrl+Shift+P");
     AddTranslation("fr", "&Podcasts...\tCtrl+Shift+P", L"&Podcasts...\tCtrl+Shift+P");
 
+    AddTranslation("en", "Extract audio &CD...\tCtrl+Shift+X", L"Extract audio &CD...\tCtrl+Shift+X");
+    AddTranslation("fr", "Extract audio &CD...\tCtrl+Shift+X", L"Extraire un &CD audio...\tCtrl+Shift+X");
+
     AddTranslation("en", "&Schedule...\tCtrl+S", L"&Schedule...\tCtrl+S");
     AddTranslation("fr", "&Schedule...\tCtrl+S", L"&Planificateur...\tCtrl+S");
 
@@ -1067,6 +1070,20 @@ void RegisterRcTranslations() {
 
     AddTranslation("en", "C&lear", L"C&lear");
     AddTranslation("fr", "C&lear", L"Effa&cer");
+
+    // ===================================================================
+    // DIALOG: IDD_CD_RIP - "Extract audio CD" (v2.78)
+    // ===================================================================
+    AddTranslation("en", "Extract audio CD", L"Extract audio CD");
+    AddTranslation("fr", "Extract audio CD", L"Extraire un CD audio");
+    AddTranslation("en", "&Drive:", L"&Drive:");
+    AddTranslation("fr", "&Drive:", L"&Lecteur :");
+    AddTranslation("en", "&Tracks:", L"&Tracks:");
+    AddTranslation("fr", "&Tracks:", L"&Pistes :");
+    AddTranslation("en", "&Eject", L"&Eject");
+    AddTranslation("fr", "&Eject", L"É&jecter");
+    AddTranslation("en", "&Status:", L"&Status:");
+    AddTranslation("fr", "&Status:", L"É&tat :");
 
     // ===================================================================
     // DIALOG: IDD_RADIO - "Internet Radio"
