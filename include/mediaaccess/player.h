@@ -91,6 +91,7 @@ void CrossfadeMaintain();      // plan, keep or drop the next fade (UI thread; c
 void CrossfadeGesture();       // pause/stop/seek: a fade in progress ends first
 int  CrossfadePlannedNext();   // the next index a crossfade decided, or -1
 void ToggleCrossfade();        // F key: on/off, announced
+void HandleCrossfadeSilence(LPARAM result);   // WM_CROSSFADE_SILENCE
 
 // Stream metadata change callback (for internet radio)
 void CALLBACK OnMetaChange(HSYNC handle, DWORD channel, DWORD data, void* user);

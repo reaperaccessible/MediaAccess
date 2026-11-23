@@ -469,6 +469,8 @@ int g_repeatMode = 0;                               // 0 = off, 1 = repeat one, 
 bool g_crossfadeEnabled = false;
 int  g_crossfadeSeconds = 6;
 int  g_crossfadeShape = 0;
+bool g_crossfadeSkipSilence = true;
+int  g_crossfadeSilenceDb = -50;
 
 // Chapter support
 std::vector<Chapter> g_chapters;                    // Chapters for current file

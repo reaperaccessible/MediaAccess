@@ -289,6 +289,8 @@ extern int g_repeatMode;                // 0 = off, 1 = repeat one, 2 = repeat a
 extern bool g_crossfadeEnabled;         // fade one local song into the next (F key)
 extern int  g_crossfadeSeconds;         // heard duration of the fade, 1-15 s (default 6)
 extern int  g_crossfadeShape;           // 0 = smooth (equal power), 1 = linear
+extern bool g_crossfadeSkipSilence;     // fade from where the music really ends (default on)
+extern int  g_crossfadeSilenceDb;       // silence threshold, dBFS (-40 to -70, default -50)
 
 // Chapter support
 struct Chapter {

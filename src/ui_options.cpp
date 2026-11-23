@@ -376,7 +376,8 @@ void ShowTabControls(HWND hwnd, int tab) {
     // Crossfade tab controls (tab 13)
     int crossfadeCtrls[] = {IDC_LABEL_XF_DESCRIPTION, IDC_XF_ENABLE,
                             IDC_LABEL_XF_SECONDS, IDC_XF_SECONDS,
-                            IDC_LABEL_XF_SHAPE, IDC_XF_SHAPE};
+                            IDC_LABEL_XF_SHAPE, IDC_XF_SHAPE,
+                            IDC_XF_SKIP_SILENCE, IDC_LABEL_XF_SILENCE, IDC_XF_SILENCE};
 
 
 
@@ -1131,6 +1132,15 @@ INT_PTR CALLBACK OptionsDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
                 SendMessageW(hShape, CB_ADDSTRING, 0, (LPARAM)T("Smooth (constant level)"));
                 SendMessageW(hShape, CB_ADDSTRING, 0, (LPARAM)T("Linear"));
                 SendMessageW(hShape, CB_SETCURSEL, g_crossfadeShape, 0);
+                CheckDlgButton(hwnd, IDC_XF_SKIP_SILENCE, g_crossfadeSkipSilence ? BST_CHECKED : BST_UNCHECKED);
+                HWND hSil = GetDlgItem(hwnd, IDC_XF_SILENCE);
+                SendMessageW(hSil, CB_RESETCONTENT, 0, 0);
+                for (int d = -40; d >= -70; d -= 5) {
+                    wchar_t buf[32];
+                    swprintf(buf, 32, L"%d dB", d);
+                    SendMessageW(hSil, CB_ADDSTRING, 0, (LPARAM)buf);
+                }
+                SendMessageW(hSil, CB_SETCURSEL, (-40 - g_crossfadeSilenceDb) / 5, 0);
             }
 
             // Initialize MIDI tab controls
@@ -1672,6 +1682,9 @@ INT_PTR CALLBACK OptionsDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
                         if (s >= 0 && s < 15) g_crossfadeSeconds = s + 1;
                         int sh = (int)SendMessageW(GetDlgItem(hwnd, IDC_XF_SHAPE), CB_GETCURSEL, 0, 0);
                         if (sh == 0 || sh == 1) g_crossfadeShape = sh;
+                        g_crossfadeSkipSilence = (IsDlgButtonChecked(hwnd, IDC_XF_SKIP_SILENCE) == BST_CHECKED);
+                        int si = (int)SendMessageW(GetDlgItem(hwnd, IDC_XF_SILENCE), CB_GETCURSEL, 0, 0);
+                        if (si >= 0 && si <= 6) g_crossfadeSilenceDb = -40 - 5 * si;
                         CrossfadeMaintain();
                     }
 

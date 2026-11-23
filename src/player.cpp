@@ -32,6 +32,8 @@ static void TeardownMpvBeforeLoad();
 #include <atomic>   // v2.64 — playlist-total re-entrancy guard
 #include <shlobj.h>
 #include <map>
+#include <set>
+#include <thread>
 #include <algorithm>  // std::sort (v2.43 bookmark navigation)
 #include <algorithm>
 #include <vector>
@@ -88,6 +90,7 @@ static ChainSignature s_chainSig;     // settings the chain was built with
 static std::atomic<DWORD> s_xfNext{0};      // next song, open and paused in the mixer
 static std::atomic<bool>  s_xfArmed{false}; // the fade-start sync may fire
 static std::atomic<DWORD> s_xfFadingOut{0}; // song going out (set by the sync)
+static std::atomic<int>   s_silenceWorkers{0}; // silence measures running (phase 3)
 static void CrossfadeDropAll();
 static void PostCrossfadeMaintain();
 
@@ -546,6 +549,9 @@ bool InitBass(HWND hwnd) {
 // it's owned by g_fxStream via BASS_FX_FREESOURCE, and for Speedy/Signalsmith
 // it's owned by the tempo processor; double-freeing either way crashes.
 void FreeBass() {
+    // Crossfade silence measures still running hold decode streams: let them
+    // finish (a few ms each) before BASS goes.
+    for (int i = 0; i < 300 && s_silenceWorkers.load() > 0; ++i) Sleep(10);
     if (g_fxStream) {
         BASS_ChannelStop(g_fxStream);
         BASS_StreamFree(g_fxStream);
@@ -1860,6 +1866,121 @@ static QWORD   s_xfStartByte = 0;           // where the fade starts (song bytes
 static QWORD   s_xfLenBytes = 0;            // its length (mixer bytes)
 static int     s_xfShape = -1;
 static std::vector<BASS_MIXER_NODE> s_xfOutNodes, s_xfInNodes;
+static HSYNC   s_xfEndSync = 0;             // where the music of the current song ends
+static HSTREAM s_xfEndSyncSong = 0;
+static QWORD   s_xfEndByte = 0;
+static double  s_xfNextStartSec = 0.0;      // where the next song was placed (its music start)
+
+// =============================================================================
+// Crossfade, phase 3 — the silence at the end of a song and at the start of
+// the next one does not count (plan, section 2.2). Measured in the background
+// on a decode copy of the file: the last 30 s and the first 10 s, peak per
+// 10 ms block against the threshold. Kept for the session, per file and
+// threshold. Only the current and the next song are ever measured (nothing
+// heavy runs by itself: opening a folder of 1000 songs measures none).
+// =============================================================================
+struct SilenceInfo {
+    bool   ok = false;
+    int    thrDb = 0;
+    double musicStart = 0.0;   // first block above the threshold (seconds)
+    double musicEnd = 0.0;     // end of the last block above it
+    double length = 0.0;
+};
+struct SilenceResult { std::wstring path; SilenceInfo info; };
+static std::map<std::wstring, SilenceInfo> s_silence;   // UI thread
+static std::set<std::wstring> s_silencePending;          // UI thread
+
+static HSTREAM OpenSongStream(const wchar_t* path);
+
+static SilenceInfo MeasureSilence(const std::wstring& path, int thrDb) {
+    SilenceInfo r;
+    r.thrDb = thrDb;
+    HSTREAM h = OpenSongStream(path.c_str());
+    if (!h) return r;
+    const float thr = static_cast<float>(pow(10.0, thrDb / 20.0));
+    BASS_CHANNELINFO ci = {};
+    BASS_ChannelGetInfo(h, &ci);
+    const QWORD lenB = BASS_ChannelGetLength(h, BASS_POS_BYTE);
+    const DWORD block = static_cast<DWORD>(BASS_ChannelSeconds2Bytes(h, 0.01));
+    if (lenB == (QWORD)-1 || !block || !ci.chans) { BASS_StreamFree(h); return r; }
+    r.length = BASS_ChannelBytes2Seconds(h, lenB);
+    std::vector<float> buf(block / sizeof(float));
+    auto loud = [&](DWORD got) {
+        for (DWORD i = 0; i < got / sizeof(float); ++i)
+            if (fabsf(buf[i]) > thr) return true;
+        return false;
+    };
+    // Start: the first 10 s.
+    double start = -1.0;
+    for (int i = 0; i < 1000; ++i) {
+        DWORD got = BASS_ChannelGetData(h, buf.data(), block | BASS_DATA_FLOAT);
+        if (got == (DWORD)-1 || got == 0) break;
+        if (loud(got)) { start = (i > 0 ? i - 1 : 0) * 0.01; break; }   // one block early: no attack is cut
+    }
+    // End: the last 30 s, counted back from the end of the file.
+    double tailStart = r.length > 30.0 ? r.length - 30.0 : 0.0;
+    QWORD fromB = BASS_ChannelSeconds2Bytes(h, tailStart);
+    double end = -1.0;
+    if (BASS_ChannelSetPosition(h, fromB, BASS_POS_BYTE)) {
+        QWORD readB = 0, lastLoudEnd = 0;
+        bool any = false;
+        for (;;) {
+            DWORD got = BASS_ChannelGetData(h, buf.data(), block | BASS_DATA_FLOAT);
+            if (got == (DWORD)-1 || got == 0) break;
+            readB += got;
+            if (loud(got)) { lastLoudEnd = readB; any = true; }
+        }
+        if (any && readB) {
+            double trailing = BASS_ChannelBytes2Seconds(h, readB - lastLoudEnd);
+            end = r.length - trailing + 0.01;   // one block late: no release is cut
+            if (end > r.length) end = r.length;
+        }
+    }
+    BASS_StreamFree(h);
+    // A file that is silent all along its measured part is not skipped.
+    r.musicStart = start > 0.0 ? start : 0.0;
+    r.musicEnd = end > 0.0 ? end : r.length;
+    r.ok = true;
+    return r;
+}
+
+static void SilenceWorker(std::wstring path, int thrDb) {
+    auto* res = new SilenceResult{ path, MeasureSilence(path, thrDb) };
+    if (!g_hwnd || !PostMessage(g_hwnd, WM_CROSSFADE_SILENCE, 0, reinterpret_cast<LPARAM>(res))) delete res;
+    s_silenceWorkers.fetch_sub(1);
+}
+
+// The measure of a file, or nullptr while it is being made (asked here).
+static const SilenceInfo* CrossfadeSilenceFor(const std::wstring& path) {
+    if (path.empty()) return nullptr;
+    auto it = s_silence.find(path);
+    if (it != s_silence.end() && it->second.thrDb == g_crossfadeSilenceDb) return &it->second;
+    if (s_silencePending.count(path)) return nullptr;
+    s_silencePending.insert(path);
+    s_silenceWorkers.fetch_add(1);
+    std::thread(SilenceWorker, path, g_crossfadeSilenceDb).detach();
+    return nullptr;
+}
+
+void HandleCrossfadeSilence(LPARAM lParam) {
+    auto* res = reinterpret_cast<SilenceResult*>(lParam);
+    if (!res) return;
+    s_silencePending.erase(res->path);
+    if (res->info.ok) {
+        s_silence[res->path] = res->info;
+        LogF("Crossfade", "silence measured: music %.2f to %.2f s of %.2f s (%d dB)",
+             res->info.musicStart, res->info.musicEnd, res->info.length, res->info.thrDb);
+    }
+    delete res;
+    CrossfadeMaintain();
+}
+
+// Mixtime sync at the end of the music of the song going out: the rest is
+// silence at zero volume; let it go now rather than at the end of the file.
+static void CALLBACK OnCrossfadeMusicEnd(HSYNC, DWORD channel, DWORD, void*) {
+    if (channel == s_xfFadingOut.load())
+        PostMessage(g_hwnd, WM_CROSSFADE_OUT_DONE, static_cast<WPARAM>(channel), 0);
+}
 
 // The next song, decided once (section 5): kept while the current song, the
 // list entry, shuffle and repeat stay the same.
@@ -1920,10 +2041,14 @@ static void CALLBACK OnCrossfadeStart(HSYNC, DWORD channel, DWORD, void*) {
 static void CrossfadeRemoveSync() {
     s_xfArmed.store(false);
     if (s_xfSync && s_xfSyncSong) BASS_Mixer_ChannelRemoveSync(s_xfSyncSong, s_xfSync);
+    if (s_xfEndSync && s_xfEndSyncSong) BASS_Mixer_ChannelRemoveSync(s_xfEndSyncSong, s_xfEndSync);
     s_xfSync = 0;
     s_xfSyncSong = 0;
     s_xfStartByte = 0;
     s_xfLenBytes = 0;
+    s_xfEndSync = 0;
+    s_xfEndSyncSong = 0;
+    s_xfEndByte = 0;
 }
 
 // Let the prepared next song go (the decision itself is kept).
@@ -2121,15 +2246,32 @@ void CrossfadeMaintain() {
             return;
         }
         s_xfNext.store(h);
+        s_xfNextStartSec = 0.0;
     }
 
     // Where and how long: the heard duration, never more than half of the
     // shorter song (section 3).
     const double lenCur = SongLength(s_song);
     const double lenNext = SongLength(s_xfNext.load());
+    // Phase 3: the fade ends where the music of this song ends, and the next
+    // song comes in where its music starts. Without a measure (not made yet,
+    // or failed), the plain ends of the files.
+    double endCur = lenCur, startNext = 0.0;
+    if (g_crossfadeSkipSilence) {
+        const SilenceInfo* a = CrossfadeSilenceFor(g_currentSourcePath);
+        const SilenceInfo* b = CrossfadeSilenceFor(s_xfPath);
+        if (a && a->ok && a->musicEnd > 0.0 && a->musicEnd < lenCur) endCur = a->musicEnd;
+        if (b && b->ok && b->musicStart < lenNext) startNext = b->musicStart;
+    }
+    if (startNext != s_xfNextStartSec) {   // the next song is paused: placing it is safe
+        OutputLock lock(g_fxStream);
+        BASS_Mixer_ChannelSetPosition(s_xfNext.load(), BASS_ChannelSeconds2Bytes(s_xfNext.load(), startNext),
+                                      BASS_POS_BYTE | BASS_POS_MIXER_RESET);
+        s_xfNextStartSec = startNext;
+    }
     double fade = g_crossfadeSeconds * CrossfadeSpeedFactor();
-    fade = (std::min)(fade, (std::min)(lenCur, lenNext) / 2.0);
-    double start = lenCur - fade;
+    fade = (std::min)(fade, (std::min)(endCur, lenNext - startNext) / 2.0);
+    double start = endCur - fade;
     const double decoded = SongDecodePos(s_song);
     if (start < decoded) {
         // The mixer is already past the start (a seek near the end, or the
@@ -2138,7 +2280,7 @@ void CrossfadeMaintain() {
         if (s_xfSync && s_xfSyncSong == s_song &&
             BASS_ChannelBytes2Seconds(s_song, s_xfStartByte) > decoded) return;
         start = decoded + 0.2;
-        fade = lenCur - start;
+        fade = endCur - start;
     }
     if (fade < 0.5) {   // too late for a fade: the song simply ends
         if (s_xfSync) { OutputLock lock(g_fxStream); CrossfadeRemoveSync(); }
@@ -2146,8 +2288,9 @@ void CrossfadeMaintain() {
     }
     const QWORD startB = BASS_ChannelSeconds2Bytes(s_song, start);
     const QWORD lenB = BASS_ChannelSeconds2Bytes(s_mixer, fade);
+    const QWORD endB = (endCur < lenCur - 0.05) ? BASS_ChannelSeconds2Bytes(s_song, endCur) : 0;
     if (s_xfSync && s_xfSyncSong == s_song && s_xfShape == g_crossfadeShape &&
-        startB == s_xfStartByte && lenB == s_xfLenBytes) return;   // unchanged
+        startB == s_xfStartByte && lenB == s_xfLenBytes && endB == s_xfEndByte) return;   // unchanged
 
     OutputLock lock(g_fxStream);
     CrossfadeRemoveSync();
@@ -2159,8 +2302,15 @@ void CrossfadeMaintain() {
     s_xfSyncSong = s_song;
     s_xfStartByte = startB;
     s_xfLenBytes = lenB;
+    if (endB) {
+        s_xfEndSync = BASS_Mixer_ChannelSetSync(s_song, BASS_SYNC_POS | BASS_SYNC_MIXTIME | BASS_SYNC_ONETIME,
+                                                endB, OnCrossfadeMusicEnd, nullptr);
+        s_xfEndSyncSong = s_xfEndSync ? s_song : 0;
+        s_xfEndByte = endB;
+    }
     s_xfArmed.store(true);
-    LogF("Crossfade", "planned: track %d -> %d at %.2f s, %.2f s of file", g_currentTrack, s_xfIndex, start, fade);
+    LogF("Crossfade", "planned: track %d -> %d at %.2f s, %.2f s of file, next from %.2f s",
+         g_currentTrack, s_xfIndex, start, fade, startNext);
 }
 
 static void AnnounceCurrentTrackChange();   // below, shared with PlayTrack
@@ -2190,6 +2340,9 @@ void HandleCrossfadeStart(WPARAM nextSong, LPARAM outSong) {
         s_xfSyncSong = 0;
         s_xfStartByte = 0;
         s_xfLenBytes = 0;
+        s_xfEndSync = 0;       // belongs to the song going out now
+        s_xfEndSyncSong = 0;
+        s_xfEndByte = 0;
         GetTempoProcessor()->SetSongStream(s_song);
     }
     KillTimer(g_hwnd, IDT_SONG_END);

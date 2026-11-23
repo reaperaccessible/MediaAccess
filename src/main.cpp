@@ -1382,6 +1382,10 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
             CrossfadeMaintain();
             return 0;
 
+        case WM_CROSSFADE_SILENCE:
+            HandleCrossfadeSilence(lParam);
+            return 0;
+
         case WM_META_CHANGED:
             AnnounceStreamMetadata();
             UpdateWindowTitle();
