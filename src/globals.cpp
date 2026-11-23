@@ -474,6 +474,7 @@ int  g_crossfadeSilenceDb = -50;
 bool g_crossfadeAlbumGapless = true;
 int  g_crossfadeNormalize = 0;
 int  g_crossfadePreampDb = 0;
+int  g_crossfadeGestureMs = 500;
 
 // Chapter support
 std::vector<Chapter> g_chapters;                    // Chapters for current file

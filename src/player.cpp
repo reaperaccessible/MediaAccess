@@ -2002,7 +2002,7 @@ bool LoadFile(const wchar_t* path) {
 // auto-advance is disabled to leave the user in a paused state.
 void CALLBACK OnTrackEnd(HSYNC handle, DWORD channel, DWORD data, void* user) {
     if (g_autoAdvance || g_repeatMode != 0) {
-        PostMessage(g_hwnd, WM_COMMAND, IDM_PLAY_NEXT, 0);
+        PostMessage(g_hwnd, WM_COMMAND, IDM_PLAY_NEXT, 2);   // 2: end of track, no gesture fade
     } else {
         PostMessage(g_hwnd, WM_COMMAND, IDM_PLAY_NEXT, 1);
     }
@@ -2294,11 +2294,45 @@ static void CrossfadeForgetDecision() {
     s_xfDecidedRepeat = -1;
 }
 
+// Phase 6 — a gesture during a fade: the song going out goes down to silence
+// and the current song up to full level, in the gesture's short time (the
+// song going out is let go once that is over). False: no gesture fade.
+static HSTREAM s_xfSoftOut = 0;
+static bool CrossfadeFinishSoft() {
+    DWORD out = s_xfOut ? s_xfOut : s_xfFadingOut.load();
+    if (!out || !s_mixerChain || !g_crossfadeEnabled || g_crossfadeGestureMs <= 0) return false;
+    OutputLock lock(g_fxStream);
+    const QWORD lenB = BASS_ChannelSeconds2Bytes(s_mixer, g_crossfadeGestureMs / 1000.0);
+    float vOut = 1.0f, vIn = 1.0f;
+    if (BASS_Mixer_ChannelGetEnvelopePos(out, BASS_MIXER_ENV_VOL, &vOut) == (QWORD)-1) vOut = 1.0f;
+    if (s_song && BASS_Mixer_ChannelGetEnvelopePos(s_song, BASS_MIXER_ENV_VOL, &vIn) == (QWORD)-1) vIn = 1.0f;
+    BASS_MIXER_NODE downN[2] = { { 0, vOut }, { lenB, 0.0f } };
+    BASS_MIXER_NODE upN[2] = { { 0, vIn }, { lenB, 1.0f } };
+    BASS_Mixer_ChannelSetEnvelope(out, BASS_MIXER_ENV_VOL, downN, 2);
+    if (s_song) BASS_Mixer_ChannelSetEnvelope(s_song, BASS_MIXER_ENV_VOL, upN, 2);
+    s_xfSoftOut = out;
+    if (g_hwnd) SetTimer(g_hwnd, IDT_XF_SOFTFREE, g_crossfadeGestureMs + 150, nullptr);
+    return true;
+}
+
+void HandleCrossfadeSoftFree() {
+    KillTimer(g_hwnd, IDT_XF_SOFTFREE);
+    DWORD out = s_xfSoftOut;
+    s_xfSoftOut = 0;
+    if (!out || (out != s_xfOut && out != s_xfFadingOut.load())) return;
+    OutputLock lock(s_mixerChain ? g_fxStream : 0);
+    BASS_StreamFree(out);
+    s_xfOut = 0;
+    s_xfFadingOut.store(0);
+    if (s_song) BASS_Mixer_ChannelSetEnvelope(s_song, BASS_MIXER_ENV_VOL, nullptr, 0);
+}
+
 // A gesture during a fade ends it: the song going out is let go at once and
 // the current song plays on at full level.
 static void CrossfadeFinishNow() {
     DWORD out = s_xfOut ? s_xfOut : s_xfFadingOut.load();
     if (!out) return;
+    s_xfSoftOut = 0;
     OutputLock lock(s_mixerChain ? g_fxStream : 0);
     BASS_StreamFree(out);
     s_xfOut = 0;
@@ -2327,7 +2361,7 @@ void CrossfadeBeforeSeek() {
         // gesture is for the song coming in.
         HandleCrossfadeStart((WPARAM)s_xfNext.load(), (LPARAM)s_xfFadingOut.load());
     }
-    CrossfadeFinishNow();
+    if (!CrossfadeFinishSoft()) CrossfadeFinishNow();
     PostCrossfadeMaintain();   // the fade start moves with the position
 }
 
@@ -2665,6 +2699,12 @@ static void CrossfadeTrackIsNow(int nextIndex);
 // now the current song, once, here: title, announcement, history, playlist.
 void HandleCrossfadeStart(WPARAM nextSong, LPARAM outSong) {
     if (!s_mixerChain || !g_fxStream) return;
+    if (s_xfOut && s_xfOut == s_xfSoftOut) {   // still going down after a gesture: let it go now
+        OutputLock lock(g_fxStream);
+        BASS_StreamFree(s_xfOut);
+        s_xfOut = 0;
+        s_xfSoftOut = 0;
+    }
     if (static_cast<DWORD>(nextSong) != s_xfNext.load() ||
         static_cast<HSTREAM>(outSong) != s_song || s_xfOut) return;
     const int nextIndex = s_xfIndex;
@@ -2761,6 +2801,112 @@ void CrossfadeGainRefresh() {
     if (!s_mixerChain) return;
     if (s_song) ApplySongGain(s_song, g_currentSourcePath);
     if (s_xfNext.load()) ApplySongGain(s_xfNext.load(), s_xfPath);
+}
+
+// =============================================================================
+// Crossfade, phase 6 — the short fade of the user's gestures (plan, 2.5):
+// pause, stop, next, previous and resume fade over g_crossfadeGestureMs
+// instead of cutting, for local files on the song-mixer chain, crossfade on.
+//
+// The fade is a slide of BASS_ATTRIB_VOL on the output stream: it acts on
+// what is being heard, at once. A gain in the DSP chain (what the plan first
+// said) would only be heard after the playback buffer, 500 ms by default: a
+// pause would then come later than today. BASS_ATTRIB_VOL is otherwise only
+// used by the "legacy volume" mode (and the subtitle ducking in that mode):
+// with legacy volume on, gestures cut as before. The recording (R) takes the
+// sound before that attribute: it is not faded.
+// =============================================================================
+// BASS_CONFIG_CURVE_VOL: a value v is (v - 1) x 100 dB. A slide to 0 would
+// run down to -100 dB, so that only its first fifth is heard; it runs from
+// 0 dB to -60 dB instead (0.4), the rest being silence anyway.
+static const float kGestureFloor = 0.4f;
+static UINT    s_gesturePending = 0;   // the command waiting for its fade to end
+static HSTREAM s_gestureStream = 0;
+
+static bool GestureFadeAllowed() {
+    return g_crossfadeEnabled && g_crossfadeGestureMs > 0 && !g_legacyVolume &&
+           s_mixerChain && g_fxStream && g_activeEngine == PlaybackEngine::BASS &&
+           !g_isLiveStream && !mediaaccess::DaisyIsActive();
+}
+
+static void RunGesture(UINT cmd) {
+    switch (cmd) {
+        case IDM_PLAY_PLAYPAUSE: PlayPause(); break;
+        case IDM_PLAY_PAUSE:     Pause(); break;
+        case IDM_PLAY_STOP:      Stop(); break;
+        case IDM_PLAY_NEXT:      NextTrack(true); break;
+        case IDM_PLAY_PREV:      PrevTrack(); break;
+    }
+}
+
+// After a track change: the new song rises (same stream, or a new chain).
+static void GestureRise() {
+    if (!g_fxStream || !s_mixerChain || g_legacyVolume) return;
+    BASS_ChannelSetAttribute(g_fxStream, BASS_ATTRIB_VOL, kGestureFloor);
+    BASS_ChannelSlideAttribute(g_fxStream, BASS_ATTRIB_VOL, 1.0f, g_crossfadeGestureMs);
+}
+
+bool GestureFadeBegin(UINT command) {
+    if (s_gesturePending) {
+        // A second gesture while the first one fades: Play/Pause again means
+        // "never mind" (back up); anything else does the first one now.
+        UINT first = s_gesturePending;
+        s_gesturePending = 0;
+        KillTimer(g_hwnd, IDT_GESTURE_FADE);
+        if (first == IDM_PLAY_PLAYPAUSE && command == IDM_PLAY_PLAYPAUSE && g_fxStream == s_gestureStream) {
+            BASS_ChannelSlideAttribute(g_fxStream, BASS_ATTRIB_VOL, 1.0f, g_crossfadeGestureMs);
+            return true;
+        }
+        if (g_fxStream == s_gestureStream) {
+            RunGesture(first);
+            if (first == IDM_PLAY_NEXT || first == IDM_PLAY_PREV) GestureRise();
+            else if (g_fxStream) BASS_ChannelSetAttribute(g_fxStream, BASS_ATTRIB_VOL, 1.0f);
+        }
+        return false;   // the new gesture is done at once
+    }
+    if (!GestureFadeAllowed()) return false;
+    if (BASS_ChannelIsActive(g_fxStream) != BASS_ACTIVE_PLAYING) return false;   // nothing heard: nothing to fade
+    // A pause or play/pause of something that is playing; stop, next, previous.
+    if (!CrossfadeFinishSoft()) CrossfadeFinishNow();   // a fade in progress ends first
+    BASS_ChannelSlideAttribute(g_fxStream, BASS_ATTRIB_VOL, kGestureFloor, g_crossfadeGestureMs);
+    s_gesturePending = command;
+    s_gestureStream = g_fxStream;
+    SetTimer(g_hwnd, IDT_GESTURE_FADE, g_crossfadeGestureMs, nullptr);
+    return true;
+}
+
+void HandleGestureFadeTimer() {
+    KillTimer(g_hwnd, IDT_GESTURE_FADE);
+    UINT cmd = s_gesturePending;
+    s_gesturePending = 0;
+    if (!cmd) return;
+    if (g_fxStream != s_gestureStream) {   // the chain changed meanwhile: nothing to do
+        if (g_fxStream) BASS_ChannelSetAttribute(g_fxStream, BASS_ATTRIB_VOL, 1.0f);
+        return;
+    }
+    BASS_ChannelSetAttribute(g_fxStream, BASS_ATTRIB_VOL, 0.0f);
+    RunGesture(cmd);
+    if (cmd == IDM_PLAY_NEXT || cmd == IDM_PLAY_PREV) {
+        GestureRise();
+    } else if (g_fxStream) {
+        BASS_ChannelSetAttribute(g_fxStream, BASS_ATTRIB_VOL, 1.0f);   // paused or stopped: silent anyway
+    }
+}
+
+bool GestureResume() {
+    if (!GestureFadeAllowed()) return false;
+    const DWORD state = BASS_ChannelIsActive(g_fxStream);
+    if (state != BASS_ACTIVE_PAUSED && state != BASS_ACTIVE_STOPPED) return false;
+    BASS_ChannelSetAttribute(g_fxStream, BASS_ATTRIB_VOL, kGestureFloor);
+    if (state == BASS_ACTIVE_STOPPED) {
+        Play();   // after Stop: from the start, as before
+    } else {
+        BASS_ChannelPlay(g_fxStream, FALSE);
+        UpdateWindowTitle();
+        UpdateStatusBar();
+    }
+    if (g_fxStream) BASS_ChannelSlideAttribute(g_fxStream, BASS_ATTRIB_VOL, 1.0f, g_crossfadeGestureMs);
+    return true;
 }
 
 // F key and the menu: crossfade on or off.

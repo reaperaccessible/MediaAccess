@@ -896,6 +896,12 @@ void RegisterRcTranslations() {
     AddTranslation("fr", "Track gain", L"Gain de la piste");
     AddTranslation("en", "Album gain", L"Album gain");
     AddTranslation("fr", "Album gain", L"Gain de l'album");
+    AddTranslation("en", "&Gesture crossfade (pause, stop, next or previous track):",
+                   L"&Gesture crossfade (pause, stop, next or previous track):");
+    AddTranslation("fr", "&Gesture crossfade (pause, stop, next or previous track):",
+                   L"Fondu enchaîné des &gestes (pause, arrêt, piste suivante ou précédente) :");
+    AddTranslation("en", "None (sharp cut)", L"None (sharp cut)");
+    AddTranslation("fr", "None (sharp cut)", L"Aucun (coupure sèche)");
 
     AddTranslation("en", "MIDI playback settings (BASSMIDI):", L"MIDI playback settings (BASSMIDI):");
     AddTranslation("fr", "MIDI playback settings (BASSMIDI):",

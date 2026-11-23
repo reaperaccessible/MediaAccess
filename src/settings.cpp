@@ -374,6 +374,8 @@ void LoadSettings() {
     if (g_crossfadeNormalize < 0 || g_crossfadeNormalize > 2) g_crossfadeNormalize = 0;
     g_crossfadePreampDb = GetPrivateProfileIntW(L"Crossfade", L"PreampDb", 0, g_configPath.c_str());
     if (g_crossfadePreampDb < -6 || g_crossfadePreampDb > 6) g_crossfadePreampDb = 0;
+    g_crossfadeGestureMs = GetPrivateProfileIntW(L"Crossfade", L"GestureMs", 500, g_configPath.c_str());
+    if (g_crossfadeGestureMs < 0 || g_crossfadeGestureMs > 2000) g_crossfadeGestureMs = 500;
     g_playlistFollowPlayback = GetPrivateProfileIntW(L"Playback", L"PlaylistFollow", 1, g_configPath.c_str()) != 0;
     g_checkForUpdates = GetPrivateProfileIntW(L"Playback", L"CheckForUpdates", 1, g_configPath.c_str()) != 0;
     g_autoFollowDevice = GetPrivateProfileIntW(L"Playback", L"AutoFollowDevice", 1, g_configPath.c_str()) != 0;  // v2.32
@@ -803,6 +805,8 @@ void SaveSettings() {
     WritePrivateProfileStringW(L"Crossfade", L"Normalize", buf, g_configPath.c_str());
     swprintf(buf, 32, L"%d", g_crossfadePreampDb);
     WritePrivateProfileStringW(L"Crossfade", L"PreampDb", buf, g_configPath.c_str());
+    swprintf(buf, 32, L"%d", g_crossfadeGestureMs);
+    WritePrivateProfileStringW(L"Crossfade", L"GestureMs", buf, g_configPath.c_str());
     WritePrivateProfileStringW(L"Playback", L"PlaylistFollow", g_playlistFollowPlayback ? L"1" : L"0", g_configPath.c_str());
     WritePrivateProfileStringW(L"Playback", L"CheckForUpdates", g_checkForUpdates ? L"1" : L"0", g_configPath.c_str());
     WritePrivateProfileStringW(L"Playback", L"AutoFollowDevice", g_autoFollowDevice ? L"1" : L"0", g_configPath.c_str());  // v2.32

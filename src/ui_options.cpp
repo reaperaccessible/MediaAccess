@@ -13,6 +13,7 @@
 #include "mediaaccess/notify_sounds.h"      // v2.74 — download-finished sounds
 #include "bass.h"                          // preview playback
 #include <set>
+#include <algorithm>
 #include <cmath>
 #include <thread>                          // off-UI-thread voice preview synthesis
 #include <initguid.h>                      // v2.73 — defines the oleacc GUIDs below in this file
@@ -379,7 +380,8 @@ void ShowTabControls(HWND hwnd, int tab) {
                             IDC_LABEL_XF_SHAPE, IDC_XF_SHAPE,
                             IDC_XF_SKIP_SILENCE, IDC_LABEL_XF_SILENCE, IDC_XF_SILENCE,
                             IDC_XF_ALBUM, IDC_LABEL_XF_NORMALIZE, IDC_XF_NORMALIZE,
-                            IDC_LABEL_XF_PREAMP, IDC_XF_PREAMP};
+                            IDC_LABEL_XF_PREAMP, IDC_XF_PREAMP,
+                            IDC_LABEL_XF_GESTURE, IDC_XF_GESTURE};
 
 
 
@@ -1158,6 +1160,27 @@ INT_PTR CALLBACK OptionsDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
                     SendMessageW(hPre, CB_ADDSTRING, 0, (LPARAM)buf);
                 }
                 SendMessageW(hPre, CB_SETCURSEL, g_crossfadePreampDb + 6, 0);
+                static const int kGestureMs[] = { 0, 250, 500, 750, 1000, 1500, 2000 };
+                HWND hGes = GetDlgItem(hwnd, IDC_XF_GESTURE);
+                SendMessageW(hGes, CB_RESETCONTENT, 0, 0);
+                int gsel = 2;
+                for (int i = 0; i < 7; ++i) {
+                    std::wstring label;
+                    if (kGestureMs[i] == 0) {
+                        label = T("None (sharp cut)");
+                    } else {
+                        wchar_t buf[32];
+                        swprintf(buf, 32, L"%.2f", kGestureMs[i] / 1000.0);
+                        label = buf;
+                        while (label.back() == L'0') label.pop_back();
+                        if (label.back() == L'.') label.pop_back();
+                        if (g_language == "fr") std::replace(label.begin(), label.end(), L'.', L',');
+                        label += L" s";
+                    }
+                    SendMessageW(hGes, CB_ADDSTRING, 0, (LPARAM)label.c_str());
+                    if (kGestureMs[i] == g_crossfadeGestureMs) gsel = i;
+                }
+                SendMessageW(hGes, CB_SETCURSEL, gsel, 0);
             }
 
             // Initialize MIDI tab controls
@@ -1707,6 +1730,9 @@ INT_PTR CALLBACK OptionsDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
                         if (nm >= 0 && nm <= 2) g_crossfadeNormalize = nm;
                         int pa = (int)SendMessageW(GetDlgItem(hwnd, IDC_XF_PREAMP), CB_GETCURSEL, 0, 0);
                         if (pa >= 0 && pa <= 12) g_crossfadePreampDb = pa - 6;
+                        static const int kGestureMsOk[] = { 0, 250, 500, 750, 1000, 1500, 2000 };
+                        int gs = (int)SendMessageW(GetDlgItem(hwnd, IDC_XF_GESTURE), CB_GETCURSEL, 0, 0);
+                        if (gs >= 0 && gs < 7) g_crossfadeGestureMs = kGestureMsOk[gs];
                         CrossfadeGainRefresh();
                         CrossfadeMaintain();
                     }

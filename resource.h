@@ -205,6 +205,8 @@
 #define IDT_SUBTITLE_FADE   408   // smooth duck fade of the mpv video volume while a subtitle is spoken
 #define IDT_BATCH_ENQUEUE   409   // v2.64 — one-shot: coalesce an Explorer "Add to queue" burst (409, not 406: taken)
 #define IDT_SONG_END        413   // crossfade phase 1 — short poll from a song's decode end until it is heard (410-412 taken)
+#define IDT_GESTURE_FADE    414   // crossfade phase 6 — the short fade of a gesture is over: do the gesture
+#define IDT_XF_SOFTFREE     415   // crossfade phase 6 — let go of a song faded out by a gesture
 
 // Custom messages
 #define WM_SPEAK            (WM_USER + 1)
@@ -255,6 +257,8 @@
 #define IDC_XF_NORMALIZE         1791
 #define IDC_LABEL_XF_PREAMP      1792
 #define IDC_XF_PREAMP            1793
+#define IDC_LABEL_XF_GESTURE     1794
+#define IDC_XF_GESTURE           1795
 #define IDC_YT_CAPTION_LANG      1761
 #define IDC_LABEL_YT_CAPTION_LANG 1762
 #define IDC_YT_AUTOPLAY_NEXT     1766   // v2.61 — autoplay next result when a YouTube video ends

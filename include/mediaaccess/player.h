@@ -94,6 +94,11 @@ void ToggleCrossfade();        // F key: on/off, announced
 void HandleCrossfadeSilence(LPARAM result);   // WM_CROSSFADE_SILENCE
 void HandleCrossfadeCdJoin(WPARAM stream);     // WM_CROSSFADE_CD_JOIN
 void CrossfadeGainRefresh();   // volume settings or analysis changed: the songs in the mixer again
+// Phase 6 — the short fade of the user's gestures (WM_COMMAND level only).
+bool GestureFadeBegin(UINT command);   // true: deferred until the fade is heard out
+bool GestureResume();                  // play from pause with a short rise; true if done
+void HandleGestureFadeTimer();         // IDT_GESTURE_FADE
+void HandleCrossfadeSoftFree();        // IDT_XF_SOFTFREE
 bool StreamHasOwnGain(HSTREAM s);         // a ReplayGain or R128 tag (any thread)
 std::string StreamAlbumTag(HSTREAM s);    // album tag, UTF-8 (any thread)
 

@@ -1030,6 +1030,14 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
                 PollSongEnd();
                 return 0;
             }
+            if (wParam == IDT_GESTURE_FADE) {   // crossfade phase 6
+                HandleGestureFadeTimer();
+                return 0;
+            }
+            if (wParam == IDT_XF_SOFTFREE) {    // crossfade phase 6
+                HandleCrossfadeSoftFree();
+                return 0;
+            }
             if (wParam == IDT_UPDATE_TITLE) {
                 // Crossfade: keep the planned fade in line with the playlist,
                 // shuffle, repeat, tempo and the position (cheap if unchanged).
@@ -1973,21 +1981,27 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
                     // When a DAISY book is loaded, route transport to the
                     // book player instead of the audio file engine.
                     if (mediaaccess::DaisyIsActive()) { mediaaccess::DaisyPlayPause(); break; }
+                    // Crossfade phase 6: a short fade, local files only.
+                    if (GestureFadeBegin(IDM_PLAY_PLAYPAUSE) || GestureResume()) break;
                     PlayPause();
                     break;
                 case IDM_PLAY_PLAY:
                     if (mediaaccess::DaisyIsActive()) { mediaaccess::DaisyPlay(); break; }
+                    if (GestureResume()) break;
                     Play();
                     break;
                 case IDM_PLAY_PAUSE:
                     if (mediaaccess::DaisyIsActive()) { mediaaccess::DaisyPause(); break; }
+                    if (GestureFadeBegin(IDM_PLAY_PAUSE)) break;
                     Pause();
                     break;
                 case IDM_PLAY_STOP:
                     if (mediaaccess::DaisyIsActive()) { mediaaccess::DaisyStop(); break; }
+                    if (GestureFadeBegin(IDM_PLAY_STOP)) break;
                     Stop();
                     break;
                 case IDM_PLAY_PREV:
+                    if (GestureFadeBegin(IDM_PLAY_PREV)) break;
                     PrevTrack();
                     break;
                 case IDM_PLAY_NEXT:
@@ -1996,8 +2010,10 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
                     // it returns true once it has advanced (or announced end-of-
                     // results), so we skip the local-playlist NextTrack below.
                     if (YouTubeAutoplayNext()) break;
-                    // lParam==1 means don't auto-play (e.g., when auto-advance is disabled)
-                    NextTrack(lParam == 0);
+                    // lParam==1 means don't auto-play (e.g., when auto-advance is
+                    // disabled); 2 is the end of a track (autoplay, no gesture fade).
+                    if (lParam == 0 && GestureFadeBegin(IDM_PLAY_NEXT)) break;
+                    NextTrack(lParam != 1);
                     break;
                 case IDM_PLAY_SHUFFLE:
                     g_shuffle = !g_shuffle;
@@ -2521,6 +2537,8 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
             KillTimer(hwnd, IDT_YTDLP_EXIT_CAP);  // v2.72
             KillTimer(hwnd, IDT_SUBTITLE_FADE);   // cancel any subtitle duck fade
             KillTimer(hwnd, IDT_SONG_END);        // crossfade phase 1
+            KillTimer(hwnd, IDT_GESTURE_FADE);    // crossfade phase 6
+            KillTimer(hwnd, IDT_XF_SOFTFREE);
             // v2.32 — stop the device watcher BEFORE FreeBass so no late
             // PostMessage can hit a dead window / torn-down BASS state.
             StopAudioDeviceWatch();
